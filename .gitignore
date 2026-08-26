@@ -1,0 +1,4 @@
+node_modules/
+.uv-cache/
+__pycache__/
+*.py[cod]
