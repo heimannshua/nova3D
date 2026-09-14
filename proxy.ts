@@ -1,6 +1,6 @@
 import {NextResponse, type NextRequest} from 'next/server';
 import {allowedEmail, hasSupabaseConfig} from '@/lib/auth-config';
-import {interimSessionCookie, verifyInterimSession} from '@/lib/interim-auth';
+import {interimAuthEnabled, interimSessionCookie, verifyInterimSession} from '@/lib/interim-auth';
 import {createSupabaseProxyClient} from '@/lib/supabase/proxy';
 
 const publicPaths = ['/login', '/auth/callback', '/api/auth/interim', '/api/health'];
@@ -19,7 +19,8 @@ export async function proxy(request: NextRequest) {
   }
 
   const login = new URL('/login', request.url);
-  login.searchParams.set('error', hasSupabaseConfig() ? 'not_signed_in' : 'auth_not_configured');
+  const error = hasSupabaseConfig() ? 'not_signed_in' : interimAuthEnabled() ? 'interim_required' : 'auth_not_configured';
+  login.searchParams.set('error', error);
   return NextResponse.redirect(login);
 }
 

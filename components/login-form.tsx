@@ -8,6 +8,7 @@ const errorMessages: Record<string, string> = {
   auth_unavailable: 'Google sign-in is not configured yet. Use the interim password below.',
   auth_failed: 'Google sign-in could not be completed. Try again.',
   not_allowed: 'That Google account is not on the nova3D access list.',
+  interim_required: 'Enter the temporary preview password to continue.',
 };
 
 function getBrowserClient() {
