@@ -1,0 +1,64 @@
+/* App-level pieces that don't belong in base.css or shell.css: the Home action
+ * cards, and the print stylesheet.
+ *
+ * Everything else a feature file might reach for here — .stack, .row, .wrap,
+ * .grow, .gap-*, .sm, .caption, .muted, .mono, .measure, .rail-label, .ltr-run,
+ * .sr-only — already lives in base.css. Redefining any of them here would just
+ * be a second source of truth to drift out of sync, so this file adds only what
+ * base.css does not already have. */
+
+.home-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--space-4);
+}
+
+.home-action {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-surface);
+  border: 0;
+  border-inline-start: 3px solid var(--color-accent);
+  padding: var(--space-4);
+  text-decoration: none;
+  color: inherit;
+  min-height: var(--touch-min);
+  cursor: pointer;
+}
+.home-action:hover { background: var(--color-accent-tint); }
+.home-action:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+.home-action-title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: var(--text-h4);
+}
+
+/* A printed page is the record itself, not the app around it — the nav, topbar
+ * and action bar are navigation chrome and never belong in what gets kept. */
+@media print {
+  .app-nav,
+  .app-topbar,
+  .action-bar {
+    display: none;
+  }
+}
+
+/* A blocked action states its reason in the same place and the same treatment
+ * wherever it appears — inside an action bar, or standalone on a form. The
+ * scoped `.action-bar .blocker` rule handles the first; this handles the rest,
+ * so a disabled primary never reads differently depending on its container. */
+.blocker {
+  display: flex;
+  gap: 6px;
+  font-size: var(--text-body-sm);
+  color: var(--color-accent-2-strong);
+}
+
+/* Unread is the rarer ink, and it carries a glyph beside it — the colour is
+ * never the only signal. */
+.unread-marker {
+  color: var(--color-accent-2-strong);
+  font-weight: 600;
+}

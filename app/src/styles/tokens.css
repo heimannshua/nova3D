@@ -1,0 +1,184 @@
+/* nova3D design tokens.
+ *
+ * Inherits the Broadsheet design system (project 8bb862aa, _ds/broadsheet-…/styles.css)
+ * and adds the nova3D layer: dark mode, semantic status/job/gate roles, and the
+ * shell measurements from DESIGN.md.
+ *
+ * Rules that are load-bearing, not stylistic — see DESIGN.md "Colors":
+ *   --color-accent (#0088b0) measures 3.37:1 on paper. It is a FILL colour.
+ *   Any accent-coloured word at 15px or below takes --color-accent-strong.
+ *   Small text never takes an alpha fade; it takes --color-text-muted or a ramp step.
+ *   --color-process-yellow is a plate-treatment ink only. Never chrome, never text.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* — ground and ink — */
+  --color-bg: #f3f2f2;
+  --color-surface: #eae9e9;
+  --color-text: #201e1d;
+  --color-text-muted: #605d5d; /* floor is 6:1 — never an alpha fade */
+  --color-divider: rgba(32, 30, 29, 0.16);
+
+  /* — the two process accents — */
+  --color-accent: #0088b0;
+  --color-accent-strong: #006786; /* accent TEXT at body and label size */
+  --color-accent-tint: #e9f8ff;
+  --color-accent-2: #d6006c;
+  --color-accent-2-strong: #aa0b56;
+  --color-accent-2-tint: #fff1f4;
+
+  /* — the third process ink: plate treatments only — */
+  --color-process-yellow: #edbb00;
+
+  /* — neutral ramp — */
+  --color-neutral-100: #f8f4f4;
+  --color-neutral-200: #eae7e7;
+  --color-neutral-300: #d7d3d3;
+  --color-neutral-400: #bab6b6;
+  --color-neutral-500: #9b9797;
+  --color-neutral-600: #7d7979;
+  --color-neutral-700: #605d5d;
+  --color-neutral-800: #444141;
+  --color-neutral-900: #2d2b2b;
+
+  /* — accent ramps, for hover/pressed/tint states — */
+  --color-accent-100: #e9f8ff;
+  --color-accent-200: #cbeeff;
+  --color-accent-300: #99e0ff;
+  --color-accent-400: #62c5ee;
+  --color-accent-500: #38a6cf;
+  --color-accent-600: #1186ac;
+  --color-accent-700: #006786;
+  --color-accent-800: #004961;
+  --color-accent-900: #0a303e;
+  --color-accent-2-100: #fff1f4;
+  --color-accent-2-200: #ffdee6;
+  --color-accent-2-300: #ffc0d0;
+  --color-accent-2-400: #ff90b1;
+  --color-accent-2-500: #ff458e;
+  --color-accent-2-600: #d82071;
+  --color-accent-2-700: #aa0b56;
+  --color-accent-2-800: #790e3d;
+  --color-accent-2-900: #4b1528;
+
+  /* — semantic: Detail Status. Glyph and word carry the meaning; colour is third. — */
+  --status-sourced: var(--color-text);
+  --status-inferred: var(--color-neutral-700);
+  --status-disputed: var(--color-accent-2-strong);
+  --status-unknown: var(--color-neutral-800);
+  --status-user-added: var(--color-accent-strong);
+
+  /* — semantic: Job and Print state — */
+  --state-running: var(--color-accent-strong);
+  --state-waiting: var(--color-neutral-700);
+  --state-completed: var(--color-text);
+  --state-failed: var(--color-accent-2-strong);
+  --state-cancelled: var(--color-neutral-700);
+
+  /* — semantic: approval gates and connectivity — */
+  --gate-open: var(--color-accent);
+  --gate-blocked: var(--color-accent-2-strong);
+  --offline: var(--color-neutral-800);
+
+  /* — type — */
+  --font-heading: 'Source Serif 4', Georgia, serif;
+  --font-body: 'Source Serif 4', Georgia, serif;
+  --font-mono: ui-monospace, Menlo, Consolas, monospace;
+  --font-heading-weight: 600;
+
+  --text-display: 68px;
+  --text-plate: 48px;
+  --text-h1: 42px;
+  --text-h2: 32px;
+  --text-h3: 25px;
+  --text-h4: 20px;
+  --text-body-lg: 15px;
+  --text-body: 14px;
+  --text-body-sm: 13px;
+  --text-caption: 12px; /* the floor. Nothing below it, ever. */
+
+  /* — spacing. Scale is 5/10/15/20/30/40. Do not tighten. — */
+  --space-1: 5px;
+  --space-2: 10px;
+  --space-3: 15px;
+  --space-4: 20px;
+  --space-6: 30px;
+  --space-8: 40px;
+
+  /* — shape. Squares, not pills. — */
+  --radius-sm: 1px;
+  --radius-md: 2px;
+  --radius-lg: 4px;
+
+  /* — elevation. Almost flat. — */
+  --shadow-sm: 0 1px 2px rgba(45, 43, 43, 0.14);
+  --shadow-md: 0 3px 10px rgba(45, 43, 43, 0.16);
+  --shadow-lg: 0 12px 32px rgba(45, 43, 43, 0.22);
+
+  /* — shell measurements, from DESIGN.md "Layout & Spacing" — */
+  --shell-header: 44px;
+  --shell-stage-rail: 96px;
+  --shell-panel: 352px;
+  --shell-inspector: 328px;
+  --shell-measure: 64ch;
+  --shell-aside: 320px;
+  --touch-min: 44px;
+  --touch-gate: 48px;
+}
+
+/* Dark is a manual choice in Account Settings (S-08), never a media query —
+ * DESIGN.md: "Light is the default. Dark is a manual choice."
+ * Every status distinction above must survive the inversion. */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #1a1918;
+  --color-surface: #2d2b2b;
+  --color-text: #f3f2f2;
+  --color-text-muted: #bab6b6;
+  --color-divider: rgba(243, 242, 242, 0.2);
+
+  --color-accent: #62c5ee;
+  --color-accent-strong: #99e0ff;
+  --color-accent-tint: #0a303e;
+  --color-accent-2: #ff90b1;
+  --color-accent-2-strong: #ffc0d0;
+  --color-accent-2-tint: #3a2530;
+
+  --color-neutral-100: #2d2b2b;
+  --color-neutral-200: #2d2b2b;
+  --color-neutral-300: #444141;
+  --color-neutral-400: #605d5d;
+  --color-neutral-500: #7d7979;
+  --color-neutral-600: #9b9797;
+  --color-neutral-700: #bab6b6;
+  --color-neutral-800: #d7d3d3;
+  --color-neutral-900: #f8f4f4;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 3px 10px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.62);
+}
+
+/* Text enlargement (S-08). Scales the type scale, not the spacing scale —
+ * the spacing scale is fixed by DESIGN.md. */
+[data-text-size='large'] {
+  --text-body-lg: 17px;
+  --text-body: 16px;
+  --text-body-sm: 15px;
+  --text-caption: 13px;
+  --text-h3: 28px;
+  --text-h4: 22px;
+}
+
+/* High contrast (S-08). Drops the muted step onto full ink and hardens dividers. */
+[data-contrast='high'] {
+  --color-text-muted: var(--color-text);
+  --color-divider: currentColor;
+  --color-accent-strong: #004961;
+}
+[data-contrast='high'][data-theme='dark'] {
+  --color-accent-strong: #cbeeff;
+}

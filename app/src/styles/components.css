@@ -1,0 +1,413 @@
+/* ══ Inherited from Broadsheet ══════════════════════════════════════════ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-body);
+  line-height: 1.2;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid transparent;
+  padding: var(--space-2) calc(var(--space-3) * 1.2);
+  border-radius: var(--radius-md);
+  min-height: var(--touch-min); /* 44px everywhere — NFR-18 */
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { background: var(--color-accent); color: var(--color-bg); }
+.btn-primary:hover:not(:disabled) { background: var(--color-accent-600); }
+.btn-primary:active:not(:disabled) { background: var(--color-accent-700); }
+.btn-secondary { border-color: var(--color-divider); }
+.btn-secondary:hover:not(:disabled) { background: var(--color-neutral-200); }
+.btn-ghost { color: var(--color-accent-strong); padding-inline: var(--space-1); }
+.btn-ghost:hover:not(:disabled) { background: var(--color-accent-100); }
+.btn-danger { border-color: var(--color-accent-2-strong); color: var(--color-accent-2-strong); }
+.btn-danger:hover:not(:disabled) { background: var(--color-accent-2-tint); }
+.btn-block { width: 100%; }
+.btn-gate { min-height: var(--touch-gate); } /* 48px on a gate */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--text-caption);
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+}
+.tag-accent { background: var(--color-accent-100); color: var(--color-accent-800); }
+.tag-accent-2 { background: var(--color-accent-2-100); color: var(--color-accent-2-800); }
+.tag-neutral { background: var(--color-neutral-100); color: var(--color-neutral-800); }
+.tag-outline { border: 1px solid var(--color-accent); color: var(--color-accent-strong); }
+
+.field > label {
+  display: block;
+  font-size: var(--text-caption);
+  margin-bottom: var(--space-1);
+  color: var(--color-text-muted);
+}
+.input {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: var(--text-body-lg);
+  color: var(--color-text);
+  caret-color: var(--color-accent);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+.input::placeholder { color: var(--color-text-muted); opacity: 1; }
+.input:hover { border-color: var(--color-neutral-500); }
+.input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
+textarea.input { min-height: 120px; resize: vertical; line-height: 1.55; }
+
+/* Radio cards — the step-screen choice primitive. Body-lg inside the card. */
+.radio-card {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  align-items: flex-start;
+  position: relative;
+}
+.radio-card:hover { border-color: var(--color-accent); }
+.radio-card[data-checked='true'] {
+  border-color: var(--color-accent);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+.radio-card input { position: absolute; opacity: 0; width: 0; height: 0; }
+.radio-card .dot {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin-top: 4px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-neutral-500);
+}
+.radio-card[data-checked='true'] .dot {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  box-shadow: inset 0 0 0 4px var(--color-bg);
+}
+.radio-card:has(input:focus-visible) { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.radio-card-title { font-family: var(--font-heading); font-weight: 600; font-size: var(--text-body-lg); }
+
+.seg { display: inline-flex; border: 1px solid var(--color-divider); border-radius: var(--radius-md); overflow: hidden; }
+.seg-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: var(--text-body-sm);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font-family: inherit;
+  min-height: 36px;
+}
+.seg-opt + .seg-opt { border-inline-start: 1px solid var(--color-divider); }
+.seg-opt[aria-pressed='true'] { background: var(--color-accent); color: var(--color-bg); }
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.card-kicker {
+  font-size: var(--text-caption);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent-strong);
+}
+.card-title { font-family: var(--font-heading); font-weight: 600; font-size: 17px; line-height: 1.2; }
+.card-meta { display: flex; align-items: center; gap: 6px; font-size: var(--text-caption); color: var(--color-text-muted); flex-wrap: wrap; }
+
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-body); }
+.table th {
+  text-align: start;
+  font-size: var(--text-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-divider);
+  font-weight: 600;
+}
+.table td { padding: var(--space-2); border-bottom: 1px solid var(--color-divider); vertical-align: top; }
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(45, 43, 43, 0.5);
+  z-index: 40;
+}
+.dialog {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+.dialog-title { font-family: var(--font-heading); font-weight: 600; font-size: var(--text-h4); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); flex-wrap: wrap; }
+
+/* Newsprint dot screen — interface imagery, and every placeholder viewport.
+ * No SVG in this scaffold pretends to be a reconstruction. */
+.halftone { position: relative; overflow: hidden; filter: grayscale(0.35) contrast(1.15); }
+.halftone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.22) 30%, transparent 32%);
+  background-size: 3px 3px;
+  mix-blend-mode: multiply;
+}
+
+/* ══ nova3D ═════════════════════════════════════════════════════════════ */
+
+/* — plate-mark — the wordmark, the three Home numerals, the Version stamp.
+ * Nowhere else: never a status, never a gate, never a control label.
+ * Carries its own paper patch, because process inks multiply and vanish on ink. */
+.plate-mark {
+  position: relative;
+  width: fit-content;
+  line-height: 0.9;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  background: #f3f2f2;
+  padding: 0.12em;
+  margin: -0.12em;
+  color: #201e1d;
+}
+.plate-mark .paper {
+  color: #f3f2f2;
+  text-shadow: 0.036em 0.025em 0 #f3f2f2, -0.031em -0.023em 0 #f3f2f2;
+}
+.plate-mark .plate { position: absolute; inset: 0.12em; mix-blend-mode: multiply; }
+.plate-mark .plate-c { color: #0088b0; }
+.plate-mark .plate-m { color: #d6006c; transform: translate(0.036em, 0.025em); }
+.plate-mark .plate-y { color: #edbb00; transform: translate(-0.031em, -0.023em); }
+/* Flat single-colour fallback where plate fringes would cost contrast. */
+@media (forced-colors: active), (prefers-contrast: more) {
+  .plate-mark { background: none; padding: 0; margin: 0; color: var(--color-text); }
+  .plate-mark .paper { color: var(--color-text); text-shadow: none; }
+  .plate-mark .plate { display: none; }
+}
+[data-contrast='high'] .plate-mark { background: none; padding: 0; margin: 0; color: var(--color-text); }
+[data-contrast='high'] .plate-mark .paper { color: var(--color-text); text-shadow: none; }
+[data-contrast='high'] .plate-mark .plate { display: none; }
+
+/* — status-token — a glyph, a word, and only then a colour. */
+.status-token {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--text-body-sm);
+  white-space: nowrap;
+}
+.status-token .glyph { font-size: 1em; line-height: 1; }
+.status-token[data-status='sourced'] { color: var(--status-sourced); }
+.status-token[data-status='inferred'] { color: var(--status-inferred); }
+.status-token[data-status='disputed'] { color: var(--status-disputed); }
+.status-token[data-status='unknown'] { color: var(--status-unknown); }
+.status-token[data-status='user-added'] { color: var(--status-user-added); }
+
+/* — step-bar — countable steps, never a continuous bar. */
+.step-bar { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; padding: var(--space-2) 0; }
+.step-bar .step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-body-sm);
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: inherit;
+  color: var(--color-text-muted);
+  cursor: default;
+}
+.step-bar .step[data-state='passed'] { background: var(--color-neutral-300); color: var(--color-text); cursor: pointer; }
+.step-bar .step[data-state='current'] { background: var(--color-accent); color: var(--color-bg); font-weight: 600; }
+.step-bar .step[data-state='ahead'] { border-color: var(--color-divider); color: var(--color-neutral-700); }
+.step-bar .step[data-state='locked'] { border: 1px dashed var(--color-neutral-500); color: var(--color-neutral-700); }
+.step-bar .connector { width: 14px; height: 1px; background: var(--color-divider); flex: none; }
+
+/* — step-blocks — five to seven discrete blocks. Countable as well as coloured.
+ * An indeterminate stage shows the word "working" and no blocks at all. */
+.step-blocks { display: inline-flex; gap: 3px; }
+.step-blocks i { display: block; width: 16px; height: 8px; background: var(--color-neutral-300); border-radius: var(--radius-sm); }
+.step-blocks i[data-on='true'] { background: var(--color-accent); }
+
+/* — action-bar — exactly one primary action, with its consequence beside it. */
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-divider);
+  flex-wrap: wrap;
+}
+.action-bar .consequence { flex: 1; min-width: 200px; font-size: var(--text-body-sm); color: var(--color-text-muted); }
+.action-bar .blocker {
+  width: 100%;
+  order: -1;
+  display: flex;
+  gap: 6px;
+  font-size: var(--text-body-sm);
+  color: var(--color-accent-2-strong);
+}
+
+/* — gate-panel — Plan Approval and Model Approval. Never on the same screen. */
+.gate-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border-inline-start: 3px solid var(--gate-open);
+}
+.gate-panel[data-blocked='true'] { border-inline-start-color: var(--gate-blocked); }
+.gate-panel .version-stamp { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+.gate-not-mean {
+  background: var(--color-accent-tint);
+  border-inline-start: 3px solid var(--color-accent);
+  padding: var(--space-3);
+  font-size: var(--text-body-sm);
+}
+.gate-withdrawn {
+  background: var(--color-accent-2-tint);
+  border-inline-start: 3px solid var(--color-accent-2);
+  padding: var(--space-3);
+  font-size: var(--text-body-sm);
+}
+/* Reject sits at equal visual weight to approve. */
+.gate-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.gate-actions .btn { flex: 1; min-width: 200px; }
+
+/* — job-strip / print-job-strip — */
+.job-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border-inline-start: 3px solid var(--color-neutral-400);
+}
+.job-strip[data-state='running'] { border-inline-start-color: var(--state-running); }
+.job-strip[data-state='printing'] { border-inline-start-color: var(--state-running); }
+.job-strip[data-state='failed'] { border-inline-start-color: var(--state-failed); }
+.job-strip[data-state='completed'] { border-inline-start-color: var(--state-completed); }
+.job-strip[data-state='finished'] { border-inline-start-color: var(--state-completed); }
+.job-state { display: inline-flex; align-items: baseline; gap: 6px; font-size: var(--text-body-sm); font-weight: 600; }
+.job-state[data-state='running'],
+.job-state[data-state='printing'] { color: var(--state-running); }
+.job-state[data-state='waiting'],
+.job-state[data-state='queued'] { color: var(--state-waiting); }
+.job-state[data-state='completed'],
+.job-state[data-state='finished'] { color: var(--state-completed); }
+.job-state[data-state='failed'] { color: var(--state-failed); }
+.job-state[data-state='cancelled'],
+.job-state[data-state='stopped'] { color: var(--state-cancelled); }
+
+/* — evidence-row — */
+.evidence-row {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--color-divider);
+  align-items: flex-start;
+  width: 100%;
+  text-align: start;
+  background: none;
+  border-inline: 0;
+  border-top: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.evidence-row:hover { background: var(--color-neutral-100); }
+.evidence-row[aria-current='true'] { box-shadow: inset 3px 0 0 var(--color-accent); }
+
+/* — source-reader — three separate blocks, never one mixed paragraph. */
+.source-reader { display: flex; flex-direction: column; gap: var(--space-3); }
+.source-original {
+  font-size: calc(var(--text-body-lg) * 1.15); /* 1.15× for equal apparent weight */
+  line-height: 1.7;
+  padding: var(--space-3);
+  background: var(--color-surface);
+}
+.source-translation { font-size: var(--text-body); }
+.source-explanation { font-size: var(--text-body); font-style: italic; color: var(--color-text-muted); }
+.source-citation { font-size: var(--text-caption); font-family: var(--font-mono); color: var(--color-text-muted); }
+
+/* — printer-control — Pause/Resume/Stop at 44px desktop, 48px phone. */
+.printer-control { display: flex; flex-direction: column; gap: var(--space-3); }
+.printer-control .controls { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.printer-control .controls .btn { min-height: var(--touch-min); min-width: 104px; }
+/* The dashed edge marks a stated absence — never a decorative boundary. */
+.stated-absence {
+  border: 1px dashed var(--color-neutral-500);
+  padding: var(--space-3);
+  font-size: var(--text-body-sm);
+  color: var(--color-text-muted);
+}
+
+/* — problem-alert — four labelled blocks and three real exits. */
+.problem-alert {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-accent-2-tint);
+  border-inline-start: 3px solid var(--color-accent-2);
+}
+.problem-alert .blocks { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.problem-alert .can-be-wrong { font-weight: 600; font-size: var(--text-body); }
+.problem-alert .exits { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.problem-alert .exits .btn { min-height: var(--touch-gate); flex: 1; min-width: 170px; }
+
+/* — frames the camera acted on. Descriptive captions, never bare images. — */
+.frame-evidence { display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.frame-evidence figure { display: flex; flex-direction: column; gap: var(--space-1); }
+.frame-evidence .plate { aspect-ratio: 4 / 3; background: var(--color-neutral-300); display: grid; place-items: center; }
+.frame-evidence figcaption { font-size: var(--text-caption); color: var(--color-text-muted); }
+
+/* — a viewport that is honest about being a placeholder — */
+.viewport-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  background: var(--color-neutral-200);
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+/* — notice: a tinted block always carries a 3px edge or a leading glyph — */
+.notice { padding: var(--space-3); font-size: var(--text-body-sm); border-inline-start: 3px solid var(--color-neutral-500); background: var(--color-neutral-100); }
+.notice-accent { background: var(--color-accent-tint); border-inline-start-color: var(--color-accent); }
+.notice-warn { background: var(--color-accent-2-tint); border-inline-start-color: var(--color-accent-2); color: var(--color-accent-2-strong); }

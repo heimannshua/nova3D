@@ -1,0 +1,265 @@
+/* Application frame and the two content shells.
+ *
+ * One responsive application, not two builds. Phone is the same order, stacked,
+ * with 44px targets and 48px on a gate (NFR-16, NFR-18). */
+
+.skip-link {
+  position: absolute;
+  inset-inline-start: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+.skip-link:focus-visible { inset-inline-start: 0; }
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* — top bar — */
+.app-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 56px;
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--color-divider);
+  background: var(--color-bg);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex-wrap: wrap;
+}
+.app-brand { text-decoration: none; display: flex; align-items: center; padding: var(--space-1) 0; }
+.app-topbar .btn { min-height: 40px; }
+.app-account { display: flex; align-items: center; gap: var(--space-2); }
+.app-nav-toggle { display: none; }
+
+.app-body { display: flex; flex: 1; min-height: 0; align-items: stretch; }
+
+/* — side nav — */
+.app-nav {
+  width: 224px;
+  flex: none;
+  border-inline-end: 1px solid var(--color-divider);
+  padding: var(--space-3) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 56px;
+  align-self: flex-start;
+  max-height: calc(100vh - 56px);
+  overflow: auto;
+}
+.app-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2);
+  min-height: var(--touch-min);
+  text-decoration: none;
+  color: var(--color-text);
+  border-inline-start: 3px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--text-body);
+}
+.app-nav-item:hover { background: var(--color-neutral-200); }
+.app-nav-item[aria-current='page'] {
+  border-inline-start-color: var(--color-accent);
+  background: var(--color-accent-tint);
+  font-weight: 600;
+}
+.app-nav-badge {
+  min-width: 22px;
+  padding: 1px 6px;
+  text-align: center;
+  font-size: var(--text-caption);
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border-radius: var(--radius-md);
+}
+.app-nav-sep { height: 1px; background: var(--color-divider); margin: var(--space-2) var(--space-1); }
+
+.app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.app-main:focus { outline: none; }
+
+/* — page chrome shared by most routes — */
+.page { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); flex: 1; min-height: 0; }
+.page-wide { max-width: 1100px; }
+.page-header { display: flex; gap: var(--space-3); align-items: flex-start; flex-wrap: wrap; }
+.page-title { font-size: var(--text-h2); margin: 0; line-height: 1.12; }
+.breadcrumbs { display: flex; gap: var(--space-2); flex-wrap: wrap; font-size: var(--text-body-sm); }
+.breadcrumbs a { color: var(--color-accent-strong); }
+.breadcrumbs span[aria-hidden='true'] { color: var(--color-text-muted); }
+
+/* — step shell — */
+.step-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.step-shell-steps { padding: 0 var(--space-4); }
+.step-shell-body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--space-4);
+  display: flex;
+  gap: var(--space-6);
+  align-items: flex-start;
+}
+.step-shell-column { flex: 1; min-width: 0; max-width: var(--shell-measure); display: flex; flex-direction: column; gap: var(--space-4); }
+.step-shell-aside { width: var(--shell-aside); flex: none; display: flex; flex-direction: column; gap: var(--space-3); }
+.question { font-size: var(--text-h3); font-family: var(--font-heading); font-weight: 600; line-height: 1.12; margin: 0; }
+
+/* — workspace shell — */
+.workspace-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.workspace-body { flex: 1; display: flex; min-height: 0; }
+.stage-rail {
+  width: var(--shell-stage-rail);
+  flex: none;
+  border-inline-end: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  padding: var(--space-3) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.stage-rail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  background: none;
+  border: 0;
+  border-inline-start: 3px solid transparent;
+  padding: var(--space-2) var(--space-1);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  min-height: var(--touch-min);
+  border-radius: var(--radius-md);
+}
+.stage-rail-item:hover:not(:disabled) { background: var(--color-neutral-200); }
+.stage-rail-item[aria-current='step'] { background: var(--color-accent-tint); border-inline-start-color: var(--color-accent); font-weight: 600; }
+.stage-rail-item:disabled { opacity: 0.45; cursor: not-allowed; }
+.stage-glyph { font-size: 18px; line-height: 1; }
+.stage-label { text-align: center; line-height: 1.2; }
+
+.workspace-panel {
+  width: var(--shell-panel);
+  flex: none;
+  border-inline-end: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.workspace-panel-head { padding: var(--space-3) var(--space-3) 0; }
+.workspace-panel-body { flex: 1; overflow: auto; padding: var(--space-3); }
+.workspace-panel-foot { flex: none; padding: var(--space-3); border-top: 1px solid var(--color-divider); }
+
+.workspace-viewport { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: auto; }
+
+.workspace-inspector {
+  width: var(--shell-inspector);
+  flex: none;
+  border-inline-start: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.workspace-tabs { display: flex; border-bottom: 1px solid var(--color-divider); flex: none; }
+.workspace-tabs button {
+  flex: 1;
+  padding: var(--space-2);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  font-size: var(--text-body-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  min-height: var(--touch-min);
+}
+.workspace-tabs button[aria-selected='true'] { color: var(--color-text); border-bottom-color: var(--color-accent); font-weight: 600; }
+.workspace-inspector-body { flex: 1; overflow: auto; padding: var(--space-3); }
+.workspace-status-strip {
+  flex: none;
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--color-divider);
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+
+/* — the access screens: a narrow centred sheet. A gate, not a funnel. — */
+.gate-sheet {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6) var(--space-4);
+}
+.gate-sheet-inner { width: min(460px, 100%); display: flex; flex-direction: column; gap: var(--space-4); }
+
+/* — lists — */
+.list { display: flex; flex-direction: column; }
+.list-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--color-divider);
+  flex-wrap: wrap;
+}
+.list-row-link {
+  text-decoration: none;
+  color: inherit;
+  border-inline-start: 3px solid transparent;
+}
+.list-row-link:hover { background: var(--color-neutral-100); border-inline-start-color: var(--color-accent); }
+
+.cards { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+
+/* — responsive: same order, stacked — */
+@media (max-width: 860px) {
+  .app-nav-toggle { display: inline-flex; }
+  .app-account .caption { display: none; }
+  .app-nav {
+    position: fixed;
+    inset-block: 56px 0;
+    inset-inline-start: 0;
+    width: 260px;
+    background: var(--color-bg);
+    z-index: 30;
+    transform: translateX(-110%);
+    max-height: none;
+  }
+  [dir='rtl'] .app-nav { transform: translateX(110%); }
+  .app-nav[data-open='true'] { transform: none; box-shadow: var(--shadow-lg); }
+
+  .step-shell-body { flex-direction: column; padding: var(--space-3); }
+  .step-shell-aside { width: 100%; }
+
+  .workspace-body { flex-direction: column; overflow: auto; }
+  .stage-rail {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    border-inline-end: 0;
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .stage-rail-item { flex: 1; min-width: 84px; }
+  .workspace-panel,
+  .workspace-inspector {
+    width: 100%;
+    border-inline: 0;
+    border-top: 1px solid var(--color-divider);
+  }
+  .workspace-viewport { min-height: 320px; }
+
+  /* Touch targets go up, and a gate goes up further. */
+  .btn { min-height: var(--touch-min); }
+  .btn-gate,
+  .gate-actions .btn,
+  .problem-alert .exits .btn { min-height: var(--touch-gate); }
+}

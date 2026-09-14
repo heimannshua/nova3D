@@ -1,0 +1,28 @@
+{
+  "name": "nova3d-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "nova3D — browsable screen scaffold for all 80 first-version screens. Implementation base.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "check": "tsc --noEmit && vite-node scripts/flow-check.ts",
+    "flow": "vite-node scripts/flow-check.ts"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.10",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8",
+    "vite-node": "^6.0.0"
+  }
+}
