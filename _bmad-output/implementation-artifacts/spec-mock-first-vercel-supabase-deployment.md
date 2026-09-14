@@ -2,7 +2,7 @@
 title: 'Mock-first Vercel deployment with Supabase auth boundary'
 type: 'feature'
 created: '2026-09-14'
-status: 'in-review'
+status: 'done'
 review_loop_iteration: 0
 baseline_commit: '97c872fbe827c6fad5f5ddbcdf60fc70338992c7'
 context:
@@ -69,3 +69,32 @@ context:
 - `node scripts/test-env.mjs && node scripts/ci/check-repository.mjs` -- expected: safety and repository checks pass.
 - `npm start -- --hostname 127.0.0.1 --port <port>` plus curl `/` and `/api/health` -- expected: HTTP 200 responses.
 - `vercel --prod --yes` -- expected: deployment URL returned.
+
+## Suggested Review Order
+
+**Application entry and mock boundary**
+
+- Start with the dashboard composition and explicit mock-mode disclosure.
+  [`components/nova-dashboard.tsx:81`](../../components/nova-dashboard.tsx#L81)
+
+- Confirm the health contract exposes provider-free runtime state.
+  [`app/api/health/route.ts:10`](../../app/api/health/route.ts#L10)
+
+**Deployment safety**
+
+- Review environment validation before inspecting deployment configuration.
+  [`scripts/check-env.mjs:18`](../../scripts/check-env.mjs#L18)
+
+- Follow the health smoke test that exercises the built production server.
+  [`scripts/test-health.mjs:48`](../../scripts/test-health.mjs#L48)
+
+- Inspect CI’s application build and qualification checks.
+  [`.github/workflows/ci.yml:18`](../../.github/workflows/ci.yml#L18)
+
+**External integration boundary**
+
+- Review the token-gated restore operation and its no-replacement behavior.
+  [`scripts/restore-supabase.mjs:1`](../../scripts/restore-supabase.mjs#L1)
+
+- Review Google sign-in setup and the two initial email identities.
+  [`docs/auth-setup.md:1`](../../docs/auth-setup.md#L1)
