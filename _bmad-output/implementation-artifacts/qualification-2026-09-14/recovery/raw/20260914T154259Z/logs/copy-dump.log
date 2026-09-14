@@ -1,0 +1,5 @@
+$ docker cp /home/josh/.cache/nova3d-qualification-20260914/recovery/20260914T154259Z/database.dump nova3d-qualification-recovery-20260914-199321:/tmp/app.dump
+stdout:
+
+stderr:
+

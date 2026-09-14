@@ -1,0 +1,403 @@
+{
+  "3mf_roundtrip": {
+    "comparison": {
+      "max_bounds_delta_mm": 0.0,
+      "relative_volume_delta": 0.0
+    },
+    "status": "pass"
+  },
+  "assertions": {
+    "status": "pass",
+    "unexpected": []
+  },
+  "fixtures": {
+    "malformed_nonmanifold": {
+      "observed": {
+        "analytic_gate": {
+          "pass": null,
+          "reason": "malformed fixture; analytic threshold gate not applicable"
+        },
+        "body_count": 4,
+        "bounds_mm": [
+          20.0,
+          10.0,
+          10.0
+        ],
+        "expected": "fail",
+        "expected_match": true,
+        "file": "malformed_nonmanifold.stl",
+        "finite": true,
+        "mesh_gate": "fail",
+        "triangles": 24,
+        "vertices": 12,
+        "volume": false,
+        "volume_mm3": 2000.0,
+        "watertight": false,
+        "winding_consistent": true,
+        "zero_area_faces": 0
+      },
+      "spec": {
+        "analytic": {
+          "reason": "coincident internal face / non-manifold shared boundary"
+        },
+        "expected": "fail",
+        "file": "malformed_nonmanifold.stl"
+      }
+    },
+    "malformed_zero_area_face": {
+      "observed": {
+        "analytic_gate": {
+          "pass": null,
+          "reason": "malformed fixture; analytic threshold gate not applicable"
+        },
+        "body_count": 2,
+        "bounds_mm": [
+          40.0,
+          40.0,
+          40.0
+        ],
+        "expected": "fail",
+        "expected_match": true,
+        "file": "malformed_zero_area_face.stl",
+        "finite": true,
+        "mesh_gate": "fail",
+        "triangles": 13,
+        "vertices": 8,
+        "volume": false,
+        "volume_mm3": 64000.0,
+        "watertight": false,
+        "winding_consistent": true,
+        "zero_area_faces": 1
+      },
+      "spec": {
+        "analytic": {
+          "mutation_of": "positive_envelope.stl",
+          "reason": "deliberate zero-area triangle"
+        },
+        "expected": "fail",
+        "file": "malformed_zero_area_face.stl"
+      }
+    },
+    "negative_bounds_90_01mm": {
+      "observed": {
+        "analytic_gate": {
+          "limit_mm": 90.0,
+          "max_bounds_mm": 90.01000213623047,
+          "pass": false
+        },
+        "body_count": 1,
+        "bounds_mm": [
+          90.010002,
+          20.0,
+          20.0
+        ],
+        "expected": "fail",
+        "expected_match": true,
+        "file": "negative_bounds_90_01mm.stl",
+        "finite": true,
+        "mesh_gate": "pass",
+        "triangles": 12,
+        "vertices": 8,
+        "volume": true,
+        "volume_mm3": 36004.000854,
+        "watertight": true,
+        "winding_consistent": true,
+        "zero_area_faces": 0
+      },
+      "spec": {
+        "analytic": {
+          "bounds_mm": [
+            90.01,
+            20,
+            20
+          ]
+        },
+        "expected": "fail",
+        "file": "negative_bounds_90_01mm.stl"
+      }
+    },
+    "negative_thresholds": {
+      "observed": {
+        "analytic_gate": {
+          "limits_mm": {
+            "isolated_feature_mm": 0.8,
+            "mating_clearance_mm": 0.4,
+            "relief_mm": 0.6,
+            "wall_mm": 1.2
+          },
+          "observed": {
+            "isolated_feature_mm": 0.7899999618530273,
+            "mating_clearance_mm": 0.3900003433227539,
+            "relief_mm": 0.5900001525878906,
+            "wall_mm": 1.190000057220459
+          },
+          "pass": false
+        },
+        "body_count": 5,
+        "bounds_mm": [
+          23.59,
+          8.0,
+          8.0
+        ],
+        "expected": "fail",
+        "expected_match": true,
+        "file": "negative_thresholds.stl",
+        "finite": true,
+        "mesh_gate": "pass",
+        "triangles": 60,
+        "vertices": 40,
+        "volume": true,
+        "volume_mm3": 179.802294,
+        "watertight": true,
+        "winding_consistent": true,
+        "zero_area_faces": 0
+      },
+      "spec": {
+        "analytic": {
+          "component_layout": [
+            {
+              "extents": [
+                1.19,
+                8,
+                8
+              ],
+              "label": "wall",
+              "origin": [
+                2,
+                2,
+                0
+              ]
+            },
+            {
+              "extents": [
+                0.79,
+                0.79,
+                3
+              ],
+              "label": "isolated_feature",
+              "origin": [
+                6,
+                2,
+                0
+              ]
+            },
+            {
+              "extents": [
+                5,
+                5,
+                2
+              ],
+              "label": "mating_a",
+              "origin": [
+                10,
+                2,
+                0
+              ]
+            },
+            {
+              "extents": [
+                5,
+                5,
+                2
+              ],
+              "label": "mating_b",
+              "origin": [
+                15.39,
+                2,
+                0
+              ]
+            },
+            {
+              "extents": [
+                0.59,
+                3,
+                1
+              ],
+              "label": "relief",
+              "origin": [
+                25,
+                2,
+                0
+              ]
+            }
+          ],
+          "isolated_feature_mm": 0.79,
+          "mating_clearance_mm": 0.39,
+          "relief_mm": 0.59,
+          "wall_mm": 1.19
+        },
+        "expected": "fail",
+        "file": "negative_thresholds.stl"
+      }
+    },
+    "positive_envelope": {
+      "observed": {
+        "analytic_gate": {
+          "limit_mm": 90.0,
+          "max_bounds_mm": 40.0,
+          "pass": true
+        },
+        "body_count": 1,
+        "bounds_mm": [
+          40.0,
+          40.0,
+          40.0
+        ],
+        "expected": "pass",
+        "expected_match": true,
+        "file": "positive_envelope.stl",
+        "finite": true,
+        "mesh_gate": "pass",
+        "triangles": 12,
+        "vertices": 8,
+        "volume": true,
+        "volume_mm3": 64000.0,
+        "watertight": true,
+        "winding_consistent": true,
+        "zero_area_faces": 0
+      },
+      "spec": {
+        "analytic": {
+          "bounds_mm": [
+            40,
+            40,
+            40
+          ],
+          "volume_mm3": 64000
+        },
+        "expected": "pass",
+        "file": "positive_envelope.stl"
+      }
+    },
+    "positive_thresholds": {
+      "observed": {
+        "analytic_gate": {
+          "limits_mm": {
+            "isolated_feature_mm": 0.8,
+            "mating_clearance_mm": 0.4,
+            "relief_mm": 0.6,
+            "wall_mm": 1.2
+          },
+          "observed": {
+            "isolated_feature_mm": 0.7999999523162842,
+            "mating_clearance_mm": 0.39999961853027344,
+            "relief_mm": 0.6000003814697266,
+            "wall_mm": 1.2000000476837158
+          },
+          "pass": true
+        },
+        "body_count": 5,
+        "bounds_mm": [
+          23.6,
+          8.0,
+          8.0
+        ],
+        "expected": "pass",
+        "expected_match": true,
+        "file": "positive_thresholds.stl",
+        "finite": true,
+        "mesh_gate": "pass",
+        "triangles": 60,
+        "vertices": 40,
+        "volume": true,
+        "volume_mm3": 180.520005,
+        "watertight": true,
+        "winding_consistent": true,
+        "zero_area_faces": 0
+      },
+      "spec": {
+        "analytic": {
+          "component_layout": [
+            {
+              "extents": [
+                1.2,
+                8,
+                8
+              ],
+              "label": "wall",
+              "origin": [
+                2,
+                2,
+                0
+              ]
+            },
+            {
+              "extents": [
+                0.8,
+                0.8,
+                3
+              ],
+              "label": "isolated_feature",
+              "origin": [
+                6,
+                2,
+                0
+              ]
+            },
+            {
+              "extents": [
+                5,
+                5,
+                2
+              ],
+              "label": "mating_a",
+              "origin": [
+                10,
+                2,
+                0
+              ]
+            },
+            {
+              "extents": [
+                5,
+                5,
+                2
+              ],
+              "label": "mating_b",
+              "origin": [
+                15.4,
+                2,
+                0
+              ]
+            },
+            {
+              "extents": [
+                0.6,
+                3,
+                1
+              ],
+              "label": "relief",
+              "origin": [
+                25,
+                2,
+                0
+              ]
+            }
+          ],
+          "isolated_feature_mm": 0.8,
+          "mating_clearance_mm": 0.4,
+          "relief_mm": 0.6,
+          "wall_mm": 1.2
+        },
+        "expected": "pass",
+        "file": "positive_thresholds.stl"
+      }
+    }
+  },
+  "integrity_mutation": {
+    "mutated_mesh_gate": "fail",
+    "mutation": "append one zero-area triangle",
+    "source": "positive_envelope.stl",
+    "source_mesh_gate": "pass",
+    "status": "pass"
+  },
+  "stl_roundtrip": {
+    "max_bounds_delta_mm": 0.0,
+    "relative_volume_delta": 0.0,
+    "status": "pass"
+  },
+  "tool": {
+    "numpy": "2.3.3",
+    "trimesh": "4.8.3"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "schema": "backup-manifest.v1",
+  "database_dump_sha256": "bdd00c75cc1a37578d695772fefa4828bb98fb1de9269479918d53bd8b838545",
+  "object_snapshot_sha256": "552324f302429f4bb11f9f0ed9e59950c75856b2fcd0f478c7ec446f52c06281",
+  "created_at": "2026-09-14T15:38:03.252180+00:00"
+}

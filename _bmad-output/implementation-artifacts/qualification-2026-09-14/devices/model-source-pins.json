@@ -1,0 +1,50 @@
+{
+  "captured_at": "2026-09-14T15:37:08.180166+00:00",
+  "scope": "Source identifiers captured after feasibility review; weights not executed. README content hashed, not archived.",
+  "sources": [
+    {
+      "repository": "VAST-AI-Research/TripoSR",
+      "commit": "107cefdc244c39106fa830359024f6a2f1c78871",
+      "document_url": "https://raw.githubusercontent.com/VAST-AI-Research/TripoSR/107cefdc244c39106fa830359024f6a2f1c78871/README.md",
+      "document_sha256": "ed40f078c5e451c58eae716187e0128f0ce8575e467aab2440b4ed9c75e490b9"
+    },
+    {
+      "repository": "TencentARC/InstantMesh",
+      "commit": "08822c52fdc399b93ea00e4fa9e596344ed52ccc",
+      "document_url": "https://raw.githubusercontent.com/TencentARC/InstantMesh/08822c52fdc399b93ea00e4fa9e596344ed52ccc/README.md",
+      "document_sha256": "8d1a43457079e847ff9f1df0880eda4cace5ccb8bc540497684c251814004380"
+    },
+    {
+      "repository": "microsoft/TRELLIS",
+      "commit": "442aa1e1afb9014e80681d3bf604e8d728a86ee7",
+      "document_url": "https://raw.githubusercontent.com/microsoft/TRELLIS/442aa1e1afb9014e80681d3bf604e8d728a86ee7/README.md",
+      "document_sha256": "675a1bab7837d22972a776dec8e2a2eb01f9211bd40b4c57112a8335ccb9ec3e"
+    },
+    {
+      "repository": "Tencent-Hunyuan/Hunyuan3D-2",
+      "commit": "f8db63096c8282cb27354314d896feba5ba6ff8a",
+      "document_url": "https://raw.githubusercontent.com/Tencent-Hunyuan/Hunyuan3D-2/f8db63096c8282cb27354314d896feba5ba6ff8a/README.md",
+      "document_sha256": "edc4d006b977c8e28a0d3135ffc22b0dcad8e8dcb31fc9152c906eb21e29a886"
+    },
+    {
+      "model_repository": "stabilityai/TripoSR",
+      "revision": "5b521936b01fbe1890f6f9baed0254ab6351c04a",
+      "files_url": "https://huggingface.co/stabilityai/TripoSR/tree/5b521936b01fbe1890f6f9baed0254ab6351c04a"
+    },
+    {
+      "model_repository": "TencentARC/InstantMesh",
+      "revision": "b785b4ecfb6636ef34a08c748f96f6a5686244d0",
+      "files_url": "https://huggingface.co/TencentARC/InstantMesh/tree/b785b4ecfb6636ef34a08c748f96f6a5686244d0"
+    },
+    {
+      "model_repository": "microsoft/TRELLIS-image-large",
+      "revision": "25e0d31ffbebe4b5a97464dd851910efc3002d96",
+      "files_url": "https://huggingface.co/microsoft/TRELLIS-image-large/tree/25e0d31ffbebe4b5a97464dd851910efc3002d96"
+    },
+    {
+      "model_repository": "tencent/Hunyuan3D-2",
+      "revision": "9cd649ba6913f7a852e3286bad86bfa9a2d83dcf",
+      "files_url": "https://huggingface.co/tencent/Hunyuan3D-2/tree/9cd649ba6913f7a852e3286bad86bfa9a2d83dcf"
+    }
+  ]
+}

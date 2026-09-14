@@ -1,0 +1,9 @@
+# Ratification Reviewer Gate — Architecture Spine
+
+Verdict: **PASS WITH ONE ACTION**. R-1–R-11 are coherently reflected in the spine and SPEC companions. The record is unusually clear that decisions are adopted defaults rather than engineering evidence: every G-1–G-9 row remains marked NOT RUN, and the text does not claim a working CAD pipeline, provider account, offline model, device qualification, or recovery drill. The new offline revocation scope, direct-image recovery lineage, print profile, provider budget, source editions, deployment baseline, and visual baseline are cross-referenced consistently.
+
+## Finding
+
+1. **The research budget needs an explicit Job-wide aggregate invariant across retry attempts.** R-6 says the research Job maximum is $5 cumulative across retries, while the canonical billing hierarchy creates new `JobAttempt` records for user retries and reserves each external operation independently. The current text does not explicitly require the reservation transaction to aggregate all settled, outstanding, and ambiguous research operations under the parent Job when a new attempt is created. An implementation could enforce the $5 cap per attempt while still satisfying the per-operation and per-attempt language. Add to the Work and billing identity convention and R-6: `research_job_spend(JobID)` is the sum of all research-category reservations/settlements across every attempt, including unresolved reservations; creation of a retry must atomically reserve against the remaining Job cap, and a Job with an ambiguous operation remains blocked until reconciliation. Add a concurrent multi-attempt test to G-6. Path: `ARCHITECTURE-SPINE.md`, Consistency Conventions → Work and billing identity / R-6; `RATIFIED-DECISIONS.md`, R-6 and G-6.
+
+No other actionable holes or false verification claims were found. Existing G-1 through G-9 remain engineering acceptance gates, not ratification evidence.

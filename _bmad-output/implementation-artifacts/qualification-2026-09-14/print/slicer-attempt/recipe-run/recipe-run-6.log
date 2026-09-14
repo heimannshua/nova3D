@@ -1,0 +1,261 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile.bambustudio-cli
+#1 transferring dockerfile: 1.43kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/ubuntu@sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [1/4] FROM docker.io/library/ubuntu@sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254
+#4 resolve docker.io/library/ubuntu@sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254 done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 45B done
+#5 DONE 0.0s
+
+#6 [3/4] COPY bambu-cli-entrypoint.sh /usr/local/bin/bambu-cli-entrypoint
+#6 CACHED
+
+#7 [2/4] RUN apt-get update -qq && apt-get install -y --no-install-recommends     libgtk-3-0t64=3.24.41-4ubuntu1.3     libgl1=1.7.0-1build1     libegl1=1.7.0-1build1     libgstreamer1.0-0=1.24.2-1ubuntu0.1     libgstreamer-plugins-base1.0-0=1.24.2-1ubuntu0.4     libwebkit2gtk-4.1-0=2.52.6-0ubuntu0.24.04.1     libwayland-server0=1.22.0-2.1build1     libx11-6=2:1.8.7-1build1     libxext6=2:1.3.4-1build2     libxfixes3=1:6.0.0-2build1     libxi6=2:1.8.1-1build1     libxrandr2=2:1.5.2-2build1     libxcursor1=1:1.2.1-1build1     libxdamage1=1:1.1.6-1build1     libxcomposite1=1:0.4.5-1build3     libxinerama1=2:1.1.4-3build1     libxrender1=1:0.9.10-1.1build1     libxau6=1:1.0.9-1build6     libxdmcp6=1:1.1.3-0ubuntu6     libasound2t64=1.2.11-1ubuntu0.3     libfontconfig1=2.15.0-1.1ubuntu2     libfreetype6=2.13.2+dfsg-1ubuntu0.1     libdbus-1-3=1.14.10-4ubuntu4.1     libnss3=2:3.98-1ubuntu0.2     libxkbcommon0=1.6.0-1build1     libsecret-1-0=0.21.4-1build3     libcurl4t64=8.5.0-2ubuntu10.13     && rm -rf /var/lib/apt/lists/*
+#7 CACHED
+
+#8 [4/4] RUN chmod 0755 /usr/local/bin/bambu-cli-entrypoint
+#8 CACHED
+
+#9 exporting to image
+#9 exporting layers done
+#9 exporting manifest sha256:42bfa18372f5e92740e3a26daa04b51bbf54aec55f28fd23cab0053f6890ec08 done
+#9 exporting config sha256:e55c03938ee687db6ec50bbc22201d0d774d1056e36738e4989c140f8b1ec46f done
+#9 exporting attestation manifest sha256:4ae3e48b5ba61dacd3d63b6e360a04c24cbfc9f8c82d40ee17983dd6c7afadd0 done
+#9 exporting manifest list sha256:17d486cdb5131ef8e2235308247f65feaff686bd5a64906bf32685352f6971e7 done
+#9 naming to docker.io/nova3d/bambu-cli:v02.08.02.61-ubuntu24.04 done
+#9 unpacking to docker.io/nova3d/bambu-cli:v02.08.02.61-ubuntu24.04 done
+#9 DONE 0.0s
+filament.json: OK
+machine.json: OK
+process-effective.json: OK
+positive_envelope.stl: OK
+[2026-09-14 15:46:41.492573] [0x000072aadc64b540] [trace]   Initializing StaticPrintConfigs
+[2026-09-14 15:46:41.497741] [0x000072aadc64b540] [warning] cli mode, Current BambuStudio Version 02.08.02.61
+[2026-09-14 15:46:41.497753] [0x000072aadc64b540] [info]    Will start to read model file now, file count :1
+
+[2026-09-14 15:46:41.497762] [0x000072aadc64b540] [info]    allow_multicolor_oneplate 1, allow_rotations 1 skip_modified_gcodes 0 avoid_extrusion_cali_region 0 loaded_filament_ids size 0, clone_objects size 0, skip_useless_pick 0, allow_newer_file 0, allow_mix_temp 0
+[2026-09-14 15:46:41.497766] [0x000072aadc64b540] [info]    plate_to_slice=0, normative_check=1, use_first_fila_as_default=0
+[2026-09-14 15:46:41.497769] [0x000072aadc64b540] [info]    read model file:/probe/input/positive_envelope.stl
+
+[2026-09-14 15:46:41.498107] [0x000072aadc64b540] [info]    object positive_envelope.stl, id :5, from stl or other 3mf
+
+[2026-09-14 15:46:41.498118] [0x000072aadc64b540] [info]    run:before load settings, file count=2
+
+[2026-09-14 15:46:41.498122] [0x000072aadc64b540] [info]    operator():load setting file /probe/input/machine.json, with rule 1
+
+[2026-09-14 15:46:41.498411] [0x000072aadc64b540] [info]    no substitutions performed from file /probe/input/machine.json
+
+[2026-09-14 15:46:41.498429] [0x000072aadc64b540] [info]    loaded machine config /probe/input/machine.json, type Bambu Lab A1 mini 0.4 nozzle, name system, inherits Bambu Lab A1 mini 0.4 nozzle, printer_model_id 
+[2026-09-14 15:46:41.498434] [0x000072aadc64b540] [info]    operator():load setting file /probe/input/process-effective.json, with rule 1
+
+[2026-09-14 15:46:41.498724] [0x000072aadc64b540] [info]    no substitutions performed from file /probe/input/process-effective.json
+
+[2026-09-14 15:46:41.498735] [0x000072aadc64b540] [info]    loaded process config /probe/input/process-effective.json, type nova3D R-3 effective process override, name user, inherits 
+[2026-09-14 15:46:41.498756] [0x000072aadc64b540] [info]    operator():load setting file /probe/input/filament.json, with rule 1
+
+[2026-09-14 15:46:41.499036] [0x000072aadc64b540] [info]    no substitutions performed from file /probe/input/filament.json
+
+[2026-09-14 15:46:41.499043] [0x000072aadc64b540] [info]    loaded filament 1 from file /probe/input/filament.json, type system, name Bambu PLA Silk+ @BBL A1M, inherits 
+[2026-09-14 15:46:41.499046] [0x000072aadc64b540] [info]    current printer , new printer Bambu Lab A1 mini 0.4 nozzle, current process , new process nova3D R-3 effective process override
+[2026-09-14 15:46:41.499048] [0x000072aadc64b540] [info]    current printer inherits , new printer inherits Bambu Lab A1 mini 0.4 nozzle, current process inherits , new process inherits 
+[2026-09-14 15:46:41.499050] [0x000072aadc64b540] [info]    index 0, new print compatible printer Bambu Lab A1 mini 0.4 nozzle
+[2026-09-14 15:46:41.499053] [0x000072aadc64b540] [info]    new printer Bambu Lab A1 mini 0.4 nozzle, inherited from Bambu Lab A1 mini 0.4 nozzle, new process nova3D R-3 effective process override, inherited from  ,compatible 1
+[2026-09-14 15:46:41.499059] [0x000072aadc64b540] [info]    update printer config to newest, different size 0, different_settings: 
+[2026-09-14 15:46:41.499071] [0x000072aadc64b540] [info]    update_full_config: config keys count 108
+[2026-09-14 15:46:41.499124] [0x000072aadc64b540] [info]    load a new printer, update all the keys, different_settings: 
+[2026-09-14 15:46:41.499128] [0x000072aadc64b540] [info]    check printer cli safe params, current_printer_name , new_printer_name Bambu Lab A1 mini 0.4 nozzle, printer_model Bambu Lab A1 mini
+[2026-09-14 15:46:41.499131] [0x000072aadc64b540] [info]    line 3260 , will parse file /probe/data/extract/squashfs-root/resources/profiles/BBL/cli_config.json
+[2026-09-14 15:46:41.499363] [0x000072aadc64b540] [info]    set key machine_max_acceleration_travel  index 0, from 9000  to 6000
+[2026-09-14 15:46:41.499368] [0x000072aadc64b540] [info]    set key machine_max_acceleration_travel  index 1, from 9000  to 6000
+[2026-09-14 15:46:41.499371] [0x000072aadc64b540] [info]    set key machine_max_acceleration_x  index 0, from 20000  to 6000
+[2026-09-14 15:46:41.499373] [0x000072aadc64b540] [info]    set key machine_max_acceleration_x  index 1, from 20000  to 6000
+[2026-09-14 15:46:41.499375] [0x000072aadc64b540] [info]    set key machine_max_acceleration_y  index 0, from 20000  to 6000
+[2026-09-14 15:46:41.499379] [0x000072aadc64b540] [info]    set key machine_max_acceleration_y  index 1, from 20000  to 6000
+[2026-09-14 15:46:41.499418] [0x000072aadc64b540] [info]    update process config to newest, different size 0, different_settings: 
+[2026-09-14 15:46:41.499458] [0x000072aadc64b540] [info]    update_full_config: config keys count 188
+[2026-09-14 15:46:41.499535] [0x000072aadc64b540] [info]    load a new process, update all the keys, different_settings: 
+[2026-09-14 15:46:41.499551] [0x000072aadc64b540] [info]    update filament 1's config to newest, different size 0, name Bambu PLA Silk+ @BBL A1M, different_settings 
+[2026-09-14 15:46:41.499641] [0x000072aadc64b540] [warning] no filament colors found in projects
+[2026-09-14 15:46:41.499644] [0x000072aadc64b540] [info]    total 1 models, 0 objects
+
+[2026-09-14 15:46:41.500112] [0x000072aadc64b540] [info]    4160, remove_wrapping_detect 0, old value 0
+[2026-09-14 15:46:41.500159] [0x000072aadc64b540] [info]    translate_old 0, shrink_to_new_bed 0, old bed size {180, 180, 180}
+[2026-09-14 15:46:41.500164] [0x000072aadc64b540] [info]    reset_size:before size: plate_width 0, plate_depth 0, plate_height 0
+[2026-09-14 15:46:41.500166] [0x000072aadc64b540] [info]    reset_size:after size: plate_width 180, plate_depth 180, plate_height 180
+[2026-09-14 15:46:41.500172] [0x000072aadc64b540] [info]    set_pos_and_size: plate_id 0, before, origin {0,0,0}, plate_width 0, plate_depth 0, plate_height 0
+[2026-09-14 15:46:41.500186] [0x000072aadc64b540] [info]    set_pos_and_size: with_instance_move 0, after, origin {0,0,0}, plate_width 180, plate_depth 180, plate_height 180
+[2026-09-14 15:46:41.500195] [0x000072aadc64b540] [info]    update_slice_result_valid_state: plate 0 , update slice result from 0 to 0
+[2026-09-14 15:46:41.500208] [0x000072aadc64b540] [info]    set_pos_and_size: plate_id 1, before, origin {0,0,0}, plate_width 0, plate_depth 0, plate_height 0
+[2026-09-14 15:46:41.500213] [0x000072aadc64b540] [info]    set_pos_and_size: with_instance_move 0, after, origin {216,0,0}, plate_width 180, plate_depth 180, plate_height 180
+[2026-09-14 15:46:41.500215] [0x000072aadc64b540] [info]    update_slice_result_valid_state: plate 0 , update slice result from 0 to 0
+[2026-09-14 15:46:41.500224] [0x000072aadc64b540] [info]    will start transforms, commands count 0
+
+[2026-09-14 15:46:41.500227] [0x000072aadc64b540] [info]    finished model pre-process commands
+
+[2026-09-14 15:46:41.500230] [0x000072aadc64b540] [info]    before arrange, need_arrange=1, duplicate_count 0, filament_color_changed 0
+[2026-09-14 15:46:41.500303] [0x000072aadc64b540] [info]    Arrange full params: {"min_obj_distance":0,"accuracy":1.000000,"parallel":1,"allow_rotations":1,"do_final_align":1,"allow_multi_materials_on_same_plate":1,"avoid_extrusion_cali_region":0,"is_seq_print":0,"bed_shrink_x":0.000000,"bed_shrink_y":0.000000,"brim_skirt_distance":0.000000,"clearance_height_to_rod":25.000000,"clearance_height_to_lid":180.000000,"cleareance_radius":73.000000,"printable_height":180.000000,
+[2026-09-14 15:46:41.500307] [0x000072aadc64b540] [info]    arrange: items selected before arranging: 1
+[2026-09-14 15:46:41.500309] [0x000072aadc64b540] [info]    arrange: items unselected before arranging: 0
+[2026-09-14 15:46:41.500311] [0x000072aadc64b540] [info]    start 1 th arranging...
+[2026-09-14 15:46:41.501240] [0x000072aadc64b540] [info]    finished 1 th arranging...
+[2026-09-14 15:46:41.501266] [0x000072aadc64b540] [info]    update_slice_result_valid_state: plate 0 , update slice result from 0 to 0
+[2026-09-14 15:46:41.501276] [0x000072aadc64b540] [info]    rebuild_plates_after_arrangement:before rebuild, plates count 1, recycle_plates 1
+[2026-09-14 15:46:41.501283] [0x000072aadc64b540] [info]    update_slice_result_valid_state: plate 0 , update slice result from 0 to 0
+[2026-09-14 15:46:41.501292] [0x000072aadc64b540] [info]    add_instance: plate 0 , m_ready_for_slice changes to 1
+[2026-09-14 15:46:41.501298] [0x000072aadc64b540] [info]    rebuild_plates_after_arrangement:after rebuild, plates count 1
+[2026-09-14 15:46:41.501309] [0x000072aadc64b540] [info]    Need to slice for plate 0, total plate count 1 partplates!
+
+[2026-09-14 15:46:41.501324] [0x000072aadc64b540] [info]    Plate 1: pre_check 1, start
+[2026-09-14 15:46:41.501337] [0x000072aadc64b540] [info]    update_print_volume_state, print_volume {0, 0, 0} to {180, 180, 180}, got 1 printable istances
+[2026-09-14 15:46:41.501352] [0x000072aadc64b540] [info]    plate 1: load cached data success, go on.
+[2026-09-14 15:46:41.501564] [0x000072aadc64b540] [info]    apply, Line 1184: enter
+[2026-09-14 15:46:41.501576] [0x000072aadc64b540] [info]    apply, has_scarf_joint_seam:false
+[2026-09-14 15:46:41.501584] [0x000072aadc64b540] [info]    apply, has_scarf_joint_seam:false
+[2026-09-14 15:46:41.501926] [0x000072aadc64b540] [info]    apply, got print_diff 120, object_diff 15, region_diff 28, set status to APPLY_STATUS_CHANGED
+[2026-09-14 15:46:41.501979] [0x000072aadc64b540] [info]    apply 1508: found full_config_diff changed.
+[2026-09-14 15:46:41.502142] [0x000072aadc64b540] [info]    apply 1835: found print object changed.
+[2026-09-14 15:46:41.502151] [0x000072aadc64b540] [info]    apply, got new_changed_keys, size=1
+[2026-09-14 15:46:41.502156] [0x000072aadc64b540] [info]    apply, i=0, key=enable_prime_tower
+[2026-09-14 15:46:41.502213] [0x000072aadc64b540] [info]    apply 2121: finished,  this 0x563f21588760, m_modified_count 1, apply_status 1, m_support_used 0
+[2026-09-14 15:46:41.502225] [0x000072aadc64b540] [info]    set no_check to 0:
+[2026-09-14 15:46:41.502263] [0x000072aadc64b540] [info]    start Print::process for partplate 1
+
+[2026-09-14 15:46:41.502266] [0x000072aadc64b540] [info]    cli callback mgr started:  false
+
+[2026-09-14 15:46:41.502267] [0x000072aadc64b540] [info]    set print's callback to default_status_callback.
+[2026-09-14 15:46:41.502270] [0x000072aadc64b540] [info]    printer_model_string: Bambu Lab A1 mini, is_bbl_vendor_preset 1
+[2026-09-14 15:46:41.502320] [0x000072aadc64b540] [info]    process: this=0x563f21588760, enter, use_cache=0, object size=1
+[2026-09-14 15:46:41.502338] [0x000072aadc64b540] [info]    process: total object counts 1 in current print, need to slice 1
+[2026-09-14 15:46:41.502367] [0x000072aadc64b540] [info]    Starting the slicing process. Resident memory: 87MB; Shared memory: 73MB; Private memory: 14MB; Peak memory usage: 87MB
+[2026-09-14 15:46:41.502389] [0x000072aadc64b540] [info]    Slicing volumes... Resident memory: 87MB; Shared memory: 73MB; Private memory: 14MB; Peak memory usage: 87MB
+[2026-09-14 15:46:41.503716] [0x000072aadc64b540] [info]    Generating walls... Resident memory: 88MB; Shared memory: 73MB; Private memory: 15MB; Peak memory usage: 87MB
+[2026-09-14 15:46:41.509018] [0x000072aadc64b540] [info]    Detecting solid surfaces... Resident memory: 88MB; Shared memory: 73MB; Private memory: 15MB; Peak memory usage: 88MB
+[2026-09-14 15:46:41.509528] [0x000072aadc64b540] [info]    Preparing fill surfaces... Resident memory: 88MB; Shared memory: 74MB; Private memory: 15MB; Peak memory usage: 88MB
+[2026-09-14 15:46:41.509561] [0x000072aadc64b540] [info]    Discovering vertical shells... Resident memory: 88MB; Shared memory: 74MB; Private memory: 15MB; Peak memory usage: 88MB
+[2026-09-14 15:46:41.510126] [0x000072aadc64b540] [info]    Processing external surfaces... Resident memory: 89MB; Shared memory: 74MB; Private memory: 15MB; Peak memory usage: 88MB
+[2026-09-14 15:46:41.510322] [0x000072aadc64b540] [info]    Bridge over infill - Start Resident memory: 89MB; Shared memory: 74MB; Private memory: 15MB; Peak memory usage: 88MB
+[2026-09-14 15:46:41.511268] [0x000072aadc64b540] [info]    Bridge over infill - Directions and expanded surfaces computed Resident memory: 89MB; Shared memory: 74MB; Private memory: 15MB; Peak memory usage: 88MB
+[2026-09-14 15:46:41.511327] [0x000072aadc64b540] [info]    Bridge over infill - End Resident memory: 89MB; Shared memory: 74MB; Private memory: 15MB; Peak memory usage: 88MB
+[2026-09-14 15:46:41.517153] [0x000072aadc64b540] [warning] tree support default to organic support
+[2026-09-14 15:46:41.519634] [0x000072aadc64b540] [info]    max_cantilever_dist=0
+[2026-09-14 15:46:41.519742] [0x000072aadc64b540] [info]    is_support_necessary takes 0 secs.
+[2026-09-14 15:46:41.520308] [0x000072aadc64b540] [info]    update_filament_maps_to_config: filament maps changed after pre-slicing.
+[2026-09-14 15:46:41.520463] [0x000072aadc64b540] [info]    update_filament_maps_to_config, Line 2887:  extruder_count 1, extruder_volume_type_count 1
+[2026-09-14 15:46:41.524017] [0x000072aadc64b540] [info]    gcode path conflicts check takes 0 secs.
+[2026-09-14 15:46:41.524061] [0x000072aadc64b540] [info]    Slicing process finished. Resident memory: 91MB; Shared memory: 75MB; Private memory: 16MB; Peak memory usage: 91MB
+[2026-09-14 15:46:41.524073] [0x000072aadc64b540] [info]    print::process: first time_using_cache is 0 secs.
+[2026-09-14 15:46:41.524084] [0x000072aadc64b540] [info]    process finished, will export gcode temporily to /probe/output/plate_1.gcode
+
+[2026-09-14 15:46:41.524153] [0x000072aadc64b540] [info]    reset 1589: this=0x7ffd0a666cc0 reset finished
+[2026-09-14 15:46:41.524190] [0x000072aadc64b540] [info]    Will export G-code to plate_1.gcode soon
+[2026-09-14 15:46:41.524259] [0x000072aadc64b540] [info]    Exporting G-code... Resident memory: 91MB; Shared memory: 75MB; Private memory: 16MB; Peak memory usage: 91MB
+[2026-09-14 15:46:41.524326] [0x000072aadc64b540] [info]    reset 1589: this=0x7ffd0a666cc0 reset finished
+[2026-09-14 15:46:41.585703] [0x000072aadc64b540] [info]    post_process:  before process plate_1.gcode.tmp
+[2026-09-14 15:46:41.589779] [0x000072aadc64b540] [info]    post_process:  after process plate_1.gcode.tmp
+[2026-09-14 15:46:41.591833] [0x000072aadc64b540] [info]    rename_file from plate_1.gcode.tmp to plate_1.gcode successfully
+[2026-09-14 15:46:41.591868] [0x000072aadc64b540] [info]    Exporting G-code finished Resident memory: 105MB; Shared memory: 75MB; Private memory: 29MB; Peak memory usage: 104MB
+[2026-09-14 15:46:41.592358] [0x000072aadc64b540] [info]    export_gcode finished: time_using_cache update to 68 secs.
+[2026-09-14 15:46:41.592365] [0x000072aadc64b540] [info]    Slicing result exported to /probe/output/plate_1.gcode
+
+[2026-09-14 15:46:41.592371] [0x000072aadc64b540] [info]    update_slice_result_valid_state: plate 0 , update slice result from 0 to 1
+[2026-09-14 15:46:41.592387] [0x000072aadc64b540] [info]    ~PrintObject: this=0x563f21602490, m_shared_object 0
+[2026-09-14 15:46:41.593040] [0x000072aadc64b540] [info]    Plate 1: slice data released to free memory.
+[2026-09-14 15:46:41.593120] [0x000072aadc64b540] [info]    store_to_3mf_structure: plate 1 before load, width 0, height 0, size 0!
+[2026-09-14 15:46:41.593125] [0x000072aadc64b540] [info]    store_to_3mf_structure: plate 1 after load, width 0, height 0, size 0!
+[2026-09-14 15:46:41.593138] [0x000072aadc64b540] [info]    store_to_3mf_structure: plate 0, gcode_filename=plate_1.gcode, with_slice_info=1, slice_valid 1, object item count 1.
+[2026-09-14 15:46:41.593174] [0x000072aadc64b540] [info]    store_to_3mf_structure:stored 1 plates!
+[2026-09-14 15:46:41.593185] [0x000072aadc64b540] [info]    thumbnails stage: plate 1's thumbnail data is invalid, check the file  exist or not
+[2026-09-14 15:46:41.593188] [0x000072aadc64b540] [info]    thumbnails stage: plate 1's thumbnail file also not there, need to regenerate
+[2026-09-14 15:46:41.593190] [0x000072aadc64b540] [info]    thumbnails stage: plate 1's no_light_thumbnail_file  also not there, need to regenerate
+[2026-09-14 15:46:41.593192] [0x000072aadc64b540] [info]    thumbnails stage: plate 1's top_file  also not there, need to regenerate
+[2026-09-14 15:46:41.593198] [0x000072aadc64b540] [info]    opengl version 3.3.7
+[2026-09-14 15:46:41.593335] [0x000072aadc64b540] [error]   error_code 65544, description: Wayland: Failed to connect to display
+
+[2026-09-14 15:46:41.593344] [0x000072aadc64b540] [error]   glfwInit return error, code 65544
+
+[2026-09-14 15:46:41.593351] [0x000072aadc64b540] [info]    plate 1 bed type: Cool Plate, set from global
+[2026-09-14 15:46:41.593356] [0x000072aadc64b540] [info]    will export 3mf to /probe/output/result.3mf
+
+[2026-09-14 15:46:41.593369] [0x000072aadc64b540] [info]    _save_model_to_file:6449,before open zip writer, m_skip_static 0, m_save_gcode 1, m_use_loaded_id 1
+[2026-09-14 15:46:41.593386] [0x000072aadc64b540] [info]    _save_model_to_file:6477, before add _add_content_types_file_to_archive
+
+[2026-09-14 15:46:41.593422] [0x000072aadc64b540] [info]    _save_model_to_file:6491,before add thumbnails, count 0
+[2026-09-14 15:46:41.593426] [0x000072aadc64b540] [info]    _save_model_to_file:6492,top&&pick thumbnails, count 0
+[2026-09-14 15:46:41.593429] [0x000072aadc64b540] [info]    _save_model_to_file:6630,before add calibration thumbnails, count 0
+
+[2026-09-14 15:46:41.593431] [0x000072aadc64b540] [info]    _save_model_to_file:6652,before add calibration boundingbox, count 1
+
+[2026-09-14 15:46:41.593467] [0x000072aadc64b540] [info]    _save_model_to_file:6668, before add models
+
+[2026-09-14 15:46:41.593474] [0x000072aadc64b540] [info]    _add_model_file_to_archive:7153, filename result.3mf.tmp, m_split_model 1,  sub_model 0
+[2026-09-14 15:46:41.593491] [0x000072aadc64b540] [info]    bbs_3mf: save key= Application, value = BambuStudio-02.08.02.61
+[2026-09-14 15:46:41.593494] [0x000072aadc64b540] [info]    bbs_3mf: save key= BambuStudio:3mfVersion, value = 1
+[2026-09-14 15:46:41.593496] [0x000072aadc64b540] [info]    bbs_3mf: save key= Copyright, value = 
+[2026-09-14 15:46:41.593497] [0x000072aadc64b540] [info]    bbs_3mf: save key= CreationDate, value = 2026-09-14
+[2026-09-14 15:46:41.593499] [0x000072aadc64b540] [info]    bbs_3mf: save key= Description, value = 
+[2026-09-14 15:46:41.593500] [0x000072aadc64b540] [info]    bbs_3mf: save key= Designer, value = 
+[2026-09-14 15:46:41.593501] [0x000072aadc64b540] [info]    bbs_3mf: save key= DesignerCover, value = 
+[2026-09-14 15:46:41.593502] [0x000072aadc64b540] [info]    bbs_3mf: save key= DesignerUserId, value = 
+[2026-09-14 15:46:41.593503] [0x000072aadc64b540] [info]    bbs_3mf: save key= License, value = 
+[2026-09-14 15:46:41.593504] [0x000072aadc64b540] [info]    bbs_3mf: save key= ModificationDate, value = 2026-09-14
+[2026-09-14 15:46:41.593505] [0x000072aadc64b540] [info]    bbs_3mf: save key= Origin, value = 
+[2026-09-14 15:46:41.593506] [0x000072aadc64b540] [info]    bbs_3mf: save key= ProfileCover, value = 
+[2026-09-14 15:46:41.593507] [0x000072aadc64b540] [info]    bbs_3mf: save key= ProfileDescription, value = 
+[2026-09-14 15:46:41.593508] [0x000072aadc64b540] [info]    bbs_3mf: save key= ProfileTitle, value = 
+[2026-09-14 15:46:41.593509] [0x000072aadc64b540] [info]    bbs_3mf: save key= Title, value = 
+[2026-09-14 15:46:41.593560] [0x000072aadc64b540] [info]    _add_model_file_to_archive:7153, filename object_1.model, m_split_model 1,  sub_model 1
+[2026-09-14 15:46:41.593566] [0x000072aadc64b540] [info]    bbs_3mf: save key= BambuStudio:3mfVersion, value = 1
+[2026-09-14 15:46:41.593607] [0x000072aadc64b540] [info]    _save_model_to_file:6731, before add custom gcodes
+
+[2026-09-14 15:46:41.593615] [0x000072aadc64b540] [info]    _save_model_to_file:6742, before add project_settings
+
+[2026-09-14 15:46:41.593637] [0x000072aadc64b540] [info]    model 0x563f2153df00, id 3, backup_path empty, set to 15_46_41#16#3
+[2026-09-14 15:46:41.593646] [0x000072aadc64b540] [info]    create /3D/Objects in 15_46_41#16#3
+[2026-09-14 15:46:41.593733] [0x000072aadc64b540] [info]    create /Metadata in 15_46_41#16#3
+[2026-09-14 15:46:41.593746] [0x000072aadc64b540] [info]    create /lock.txt in 15_46_41#16#3
+[2026-09-14 15:46:41.594345] [0x000072aadc64b540] [info]    save_to_json:1573, saved config to _temp_1.config
+
+[2026-09-14 15:46:41.594928] [0x000072aadc64b540] [info]    _add_file_to_archive:6928, add file _temp_1.config to archive Metadata/project_settings.config
+
+[2026-09-14 15:46:41.594955] [0x000072aadc64b540] [info]    _save_model_to_file:6757, before add project embedded settings
+
+[2026-09-14 15:46:41.599845] [0x000072aadc64b540] [info]    operator():8937, store  plate_1.gcode to 3mf plate_1.gcode
+
+[2026-09-14 15:46:41.599929] [0x000072aadc64b540] [info]    _save_model_to_file:6832, before add sliced info to 3mf
+
+[2026-09-14 15:46:41.600002] [0x000072aadc64b540] [info]    _save_model_to_file:6864, before add auxiliary dir to 3mf
+
+[2026-09-14 15:46:41.600026] [0x000072aadc64b540] [info]    create missing sub_pathAuxiliaries
+[2026-09-14 15:46:41.600069] [0x000072aadc64b540] [info]    _save_model_to_file:6877, before add relation file to 3mf
+
+[2026-09-14 15:46:41.600092] [0x000072aadc64b540] [info]    _save_model_to_file:6899, finished exporting 3mf
+
+[2026-09-14 15:46:41.600114] [0x000072aadc64b540] [info]    Project exported to /probe/output/result.3mf
+
+[2026-09-14 15:46:41.600119] [0x000072aadc64b540] [info]    cli_callback_mgr_t::stop enter.
+[2026-09-14 15:46:41.600121] [0x000072aadc64b540] [info]    cli_callback_mgr_t::stop not started before, return directly.
+[2026-09-14 15:46:41.600122] [0x000072aadc64b540] [info]    run, Finished
+
+[2026-09-14 15:46:41.600140] [0x000072aadc64b540] [info]    record_exit_reson:586 Slicer_Info_Report: plate_id=0, return_code=0, error_message=Success., slice_time_s=0.091, pring_time_s=2149.6, filament_usage_g=23.2408
+
+[2026-09-14 15:46:41.600166] [0x000072aadc64b540] [info]    record_exit_reson:604, saved config to /probe/output/result.json
+
+[2026-09-14 15:46:41.600184] [0x000072aadc64b540] [info]    update_slice_result_valid_state: plate 0 , update slice result from 1 to 0
+[2026-09-14 15:46:41.600188] [0x000072aadc64b540] [info]    update_slice_result_valid_state: plate 0 , update slice result from 0 to 0
+[2026-09-14 15:46:41.600271] [0x000072aadc64b540] [info]    update_slice_result_valid_state: plate 1 , update slice result from 0 to 0
+[2026-09-14 15:46:41.600277] [0x000072aadc64b540] [info]    update_slice_result_valid_state: plate 1 , update slice result from 0 to 0
+[2026-09-14 15:46:41.600315] [0x000072aadc64b540] [info]    _BBS_Backup_Manager inital and interval = 60
+[2026-09-14 15:46:41.600383] [0x000072aadc64b540] [info]    remove_backup 15_46_41#16#3, true
+[2026-09-14 15:46:41.600466] [0x000072aadb2f96c0] [info]    process_task{ type:RemoveBackup, id:3, path:15_46_41#16#3, object:0, extra:1}

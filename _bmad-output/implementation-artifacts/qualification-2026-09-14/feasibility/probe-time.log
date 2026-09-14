@@ -1,0 +1,24 @@
+{"output_dir": "/opt/qualification/results", "statuses": {"cancellation": "PASS", "correction_affected_feature_changes": "PASS", "correction_final_union": "PASS", "correction_unchanged_feature_invariance": "PASS", "feature_placement": "PASS", "generation": "PASS", "negative_cases_fail_closed": "PASS", "repeat_equivalence_coarse": "PASS", "serialization_restore_coarse": "PASS", "temporary_data_cleanup": "PASS"}}
+	Command being timed: "docker run --rm --cpus=2 --memory=2048m -v /home/josh/repos/nova3D:/workspace:ro -v /home/josh/.cache/nova3d-qualification-20260914/feasibility/results-v2:/opt/qualification/results nova3d-cadquery-qualification:20260914-v2 /workspace/tools/qualification/feasibility/cadquery_probe.py --output-dir /opt/qualification/results"
+	User time (seconds): 0.01
+	System time (seconds): 0.00
+	Percent of CPU this job got: 0%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:03.62
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 32592
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 1
+	Minor (reclaiming a frame) page faults: 3144
+	Voluntary context switches: 623
+	Involuntary context switches: 42
+	Swaps: 0
+	File system inputs: 368
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

@@ -1,0 +1,58 @@
+[
+  {
+    "area": "devices",
+    "command": "NOVA3D_DEVICE_CACHE=.../devices/repro node tools/qualification/devices/probe.mjs",
+    "exit_code": 0,
+    "local_assertions": "PASS",
+    "application_gate_status": {
+      "G-5": "BLOCKED",
+      "G-8": "BLOCKED"
+    },
+    "raw": "devices/parent-verification.json",
+    "scope": "Final locked headless Linux synthetic API/storage/runtime probe; no offline inference or layout acceptance"
+  },
+  {
+    "area": "feasibility",
+    "command": "docker run --rm --network=none --cpus=2 --memory=2048m ... nova3d-cadquery-qualification:20260914-v2 .../cadquery_probe.py",
+    "exit_code": 0,
+    "local_assertions": "PASS",
+    "application_gate_status": {
+      "G-1": "PARTIAL",
+      "G-2": "PARTIAL"
+    },
+    "raw": "feasibility/cadquery-results.json",
+    "scope": "Final native synthetic fixture, generated-envelope negatives and coarse checks only"
+  },
+  {
+    "area": "print",
+    "command": ".../print/venv/bin/python tools/qualification/print/qualify_fixtures.py --out .../print/parent-final",
+    "exit_code": 0,
+    "local_assertions": "PASS",
+    "application_gate_status": {
+      "G-3": "PARTIAL"
+    },
+    "raw": "print/parent-verification.json",
+    "scope": "Final fixture checker, malformed-positive mutation and round-trips; actual slicer run retained by Luna separately"
+  },
+  {
+    "area": "recovery",
+    "command": "python3 tools/qualification/recovery/probe.py --report .../recovery/parent-verification.md",
+    "exit_code": 0,
+    "local_assertions": "PASS",
+    "application_gate_status": {
+      "G-6": "PARTIAL",
+      "G-9": "PARTIAL"
+    },
+    "raw": "recovery/parent-verification.md",
+    "scope": "Final local Postgres/object reference probe including digest corruption, concurrency and cleanup"
+  },
+  {
+    "area": "stack",
+    "command": "NOVA3D_STACK_CACHE=.../stack/parent-verification bash tools/qualification/stack/verify-stack.sh",
+    "exit_code": 0,
+    "local_assertions": "PASS",
+    "application_gate_status": {},
+    "raw": "stack/parent-verification.log",
+    "scope": "Final fresh lockfile install, typecheck, production build and loopback HTTP checks; no provider calls"
+  }
+]

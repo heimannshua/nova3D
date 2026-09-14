@@ -1,0 +1,72 @@
+{
+  "coordinate_system": "right-handed Z-up",
+  "fixture_id": "synthetic-middot-altar-ramp-v1",
+  "historical_geometry_approved": false,
+  "hole_case": false,
+  "operation_graph": [
+    {
+      "depends_on": [],
+      "id": "altar.base",
+      "operation": "box"
+    },
+    {
+      "depends_on": [
+        "altar.base"
+      ],
+      "id": "altar.lower_step",
+      "operation": "translated_box"
+    },
+    {
+      "depends_on": [
+        "altar.lower_step"
+      ],
+      "id": "altar.upper_step",
+      "operation": "translated_box"
+    },
+    {
+      "depends_on": [
+        "altar.base"
+      ],
+      "id": "altar.ramp",
+      "operation": "extruded_triangle"
+    },
+    {
+      "depends_on": [
+        "altar.lower_step"
+      ],
+      "id": "personalization.user_added_plaque",
+      "operation": "translated_box",
+      "status": "user_added"
+    },
+    {
+      "depends_on": [
+        "altar.base",
+        "altar.lower_step",
+        "altar.upper_step",
+        "altar.ramp",
+        "personalization.user_added_plaque"
+      ],
+      "id": "fixture.union",
+      "operation": "boolean_union_clean"
+    }
+  ],
+  "parameters": {
+    "base_height": 6.0,
+    "base_length": 80.0,
+    "base_width": 50.0,
+    "lower_step_height": 8.0,
+    "lower_step_length": 55.0,
+    "lower_step_width": 38.0,
+    "personalization_length": 8.0,
+    "personalization_thickness": 2.0,
+    "personalization_width": 8.0,
+    "ramp_height": 16.0,
+    "ramp_length": 30.0,
+    "ramp_width": 30.0,
+    "upper_step_height": 8.0,
+    "upper_step_length": 35.0,
+    "upper_step_width": 28.0
+  },
+  "synthetic": true,
+  "units": "mm"
+}

@@ -1,0 +1,7 @@
+libavcodec.so.61
+libavutil.so.59
+libgstvideo-1.0.so.0
+libjavascriptcoregtk-4.1.so.0
+libswscale.so.8
+libwayland-server.so.0
+libwebkit2gtk-4.1.so.0

@@ -1,0 +1,23 @@
+{
+  "schema": "recovery-ledger.v1",
+  "status": "committed_and_active_purged",
+  "created_at": "2026-09-14T15:15:38.914390+00:00",
+  "entries": [
+    {
+      "opaque_target": "ledger-opaque-delete-001",
+      "project_id": "proj-delete-001",
+      "artifact_id": "artifact-delete-001",
+      "object_keys": [
+        "objects/deleted.bin"
+      ],
+      "database_tables": [
+        "projects",
+        "artifacts",
+        "jobs",
+        "dispatch_outbox"
+      ],
+      "deletion_started_at": "2026-09-14T15:15:38.914390+00:00"
+    }
+  ],
+  "committed_at": "2026-09-14T15:15:39.026804+00:00"
+}

@@ -1,0 +1,3 @@
+5bec6292fc635cb38ce292ebf08e444b961d266424a5c39aa2817d277b0a45f4  /home/josh/.cache/nova3d-qualification-20260914/print/bambu-cli-attempt/cli-input/filament.json
+ca85210a9065eb658256385807cc715c3bb07727316a1be6818bfa6256bfbce8  /home/josh/.cache/nova3d-qualification-20260914/print/bambu-cli-attempt/cli-input/machine.json
+bef1438c3cc6af1eba0de8afb131be5a349293fd067fa6ad56fca10350331e33  /home/josh/.cache/nova3d-qualification-20260914/print/bambu-cli-attempt/cli-input/process-effective.json

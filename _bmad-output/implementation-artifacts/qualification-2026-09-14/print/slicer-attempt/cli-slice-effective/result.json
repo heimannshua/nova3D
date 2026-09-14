@@ -1,0 +1,62 @@
+{
+    "error_string": "Success.",
+    "export_time": 6,
+    "layer_height": 0.20000000298023224,
+    "plate_index": 0,
+    "prepare_time": 4,
+    "return_code": 0,
+    "sliced_plates": [
+        {
+            "feature_type_times": {
+                "Bottom surface": 141.5963134765625,
+                "Bridge": 199.572021484375,
+                "Custom": 1.588341474533081,
+                "Inner wall": 2501.078857421875,
+                "Internal solid infill": 725.2261352539063,
+                "Outer wall": 1217.7359619140625,
+                "Sparse infill": 4459.53662109375,
+                "Top surface": 154.2561798095703,
+                "Travel": 174.0262451171875,
+                "Undefined": 173.51324462890625
+            },
+            "filament_change_times": 0,
+            "filaments": [
+                {
+                    "filament_id": "",
+                    "id": 1,
+                    "main_used_g": 0.0,
+                    "total_used_g": 0.0
+                }
+            ],
+            "generate_support_material_time": 2,
+            "id": 1,
+            "infill_time": 8,
+            "layer_filament_change": 0,
+            "main_predication": 9572.8505859375,
+            "make_perimeters_time": 8,
+            "obj_cached_cnt": 0,
+            "objects": [
+                {
+                    "bbox": {
+                        "depth": 40.000003814697266,
+                        "height": 40.0,
+                        "width": 40.000003814697266,
+                        "x": 70.00000762939453,
+                        "y": 70.00000762939453,
+                        "z": 0.0
+                    },
+                    "id": 5,
+                    "name": "positive_envelope.stl",
+                    "triangle_count": 12
+                }
+            ],
+            "sliced_time": 66,
+            "sliced_time_with_cache": 42,
+            "total_predication": 9573.92578125,
+            "triangle_count": 12,
+            "warning_message": ""
+        }
+    ],
+    "sparse_infill_density": 15.0,
+    "wall_loops": 3
+}

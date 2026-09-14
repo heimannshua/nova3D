@@ -1,0 +1,3 @@
+/probe/cli-output-retry/plate_1.gcode 445399 bytes
+/probe/cli-output-retry/result.3mf 38479 bytes
+/probe/cli-output-retry/result.json 2060 bytes

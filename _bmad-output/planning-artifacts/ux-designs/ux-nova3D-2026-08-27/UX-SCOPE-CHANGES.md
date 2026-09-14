@@ -1,7 +1,7 @@
 ---
 title: nova3D UX Scope Changes After PRD Finalization
 status: approved-for-design-handoff
-updated: 2026-08-30
+updated: 2026-09-14
 sources:
   - ../../prds/prd-nova3D-2026-08-27/prd.md
   - .memlog.md
@@ -10,6 +10,8 @@ sources:
 # UX Scope Changes After PRD Finalization
 
 These decisions were approved during UX discovery after the PRD reached `status: final`. Claude Design must include them. Architecture and product planning must reconcile them before implementation. Except where this file explicitly changes scope, the final PRD remains authoritative.
+
+**Ratification update, 2026-09-14:** Josh's “ratify all fast path” adopts [RATIFIED-DECISIONS.md](../../architecture/architecture-nova3D-2026-09-14/RATIFIED-DECISIONS.md). R-8 selects online preparation/export and revocation on reconnect for already-local offline data; R-10 selects the light neutral/indigo visual baseline and delegates complete responsive design without another alternative-direction checkpoint or mandatory external design-tool handoff; R-11 defines bounded direct-image recovery. SC-1–SC-7 remain first-version requirements. Existing visual drafts are not retroactively approved, and the subsequent [local qualification run](../../../implementation-artifacts/qualification-2026-09-14/REPORT.md) supplies component evidence. Real-device and workflow-accessibility qualification remain unrun.
 
 ## SC-1 — Picture workflows move into the first version
 

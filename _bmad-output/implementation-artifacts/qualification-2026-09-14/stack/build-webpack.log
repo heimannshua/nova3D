@@ -1,0 +1,17 @@
+▲ Next.js 16.3.5 (webpack)
+✓ Running next.config took 5ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 808ms
+  Running TypeScript ...
+  Finished TypeScript in 791ms ...
+  Collecting page data using 3 workers ...
+  Generating static pages using 3 workers (0/4) ...
+  Generating static pages using 3 workers (1/4) 
+Error occurred prerendering page "/_global-error". Read more: https://nextjs.org/docs/messages/prerender-error
+Error [InvariantError]: Invariant: Expected workStore to be initialized. This is a bug in Next.js.
+    at s (.next/server/chunks/32.js:14:4175)
+    at r (.next/server/chunks/32.js:14:4043)
+    at o (.next/server/chunks/32.js:138:92107)
+Export encountered an error on /_global-error/page: /_global-error, exiting the build.
+⨯ Next.js build worker exited with code: 1 and signal: null

@@ -1,0 +1,54 @@
+npm warn deprecated crypto-js@4.2.0: Active development of CryptoJS has been discontinued. This library is no longer maintained.
+npm notice
+npm notice New major version of npm available! 11.19.0 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice
+
+added 65 packages in 3s
+staged project: /home/josh/.cache/nova3d-qualification-20260914/stack/parent-verification/verify.glpomM/project
+dependencies: /home/josh/.cache/nova3d-qualification-20260914/stack/parent-verification/verify.glpomM/project/node_modules
+ASSERT setup: PASS
+ASSERT typecheck: PASS
+▲ Next.js 16.3.5 (Turbopack)
+✓ Running next.config took 6ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 3.7s
+  Running TypeScript ...
+
+  We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+  	- include was updated to add '.next/dev/types/**/*.ts'
+
+  Finished TypeScript in 1234ms ...
+  Collecting page data using 3 workers ...
+  Generating static pages using 3 workers (0/4) ...
+  Generating static pages using 3 workers (1/4) 
+  Generating static pages using 3 workers (2/4) 
+  Generating static pages using 3 workers (3/4) 
+✓ Generating static pages using 3 workers (4/4) in 110ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+└ ƒ /api/workflow
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+ASSERT production-build: PASS
+curl: (7) Failed to connect to 127.0.0.1 port 44889 after 0 ms: Could not connect to server
+▲ Next.js 16.3.5
+- Local:         http://127.0.0.1:44889
+- Network:       http://127.0.0.1:44889
+✓ Ready in 76ms
+✓ Running next.config took 7ms
+ASSERT production-home: PASS (HTTP 200)
+ASSERT production-workflow-route: PASS (HTTP 200)
+ASSERT overall: PASS
+verification artifacts: /home/josh/.cache/nova3d-qualification-20260914/stack/parent-verification/verify.glpomM/home.html /home/josh/.cache/nova3d-qualification-20260914/stack/parent-verification/verify.glpomM/home.headers /home/josh/.cache/nova3d-qualification-20260914/stack/parent-verification/verify.glpomM/workflow.json /home/josh/.cache/nova3d-qualification-20260914/stack/parent-verification/verify.glpomM/workflow.headers
+verification log: /home/josh/.cache/nova3d-qualification-20260914/stack/parent-verification/verify-verify.glpomM.log

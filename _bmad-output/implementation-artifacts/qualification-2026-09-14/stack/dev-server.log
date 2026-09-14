@@ -1,0 +1,23 @@
+▲ Next.js 16.3.5 (Turbopack)
+- Local:         http://127.0.0.1:42455
+- Network:       http://127.0.0.1:42455
+✓ Ready in 188ms
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /home/josh/.cache/nova3d-qualification-20260914/stack/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * /home/josh/.cache/nova3d-qualification-20260914/stack/project/package-lock.json
+
+✓ Running next.config took 8ms
+
+  We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+  	- include was updated to add '.next/dev/types/**/*.ts'
+
+
+✓ Generated AGENTS.md and CLAUDE.md for AI agents. Set `agentRules: false` in next.config to disable.
+ GET / 200 in 345ms (next.js: 224ms, application-code: 121ms)
+ GET /api/workflow 200 in 196ms (next.js: 184ms, application-code: 12ms)
+[?25h

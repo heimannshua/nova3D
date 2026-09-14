@@ -1,0 +1,883 @@
+{
+  "cancellation": {
+    "cancellation_budget_ms": 750,
+    "cancellation_latency_ms": 15.373,
+    "child_alive_before_signal": true,
+    "elapsed_ms": 1186.646,
+    "forced_kill": false,
+    "readiness_budget_ms": 1500,
+    "ready_after_first_geometry": true,
+    "return_code": -15,
+    "signal_sent": "SIGTERM",
+    "startup_wait_ms": 1171.248,
+    "status": "PASS",
+    "stderr_tail": "",
+    "stdout_tail": "",
+    "total_budget_ms": 2250
+  },
+  "canonical_contract": {
+    "axis": "right-handed Z-up",
+    "ratified_equivalence": {
+      "bounds_delta_mm": 0.01,
+      "relative_volume": 0.001,
+      "surface_distance_mm": 0.01
+    },
+    "units": "mm"
+  },
+  "cleanup": {
+    "removed": true,
+    "temporary_roundtrip_directory": "/opt/qualification/results/tmp_roundtrip"
+  },
+  "correction": {
+    "affected_feature": {
+      "bounds_delta_mm": 2.0,
+      "closed_valid_equal": true,
+      "component_count_equal": true,
+      "ratified_bounds_limit_mm": 0.01,
+      "ratified_relative_volume_limit": 0.001,
+      "relative_volume_delta": 0.25,
+      "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+      "topology_counts_equal": true
+    },
+    "changed_parameter": "upper_step_height 8.0 -> 10.0 mm",
+    "corrected_final_union": {
+      "component_count": 1,
+      "expected_volume_delta_mm3": 1960.0,
+      "observed_volume_delta_mm3": 1960.0,
+      "topology": {
+        "edges": 65,
+        "faces": 26,
+        "vertices": 43
+      },
+      "valid": true,
+      "volume_delta_match": true
+    },
+    "corrected_recipe_digest": "e7b84358d5cd229f90badc19a4cac9fb1b4d15e5caa3e4b52fb3fcd492e32c44",
+    "unchanged_features": {
+      "altar.base": {
+        "bounds_delta_mm": 0.0,
+        "closed_valid_equal": true,
+        "component_count_equal": true,
+        "ratified_bounds_limit_mm": 0.01,
+        "ratified_relative_volume_limit": 0.001,
+        "relative_volume_delta": 0.0,
+        "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+        "topology_counts_equal": true
+      },
+      "altar.lower_step": {
+        "bounds_delta_mm": 0.0,
+        "closed_valid_equal": true,
+        "component_count_equal": true,
+        "ratified_bounds_limit_mm": 0.01,
+        "ratified_relative_volume_limit": 0.001,
+        "relative_volume_delta": 0.0,
+        "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+        "topology_counts_equal": true
+      },
+      "altar.ramp": {
+        "bounds_delta_mm": 0.0,
+        "closed_valid_equal": true,
+        "component_count_equal": true,
+        "ratified_bounds_limit_mm": 0.01,
+        "ratified_relative_volume_limit": 0.001,
+        "relative_volume_delta": 0.0,
+        "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+        "topology_counts_equal": true
+      },
+      "personalization.user_added_plaque": {
+        "bounds_delta_mm": 0.0,
+        "closed_valid_equal": true,
+        "component_count_equal": true,
+        "ratified_bounds_limit_mm": 0.01,
+        "ratified_relative_volume_limit": 0.001,
+        "relative_volume_delta": 0.0,
+        "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+        "topology_counts_equal": true
+      }
+    }
+  },
+  "fixture": {
+    "historical_geometry_approved": false,
+    "id": "synthetic-middot-altar-ramp-v1",
+    "synthetic": true
+  },
+  "generation": [
+    {
+      "feature_ids": [
+        "altar.base",
+        "altar.lower_step",
+        "altar.upper_step",
+        "altar.ramp",
+        "personalization.user_added_plaque"
+      ],
+      "feature_metrics": {
+        "altar.base": {
+          "bbox_mm": {
+            "height": 6.0,
+            "length": 80.0,
+            "width": 50.0,
+            "xmax": 80.0,
+            "xmin": 0.0,
+            "ymax": 50.0,
+            "ymin": 0.0,
+            "zmax": 6.0,
+            "zmin": 0.0
+          },
+          "edges": 12,
+          "faces": 6,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 8,
+          "volume_mm3": 24000.0
+        },
+        "altar.lower_step": {
+          "bbox_mm": {
+            "height": 8.0,
+            "length": 55.0,
+            "width": 38.0,
+            "xmax": 65.0,
+            "xmin": 10.0,
+            "ymax": 44.0,
+            "ymin": 6.0,
+            "zmax": 14.0,
+            "zmin": 6.0
+          },
+          "edges": 12,
+          "faces": 6,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 8,
+          "volume_mm3": 16720.0
+        },
+        "altar.ramp": {
+          "bbox_mm": {
+            "height": 16.0,
+            "length": 30.0,
+            "width": 30.0,
+            "xmax": 75.0,
+            "xmin": 45.0,
+            "ymax": 40.0,
+            "ymin": 10.0,
+            "zmax": 22.0,
+            "zmin": 6.0
+          },
+          "edges": 9,
+          "faces": 5,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 6,
+          "volume_mm3": 7200.0
+        },
+        "altar.upper_step": {
+          "bbox_mm": {
+            "height": 8.0,
+            "length": 35.0,
+            "width": 28.0,
+            "xmax": 55.0,
+            "xmin": 20.0,
+            "ymax": 39.0,
+            "ymin": 11.0,
+            "zmax": 22.0,
+            "zmin": 14.0
+          },
+          "edges": 12,
+          "faces": 6,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 8,
+          "volume_mm3": 7840.0
+        },
+        "personalization.user_added_plaque": {
+          "bbox_mm": {
+            "height": 2.0,
+            "length": 8.0,
+            "width": 8.0,
+            "xmax": 20.0,
+            "xmin": 12.0,
+            "ymax": 16.0,
+            "ymin": 8.0,
+            "zmax": 16.0,
+            "zmin": 14.0
+          },
+          "edges": 12,
+          "faces": 6,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 8,
+          "volume_mm3": 128.0
+        }
+      },
+      "feature_placement_checks": {
+        "altar.base": {
+          "actual_bbox_mm": {
+            "height": 6.0,
+            "length": 80.0,
+            "width": 50.0,
+            "xmax": 80.0,
+            "xmin": 0.0,
+            "ymax": 50.0,
+            "ymin": 0.0,
+            "zmax": 6.0,
+            "zmin": 0.0
+          },
+          "expected_bbox_mm": {
+            "xmax": 80.0,
+            "xmin": 0.0,
+            "ymax": 50.0,
+            "ymin": 0.0,
+            "zmax": 6.0,
+            "zmin": 0.0
+          },
+          "max_delta_mm": 0.0,
+          "pass": true
+        },
+        "altar.lower_step": {
+          "actual_bbox_mm": {
+            "height": 8.0,
+            "length": 55.0,
+            "width": 38.0,
+            "xmax": 65.0,
+            "xmin": 10.0,
+            "ymax": 44.0,
+            "ymin": 6.0,
+            "zmax": 14.0,
+            "zmin": 6.0
+          },
+          "expected_bbox_mm": {
+            "xmax": 65.0,
+            "xmin": 10.0,
+            "ymax": 44.0,
+            "ymin": 6.0,
+            "zmax": 14.0,
+            "zmin": 6.0
+          },
+          "max_delta_mm": 0.0,
+          "pass": true
+        },
+        "altar.ramp": {
+          "actual_bbox_mm": {
+            "height": 16.0,
+            "length": 30.0,
+            "width": 30.0,
+            "xmax": 75.0,
+            "xmin": 45.0,
+            "ymax": 40.0,
+            "ymin": 10.0,
+            "zmax": 22.0,
+            "zmin": 6.0
+          },
+          "expected_bbox_mm": {
+            "xmax": 75.0,
+            "xmin": 45.0,
+            "ymax": 40.0,
+            "ymin": 10.0,
+            "zmax": 22.0,
+            "zmin": 6.0
+          },
+          "max_delta_mm": 0.0,
+          "pass": true
+        },
+        "altar.upper_step": {
+          "actual_bbox_mm": {
+            "height": 8.0,
+            "length": 35.0,
+            "width": 28.0,
+            "xmax": 55.0,
+            "xmin": 20.0,
+            "ymax": 39.0,
+            "ymin": 11.0,
+            "zmax": 22.0,
+            "zmin": 14.0
+          },
+          "expected_bbox_mm": {
+            "xmax": 55.0,
+            "xmin": 20.0,
+            "ymax": 39.0,
+            "ymin": 11.0,
+            "zmax": 22.0,
+            "zmin": 14.0
+          },
+          "max_delta_mm": 0.0,
+          "pass": true
+        },
+        "personalization.user_added_plaque": {
+          "actual_bbox_mm": {
+            "height": 2.0,
+            "length": 8.0,
+            "width": 8.0,
+            "xmax": 20.0,
+            "xmin": 12.0,
+            "ymax": 16.0,
+            "ymin": 8.0,
+            "zmax": 16.0,
+            "zmin": 14.0
+          },
+          "expected_bbox_mm": {
+            "xmax": 20.0,
+            "xmin": 12.0,
+            "ymax": 16.0,
+            "ymin": 8.0,
+            "zmax": 16.0,
+            "zmin": 14.0
+          },
+          "max_delta_mm": 0.0,
+          "pass": true
+        }
+      },
+      "iteration": 1,
+      "metrics": {
+        "bbox_mm": {
+          "height": 22.0,
+          "length": 80.0,
+          "width": 50.0,
+          "xmax": 80.0,
+          "xmin": 0.0,
+          "ymax": 50.0,
+          "ymin": 0.0,
+          "zmax": 22.0,
+          "zmin": 0.0
+        },
+        "edges": 65,
+        "faces": 26,
+        "shape_type": "Compound",
+        "solids": 1,
+        "valid": true,
+        "vertices": 43,
+        "volume_mm3": 52888.0
+      },
+      "recipe_digest": "72d4daf72b51040004bd8b7ca445d1818bcfb3e0107723bc742d9a398d229f54"
+    },
+    {
+      "feature_ids": [
+        "altar.base",
+        "altar.lower_step",
+        "altar.upper_step",
+        "altar.ramp",
+        "personalization.user_added_plaque"
+      ],
+      "feature_metrics": {
+        "altar.base": {
+          "bbox_mm": {
+            "height": 6.0,
+            "length": 80.0,
+            "width": 50.0,
+            "xmax": 80.0,
+            "xmin": 0.0,
+            "ymax": 50.0,
+            "ymin": 0.0,
+            "zmax": 6.0,
+            "zmin": 0.0
+          },
+          "edges": 12,
+          "faces": 6,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 8,
+          "volume_mm3": 24000.0
+        },
+        "altar.lower_step": {
+          "bbox_mm": {
+            "height": 8.0,
+            "length": 55.0,
+            "width": 38.0,
+            "xmax": 65.0,
+            "xmin": 10.0,
+            "ymax": 44.0,
+            "ymin": 6.0,
+            "zmax": 14.0,
+            "zmin": 6.0
+          },
+          "edges": 12,
+          "faces": 6,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 8,
+          "volume_mm3": 16720.0
+        },
+        "altar.ramp": {
+          "bbox_mm": {
+            "height": 16.0,
+            "length": 30.0,
+            "width": 30.0,
+            "xmax": 75.0,
+            "xmin": 45.0,
+            "ymax": 40.0,
+            "ymin": 10.0,
+            "zmax": 22.0,
+            "zmin": 6.0
+          },
+          "edges": 9,
+          "faces": 5,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 6,
+          "volume_mm3": 7200.0
+        },
+        "altar.upper_step": {
+          "bbox_mm": {
+            "height": 8.0,
+            "length": 35.0,
+            "width": 28.0,
+            "xmax": 55.0,
+            "xmin": 20.0,
+            "ymax": 39.0,
+            "ymin": 11.0,
+            "zmax": 22.0,
+            "zmin": 14.0
+          },
+          "edges": 12,
+          "faces": 6,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 8,
+          "volume_mm3": 7840.0
+        },
+        "personalization.user_added_plaque": {
+          "bbox_mm": {
+            "height": 2.0,
+            "length": 8.0,
+            "width": 8.0,
+            "xmax": 20.0,
+            "xmin": 12.0,
+            "ymax": 16.0,
+            "ymin": 8.0,
+            "zmax": 16.0,
+            "zmin": 14.0
+          },
+          "edges": 12,
+          "faces": 6,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 8,
+          "volume_mm3": 128.0
+        }
+      },
+      "iteration": 2,
+      "metrics": {
+        "bbox_mm": {
+          "height": 22.0,
+          "length": 80.0,
+          "width": 50.0,
+          "xmax": 80.0,
+          "xmin": 0.0,
+          "ymax": 50.0,
+          "ymin": 0.0,
+          "zmax": 22.0,
+          "zmin": 0.0
+        },
+        "edges": 65,
+        "faces": 26,
+        "shape_type": "Compound",
+        "solids": 1,
+        "valid": true,
+        "vertices": 43,
+        "volume_mm3": 52888.0
+      },
+      "recipe_digest": "72d4daf72b51040004bd8b7ca445d1818bcfb3e0107723bc742d9a398d229f54"
+    },
+    {
+      "feature_ids": [
+        "altar.base",
+        "altar.lower_step",
+        "altar.upper_step",
+        "altar.ramp",
+        "personalization.user_added_plaque"
+      ],
+      "feature_metrics": {
+        "altar.base": {
+          "bbox_mm": {
+            "height": 6.0,
+            "length": 80.0,
+            "width": 50.0,
+            "xmax": 80.0,
+            "xmin": 0.0,
+            "ymax": 50.0,
+            "ymin": 0.0,
+            "zmax": 6.0,
+            "zmin": 0.0
+          },
+          "edges": 12,
+          "faces": 6,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 8,
+          "volume_mm3": 24000.0
+        },
+        "altar.lower_step": {
+          "bbox_mm": {
+            "height": 8.0,
+            "length": 55.0,
+            "width": 38.0,
+            "xmax": 65.0,
+            "xmin": 10.0,
+            "ymax": 44.0,
+            "ymin": 6.0,
+            "zmax": 14.0,
+            "zmin": 6.0
+          },
+          "edges": 12,
+          "faces": 6,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 8,
+          "volume_mm3": 16720.0
+        },
+        "altar.ramp": {
+          "bbox_mm": {
+            "height": 16.0,
+            "length": 30.0,
+            "width": 30.0,
+            "xmax": 75.0,
+            "xmin": 45.0,
+            "ymax": 40.0,
+            "ymin": 10.0,
+            "zmax": 22.0,
+            "zmin": 6.0
+          },
+          "edges": 9,
+          "faces": 5,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 6,
+          "volume_mm3": 7200.0
+        },
+        "altar.upper_step": {
+          "bbox_mm": {
+            "height": 8.0,
+            "length": 35.0,
+            "width": 28.0,
+            "xmax": 55.0,
+            "xmin": 20.0,
+            "ymax": 39.0,
+            "ymin": 11.0,
+            "zmax": 22.0,
+            "zmin": 14.0
+          },
+          "edges": 12,
+          "faces": 6,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 8,
+          "volume_mm3": 7840.0
+        },
+        "personalization.user_added_plaque": {
+          "bbox_mm": {
+            "height": 2.0,
+            "length": 8.0,
+            "width": 8.0,
+            "xmax": 20.0,
+            "xmin": 12.0,
+            "ymax": 16.0,
+            "ymin": 8.0,
+            "zmax": 16.0,
+            "zmin": 14.0
+          },
+          "edges": 12,
+          "faces": 6,
+          "shape_type": "Solid",
+          "solids": 1,
+          "valid": true,
+          "vertices": 8,
+          "volume_mm3": 128.0
+        }
+      },
+      "iteration": 3,
+      "metrics": {
+        "bbox_mm": {
+          "height": 22.0,
+          "length": 80.0,
+          "width": 50.0,
+          "xmax": 80.0,
+          "xmin": 0.0,
+          "ymax": 50.0,
+          "ymin": 0.0,
+          "zmax": 22.0,
+          "zmin": 0.0
+        },
+        "edges": 65,
+        "faces": 26,
+        "shape_type": "Compound",
+        "solids": 1,
+        "valid": true,
+        "vertices": 43,
+        "volume_mm3": 52888.0
+      },
+      "recipe_digest": "72d4daf72b51040004bd8b7ca445d1818bcfb3e0107723bc742d9a398d229f54"
+    }
+  ],
+  "limitations": [
+    "All geometry is synthetic and not approved historical Middot geometry.",
+    "Coarse checks use validity, topology counts, bounding boxes and volume only; the ratified bidirectional surface-distance comparator and certified approximation/error bound were NOT RUN.",
+    "No physical printer accuracy, slicing/support qualification, provenance contract, approval workflow or production deployment is proven.",
+    "The cancellation probe proves bounded local process termination only; it does not prove distributed worker fencing or late-commit rejection.",
+    "Scale and unit negatives prove parameter rejection/coarse mismatch only; they do not prove full scale/unit normalization."
+  ],
+  "negative_cases": {
+    "dimensional_parameter_rejection": {
+      "exception": "fixture parameter rejection: envelope_xy_gt_90mm",
+      "expected": "PARAMETER_REJECTION",
+      "status": "PASS",
+      "validation_errors": [
+        "envelope_xy_gt_90mm"
+      ]
+    },
+    "hole_coarse_mismatch": {
+      "comparison": {
+        "bounds_delta_mm": 0.0,
+        "closed_valid_equal": true,
+        "component_count_equal": true,
+        "ratified_bounds_limit_mm": 0.01,
+        "ratified_relative_volume_limit": 0.001,
+        "relative_volume_delta": 0.011761370167,
+        "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+        "topology_counts_equal": false
+      },
+      "expected": "COARSE_MISMATCH"
+    },
+    "infinity_parameter_rejection": {
+      "exception": "fixture parameter rejection: parameter_not_finite:ramp_height",
+      "expected": "PARAMETER_REJECTION",
+      "status": "PASS",
+      "validation_errors": [
+        "parameter_not_finite:ramp_height"
+      ]
+    },
+    "nan_parameter_rejection": {
+      "exception": "fixture parameter rejection: parameter_not_finite:ramp_height",
+      "expected": "PARAMETER_REJECTION",
+      "status": "PASS",
+      "validation_errors": [
+        "parameter_not_finite:ramp_height"
+      ]
+    },
+    "scale_parameter_rejection": {
+      "exception": "fixture parameter rejection: envelope_xy_gt_90mm",
+      "expected": "PARAMETER_REJECTION",
+      "status": "PASS",
+      "validation_errors": [
+        "envelope_xy_gt_90mm"
+      ]
+    },
+    "thin_feature_parameter_rejection": {
+      "exception": "fixture parameter rejection: isolated_feature_lt_0.8mm",
+      "expected": "PARAMETER_REJECTION",
+      "status": "PASS",
+      "validation_errors": [
+        "isolated_feature_lt_0.8mm"
+      ]
+    },
+    "translated_plaque_geometry_rejection": {
+      "exception": "fixture geometry rejection: generated envelope exceeds 90mm",
+      "expected": "GENERATED_ENVELOPE_REJECTION",
+      "status": "PASS",
+      "validation_errors": []
+    },
+    "translated_ramp_geometry_rejection": {
+      "exception": "fixture geometry rejection: generated envelope exceeds 90mm",
+      "expected": "GENERATED_ENVELOPE_REJECTION",
+      "status": "PASS",
+      "validation_errors": []
+    },
+    "unit_interpretation_parameter_rejection": {
+      "declared_units": "mm",
+      "exception": "fixture parameter rejection: envelope_xy_gt_90mm, envelope_z_gt_90mm",
+      "expected": "PARAMETER_REJECTION",
+      "input_interpretation": "inch values incorrectly treated as mm; no normalization claim",
+      "status": "PASS",
+      "validation_errors": [
+        "envelope_xy_gt_90mm",
+        "envelope_z_gt_90mm"
+      ]
+    }
+  },
+  "repeat_comparisons": [
+    {
+      "bounds_delta_mm": 0.0,
+      "closed_valid_equal": true,
+      "component_count_equal": true,
+      "feature_comparisons": {
+        "altar.base": {
+          "bounds_delta_mm": 0.0,
+          "closed_valid_equal": true,
+          "component_count_equal": true,
+          "ratified_bounds_limit_mm": 0.01,
+          "ratified_relative_volume_limit": 0.001,
+          "relative_volume_delta": 0.0,
+          "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+          "topology_counts_equal": true
+        },
+        "altar.lower_step": {
+          "bounds_delta_mm": 0.0,
+          "closed_valid_equal": true,
+          "component_count_equal": true,
+          "ratified_bounds_limit_mm": 0.01,
+          "ratified_relative_volume_limit": 0.001,
+          "relative_volume_delta": 0.0,
+          "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+          "topology_counts_equal": true
+        },
+        "altar.ramp": {
+          "bounds_delta_mm": 0.0,
+          "closed_valid_equal": true,
+          "component_count_equal": true,
+          "ratified_bounds_limit_mm": 0.01,
+          "ratified_relative_volume_limit": 0.001,
+          "relative_volume_delta": 0.0,
+          "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+          "topology_counts_equal": true
+        },
+        "altar.upper_step": {
+          "bounds_delta_mm": 0.0,
+          "closed_valid_equal": true,
+          "component_count_equal": true,
+          "ratified_bounds_limit_mm": 0.01,
+          "ratified_relative_volume_limit": 0.001,
+          "relative_volume_delta": 0.0,
+          "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+          "topology_counts_equal": true
+        },
+        "personalization.user_added_plaque": {
+          "bounds_delta_mm": 0.0,
+          "closed_valid_equal": true,
+          "component_count_equal": true,
+          "ratified_bounds_limit_mm": 0.01,
+          "ratified_relative_volume_limit": 0.001,
+          "relative_volume_delta": 0.0,
+          "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+          "topology_counts_equal": true
+        }
+      },
+      "feature_metrics_equal": true,
+      "ratified_bounds_limit_mm": 0.01,
+      "ratified_relative_volume_limit": 0.001,
+      "recipe_digest_equal": true,
+      "relative_volume_delta": 0.0,
+      "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+      "topology_counts_equal": true
+    },
+    {
+      "bounds_delta_mm": 0.0,
+      "closed_valid_equal": true,
+      "component_count_equal": true,
+      "feature_comparisons": {
+        "altar.base": {
+          "bounds_delta_mm": 0.0,
+          "closed_valid_equal": true,
+          "component_count_equal": true,
+          "ratified_bounds_limit_mm": 0.01,
+          "ratified_relative_volume_limit": 0.001,
+          "relative_volume_delta": 0.0,
+          "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+          "topology_counts_equal": true
+        },
+        "altar.lower_step": {
+          "bounds_delta_mm": 0.0,
+          "closed_valid_equal": true,
+          "component_count_equal": true,
+          "ratified_bounds_limit_mm": 0.01,
+          "ratified_relative_volume_limit": 0.001,
+          "relative_volume_delta": 0.0,
+          "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+          "topology_counts_equal": true
+        },
+        "altar.ramp": {
+          "bounds_delta_mm": 0.0,
+          "closed_valid_equal": true,
+          "component_count_equal": true,
+          "ratified_bounds_limit_mm": 0.01,
+          "ratified_relative_volume_limit": 0.001,
+          "relative_volume_delta": 0.0,
+          "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+          "topology_counts_equal": true
+        },
+        "altar.upper_step": {
+          "bounds_delta_mm": 0.0,
+          "closed_valid_equal": true,
+          "component_count_equal": true,
+          "ratified_bounds_limit_mm": 0.01,
+          "ratified_relative_volume_limit": 0.001,
+          "relative_volume_delta": 0.0,
+          "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+          "topology_counts_equal": true
+        },
+        "personalization.user_added_plaque": {
+          "bounds_delta_mm": 0.0,
+          "closed_valid_equal": true,
+          "component_count_equal": true,
+          "ratified_bounds_limit_mm": 0.01,
+          "ratified_relative_volume_limit": 0.001,
+          "relative_volume_delta": 0.0,
+          "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+          "topology_counts_equal": true
+        }
+      },
+      "feature_metrics_equal": true,
+      "ratified_bounds_limit_mm": 0.01,
+      "ratified_relative_volume_limit": 0.001,
+      "recipe_digest_equal": true,
+      "relative_volume_delta": 0.0,
+      "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+      "topology_counts_equal": true
+    }
+  ],
+  "restore": {
+    "brep": {
+      "bounds_delta_mm": 0.0,
+      "closed_valid_equal": true,
+      "component_count_equal": true,
+      "ratified_bounds_limit_mm": 0.01,
+      "ratified_relative_volume_limit": 0.001,
+      "relative_volume_delta": 0.0,
+      "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+      "topology_counts_equal": true
+    },
+    "brep_bytes": 14656,
+    "brep_sha256": "23ec97965631bb1940cc06bb852f1c25d8893c76e4f55f84b17092e903660d1a",
+    "step": {
+      "bounds_delta_mm": 0.0,
+      "closed_valid_equal": true,
+      "component_count_equal": true,
+      "ratified_bounds_limit_mm": 0.01,
+      "ratified_relative_volume_limit": 0.001,
+      "relative_volume_delta": 0.0,
+      "surface_distance_comparator": "NOT_RUN; bbox/volume are not a certified surface-distance proof",
+      "topology_counts_equal": true
+    },
+    "step_bytes": 77454,
+    "step_sha256": "fc96884e5c631e6ef3fee879c2842811b98713e3e4aec1f0bbd7a4d917fc3ce9"
+  },
+  "schema_version": "cadquery-qualification-1.0.0",
+  "statuses": {
+    "cancellation": "PASS",
+    "correction_affected_feature_changes": "PASS",
+    "correction_final_union": "PASS",
+    "correction_unchanged_feature_invariance": "PASS",
+    "feature_placement": "PASS",
+    "generation": "PASS",
+    "negative_cases_fail_closed": "PASS",
+    "repeat_equivalence_coarse": "PASS",
+    "serialization_restore_coarse": "PASS",
+    "temporary_data_cleanup": "PASS"
+  },
+  "toolchain": {
+    "cadquery": "2.8.0",
+    "cpu_limit_expected": 2,
+    "memory_limit_expected_mb": 2048,
+    "platform": "linux",
+    "python": "3.12.14 (main, Sep  1 2026, 00:10:07) [GCC 14.2.0]"
+  }
+}

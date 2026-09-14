@@ -1,0 +1,4 @@
+066f1d54f275917afe75213cd68eafe278ba6e31487758bceabc61fe5d071da6  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/feasibility/cadquery-results.json
+fc96884e5c631e6ef3fee879c2842811b98713e3e4aec1f0bbd7a4d917fc3ce9  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/feasibility/synthetic-altar-ramp.step
+23ec97965631bb1940cc06bb852f1c25d8893c76e4f55f84b17092e903660d1a  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/feasibility/synthetic-altar-ramp.brep
+2a5a1ffd912477e98c44a76826ec92cca405d79616b71c35c5ad6be6b5fee7bf  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/feasibility/recipe.json

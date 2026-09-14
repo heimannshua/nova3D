@@ -1,0 +1,534 @@
+{
+  "scope": "Synthetic headless Linux primitives; G-5/G-8 BLOCKED; offline inference and layout acceptance NOT RUN",
+  "metadata": {
+    "node": "v24.21.0",
+    "chromePath": "/usr/bin/google-chrome",
+    "packageVersions": {
+      "playwright": "1.63.0",
+      "three": "0.186.0",
+      "onnxruntime-web": "1.29.0"
+    },
+    "host": "linux x64"
+  },
+  "probes": [
+    {
+      "mode": "desktop-headless-linux",
+      "identity": {
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+        "platform": "Linux x86_64",
+        "vendor": "Google Inc.",
+        "hardwareConcurrency": 4,
+        "deviceMemoryGiB": 8,
+        "crossOriginIsolated": false,
+        "secureContext": true,
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        },
+        "serviceWorker": true,
+        "indexedDB": true,
+        "opfs": true,
+        "worker": true,
+        "webgpu": true,
+        "webgl2": true,
+        "webgl2Status": "PASS",
+        "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "webglVendor": "Google Inc. (Google)",
+        "webglVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+        "webgpuAdapter": {
+          "name": null,
+          "features": [
+            "depth32float-stencil8",
+            "rg11b10ufloat-renderable",
+            "bgra8unorm-storage",
+            "texture-compression-bc",
+            "core-features-and-limits",
+            "chromium-experimental-sampling-resource-table",
+            "chromium-experimental-timestamp-query-inside-passes",
+            "float32-filterable",
+            "indirect-first-instance",
+            "texture-compression-astc-sliced-3d",
+            "float32-blendable",
+            "subgroup-size-control",
+            "texture-compression-unaligned",
+            "texture-compression-astc",
+            "texture-compression-etc2",
+            "depth-clip-control",
+            "texture-compression-bc-sliced-3d",
+            "clip-distances",
+            "timestamp-query",
+            "texture-component-swizzle",
+            "subgroups"
+          ]
+        },
+        "webgpuStatus": "PASS"
+      },
+      "storage": {
+        "indexedDB": {
+          "pass": true,
+          "value": {
+            "kind": "synthetic",
+            "bytes": 32,
+            "data": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ]
+          }
+        },
+        "opfs": {
+          "pass": true,
+          "preexisting": false,
+          "size": 32
+        },
+        "worker": {
+          "pass": true,
+          "value": {
+            "echo": "worker-fixture"
+          }
+        }
+      },
+      "geometry": {
+        "pass": true,
+        "positionCount": 24,
+        "boundsMm": [
+          2,
+          3,
+          4
+        ],
+        "semanticFeatureIds": [
+          "fixture.box",
+          "fixture.base"
+        ],
+        "threeRevision": "186"
+      },
+      "onnx": {
+        "pass": true,
+        "executionProvider": "wasm",
+        "input": 3.5,
+        "output": 3.5,
+        "runtime": 1
+      },
+      "offline": {}
+    },
+    {
+      "mode": "offline-after-service-worker",
+      "identity": {
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+        "platform": "Linux x86_64",
+        "vendor": "Google Inc.",
+        "hardwareConcurrency": 4,
+        "deviceMemoryGiB": 8,
+        "crossOriginIsolated": false,
+        "secureContext": true,
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        },
+        "serviceWorker": true,
+        "indexedDB": true,
+        "opfs": true,
+        "worker": true,
+        "webgpu": true,
+        "webgl2": true,
+        "webgl2Status": "PASS",
+        "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "webglVendor": "Google Inc. (Google)",
+        "webglVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+        "webgpuAdapter": {
+          "name": null,
+          "features": [
+            "depth32float-stencil8",
+            "rg11b10ufloat-renderable",
+            "bgra8unorm-storage",
+            "texture-compression-bc",
+            "chromium-experimental-sampling-resource-table",
+            "core-features-and-limits",
+            "chromium-experimental-timestamp-query-inside-passes",
+            "float32-filterable",
+            "indirect-first-instance",
+            "texture-compression-astc-sliced-3d",
+            "float32-blendable",
+            "subgroup-size-control",
+            "texture-compression-unaligned",
+            "texture-compression-astc",
+            "texture-compression-etc2",
+            "depth-clip-control",
+            "texture-compression-bc-sliced-3d",
+            "timestamp-query",
+            "clip-distances",
+            "texture-component-swizzle",
+            "subgroups"
+          ]
+        },
+        "webgpuStatus": "PASS"
+      },
+      "storage": {
+        "indexedDB": {
+          "pass": true,
+          "preexisting": true,
+          "value": {
+            "kind": "synthetic",
+            "bytes": 32,
+            "data": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ]
+          }
+        },
+        "opfs": {
+          "pass": true,
+          "preexisting": true,
+          "size": 32
+        },
+        "worker": {
+          "pass": true,
+          "value": {
+            "echo": "worker-fixture"
+          }
+        }
+      },
+      "geometry": {
+        "status": "NOT RUN",
+        "reason": "Three.js module was not cached for the offline persistence pass"
+      },
+      "onnx": {
+        "status": "NOT RUN",
+        "reason": "ONNX Runtime Web and model assets were not cached for the offline persistence pass"
+      },
+      "offline": {
+        "pass": true,
+        "exactBytesMatch": true,
+        "sameLengthCorruptionRejected": true,
+        "navigationPath": "/index.html",
+        "artifactBytes": 33,
+        "cachedArtifact": true,
+        "controller": true
+      }
+    },
+    {
+      "mode": "viewport-393x852-api-emulation",
+      "identity": {
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+        "platform": "Linux x86_64",
+        "vendor": "Google Inc.",
+        "hardwareConcurrency": 4,
+        "deviceMemoryGiB": 8,
+        "crossOriginIsolated": false,
+        "secureContext": true,
+        "viewport": {
+          "width": 393,
+          "height": 852,
+          "devicePixelRatio": 3
+        },
+        "serviceWorker": true,
+        "indexedDB": true,
+        "opfs": true,
+        "worker": true,
+        "webgpu": true,
+        "webgl2": true,
+        "webgl2Status": "PASS",
+        "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "webglVendor": "Google Inc. (Google)",
+        "webglVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+        "webgpuAdapter": {
+          "name": null,
+          "features": [
+            "depth32float-stencil8",
+            "rg11b10ufloat-renderable",
+            "bgra8unorm-storage",
+            "texture-compression-bc",
+            "core-features-and-limits",
+            "chromium-experimental-sampling-resource-table",
+            "chromium-experimental-timestamp-query-inside-passes",
+            "float32-filterable",
+            "indirect-first-instance",
+            "texture-compression-astc-sliced-3d",
+            "float32-blendable",
+            "subgroup-size-control",
+            "texture-compression-unaligned",
+            "texture-compression-astc",
+            "texture-compression-etc2",
+            "depth-clip-control",
+            "texture-compression-bc-sliced-3d",
+            "clip-distances",
+            "timestamp-query",
+            "texture-component-swizzle",
+            "subgroups"
+          ]
+        },
+        "webgpuStatus": "PASS"
+      },
+      "storage": {
+        "indexedDB": {
+          "pass": true,
+          "value": {
+            "kind": "synthetic",
+            "bytes": 32,
+            "data": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ]
+          }
+        },
+        "opfs": {
+          "pass": true,
+          "preexisting": false,
+          "size": 32
+        },
+        "worker": {
+          "pass": true,
+          "value": {
+            "echo": "worker-fixture"
+          }
+        }
+      },
+      "geometry": {
+        "pass": true,
+        "positionCount": 24,
+        "boundsMm": [
+          2,
+          3,
+          4
+        ],
+        "semanticFeatureIds": [
+          "fixture.box",
+          "fixture.base"
+        ],
+        "threeRevision": "186"
+      },
+      "onnx": {
+        "pass": true,
+        "executionProvider": "wasm",
+        "input": 3.5,
+        "output": 3.5,
+        "runtime": 1
+      },
+      "offline": {}
+    },
+    {
+      "mode": "viewport-412x915-api-emulation",
+      "identity": {
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+        "platform": "Linux x86_64",
+        "vendor": "Google Inc.",
+        "hardwareConcurrency": 4,
+        "deviceMemoryGiB": 8,
+        "crossOriginIsolated": false,
+        "secureContext": true,
+        "viewport": {
+          "width": 412,
+          "height": 915,
+          "devicePixelRatio": 2.625
+        },
+        "serviceWorker": true,
+        "indexedDB": true,
+        "opfs": true,
+        "worker": true,
+        "webgpu": true,
+        "webgl2": true,
+        "webgl2Status": "PASS",
+        "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "webglVendor": "Google Inc. (Google)",
+        "webglVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+        "webgpuAdapter": {
+          "name": null,
+          "features": [
+            "depth32float-stencil8",
+            "rg11b10ufloat-renderable",
+            "bgra8unorm-storage",
+            "texture-compression-bc",
+            "core-features-and-limits",
+            "chromium-experimental-sampling-resource-table",
+            "chromium-experimental-timestamp-query-inside-passes",
+            "float32-filterable",
+            "indirect-first-instance",
+            "texture-compression-astc-sliced-3d",
+            "float32-blendable",
+            "subgroup-size-control",
+            "texture-compression-unaligned",
+            "texture-compression-astc",
+            "texture-compression-etc2",
+            "depth-clip-control",
+            "texture-compression-bc-sliced-3d",
+            "clip-distances",
+            "timestamp-query",
+            "texture-component-swizzle",
+            "subgroups"
+          ]
+        },
+        "webgpuStatus": "PASS"
+      },
+      "storage": {
+        "indexedDB": {
+          "pass": true,
+          "value": {
+            "kind": "synthetic",
+            "bytes": 32,
+            "data": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ]
+          }
+        },
+        "opfs": {
+          "pass": true,
+          "preexisting": false,
+          "size": 32
+        },
+        "worker": {
+          "pass": true,
+          "value": {
+            "echo": "worker-fixture"
+          }
+        }
+      },
+      "geometry": {
+        "pass": true,
+        "positionCount": 24,
+        "boundsMm": [
+          2,
+          3,
+          4
+        ],
+        "semanticFeatureIds": [
+          "fixture.box",
+          "fixture.base"
+        ],
+        "threeRevision": "186"
+      },
+      "onnx": {
+        "pass": true,
+        "executionProvider": "wasm",
+        "input": 3.5,
+        "output": 3.5,
+        "runtime": 1
+      },
+      "offline": {}
+    }
+  ],
+  "overallStatus": "PASS",
+  "failedAssertions": [],
+  "unsupportedCapabilities": []
+}

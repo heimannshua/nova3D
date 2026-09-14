@@ -1,0 +1,29 @@
+{
+  "date": "2026-09-14",
+  "architecture_lint": "PASS: zero findings",
+  "stable_ids": {
+    "AD": 19,
+    "CAP": 17,
+    "R": 11
+  },
+  "python_syntax": "PASS",
+  "final_parent_probes": [
+    "devices",
+    "stack",
+    "feasibility",
+    "print-fixtures",
+    "recovery"
+  ],
+  "local_assertions": "PASS",
+  "application_release": "NOT QUALIFIED",
+  "review": {
+    "findings": 28,
+    "patched": 26,
+    "deferred": 2,
+    "rejected": 0
+  },
+  "target_devices": "NOT RUN",
+  "physical_print": "NOT RUN",
+  "offline_reconstruction": "BLOCKED",
+  "no_probe_containers_running": true
+}

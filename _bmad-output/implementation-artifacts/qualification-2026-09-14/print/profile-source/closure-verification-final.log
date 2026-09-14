@@ -1,0 +1,12 @@
+LICENSE: OK
+resources/profiles/BBL/filament/Bambu PLA Silk+ @BBL A1M.json: OK
+resources/profiles/BBL/filament/Bambu PLA Silk+ @base.json: OK
+resources/profiles/BBL/filament/fdm_filament_common.json: OK
+resources/profiles/BBL/filament/fdm_filament_pla.json: OK
+resources/profiles/BBL/machine/Bambu Lab A1 mini 0.4 nozzle.json: OK
+resources/profiles/BBL/machine/fdm_bbl_3dp_001_common.json: OK
+resources/profiles/BBL/machine/fdm_machine_common.json: OK
+resources/profiles/BBL/process/0.20mm Standard @BBL A1M.json: OK
+resources/profiles/BBL/process/fdm_process_common.json: OK
+resources/profiles/BBL/process/fdm_process_single_0.20.json: OK
+resources/profiles/BBL/process/fdm_process_single_common.json: OK

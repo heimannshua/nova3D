@@ -1,0 +1,8 @@
+$ docker exec -i nova3d-qualification-recovery-20260914-189533 psql -X -U postgres -v ON_ERROR_STOP=1 -At -d app
+stdout:
+
+2f65aa36d0c8c54ee884c2dfce7ca1b5
+INSERT 0 1
+
+stderr:
+

@@ -1,0 +1,3 @@
+$ docker exec nova3d-qualification-recovery-20260914-186610 pg_dump -U postgres -Fc -d app
+exit=0; stderr:
+

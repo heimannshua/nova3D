@@ -1,0 +1,5 @@
+$ docker exec nova3d-qualification-recovery-20260914-192295 pg_restore -U postgres -d app_restored /tmp/app.dump
+stdout:
+
+stderr:
+

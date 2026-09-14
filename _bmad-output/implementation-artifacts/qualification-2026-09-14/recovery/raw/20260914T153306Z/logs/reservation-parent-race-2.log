@@ -1,0 +1,8 @@
+$ docker exec -i nova3d-qualification-recovery-20260914-164792 psql -X -U postgres -v ON_ERROR_STOP=1 -At -d app
+stdout:
+
+
+stderr:
+ERROR:  parent_job_ceiling
+CONTEXT:  PL/pgSQL function reserve_operation(text,text,text,text,bigint) line 23 at RAISE
+

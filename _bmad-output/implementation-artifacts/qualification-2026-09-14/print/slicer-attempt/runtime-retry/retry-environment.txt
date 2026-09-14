@@ -1,0 +1,2 @@
+binary=/probe/tmp/appimage_extracted_fcd2a34715da0abaeaaad264d7716e2d/bin/bambu-studio
+ld_library_path=/probe/tmp/appimage_extracted_fcd2a34715da0abaeaaad264d7716e2d/bin

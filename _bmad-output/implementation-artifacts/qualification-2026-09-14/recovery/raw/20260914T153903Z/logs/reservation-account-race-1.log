@@ -1,0 +1,8 @@
+$ docker exec -i nova3d-qualification-recovery-20260914-189533 psql -X -U postgres -v ON_ERROR_STOP=1 -At -d app
+stdout:
+
+
+stderr:
+ERROR:  job_project_mismatch
+CONTEXT:  PL/pgSQL function reserve_operation(text,text,text,text,text,bigint) line 31 at RAISE
+

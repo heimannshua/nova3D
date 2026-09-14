@@ -1,0 +1,12 @@
+0215b3c9ff08d7a306ed9ecf13d5e4f202f6d73d8c8f4cf11b4abe34725fa46b  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/print/slicer-attempt/cli-slice-effective/result.json
+04e1b3e2d2ac3cadfe24bb566c1408e85ad17b8e0f768c1053941267788b31b4  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/print/slicer-attempt/cli-slice-effective/cli-slice-retry.stdout
+123401c560de616324f1ef2c5d60573494829399a3c69a9ded79e202a37af72b  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/print/slicer-attempt/cli-slice-effective/positive_envelope.stl
+27afcd7d31a68abf67e4f686e934f5d9ab1b9ed4aafe3b2b2af72a7cc37221dd  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/print/slicer-attempt/cli-slice-effective/cli-slice-retry.status
+435bf1d4975c97fa965889dbb2501833a202b5c5dd5eabfca74ba8f97a230e85  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/print/slicer-attempt/cli-slice-effective/plate_1.gcode
+5bec6292fc635cb38ce292ebf08e444b961d266424a5c39aa2817d277b0a45f4  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/print/slicer-attempt/cli-slice-effective/filament.json
+78ce1c0aec77d86f3368cfdaee5d45f1840c3843e9405a347057b4944797757e  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/print/slicer-attempt/cli-slice-effective/cli-outputs-retry.txt
+bef1438c3cc6af1eba0de8afb131be5a349293fd067fa6ad56fca10350331e33  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/print/slicer-attempt/cli-slice-effective/process-effective.json
+ca85210a9065eb658256385807cc715c3bb07727316a1be6818bfa6256bfbce8  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/print/slicer-attempt/cli-slice-effective/machine.json
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/print/slicer-attempt/cli-slice-effective/cli-slice-retry.stderr
+e9e44c61952a9788297fdc604c84d12b2207a7cf8598d6483c322528d9e1242b  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/print/slicer-attempt/cli-slice-effective/result.3mf
+f35112a42921ac6a3d63675191869ddf8c024db3094b3c28825f2546780104f1  /home/josh/repos/nova3D/_bmad-output/implementation-artifacts/qualification-2026-09-14/print/slicer-attempt/cli-slice-effective/cli-input-sha256.txt

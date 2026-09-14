@@ -1,0 +1,1 @@
+image=nova3d-cadquery-qualification@sha256:6dfef397d06d25a7d6ca1b648c8393d51fcd4a48f5c24e7dc5bc9976cdd6536a\nid=sha256:6dfef397d06d25a7d6ca1b648c8393d51fcd4a48f5c24e7dc5bc9976cdd6536a\ncreated=2026-09-14T15:33:53.28366884Z\narchitecture=amd64\nos=linux

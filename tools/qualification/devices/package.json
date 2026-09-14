@@ -1,0 +1,14 @@
+{
+  "name": "nova3d-device-qualification-probe",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "dependencies": {
+    "@playwright/test": "1.63.0",
+    "onnxruntime-web": "1.29.0",
+    "playwright": "1.63.0",
+    "three": "0.186.0"
+  }
+}

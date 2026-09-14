@@ -1,0 +1,4 @@
+--- install clean intended ---
+npm warn deprecated crypto-js@4.2.0: Active development of CryptoJS has been discontinued. This library is no longer maintained.
+
+added 65 packages in 3s

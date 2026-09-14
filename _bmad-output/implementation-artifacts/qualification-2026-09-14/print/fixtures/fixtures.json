@@ -1,0 +1,194 @@
+{
+  "malformed_nonmanifold": {
+    "analytic": {
+      "reason": "coincident internal face / non-manifold shared boundary"
+    },
+    "expected": "fail",
+    "file": "malformed_nonmanifold.stl"
+  },
+  "malformed_zero_area_face": {
+    "analytic": {
+      "mutation_of": "positive_envelope.stl",
+      "reason": "deliberate zero-area triangle"
+    },
+    "expected": "fail",
+    "file": "malformed_zero_area_face.stl"
+  },
+  "negative_bounds_90_01mm": {
+    "analytic": {
+      "bounds_mm": [
+        90.01,
+        20,
+        20
+      ]
+    },
+    "expected": "fail",
+    "file": "negative_bounds_90_01mm.stl"
+  },
+  "negative_thresholds": {
+    "analytic": {
+      "component_layout": [
+        {
+          "extents": [
+            1.19,
+            8,
+            8
+          ],
+          "label": "wall",
+          "origin": [
+            2,
+            2,
+            0
+          ]
+        },
+        {
+          "extents": [
+            0.79,
+            0.79,
+            3
+          ],
+          "label": "isolated_feature",
+          "origin": [
+            6,
+            2,
+            0
+          ]
+        },
+        {
+          "extents": [
+            5,
+            5,
+            2
+          ],
+          "label": "mating_a",
+          "origin": [
+            10,
+            2,
+            0
+          ]
+        },
+        {
+          "extents": [
+            5,
+            5,
+            2
+          ],
+          "label": "mating_b",
+          "origin": [
+            15.39,
+            2,
+            0
+          ]
+        },
+        {
+          "extents": [
+            0.59,
+            3,
+            1
+          ],
+          "label": "relief",
+          "origin": [
+            25,
+            2,
+            0
+          ]
+        }
+      ],
+      "isolated_feature_mm": 0.79,
+      "mating_clearance_mm": 0.39,
+      "relief_mm": 0.59,
+      "wall_mm": 1.19
+    },
+    "expected": "fail",
+    "file": "negative_thresholds.stl"
+  },
+  "positive_envelope": {
+    "analytic": {
+      "bounds_mm": [
+        40,
+        40,
+        40
+      ],
+      "volume_mm3": 64000
+    },
+    "expected": "pass",
+    "file": "positive_envelope.stl"
+  },
+  "positive_thresholds": {
+    "analytic": {
+      "component_layout": [
+        {
+          "extents": [
+            1.2,
+            8,
+            8
+          ],
+          "label": "wall",
+          "origin": [
+            2,
+            2,
+            0
+          ]
+        },
+        {
+          "extents": [
+            0.8,
+            0.8,
+            3
+          ],
+          "label": "isolated_feature",
+          "origin": [
+            6,
+            2,
+            0
+          ]
+        },
+        {
+          "extents": [
+            5,
+            5,
+            2
+          ],
+          "label": "mating_a",
+          "origin": [
+            10,
+            2,
+            0
+          ]
+        },
+        {
+          "extents": [
+            5,
+            5,
+            2
+          ],
+          "label": "mating_b",
+          "origin": [
+            15.4,
+            2,
+            0
+          ]
+        },
+        {
+          "extents": [
+            0.6,
+            3,
+            1
+          ],
+          "label": "relief",
+          "origin": [
+            25,
+            2,
+            0
+          ]
+        }
+      ],
+      "isolated_feature_mm": 0.8,
+      "mating_clearance_mm": 0.4,
+      "relief_mm": 0.6,
+      "wall_mm": 1.2
+    },
+    "expected": "pass",
+    "file": "positive_thresholds.stl"
+  }
+}

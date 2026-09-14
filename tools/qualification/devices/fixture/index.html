@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nova3D device probe</title>
+<body data-probe-page="fixture">Synthetic qualification fixture</body>
+<script>
+  window.__probeReady = false;
+  navigator.serviceWorker?.register('/sw.js').then(() => { window.__probeReady = true; }).catch(() => { window.__probeReady = true; });
+</script>

@@ -2,7 +2,7 @@
 title: nova3D PRD
 status: final
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-09-14
 ---
 
 # PRD: nova3D
@@ -499,7 +499,7 @@ An Account owner can permanently delete individual Projects and Exports or the c
 
 ### 9.2 Phase-Blocking Architecture Decisions
 
-These are not optional implementation details. The named owner must propose a measurable contract and Josh must ratify it at the stated gate.
+**Ratified 2026-09-14:** Josh's “ratify all fast path” adopts the measurable defaults in [RATIFIED-DECISIONS.md](../../architecture/architecture-nova3D-2026-09-14/RATIFIED-DECISIONS.md). Its R-1–R-7 satisfy the product-ratification portions of this register. R-8–R-11 additionally govern offline revocation, operations, visual direction and direct-image recovery, superseding conflicting earlier wording in this PRD/addendum. The subsequent [local qualification run](../../../implementation-artifacts/qualification-2026-09-14/REPORT.md) supplies partial component evidence; architecture G-1–G-9 remain open acceptance gates; implementation and qualification may proceed without repeating approval of these defaults. The table retains the original gate identities and timing for traceability.
 
 | ID | Decision required | Owner | Ratification gate | Affected requirements |
 |---|---|---|---|---|
@@ -513,4 +513,4 @@ These are not optional implementation details. The named owner must propose a me
 
 ## 10. Assumptions Index
 
-No unresolved inline product assumptions are included. Phase-blocking technical decisions, owners, and ratification gates are tracked in §9, with supporting context in `addendum.md`.
+No unresolved inline product assumptions are included. The technical defaults in §9 were ratified on 2026-09-14; their remaining engineering evidence and delegated implementation selections are recorded in the architecture and ratified-decisions companion. Earlier proposal wording in `addendum.md` is historical where superseded there.

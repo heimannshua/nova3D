@@ -1,0 +1,2 @@
+repo_digests=["nova3d/bambu-cli@sha256:cfb0da2781e1885463fcbd163e5bc6784d562be3a08c65354d425aa758b71a14"] id=sha256:cfb0da2781e1885463fcbd163e5bc6784d562be3a08c65354d425aa758b71a14 created=2026-09-14T15:40:59.298934571Z
+{"org.opencontainers.image.version":"24.04"}
