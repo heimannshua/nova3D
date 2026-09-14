@@ -1,0 +1,106 @@
+{
+  "epic": {
+    "id": "6",
+    "title": "Qualify and export an evidence-backed printable model",
+    "goal": "An approved model can pass exact profile checks, receive bounded audited repair and be downloaded with immutable bilingual provenance."
+  },
+  "story": {
+    "id": "6-9",
+    "epic_id": "6",
+    "title": "Stream private files with live revocation",
+    "user": "Account owner",
+    "want": "to download my exports on phone or computer",
+    "benefit": "large files remain private and access stops when revoked",
+    "requirements": [
+      "FR-2",
+      "FR-3",
+      "FR-29",
+      "AR-19",
+      "NFR-1",
+      "NFR-2",
+      "UX-DR63"
+    ],
+    "depends_on": [
+      "6-8",
+      "4-1",
+      "1-5"
+    ],
+    "scope": [
+      "Use the container gateway for large authenticated downloads/ranges and existing staging uploads."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "a large owned export",
+        "when": "download or range transfer runs",
+        "then": "each range and each chunk of at most 1 MiB checks live session/Account/Project/artifact state; no reusable signed storage URL is exposed"
+      },
+      {
+        "given": "disable, deletion or grant revocation during transfer",
+        "when": "the next chunk is authorized",
+        "then": "future chunks stop without cached authorization; previously delivered or in-flight bytes are not claimed recalled"
+      },
+      {
+        "given": "phone file handling, interrupted download or a foreign object",
+        "when": "the user requests files",
+        "then": "usable preparing/ready/failed states and individual/package downloads remain private with no-store responses and lease-aware cleanup"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-2": {
+      "text": "#### FR-2: Authentication and workspace isolation\n\nAn Account can authenticate and access only its own Workspace.\n\n**Consequences:**\n- Cross-Account access to Projects, Sources, decisions, Models, Versions, Jobs, Exports, and Notifications is denied.\n- Administrative usage controls do not expose ordinary Project content.\n- The Administrator cannot impersonate an Account, browse its private Workspace, or assign additional administrative privileges through the app.\n\nSource: PRD §4, FR-2.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 85
+    },
+    "FR-3": {
+      "text": "#### FR-3: Account administration\n\nThe Administrator can view Account status and disable or re-enable an invited Account.\n\n**Consequences:**\n- Disabling an Account immediately revokes every active session and download authorization.\n- A disabled Account cannot authenticate, access its Workspace, or start operations or paid steps.\n- Disabling safely cancels active Jobs and rejects any late result so it cannot mutate Workspace or cache state.\n- Disabling an Account does not delete its Workspace.\n- Administrative capabilities are limited to issuing and revoking Invitation Codes, viewing account status and usage, setting Usage Limits, and disabling or re-enabling Accounts.\n- Invitation, Usage Limit, disable, re-enable, and recovery actions require fresh Administrator authentication and create immutable security audit events.\n- The unique Administrator can recover access only through a single-use, short-lived link sent to the Administrator's verified email address.\n- Successful Administrator recovery revokes all existing Administrator sessions and creates an immutable recovery audit event.\n\nSource: PRD §4, FR-3.\n\n**Ratified application:** R-8 / AR-23 governs already-local disconnected data: server access is revoked immediately, while a disconnected device learns disable/deletion on contact. A learned disable cannot be bypassed by returning offline.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 96
+    },
+    "FR-29": {
+      "text": "#### FR-29: Model and provenance export\n\nThe user can download an Export for a Model Version that has Model Approval and a passing validation result.\n\n**Consequences:**\n- The Export contains a 3MF file as its primary print-ready model, offers an optional STL compatibility copy, and includes a readable PDF Source Record.\n- The Source Record identifies the Project, Research Plan, Consequential Details, Claims, Sources, reasoning, options, approvals, Personalization, Canonical Model identity, Model Version, Target Print Profile, validations, and repairs.\n- The PDF uses stable identifiers and cross-references so the user can trace Claims to Model Features and Model Features back to Claims; it is generated from the same immutable structured provenance used by the app.\n- The Export remains linked to its Source Record and structured provenance even though the print file may not contain editable parametric history.\n\nSource: PRD §4, FR-29.\n\n**Ratified application:** The immutable export carries mode-appropriate provenance, never a fabricated historical plan for direct images. R-4 defines shared structured provenance plus PDF; R-8 requires connection for qualified export.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 430
+    },
+    "AR-19": {
+      "text": "**AR-19: Revocable artifact transfer.** Keep buckets private and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. Container gateway streams large uploads/downloads/ranges; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.\n\nSource: AD-13; file authorization.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 657
+    },
+    "NFR-1": {
+      "text": "**NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 541
+    },
+    "NFR-2": {
+      "text": "**NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 543
+    },
+    "UX-DR63": {
+      "text": "**UX-DR63: Export download (V-06).** Primary 3MF, optional STL, readable PDF Source Record.\n\nRequired states/variants: Preparing, ready, individual/package download, failed, phone file handling.\n\nSource: SCREEN-INVENTORY V-06; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1111
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

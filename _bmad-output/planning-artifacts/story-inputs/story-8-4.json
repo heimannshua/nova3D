@@ -1,0 +1,100 @@
+{
+  "epic": {
+    "id": "8",
+    "title": "Delete private work and prove release readiness",
+    "goal": "Users can remove their data, Josh can close the instance, and the complete product is accepted only with real application/device and recovery evidence."
+  },
+  "story": {
+    "id": "8-4",
+    "epic_id": "8",
+    "title": "Restore the service without resurrecting deleted data",
+    "user": "Account owner",
+    "want": "to recover surviving work after a failure",
+    "benefit": "backups restore geometry and enforce every intervening deletion",
+    "requirements": [
+      "FR-22",
+      "FR-30",
+      "AR-21",
+      "AR-26",
+      "NFR-7",
+      "NFR-12"
+    ],
+    "depends_on": [
+      "8-3"
+    ],
+    "scope": [
+      "Back up database daily and objects independently; keep the restricted deletion ledger outside rollback and drill actual provisioned restore paths."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "a database backup, independent artifact backups and deletions after backup",
+        "when": "a restore drill runs",
+        "then": "the external deletion ledger replays before access opens and every surviving manifest/artifact is verified"
+      },
+      {
+        "given": "a cross-store crash or a missing/corrupt surviving object",
+        "when": "recovery executes",
+        "then": "deleted data remains excluded and incomplete restoration is reported rather than exposed as successful"
+      },
+      {
+        "given": "the provisioned recovery setup",
+        "when": "a measured drill completes",
+        "then": "RPO and RTO are each ≤24 hours and active-purge/backup-expiry settings and provider plans are evidenced"
+      }
+    ],
+    "gates": [
+      "G-9"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-22": {
+      "text": "#### FR-22: Restorable version history\n\nThe user can view, compare, and restore prior Model Versions.\n\n**Consequences:**\n- Each Version preserves geometry, parameters, Research Plan, approvals, validations, Personalization, and generation metadata.\n- Comparing two Versions shows changed geometry, parameters, Claims, interpretation decisions, Personalization, approvals, and validation results.\n- Restoring a Version does not erase later history.\n- A restored Version retains its original approval states; the user must grant any approval required for a new Export.\n\nSource: PRD §4, FR-22.\n\n**Ratified application:** Restore mode-appropriate provenance: exact plan/approvals for evidence models; exact inputs, activity, uncertainty and snapshots for direct models. A new qualified export still checks current exact-model approval and validation.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 345
+    },
+    "FR-30": {
+      "text": "#### FR-30: Private Project or Account deletion with non-user-visible research cache\n\nAn Account owner can permanently delete individual Projects and Exports or the complete Account and private Workspace after fresh authentication and explicit confirmation.\n\n**Shared deletion guarantees**\n\n- nova3D tombstones and hides the deletion target before cancellation or cleanup begins.\n- Deletion cancels affected Jobs and rejects late worker writes and cache promotion so deleted data cannot reappear.\n- Active private data is removed promptly. Remaining private copies in operational backups are removed within 30 days.\n- Deletion tombstones survive backup restoration and prevent restored private data from becoming active or accessible.\n- Any outside provider whose retention cannot satisfy these deletion guarantees must be disclosed before it receives private Project data.\n\n**Project and Export deletion**\n\n- Deletion removes Models, Exports, Personalization, approvals, private prompt wording beyond the normalized research subject, and private Project history from active private storage.\n\n**Permitted shared-cache retention**\n\n- nova3D may retain source-derived Claims and provenance in a shared research cache available to all Accounts.\n- A Cached Research Revision may contain only fields reproducible from identified non-private Sources. It cannot contain or reveal Account identity, private prompt wording beyond a normalized research subject, uploaded private material, Personalization, Project decisions, Models, deleted files, or which Account requested a subject.\n- Every cached Claim is pinned to immutable Source and Cached Research Revision identities. Corrections create linked successor revisions and cannot silently change evidence already approved by a Project.\n- No Account can browse another Account's deleted files or private history through the cache. Reuse cannot recreate a deleted Project or its private decisions.\n\n**Account deletion and instance closure**\n\n- Whole-Account deletion immediately disables access and applies the shared guarantees to every Project, Job, Notification, Export, upload, Personalization item, usage-linked identifier, temporary artifact, and private operational record in that Workspace.\n- Only Cached Research Revisions allowed above may remain, and they cannot reveal that the deleted Account requested or used them.\n- Because the Administrator role is unique and non-transferable in the MVP, ordinary Administrator self-deletion is blocked while an invited Account exists.\n- A separate close-instance action remains available after fresh Administrator authentication and explicit destructive confirmation. It tombstones every Account and Workspace without exposing their contents, revokes all sessions and Invitation Codes, cancels all Jobs, rejects late writes, and applies the shared deletion guarantees.\n- When no invited Account remains, Administrator self-deletion performs the same close-instance action.\n\nSource: PRD §4, FR-30.\n\n**Ratified application:** R-9 sets active purge at no more than 24 hours and controlled-backup expiry at no more than 30 days from deletion, with deletion-ledger replay before reopening restored access. R-8 excludes disconnected/downloaded copies from remote erasure promises and requires learned tombstones to purge before sync.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 444
+    },
+    "AR-21": {
+      "text": "**AR-21: Deletion and tested recovery.** Tombstone/hide before cancellation/purge; cover database, images, models, exports, staging, notifications, usage associations and private operational records. Active purge ≤24 h; all controlled private backup copies expire ≤30 days from deletion, never extended by restore/rebackup. Back up database daily and objects independently; target RPO/RTO ≤24 h. Persist the minimum restricted anti-resurrection ledger of opaque target identities outside restore rollback and replay before reopening access. Verify interrupted cross-store deletion and restore; apart from that minimum ledger, preserve only permitted public claims/nonidentifying aggregates. Apply sole-Administrator close-instance safeguards and disclose external retention exceptions.\n\nSource: AD-15; R-9; FR-30; G-9.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 665
+    },
+    "AR-26": {
+      "text": "**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify immutable environment IDs at CI/startup/dispatch; prevent preview/production mixing. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and nearest available Upstash with actual paid plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity and purge deadlines with redacted IDs; outages fail authorization closed.\n\nSource: AD-19; R-9; G-9.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 685
+    },
+    "NFR-7": {
+      "text": "**NFR-7: Version durability.** Every Version presented as restorable must restore its geometry and provenance successfully. Deletion under FR-30 is the explicit exception.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 555
+    },
+    "NFR-12": {
+      "text": "**NFR-12: Privacy-preserving cache and deletion.** Shared cached research contains only fields reproducible from identified non-private Sources and cannot expose user identity, private inputs, decisions, or deleted artifacts. Admission rejects all user- and Project-derived fields. Project or whole-Account deletion takes effect immediately through durable tombstones. It blocks late writes and cache promotion, promptly removes active private data, removes remaining copies from operational backups within 30 days, and remains enforced after backup restoration.\n\nSource: PRD §7. All twelve NFRs apply across the capability set, with the explicit mode distinction above. Architecture requirements below supply measurable limits and enforcement contracts.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 565
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

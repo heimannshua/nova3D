@@ -1,0 +1,111 @@
+{
+  "epic": {
+    "id": "3",
+    "title": "Research and approve a complete evidence plan",
+    "goal": "Users can inspect authoritative evidence, control source eligibility, resolve interpretations and approve one complete reconstruction plan."
+  },
+  "story": {
+    "id": "3-5",
+    "epic_id": "3",
+    "title": "Approve one complete immutable Research Plan",
+    "user": "Account owner",
+    "want": "to approve the complete plan once",
+    "benefit": "evidence-backed geometry follows my exact decisions",
+    "requirements": [
+      "FR-12",
+      "FR-13",
+      "AR-4",
+      "AR-5",
+      "AR-6",
+      "UX-DR16",
+      "UX-DR44",
+      "UX-DR48"
+    ],
+    "depends_on": [
+      "3-3",
+      "3-4"
+    ],
+    "scope": [
+      "Group section evidence for review while retaining one whole-Project approval gate."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "an incomplete plan or unsettled required choice",
+        "when": "approval or partial-section generation is requested",
+        "then": "both are blocked even when some sections appear clear"
+      },
+      {
+        "given": "a complete checklist and independent gap pass",
+        "when": "the user approves the whole plan",
+        "then": "the immutable exact digest, approver/time, choices and affected details are recorded"
+      },
+      {
+        "given": "a successor interpretation or policy-driven draft",
+        "when": "generation authority is checked",
+        "then": "the successor needs renewed approval; previous approved records remain immutable and do not authorize changed content"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-12": {
+      "text": "#### FR-12: Whole-project review before generation\n\nnova3D presents one complete Research Plan for the requested Model before any Canonical Model is generated.\n\n**Consequences:**\n- The review includes proposed choices, rejected or competing alternatives, citations, reasoning, Detail Status, and expected geometry effects.\n- The review groups related Consequential Details into evidence packages for each model section while preserving one final whole-Project approval boundary.\n- Apparently clear sections are not generated incrementally while other research remains unresolved.\n\nSource: PRD §4, FR-12.\n\n**Ratified application:** Whole-plan completeness and approval govern evidence_text and evidence_images. image_direct uses confirmed scope, ordered images and explicit uncertainty acknowledgment; it never fabricates a Research Plan.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 217
+    },
+    "FR-13": {
+      "text": "#### FR-13: Version-bound plan approval\n\nThe user can approve or reject a specific Research Plan version.\n\n**Consequences:**\n- Geometry generation is blocked until Plan Approval exists.\n- Plan Approval records the approver, time, selected and rejected options, and affected Consequential Details.\n- A change to an approved Research Plan creates a new version and invalidates generation authority until that version is approved.\n\nSource: PRD §4, FR-13.\n\n**Ratified application:** Plan Approval gates only the two evidence modes. Direct conversion has its own immutable confirmed-input/uncertainty gate, followed by exact-model approval and validation for qualified export.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 230
+    },
+    "AR-4": {
+      "text": "**AR-4: Explicit request modes.** Persist immutable evidence_text, evidence_images or image_direct revisions. Evidence modes need complete whole-plan approval of the exact digest. Direct mode needs confirmed scope, ordered image digests and acknowledged uncertainty, and never gains historical status. Changing modes creates a successor request. Every qualified export still requires exact-model approval and compatible validation.\n\nSource: AD-3; R-8, R-11; scope-and-readiness.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 587
+    },
+    "AR-5": {
+      "text": "**AR-5: Provenance and immutable publication.** Preserve SourceRevision → ClaimRevision → Detail/Option → PlanRevision/PlanApproval → Parameter → Feature → ModelVersion → ModelApproval/Validation → Export links, including reverse navigation, competing choices, actors and times. Stable logical features have version-specific geometry/claim bindings. Artifacts owns one canonical JSON manifest-root/digest family with immutable ID, ownership, size, kind, byte digest, canonical serialization version, producing activity and child references. Approval, gateway access, restore, cleanup and deletion resolve the same manifest roots; object keys cannot redefine them. Staged output becomes usable/restorable only through verified coordinated publication.\n\nSource: AD-4, AD-13; shared artifact identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 591
+    },
+    "AR-6": {
+      "text": "**AR-6: Complete and eligible research.** Use the Middot package's finite checklist for shape, dimensions, materials, placement, printability and interpretation; require an independent omission review with no unresolved gap. Middot chapter 3 governs spatial reconstruction; low-authority pages remain leads. Project exclusions and Account toggles target stable source identities, increment effective policy epochs and invalidate/recheck affected active conclusions. Pin the Account-policy revision, Project-exclusion revision and explicit source set in attempts, private cache-adoption records and plan digests. Filtering is deterministic for those inputs; active changes create a successor draft and rerun affected conclusions and completeness before approval. Approved records stay immutable.\n\nSource: AD-5; evidence-policy identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 595
+    },
+    "UX-DR16": {
+      "text": "**UX-DR16: Immutable approvals and comparison.** Show exact plan/model version and readiness before approval. Compare geometry, parameters, evidence/choices, personalization, approvals and validation; restoration preserves later history and does not silently authorize an export. Changed interpretations, substantive repair and personalization route to the relevant successor approval.\n\nSource: FR-12/FR-13/FR-20–FR-23/FR-27.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 839
+    },
+    "UX-DR44": {
+      "text": "**UX-DR44: Research Plan overview (R-01).** Whole-Project status and grouped evidence packages for model sections.\n\nRequired states/variants: Incomplete, ready for review, approved, rejected, invalidated by successor revision.\n\nSource: SCREEN-INVENTORY R-01; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 997
+    },
+    "UX-DR48": {
+      "text": "**UX-DR48: Plan Approval (R-05).** Approve or reject the exact Research Plan version only when complete.\n\nRequired states/variants: Blocked/not ready, review complete, approval confirmation, rejected with reason, approval invalidated.\n\nSource: SCREEN-INVENTORY R-05; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1021
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

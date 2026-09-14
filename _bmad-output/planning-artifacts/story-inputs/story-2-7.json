@@ -1,0 +1,136 @@
+{
+  "epic": {
+    "id": "2",
+    "title": "Confirm requests and control background spending",
+    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state."
+  },
+  "story": {
+    "id": "2-7",
+    "epic_id": "2",
+    "title": "Accept and execute durable fenced jobs",
+    "user": "Account owner",
+    "want": "to continue using Projects while work runs",
+    "benefit": "accepted work survives navigation and failures stay controlled",
+    "requirements": [
+      "FR-6",
+      "AR-3",
+      "AR-14",
+      "AR-15",
+      "AR-26",
+      "NFR-4",
+      "NFR-5",
+      "NFR-8",
+      "NFR-10",
+      "UX-DR19",
+      "UX-DR39",
+      "UX-DR40"
+    ],
+    "depends_on": [
+      "1-5",
+      "2-6"
+    ],
+    "scope": [
+      "Commit Job, attempt/step/operation identities, initial reservation and dispatch outbox together.",
+      "Use signed environment-bound bounded steps, compatible worker registration and cancellation fencing; never automatically retry failed work."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "an accepted Job followed by browser close or dispatcher restart",
+        "when": "dispatch resumes",
+        "then": "committed outbox and unique receipts retain waiting/running/completed/failed/cancelled state without duplicate side effects"
+      },
+      {
+        "given": "failed research, worker lease loss or a duplicate transport delivery",
+        "when": "the configured workflow and queue are exercised",
+        "then": "failed work stays terminal until explicit user retry; duplicates return receipts and interrupted failure preserves approved state with cause/cost/next action"
+      },
+      {
+        "given": "a signed callback with stale revision, revoked epoch, expired lease, invalid signature or wrong environment",
+        "when": "publication is attempted",
+        "then": "it is rejected; valid requests bind nonce/digest/attempt with ≤5-minute expiry and ≤60-second skew; a missing compatible pinned worker leaves work waiting"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-6": {
+      "text": "#### FR-6: Concurrent background jobs\n\nAn Account can use other Projects while multiple research or generation Jobs run independently.\n\n**Consequences:**\n- Each Job exposes waiting, running, completed, failed, and cancelled states.\n- Project data and results cannot leak between concurrent Jobs.\n- The user can cancel a Job without damaging previously approved data or Versions.\n- Failed Jobs do not retry automatically; they preserve the last approved state, explain the known cause in beginner-friendly language, and wait for a user retry decision.\n\nSource: PRD §4, FR-6.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 145
+    },
+    "AR-3": {
+      "text": "**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions.\n\nSource: AD-2; Consistency Conventions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 583
+    },
+    "AR-14": {
+      "text": "**AR-14: Durable Jobs and bounded retries.** Accept Jobs only with committed dispatch outbox; persist Job → JobAttempt → StepExecution → ExternalOperation identities and receipts. Upstash orchestrates bounded HTTP steps and worker completions; Postgres owns state. Configure workflow, explicit queue publishes and provider SDKs for zero failed-work retries, verifying effective behavior with a deliberately failing research step. Duplicate transport returns existing receipts without repeated side effects; terminal failed/cancelled attempts cannot be reclaimed. Lease loss becomes interrupted failure; user retries create new linked attempts under the same Job and wait for prior potentially chargeable work to reconcile. Logical step keys are unique per attempt, and operation ordinals per step; Jobs owns receipts while Usage owns their ledger entries. Preserve last approved state and actionable failure details.\n\nSource: AD-9; work/billing identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 637
+    },
+    "AR-15": {
+      "text": "**AR-15: Fencing and authenticated service calls.** Each attempt binds input digest, Project revision, live Account authorization/evidence-policy epochs, lease and unique fencing token. Recheck before claim, each external step and publication. Cancel/disable/delete revoke commit authority before best-effort cancellation; stage output by attempt and clean it without publishing late results. Signed service requests bind environment, audience, Job/attempt, payload digest and nonce, expire within five minutes and allow at most 60 seconds skew. Verify native callback signatures and stored dispatch receipts; never infer callback identity from Project ID alone. Accept only the active signing key and one explicitly retiring key during the outstanding-request window; suspected compromise immediately revokes the key and affected leases. Reject replay mutations.\n\nSource: AD-10; service authentication and delivery conventions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 641
+    },
+    "AR-26": {
+      "text": "**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify immutable environment IDs at CI/startup/dispatch; prevent preview/production mixing. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and nearest available Upstash with actual paid plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity and purge deadlines with redacted IDs; outages fail authorization closed.\n\nSource: AD-19; R-9; G-9.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 685
+    },
+    "NFR-4": {
+      "text": "**NFR-4: Durable job state.** Closing the browser, navigating to another Project, or a worker restart cannot lose an accepted Job, corrupt its Project, or misreport its final state.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 547
+    },
+    "NFR-5": {
+      "text": "**NFR-5: Safe concurrency.** Concurrent Jobs remain isolated and cannot overwrite newer approved Project state. Results generated from stale inputs cannot silently become current.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 549
+    },
+    "NFR-8": {
+      "text": "**NFR-8: Explainable failures.** User-facing failures identify the failed stage, known cause, preserved state, cost impact where known, and permitted next action in beginner-friendly language.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 557
+    },
+    "NFR-10": {
+      "text": "**NFR-10: Responsive workspace.** Research, generation, validation, repair, and export run without blocking navigation or ordinary Project inspection. Browser preview degradation or failure cannot damage manufacturing geometry.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 561
+    },
+    "UX-DR19": {
+      "text": "**UX-DR19: Failure and destructive-action clarity.** For failures show stage, known cause, preserved state, known cost impact and permitted next action, with no automatic retry implied. Sensitive/deletion/instance-closure flows show required fresh authentication, exact consequences and explicit confirmation; immediate hidden/tombstoned state remains distinct from cleanup completion.\n\nSource: NFR-8; FR-3/FR-6/FR-30; screen inventory.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 851
+    },
+    "UX-DR39": {
+      "text": "**UX-DR39: In Progress overview (J-01).** Active research, generation, validation, repair, and sync Jobs; **Prints in Progress — Coming later**.\n\nRequired states/variants: No Jobs, several concurrent Jobs, mixed states, future-print placeholder.\n\nSource: SCREEN-INVENTORY J-01; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 967
+    },
+    "UX-DR40": {
+      "text": "**UX-DR40: Job detail (J-02).** Current stage, real progress, preserved state, cost impact when known, cancel action.\n\nRequired states/variants: Waiting, running, completed, failed, cancelled, stale result rejected.\n\nSource: SCREEN-INVENTORY J-02; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 973
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "epic": {
+    "id": "1",
+    "title": "Enter and use a private workspace",
+    "goal": "Invited users can authenticate and use a responsive private workspace; Josh can control and recover access without inspecting private content."
+  },
+  "story": {
+    "id": "1-3",
+    "epic_id": "1",
+    "title": "Create invitation-only accounts",
+    "user": "invited user",
+    "want": "to register with a valid invitation",
+    "benefit": "my account starts in its own private workspace",
+    "requirements": [
+      "FR-1",
+      "FR-2",
+      "AR-18",
+      "NFR-1",
+      "NFR-2",
+      "UX-DR22",
+      "UX-DR69"
+    ],
+    "depends_on": [
+      "1-1",
+      "1-2"
+    ],
+    "scope": [
+      "Implement fresh-authenticated Administrator invitation issuance/revocation and narrow idempotent registration.",
+      "Named and current general codes are hashed, single-use and nonexpiring until used or revoked; partial Auth provisioning is unusable."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "one unused invitation and concurrent registrations",
+        "when": "both attempt redemption",
+        "then": "at most one activated Account/Workspace is created; retries return the original outcome and partial provisioning cannot sign in"
+      },
+      {
+        "given": "named codes and the current general code",
+        "when": "a code is revoked or successfully redeemed",
+        "then": "only successful general-code redemption rotates that code; unused codes do not time-expire and existing Accounts remain valid"
+      },
+      {
+        "given": "invalid, used, revoked or guessed codes",
+        "when": "registration is attempted repeatedly",
+        "then": "generic failures and rate limits prevent guessing, code values are not logged, and fresh-authenticated administration records an audit event"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-1": {
+      "text": "#### FR-1: Controlled account creation\n\nThe Administrator can issue and revoke Invitation Codes, and a new user can create an Account only by supplying a valid code.\n\n**Consequences:**\n- Public registration is unavailable.\n- Each named invitation receives a different single-use code.\n- The Administrator can also share one current general code; successful use immediately invalidates it and generates a different current code.\n- Unused codes remain valid until successful use or Administrator revocation; they do not expire solely with time.\n- Registration attempts are rate-limited to resist code guessing.\n- Changing or revoking Invitation Codes does not invalidate existing Accounts.\n\nSource: PRD §4, FR-1.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 71
+    },
+    "FR-2": {
+      "text": "#### FR-2: Authentication and workspace isolation\n\nAn Account can authenticate and access only its own Workspace.\n\n**Consequences:**\n- Cross-Account access to Projects, Sources, decisions, Models, Versions, Jobs, Exports, and Notifications is denied.\n- Administrative usage controls do not expose ordinary Project content.\n- The Administrator cannot impersonate an Account, browse its private Workspace, or assign additional administrative privileges through the app.\n\nSource: PRD §4, FR-2.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 85
+    },
+    "AR-18": {
+      "text": "**AR-18: Identity and administrative enforcement.** Disable public Supabase signup; hash/atomically claim invitations and idempotently provision Auth plus Workspace with unusable partial activation. Rate-limit guessing; rotate shared codes only after success. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication and immutable audit; verified-email single-use short-lived recovery revokes prior sessions.\n\nSource: AD-12; FR-1–FR-4.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 653
+    },
+    "NFR-1": {
+      "text": "**NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 541
+    },
+    "NFR-2": {
+      "text": "**NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 543
+    },
+    "UX-DR22": {
+      "text": "**UX-DR22: Invitation registration (A-02).** Single-use Invitation Code, Account creation, clear generic failures.\n\nRequired states/variants: Valid, invalid/revoked/used code, rate-limited, success.\n\nSource: SCREEN-INVENTORY A-02; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 865
+    },
+    "UX-DR69": {
+      "text": "**UX-DR69: Invitation Codes (AD-01).** Unique named codes plus rotating single-use general code.\n\nRequired states/variants: Unused, used, revoked, newly rotated, copy action.\n\nSource: SCREEN-INVENTORY AD-01; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1147
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

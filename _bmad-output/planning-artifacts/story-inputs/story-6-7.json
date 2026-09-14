@@ -1,0 +1,100 @@
+{
+  "epic": {
+    "id": "6",
+    "title": "Qualify and export an evidence-backed printable model",
+    "goal": "An approved model can pass exact profile checks, receive bounded audited repair and be downloaded with immutable bilingual provenance."
+  },
+  "story": {
+    "id": "6-7",
+    "epic_id": "6",
+    "title": "Render a readable bilingual PDF Source Record",
+    "user": "Account owner",
+    "want": "to read the provenance outside the app",
+    "benefit": "the exported explanation remains legible and linked",
+    "requirements": [
+      "FR-29",
+      "AR-13",
+      "NFR-2",
+      "NFR-3",
+      "UX-DR5",
+      "UX-DR63"
+    ],
+    "depends_on": [
+      "6-6"
+    ],
+    "scope": [
+      "Render the shared immutable provenance using pinned container Playwright/Chromium and licensed Noto fonts with no external resources."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "one validated immutable export envelope",
+        "when": "the PDF is rendered",
+        "then": "Hebrew original and English translation/explanation have readable glyphs, correct order, pagination and reciprocal stable links"
+      },
+      {
+        "given": "untrusted source text or embedded script/remote-resource references",
+        "when": "rendering executes",
+        "then": "content is escaped and remote resources/scripts cannot run"
+      },
+      {
+        "given": "the same package record",
+        "when": "PDF and structured provenance are compared",
+        "then": "model, approvals, profile, validation, repairs and personal additions agree; no external refresh changes the source record"
+      }
+    ],
+    "gates": [
+      "G-4"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-29": {
+      "text": "#### FR-29: Model and provenance export\n\nThe user can download an Export for a Model Version that has Model Approval and a passing validation result.\n\n**Consequences:**\n- The Export contains a 3MF file as its primary print-ready model, offers an optional STL compatibility copy, and includes a readable PDF Source Record.\n- The Source Record identifies the Project, Research Plan, Consequential Details, Claims, Sources, reasoning, options, approvals, Personalization, Canonical Model identity, Model Version, Target Print Profile, validations, and repairs.\n- The PDF uses stable identifiers and cross-references so the user can trace Claims to Model Features and Model Features back to Claims; it is generated from the same immutable structured provenance used by the app.\n- The Export remains linked to its Source Record and structured provenance even though the print file may not contain editable parametric history.\n\nSource: PRD §4, FR-29.\n\n**Ratified application:** The immutable export carries mode-appropriate provenance, never a fabricated historical plan for direct images. R-4 defines shared structured provenance plus PDF; R-8 requires connection for qualified export.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 430
+    },
+    "AR-13": {
+      "text": "**AR-13: Shared export schema and PDF.** Implement provenance schema 1.0.0 in JSON Schema Draft 2020-12 with shared generated TypeScript/Python validation for header, evidence, approvals, geometry and manufacturing groups. Export primary 3MF, optional STL, PDF and structured provenance bound to one immutable manifest. Container PDF rendering uses Playwright 1.63.0 Chromium with pinned/licensed Noto Sans and Noto Sans Hebrew, escaped content and no remote resources/scripts. Verify bilingual glyphs/order, pagination, reciprocal links and zero orphans.\n\nSource: AD-4, AD-8; R-4; G-4.\n\nThe shared schema must preserve these architecture-defined groups:\n\n| Group | Required identity and relationships |\n| --- | --- |\n| Header | Schema version, request mode, Project/Model Version, export identity and creation activity. |\n| Evidence | Source revisions with passage/content pins; claims; classifications; competing options; explanations; original/translated text distinction. |\n| Approvals | Exact plan/model digests, approver/time, choices and affected details; direct-mode scope/uncertainty acknowledgment where applicable. |\n| Geometry | Canonical recipe or image-derived snapshot kind, units/conversions, feature/parameter/dependency links and artifact digests. |\n| Manufacturing | Target profile, scale/orientation, validator/tool versions, each check result, repairs, regenerated versions and qualified export manifest. |",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 623
+    },
+    "NFR-2": {
+      "text": "**NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 543
+    },
+    "NFR-3": {
+      "text": "**NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 545
+    },
+    "UX-DR5": {
+      "text": "**UX-DR5: Configured localization and full RTL.** Initial locale matches a supported device language; an Account override persists. Use logical directions and support text expansion without clipping or semantic reversal; isolate mixed-direction IDs, units, extensions and citations. Keep original-language evidence, translation and explanation distinct and show Hebrew/English together correctly.\n\nSource: SC-4; UX-3/UX-5; AD-17.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 795
+    },
+    "UX-DR63": {
+      "text": "**UX-DR63: Export download (V-06).** Primary 3MF, optional STL, readable PDF Source Record.\n\nRequired states/variants: Preparing, ready, individual/package download, failed, phone file handling.\n\nSource: SCREEN-INVENTORY V-06; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1111
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

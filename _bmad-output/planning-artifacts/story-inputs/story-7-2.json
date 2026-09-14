@@ -1,0 +1,106 @@
+{
+  "epic": {
+    "id": "7",
+    "title": "Create direct models offline and synchronize safely",
+    "goal": "Prepared supported devices can create honestly labeled image-derived models offline, preserve them locally and synchronize without privacy or history loss."
+  },
+  "story": {
+    "id": "7-2",
+    "epic_id": "7",
+    "title": "Prepare a verified offline bundle",
+    "user": "Account owner",
+    "want": "to prepare my device while online",
+    "benefit": "conversion assets are available when disconnected",
+    "requirements": [
+      "AR-22",
+      "AR-23",
+      "SC-2",
+      "UX-DR13",
+      "UX-DR14",
+      "UX-DR31",
+      "UX-DR38"
+    ],
+    "depends_on": [
+      "7-1"
+    ],
+    "scope": [
+      "Cache verified public app/model assets with Account-scoped IndexedDB metadata and OPFS private artifacts."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "an online supported device and pinned bundle",
+        "when": "preparation completes",
+        "then": "all required app/runtime/model bytes are verified and readiness records exact versions and storage state"
+      },
+      {
+        "given": "interrupted preparation, eviction, insufficient storage or missing bytes",
+        "when": "offline conversion is requested",
+        "then": "actionable missing-preparation/storage states prevent an unverified run and never silently upload images"
+      },
+      {
+        "given": "offline preparation guidance",
+        "when": "the user prepares",
+        "then": "online preparation/qualified export and revocation-on-reconnect are explained, including no disconnected time lease and limits on remote erasure"
+      }
+    ],
+    "gates": [
+      "G-8"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "AR-22": {
+      "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 669
+    },
+    "AR-23": {
+      "text": "**AR-23: Offline revocation state.** Already-local work remains usable while disconnected without a time lease. On contact, authoritative status precedes sync/export: disable locks stores and work; learned Account/Project tombstone purges affected files and pending commands. Only a newer server authorization epoch can unlock a known disable; stale replies, token refresh, connectivity or Account switching cannot. Network/auth uncertainty is not deletion. Sign-out clears private stores; never attach another Account's drafts or reuse deleted IDs. Disconnected/downloaded copies are outside controlled-backup erasure promises.\n\nSource: AD-16; R-8.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 673
+    },
+    "SC-2": {
+      "text": "##### SC-2: Direct picture conversion works offline\n\nDirect image-derived conversion must work without internet on supported computer and phone devices. Offline-created Projects remain usable locally, show pending or failed sync state, and automatically sync into **My Projects** when connectivity returns without duplication or overwriting a newer Model Version.\n\nResearch-assisted reconstruction remains online-only. R-8 adopts on-device limits, preparation and revocation behavior; G-8 still requires a qualifying engine, actual offline/device execution and sync evidence.\n\nSource: UX-SCOPE-CHANGES SC-2; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 494
+    },
+    "UX-DR13": {
+      "text": "**UX-DR13: Prepared offline creation and honest failure.** Show preparation/download verification, missing preparation, storage unavailability, eviction/interruption and local inference failure as actionable states. Direct output remains saved/usable locally and labelled image-derived. Research-assisted mode is online-only; qualified export requires connection. Never silently upload or substitute paid cloud generation after local failure.\n\nSource: SC-2; UX-4; R-8.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 827
+    },
+    "UX-DR14": {
+      "text": "**UX-DR14: Offline authority and conflict visibility.** Explain no offline time lease and revocation-on-reconnect during preparation. Show locally saved, pending, syncing, failed and conflict states; automatically import into original Account's My Projects without duplicates/overwrites. Learned disable locks until newer authoritative re-enable; learned deletion purges before import; network uncertainty preserves work. Sign-out clears private stores and Account switching never transfers drafts.\n\nSource: UX-4; R-8.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 831
+    },
+    "UX-DR31": {
+      "text": "**UX-DR31: Create entry (C-01).** Two equal first-version choices: **Enter text** and **Upload picture**.\n\nRequired states/variants: Desktop, phone, offline availability indication.\n\nSource: SCREEN-INVENTORY C-01; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 919
+    },
+    "UX-DR38": {
+      "text": "**UX-DR38: Start confirmation (C-08).** Summarize the exact Job that will begin without duplicating Plan Approval.\n\nRequired states/variants: Ready, offline direct conversion, provider disclosure unresolved, insufficient allowance.\n\nSource: SCREEN-INVENTORY C-08; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 961
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

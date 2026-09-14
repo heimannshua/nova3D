@@ -1,0 +1,115 @@
+{
+  "epic": {
+    "id": "2",
+    "title": "Confirm requests and control background spending",
+    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state."
+  },
+  "story": {
+    "id": "2-5",
+    "epic_id": "2",
+    "title": "Disclose and authorize provider categories",
+    "user": "Account owner",
+    "want": "to approve each billable purpose and data transfer",
+    "benefit": "paid work uses only the data and maximum I permitted",
+    "requirements": [
+      "FR-4",
+      "FR-14",
+      "AR-17",
+      "NFR-2",
+      "NFR-9",
+      "UX-DR8",
+      "UX-DR37",
+      "UX-DR38"
+    ],
+    "depends_on": [
+      "2-1",
+      "2-3",
+      "2-4"
+    ],
+    "scope": [
+      "Implement provider-neutral Anthropic/Brave adapters and permission snapshots; provider terms/rates must be verified before enablement.",
+      "Use no paid external 3D provider or billable free-credit fallback; instance hosting/local inference remains overhead."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "a confirmed research request with default permissions off",
+        "when": "a paid category is offered",
+        "then": "provider, purpose, outbound-data categories, retention limitations and maximum are disclosed before explicit permission"
+      },
+      {
+        "given": "free-only mode or unverified/unenforceable provider terms",
+        "when": "an adapter is asked to dispatch",
+        "then": "no billable request runs; search receives only normalized public subjects and no credentials/private raw prompts"
+      },
+      {
+        "given": "a permissioned vision/synthesis operation",
+        "when": "its outbound payload is formed",
+        "then": "only purpose-required approved content is included, excluding unrelated Workspace data and unapproved personalization"
+      }
+    ],
+    "gates": [
+      "G-6"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-4": {
+      "text": "#### FR-4: Usage visibility and limits\n\nThe Administrator can view per-Account paid usage or spending and configure a Usage Limit.\n\n**Consequences:**\n- Reaching a Usage Limit blocks new paid Jobs with an explanation.\n- Already-running Jobs are allowed to finish.\n- The Administrator can raise or reset the Usage Limit.\n- Before a paid Job starts, nova3D atomically reserves its maximum estimated cost against settled usage and all outstanding reservations.\n- A Job cannot start when the available allowance cannot cover its reservation.\n- Duplicate submissions cannot create duplicate reservations, Jobs, or charges.\n- Completion or cancellation settles actual usage and releases unused reserved allowance.\n- Paid permission applies by category across all Paid Work. Before the first paid operation in a category, nova3D identifies the category, provider, purpose, and declared maximum charge and obtains permission for that Project.\n- Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.\n- Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.\n- Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.\n\nSource: PRD §4, FR-4.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 114
+    },
+    "FR-14": {
+      "text": "#### FR-14: Research mode and paid escalation\n\nThe user can choose per Project whether research may use paid services or must remain free-only.\n\n**Consequences:**\n- nova3D cannot start paid research without explicit user permission.\n- Paid research is also subject to the Account's Usage Limit.\n- If free-only research cannot resolve complete Consequential Detail coverage, nova3D shows the remaining gaps and asks whether to switch the Project to paid research.\n- Declining paid escalation leaves the Project unready for Plan Approval while blocking gaps remain.\n- Before research begins, the user separately chooses whether to reuse available cached research or research the subject again from scratch.\n- Cached results show their original research date, immutable revision identity, and cached status; nova3D does not automatically re-verify them.\n- A correction creates a new Cached Research Revision linked to its predecessor; it never changes an existing revision in place.\n- An approved Project remains pinned to the revision it used. Adopting a successor revision creates a new Research Plan version and requires renewed Plan Approval before regeneration.\n- Paid research also follows the Paid Work permission, disclosure, Usage Limit, and reservation rules in FR-4.\n\nSource: PRD §4, FR-14.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 243
+    },
+    "AR-17": {
+      "text": "**AR-17: Provider boundary and uncertain charges.** Adopt Anthropic Messages claude-sonnet-5 for evidence synthesis/vision and Brave Web Search v1 for discovery behind adapters, with version/rate/account-term verification before enablement. Search receives normalized public subjects only; vision receives only permissioned purpose-required data. No paid external 3D provider, Files/Batch/Managed Agents storage, private raw prompts in search, or billable free-credit fallback in free-only mode. Own hosting/storage/worker/local inference is instance overhead. Persist external identity before dispatch; uncertain charge retains full reservation until evidence, conservative maximum settlement or proven noncharge; corrections append ledger entries without replacement calls.\n\nSource: R-6; AD-11; G-6.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 649
+    },
+    "NFR-2": {
+      "text": "**NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 543
+    },
+    "NFR-9": {
+      "text": "**NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 559
+    },
+    "UX-DR8": {
+      "text": "**UX-DR8: Intake sequence and paid consent.** Confirm subject, scope, outcome, picture mode and personalization after text/image intake. For research, separately select free/paid and cache/fresh afterward, before dispatch. Present provider/category/purpose, outbound-data/retention and maximum before paid permission. Scope confirmation, start confirmation, Plan Approval and Model Approval remain distinct.\n\nSource: UX-2; FR-4/FR-5/FR-14.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 807
+    },
+    "UX-DR37": {
+      "text": "**UX-DR37: Research and cache choices (C-07).** After scope confirmation, choose free/paid research and cache reuse/fresh research.\n\nRequired states/variants: Cached revision/date shown, fresh research, paid disclosure and maximum charge, limit blocked.\n\nSource: SCREEN-INVENTORY C-07; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 955
+    },
+    "UX-DR38": {
+      "text": "**UX-DR38: Start confirmation (C-08).** Summarize the exact Job that will begin without duplicating Plan Approval.\n\nRequired states/variants: Ready, offline direct conversion, provider disclosure unresolved, insufficient allowance.\n\nSource: SCREEN-INVENTORY C-08; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 961
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

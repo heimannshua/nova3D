@@ -1,0 +1,86 @@
+{
+  "epic": {
+    "id": "2",
+    "title": "Confirm requests and control background spending",
+    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state."
+  },
+  "story": {
+    "id": "2-4",
+    "epic_id": "2",
+    "title": "Set accountable usage limits",
+    "user": "Administrator",
+    "want": "to inspect and control paid usage",
+    "benefit": "spending stays within my allowance",
+    "requirements": [
+      "FR-4",
+      "AR-16",
+      "NFR-9",
+      "UX-DR71"
+    ],
+    "depends_on": [
+      "1-5"
+    ],
+    "scope": [
+      "Create immutable USD usage periods and Administrator limit controls; show settled usage, outstanding reservations and available allowance."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "a new Account allowance period",
+        "when": "defaults are initialized",
+        "then": "invitees receive $25 and the Administrator $50 per UTC month, recorded in integer USD microdollars"
+      },
+      {
+        "given": "outstanding liabilities and existing settlements",
+        "when": "a fresh-authenticated Administrator resets or changes a limit",
+        "then": "the new period carries liabilities without rewriting history; already reserved work retains its reservation"
+      },
+      {
+        "given": "nearly reached or reached allowance",
+        "when": "usage is displayed",
+        "then": "settled, reserved and available amounts reconcile; new paid work is blocked when insufficient while disable still revokes active work"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-4": {
+      "text": "#### FR-4: Usage visibility and limits\n\nThe Administrator can view per-Account paid usage or spending and configure a Usage Limit.\n\n**Consequences:**\n- Reaching a Usage Limit blocks new paid Jobs with an explanation.\n- Already-running Jobs are allowed to finish.\n- The Administrator can raise or reset the Usage Limit.\n- Before a paid Job starts, nova3D atomically reserves its maximum estimated cost against settled usage and all outstanding reservations.\n- A Job cannot start when the available allowance cannot cover its reservation.\n- Duplicate submissions cannot create duplicate reservations, Jobs, or charges.\n- Completion or cancellation settles actual usage and releases unused reserved allowance.\n- Paid permission applies by category across all Paid Work. Before the first paid operation in a category, nova3D identifies the category, provider, purpose, and declared maximum charge and obtains permission for that Project.\n- Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.\n- Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.\n- Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.\n\nSource: PRD §4, FR-4.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 114
+    },
+    "AR-16": {
+      "text": "**AR-16: Atomic money and paid permissions.** Paid categories independently disclose provider, purpose, outbound-data/retention categories and maximum, with Project permission off by default. Use one Usage-owned checked integer USD-microdollar/rational calculator: sum under immutable model/options/rates, apply billing increments, round upward once per operation, reject overflow/unknown rates/foreign currency/unsupported parameters. Atomically enforce Account-period allowance, $5 lifetime research-Job cap across attempts and $1 external-operation cap. Defaults are $25/invitee and $50/Administrator per UTC month. Preserve outstanding liabilities across resets; already-authorized work retains reservations while disable cancels it.\n\nSource: AD-11; R-6; G-6.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 645
+    },
+    "NFR-9": {
+      "text": "**NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 559
+    },
+    "UX-DR71": {
+      "text": "**UX-DR71: Usage and limits (AD-03).** Per-Account paid usage, reservations, settlements, available allowance, set/reset limit.\n\nRequired states/variants: Under limit, nearly reached, reached, running Job allowed, new paid Job blocked.\n\nSource: SCREEN-INVENTORY AD-03; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1159
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "epic": {
+    "id": "7",
+    "title": "Create direct models offline and synchronize safely",
+    "goal": "Prepared supported devices can create honestly labeled image-derived models offline, preserve them locally and synchronize without privacy or history loss."
+  },
+  "story": {
+    "id": "7-3",
+    "epic_id": "7",
+    "title": "Convert and retain image-derived models locally",
+    "user": "Account owner",
+    "want": "to generate from confirmed images without internet",
+    "benefit": "my direct model remains usable on its device",
+    "requirements": [
+      "FR-16",
+      "FR-17",
+      "AR-4",
+      "AR-5",
+      "AR-22",
+      "SC-1",
+      "SC-2",
+      "SC-3",
+      "UX-DR7",
+      "UX-DR13",
+      "UX-DR35",
+      "UX-DR50"
+    ],
+    "depends_on": [
+      "7-2",
+      "2-3",
+      "4-1",
+      "4-6"
+    ],
+    "scope": [
+      "Execute the qualified direct engine in a dedicated worker and retain exact immutable image/scope/engine/settings/output snapshots."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "verified preparation, ordered confirmed images/scope and uncertainty acknowledgment with no network",
+        "when": "direct conversion runs",
+        "then": "a local model and provenance persist and reopen offline without network inference or a synthetic Research Plan"
+      },
+      {
+        "given": "direct features or personal additions",
+        "when": "the model is inspected",
+        "then": "image/inference uncertainty and user-added provenance remain distinct from historically evidenced claims; identical re-inference is not promised"
+      },
+      {
+        "given": "inference interruption or failure",
+        "when": "the user returns to the Project",
+        "then": "preserved inputs/drafts and actionable status remain, with no silent upload or paid cloud fallback"
+      }
+    ],
+    "gates": [
+      "G-8"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-16": {
+      "text": "#### FR-16: Reproducible canonical model\n\nnova3D preserves a Canonical Model representation from which approved geometry can be regenerated reproducibly.\n\n**Consequences:**\n- Identical approved inputs, governing tool versions, and generation settings must produce geometrically equivalent output within a defined tolerance.\n- Probabilistic research or drafting output is not itself the Canonical Model.\n- Exported print files do not replace or erase the Canonical Model history.\n\nSource: PRD §4, FR-16.\n\n**Ratified application:** Deterministic equivalence applies to evidence-backed recipes under R-2. Direct inference instead preserves exact input/activity/output identities and restorable snapshots; identical re-inference is not promised.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 273
+    },
+    "FR-17": {
+      "text": "#### FR-17: Plain-language personalization\n\nThe user can include or change Personalization through ordinary language, such as adding a name.\n\n**Consequences:**\n- Personalization is generated automatically without manual mesh editing.\n- Every personalized Model Feature is visibly classified as user-added and cannot inherit evidence-backed status.\n- Personalization must participate in inspection, versioning, Model Approval, and print validation.\n\nSource: PRD §4, FR-17.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 286
+    },
+    "AR-4": {
+      "text": "**AR-4: Explicit request modes.** Persist immutable evidence_text, evidence_images or image_direct revisions. Evidence modes need complete whole-plan approval of the exact digest. Direct mode needs confirmed scope, ordered image digests and acknowledged uncertainty, and never gains historical status. Changing modes creates a successor request. Every qualified export still requires exact-model approval and compatible validation.\n\nSource: AD-3; R-8, R-11; scope-and-readiness.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 587
+    },
+    "AR-5": {
+      "text": "**AR-5: Provenance and immutable publication.** Preserve SourceRevision → ClaimRevision → Detail/Option → PlanRevision/PlanApproval → Parameter → Feature → ModelVersion → ModelApproval/Validation → Export links, including reverse navigation, competing choices, actors and times. Stable logical features have version-specific geometry/claim bindings. Artifacts owns one canonical JSON manifest-root/digest family with immutable ID, ownership, size, kind, byte digest, canonical serialization version, producing activity and child references. Approval, gateway access, restore, cleanup and deletion resolve the same manifest roots; object keys cannot redefine them. Staged output becomes usable/restorable only through verified coordinated publication.\n\nSource: AD-4, AD-13; shared artifact identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 591
+    },
+    "AR-22": {
+      "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 669
+    },
+    "SC-1": {
+      "text": "##### SC-1: Picture workflows move into the first version\n\nThe PRD deferred picture workflows. The first version now includes both:\n\n- **Direct picture-to-model:** labelled image-derived and not historically verified.\n- **Research-assisted picture reconstruction:** identifies the subject, researches it, builds a complete Research Plan, and follows Plan Approval before evidence-backed generation.\n\nPicture intake supports existing images, phone camera capture, and multiple images of one subject from different angles. Before conversion, nova3D checks clarity and angle coverage and recommends additional views. The user may choose **Generate anyway** after an explicit warning that incomplete views can cause invented or inaccurate geometry.\n\nSource: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 483
+    },
+    "SC-2": {
+      "text": "##### SC-2: Direct picture conversion works offline\n\nDirect image-derived conversion must work without internet on supported computer and phone devices. Offline-created Projects remain usable locally, show pending or failed sync state, and automatically sync into **My Projects** when connectivity returns without duplication or overwriting a newer Model Version.\n\nResearch-assisted reconstruction remains online-only. R-8 adopts on-device limits, preparation and revocation behavior; G-8 still requires a qualifying engine, actual offline/device execution and sync evidence.\n\nSource: UX-SCOPE-CHANGES SC-2; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 494
+    },
+    "SC-3": {
+      "text": "##### SC-3: Complete phone workflow\n\nThe first version supports the complete workflow on desktop, laptop, and phone. Phone is not a reduced companion: creation, research review, 3D inspection, approvals, validation, and downloads must all work.\n\nSource: UX-SCOPE-CHANGES SC-3; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 502
+    },
+    "UX-DR7": {
+      "text": "**UX-DR7: Explicit workflow and evidence distinctions.** Keep sourced, inferred, disputed, unknown and user-added distinct; internal user_added maps to the display label user-added. Distinguish lead/evidence, cached/fresh dates, reconstruction/personalization, direct/evidence modes, Plan/Model Approval, preview/manufacturing geometry, warning/failure/unknown, Project source exclusion/Account disabling, and every Job/local-sync state.\n\nSource: Screen inventory cross-surface states; UX-3; AD-3/AD-4.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 803
+    },
+    "UX-DR13": {
+      "text": "**UX-DR13: Prepared offline creation and honest failure.** Show preparation/download verification, missing preparation, storage unavailability, eviction/interruption and local inference failure as actionable states. Direct output remains saved/usable locally and labelled image-derived. Research-assisted mode is online-only; qualified export requires connection. Never silently upload or substitute paid cloud generation after local failure.\n\nSource: SC-2; UX-4; R-8.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 827
+    },
+    "UX-DR35": {
+      "text": "**UX-DR35: Picture path choice (C-05).** Choose direct image-derived conversion or research-assisted evidence-backed reconstruction.\n\nRequired states/variants: Plain explanation of accuracy difference, online/offline availability.\n\nSource: SCREEN-INVENTORY C-05; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 943
+    },
+    "UX-DR50": {
+      "text": "**UX-DR50: Model Feature evidence (M-02).** Selecting a part reveals the exact Sources, Claims, interpretation, Detail Status, approvals, and affected geometry.\n\nRequired states/variants: Sourced, disputed, user-added Personalization, now-disabled Source warning.\n\nSource: SCREEN-INVENTORY M-02; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1033
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

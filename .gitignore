@@ -1,4 +1,14 @@
 node_modules/
+.next/
+*.tsbuildinfo
+.vercel/
 .uv-cache/
 __pycache__/
 *.py[cod]
+.env.local
+.env.staging
+.env.production
+.vercel
+.playwright-mcp/
+state.lock
+supabase/.temp/

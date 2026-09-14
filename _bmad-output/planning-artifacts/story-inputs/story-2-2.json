@@ -1,0 +1,111 @@
+{
+  "epic": {
+    "id": "2",
+    "title": "Confirm requests and control background spending",
+    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state."
+  },
+  "story": {
+    "id": "2-2",
+    "epic_id": "2",
+    "title": "Stage ordered multi-view images privately",
+    "user": "Account owner",
+    "want": "to choose images or take photos of one subject",
+    "benefit": "the request preserves all useful views",
+    "requirements": [
+      "AR-7",
+      "AR-19",
+      "NFR-1",
+      "NFR-2",
+      "SC-1",
+      "SC-3",
+      "UX-DR9",
+      "UX-DR33"
+    ],
+    "depends_on": [
+      "1-4",
+      "1-7"
+    ],
+    "scope": [
+      "Implement authenticated bounded image staging, checksum/content checks and ordered image editing."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "a phone with no camera permission",
+        "when": "Take photo is selected",
+        "then": "permission is requested then; denial leaves existing-file intake usable"
+      },
+      {
+        "given": "several images of one subject",
+        "when": "images are previewed, added, replaced, reordered or removed",
+        "then": "one immutable successor request preserves the resulting ordered digests"
+      },
+      {
+        "given": "bad files, oversize data or a foreign upload ID",
+        "when": "attachment is attempted",
+        "then": "content/ownership/quota checks reject it; private bytes stay in lease-bounded staging and no reusable download URL is exposed"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "AR-7": {
+      "text": "**AR-7: Untrusted acquisition and output.** Restrict acquisition destinations/redirects, sizes and content types; block private-network and credential access. Source text, uploads and provider output are untrusted. Schema-validate output and verify citations before evidence acceptance. Never treat embedded instructions, prompts or proposed executable code as authority.\n\nSource: AD-1, AD-5.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 599
+    },
+    "AR-19": {
+      "text": "**AR-19: Revocable artifact transfer.** Keep buckets private and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. Container gateway streams large uploads/downloads/ranges; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.\n\nSource: AD-13; file authorization.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 657
+    },
+    "NFR-1": {
+      "text": "**NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 541
+    },
+    "NFR-2": {
+      "text": "**NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 543
+    },
+    "SC-1": {
+      "text": "##### SC-1: Picture workflows move into the first version\n\nThe PRD deferred picture workflows. The first version now includes both:\n\n- **Direct picture-to-model:** labelled image-derived and not historically verified.\n- **Research-assisted picture reconstruction:** identifies the subject, researches it, builds a complete Research Plan, and follows Plan Approval before evidence-backed generation.\n\nPicture intake supports existing images, phone camera capture, and multiple images of one subject from different angles. Before conversion, nova3D checks clarity and angle coverage and recommends additional views. The user may choose **Generate anyway** after an explicit warning that incomplete views can cause invented or inaccurate geometry.\n\nSource: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 483
+    },
+    "SC-3": {
+      "text": "##### SC-3: Complete phone workflow\n\nThe first version supports the complete workflow on desktop, laptop, and phone. Phone is not a reduced companion: creation, research review, 3D inspection, approvals, validation, and downloads must all work.\n\nSource: UX-SCOPE-CHANGES SC-3; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 502
+    },
+    "UX-DR9": {
+      "text": "**UX-DR9: Ordered multi-view image intake.** Support file selection and a phone Take photo action, requesting camera permission only after that action. Preview, add, replace, reorder and remove angles of one subject within one request; handle denied camera access and bad files. Choose direct image-derived versus online research-assisted reconstruction explicitly.\n\nSource: SC-1; UX-2.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 811
+    },
+    "UX-DR33": {
+      "text": "**UX-DR33: Picture intake (C-03).** Choose existing image; on phone, take a photo; add several angles.\n\nRequired states/variants: Permission prompt, permission denied, image previews, replace/reorder/remove, file error.\n\nSource: SCREEN-INVENTORY C-03; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 931
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

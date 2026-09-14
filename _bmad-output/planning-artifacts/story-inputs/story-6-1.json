@@ -1,0 +1,100 @@
+{
+  "epic": {
+    "id": "6",
+    "title": "Qualify and export an evidence-backed printable model",
+    "goal": "An approved model can pass exact profile checks, receive bounded audited repair and be downloaded with immutable bilingual provenance."
+  },
+  "story": {
+    "id": "6-1",
+    "epic_id": "6",
+    "title": "Pin the exact target print profile",
+    "user": "Account owner",
+    "want": "to select printer, material and final physical size",
+    "benefit": "validation applies to the intended output",
+    "requirements": [
+      "FR-24",
+      "AR-9",
+      "AR-11",
+      "NFR-11",
+      "UX-DR17",
+      "UX-DR58"
+    ],
+    "depends_on": [
+      "5-5"
+    ],
+    "scope": [
+      "Pin the complete manufacturer profile inheritance plus explicit application overrides and print transform."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "the initial profile",
+        "when": "it is selected",
+        "then": "A1 mini 0.4 mm, Bambu PLA Silk+ Gold, ≤90 mm cube, 0.20 mm layers and explicit three perimeters resolve from the pinned inheritance closure"
+      },
+      {
+        "given": "profile, scale or orientation changes",
+        "when": "validation identity is computed",
+        "then": "a new revision makes incompatible prior results stale"
+      },
+      {
+        "given": "an incomplete or unknown profile",
+        "when": "qualification is requested",
+        "then": "missing fields are visible and qualified export is blocked without a universal safety claim"
+      }
+    ],
+    "gates": [
+      "G-3"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-24": {
+      "text": "#### FR-24: Target print profile\n\nBefore validation, the user selects the intended printer, material, and physical model size as the Target Print Profile.\n\n**Consequences:**\n- The MVP fixture profile is a Bambu Lab A1 mini with its standard 0.4 mm nozzle, gold silk PLA, and a maximum 90 × 90 × 90 mm model envelope.\n- Validation results and the Source Record identify the exact Target Print Profile.\n- A change to the Target Print Profile requires validation to run again.\n\nSource: PRD §4, FR-24.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 370
+    },
+    "AR-9": {
+      "text": "**AR-9: Coordinate frames, measurement and versions.** Canonical content uses millimetres, right-handed coordinates and Z-up, retaining approved historical unit conversions. GLB explicitly converts to metres/Y-up; final-print scale/orientation is separately versioned. Every LOD preserves semantic feature IDs independently of triangles. Measurements use canonical geometry or labelled exact dimensions. Corrections rebuild dependency closure; restoration appends history and rechecks approval/profile validity without erasing successors.\n\nSource: AD-7; FR-18–FR-22.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 607
+    },
+    "AR-11": {
+      "text": "**AR-11: Exact print profile and fail-closed checks.** Pin the manufacturer profile's complete inheritance closure for A1 mini 0.4 mm, Bambu PLA Silk+ Gold, ≤90 mm cube, 0.20 mm layers and an explicit three-perimeter override. Enforce wall ≥1.2 mm, isolated feature ≥0.8 mm, clearance ≥0.4 mm and relief ≥0.6 mm. Overhang >45° from vertical or bridge >5 mm requires verified support/slicing analysis. Validation binds model digest, profile revision, transform, tessellation and validator version; unsupported/unknown required checks block qualified export.\n\nSource: AD-8; R-3; G-3.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 615
+    },
+    "NFR-11": {
+      "text": "**NFR-11: Honest print qualification.** Validation labels always identify the Target Print Profile, warnings, failures, unknowns, and last validation time; nova3D never presents validation as safety or universal manufacturability certification.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 563
+    },
+    "UX-DR17": {
+      "text": "**UX-DR17: Print-validation and bounded recovery states.** Expose exact profile/transform, check support, last-checked time, pass/warning/fail/unknown and stale results. Required unknowns block export. Show each repair and affected geometry; one full regeneration/reconversion is lineage-bound, preserves originals and returns to inspection/approval/validation. Failure after the allowed attempt stops with an actionable explanation.\n\nSource: FR-24–FR-28; R-3/R-11.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 843
+    },
+    "UX-DR58": {
+      "text": "**UX-DR58: Target Print Profile (V-01).** Select printer, material, physical size; first fixture is Bambu Lab A1 mini, 0.4 mm nozzle, gold silk PLA, maximum 90 × 90 × 90 mm. R-3 refines this to the exact Bambu PLA Silk+ Gold profile closure and overrides in AR-11.\n\nRequired states/variants: Default fixture, changed profile, incomplete profile.\n\nSource: SCREEN-INVENTORY V-01; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1081
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

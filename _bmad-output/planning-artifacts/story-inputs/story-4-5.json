@@ -1,0 +1,107 @@
+{
+  "epic": {
+    "id": "4",
+    "title": "Generate and inspect traceable canonical geometry",
+    "goal": "Approved evidence recipes produce immutable models whose features remain linked to evidence and inspectable without changing manufacturing authority."
+  },
+  "story": {
+    "id": "4-5",
+    "epic_id": "4",
+    "title": "Navigate reciprocal model and evidence links",
+    "user": "Account owner",
+    "want": "to move between a feature and its evidence",
+    "benefit": "I can inspect what justifies each consequential shape",
+    "requirements": [
+      "FR-19",
+      "AR-5",
+      "AR-9",
+      "NFR-3",
+      "UX-DR7",
+      "UX-DR50",
+      "UX-DR51"
+    ],
+    "depends_on": [
+      "4-2",
+      "4-4"
+    ],
+    "scope": [
+      "Expose stable logical feature IDs with version-specific claim/parameter bindings and reciprocal navigation."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "an evidence-backed feature",
+        "when": "it is selected",
+        "then": "exact Source/Claim, status, options, governing approval and affected geometry are visible"
+      },
+      {
+        "given": "a governing claim with one or many features",
+        "when": "it is selected",
+        "then": "every affected feature is revealed with no orphaned links in the regression corpus"
+      },
+      {
+        "given": "a disabled source or unavailable preview",
+        "when": "existing provenance is opened",
+        "then": "approved history stays immutable and evidence/feature lists remain accessible with the proper warning"
+      }
+    ],
+    "gates": [
+      "G-4"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-19": {
+      "text": "#### FR-19: Feature-level evidence inspection\n\nThe user can select a Model Feature and inspect its complete evidence and decision context.\n\n**Consequences:**\n- The view includes linked Claims, Sources, Detail Status, supporting and conflicting evidence, reasoning, selected and rejected options, confidence explanation, Plan Approval, and the affected parameters.\n- Navigation is bidirectional: a Model Feature reveals its Claims, and a Claim reveals every affected Model Feature.\n- Evidence links remain stable through regeneration and Version restoration.\n\nSource: PRD §4, FR-19.\n\n**Ratified application:** For direct-image features expose image/inference provenance and uncertainty, with user-added features distinct. Do not invent historical claims to fill evidence navigation.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 307
+    },
+    "AR-5": {
+      "text": "**AR-5: Provenance and immutable publication.** Preserve SourceRevision → ClaimRevision → Detail/Option → PlanRevision/PlanApproval → Parameter → Feature → ModelVersion → ModelApproval/Validation → Export links, including reverse navigation, competing choices, actors and times. Stable logical features have version-specific geometry/claim bindings. Artifacts owns one canonical JSON manifest-root/digest family with immutable ID, ownership, size, kind, byte digest, canonical serialization version, producing activity and child references. Approval, gateway access, restore, cleanup and deletion resolve the same manifest roots; object keys cannot redefine them. Staged output becomes usable/restorable only through verified coordinated publication.\n\nSource: AD-4, AD-13; shared artifact identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 591
+    },
+    "AR-9": {
+      "text": "**AR-9: Coordinate frames, measurement and versions.** Canonical content uses millimetres, right-handed coordinates and Z-up, retaining approved historical unit conversions. GLB explicitly converts to metres/Y-up; final-print scale/orientation is separately versioned. Every LOD preserves semantic feature IDs independently of triangles. Measurements use canonical geometry or labelled exact dimensions. Corrections rebuild dependency closure; restoration appends history and rechecks approval/profile validity without erasing successors.\n\nSource: AD-7; FR-18–FR-22.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 607
+    },
+    "NFR-3": {
+      "text": "**NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 545
+    },
+    "UX-DR7": {
+      "text": "**UX-DR7: Explicit workflow and evidence distinctions.** Keep sourced, inferred, disputed, unknown and user-added distinct; internal user_added maps to the display label user-added. Distinguish lead/evidence, cached/fresh dates, reconstruction/personalization, direct/evidence modes, Plan/Model Approval, preview/manufacturing geometry, warning/failure/unknown, Project source exclusion/Account disabling, and every Job/local-sync state.\n\nSource: Screen inventory cross-surface states; UX-3; AD-3/AD-4.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 803
+    },
+    "UX-DR50": {
+      "text": "**UX-DR50: Model Feature evidence (M-02).** Selecting a part reveals the exact Sources, Claims, interpretation, Detail Status, approvals, and affected geometry.\n\nRequired states/variants: Sourced, disputed, user-added Personalization, now-disabled Source warning.\n\nSource: SCREEN-INVENTORY M-02; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1033
+    },
+    "UX-DR51": {
+      "text": "**UX-DR51: Evidence-to-model navigation (M-03).** Select a Claim and reveal every affected Model Feature; return from feature to Claim.\n\nRequired states/variants: One-to-one, one-to-many, unavailable preview but intact provenance.\n\nSource: SCREEN-INVENTORY M-03; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1039
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

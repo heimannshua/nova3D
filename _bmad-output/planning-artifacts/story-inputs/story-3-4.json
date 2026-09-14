@@ -1,0 +1,116 @@
+{
+  "epic": {
+    "id": "3",
+    "title": "Research and approve a complete evidence plan",
+    "goal": "Users can inspect authoritative evidence, control source eligibility, resolve interpretations and approve one complete reconstruction plan."
+  },
+  "story": {
+    "id": "3-4",
+    "epic_id": "3",
+    "title": "Inspect sources and choose defensible interpretations",
+    "user": "Account owner",
+    "want": "to compare explanations and alternatives",
+    "benefit": "I can select an interpretation with its geometry consequences",
+    "requirements": [
+      "FR-9",
+      "FR-11",
+      "AR-5",
+      "UX-DR5",
+      "UX-DR6",
+      "UX-DR11",
+      "UX-DR42",
+      "UX-DR46",
+      "UX-DR47"
+    ],
+    "depends_on": [
+      "3-3"
+    ],
+    "scope": [
+      "Provide original/translation/explanation reader and competing options linked to exact claims and affected details."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "Hebrew and English source content",
+        "when": "the reader opens during research",
+        "then": "original, translation, citation and explanation remain distinct and readable without pausing the Job"
+      },
+      {
+        "given": "competing defensible options",
+        "when": "the user reviews a detail",
+        "then": "recommended and rejected options retain support, conflicts, reasoning and expected geometry effects"
+      },
+      {
+        "given": "no settled recommendation",
+        "when": "approval is considered",
+        "then": "a required explicit choice is obtained rather than silently inventing certainty"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-9": {
+      "text": "#### FR-9: Source authority policy\n\nnova3D distinguishes research leads from evidence used in recommendations.\n\n**Consequences:**\n- Low-authority pages may be used as leads only.\n- Recommendations identify and cite primary texts, recognized commentaries, books, archaeological evidence, or work by named scholars.\n- Sources retain identity and enough location context for the user to inspect the support for a Claim.\n- Changed Source content creates a successor Source and Cached Research Revision; it cannot silently alter an existing Claim or approved Research Plan.\n- Only Claims and provenance reproducible from identified non-private Sources qualify for admission to shared cached research.\n\nSource: PRD §4, FR-9.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 180
+    },
+    "FR-11": {
+      "text": "#### FR-11: Explainable conclusions and options\n\nFor each uncertain Consequential Detail, nova3D presents its recommendation and Defensible Options with transparent reasoning.\n\n**Consequences:**\n- The user can inspect supporting Sources, conflicting evidence, the reasoning chain, and expected geometry effects.\n- Confidence is explained through evidence and reasoning rather than only an opaque score.\n- If evidence cannot settle the detail, the user must choose an option.\n\nSource: PRD §4, FR-11.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 206
+    },
+    "AR-5": {
+      "text": "**AR-5: Provenance and immutable publication.** Preserve SourceRevision → ClaimRevision → Detail/Option → PlanRevision/PlanApproval → Parameter → Feature → ModelVersion → ModelApproval/Validation → Export links, including reverse navigation, competing choices, actors and times. Stable logical features have version-specific geometry/claim bindings. Artifacts owns one canonical JSON manifest-root/digest family with immutable ID, ownership, size, kind, byte digest, canonical serialization version, producing activity and child references. Approval, gateway access, restore, cleanup and deletion resolve the same manifest roots; object keys cannot redefine them. Staged output becomes usable/restorable only through verified coordinated publication.\n\nSource: AD-4, AD-13; shared artifact identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 591
+    },
+    "UX-DR5": {
+      "text": "**UX-DR5: Configured localization and full RTL.** Initial locale matches a supported device language; an Account override persists. Use logical directions and support text expansion without clipping or semantic reversal; isolate mixed-direction IDs, units, extensions and citations. Keep original-language evidence, translation and explanation distinct and show Hebrew/English together correctly.\n\nSource: SC-4; UX-3/UX-5; AD-17.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 795
+    },
+    "UX-DR6": {
+      "text": "**UX-DR6: Honest language and guidance.** Use concise ordinary language and real nova3D terms; technical-detail preference changes explanation depth only. First-use guidance is dismissible and reopenable. Never fabricate passages/citations/dimensions/scholars or claim historical certainty, universal printability or safety certification; unverified design sample content is explicitly labelled.\n\nSource: UX-1/UX-5; design handoff.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 799
+    },
+    "UX-DR11": {
+      "text": "**UX-DR11: Recorded research activity and source reading.** Show actual acquisition/acceptance stages and source roles while Jobs run. Reading original text, translation, citation and evidence-based explanation does not pause the Job. Show unavailable excerpts/digest-only evidence honestly; never fabricate hidden model reasoning.\n\nSource: UX-3; AD-18.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 819
+    },
+    "UX-DR42": {
+      "text": "**UX-DR42: Source reader during Job (J-04).** Read original text, translation, citation, and explanation without pausing research.\n\nRequired states/variants: Hebrew/English, RTL/LTR, excerpt unavailable/digest only, loading/failure.\n\nSource: SCREEN-INVENTORY J-04; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 985
+    },
+    "UX-DR46": {
+      "text": "**UX-DR46: Consequential Detail review (R-03).** Claim, exact Source, reasoning, Detail Status, expected geometry effect.\n\nRequired states/variants: `sourced`, `inferred`, `disputed`, `unknown`, `user-added`.\n\nSource: SCREEN-INVENTORY R-03; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1009
+    },
+    "UX-DR47": {
+      "text": "**UX-DR47: Defensible Options (R-04).** Recommended option, competing evidence, geometry effects, user's choice.\n\nRequired states/variants: Recommendation, no settled recommendation, required choice, rejected option.\n\nSource: SCREEN-INVENTORY R-04; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1015
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

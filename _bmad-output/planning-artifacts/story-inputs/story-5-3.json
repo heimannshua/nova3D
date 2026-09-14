@@ -1,0 +1,110 @@
+{
+  "epic": {
+    "id": "5",
+    "title": "Correct, compare and approve exact model versions",
+    "goal": "Users can request evidence corrections, regenerate only affected geometry, restore history and approve the exact model they inspected."
+  },
+  "story": {
+    "id": "5-3",
+    "epic_id": "5",
+    "title": "Compare immutable model history",
+    "user": "Account owner",
+    "want": "to compare two versions and their reasons",
+    "benefit": "I can see what changed and why",
+    "requirements": [
+      "FR-22",
+      "AR-5",
+      "AR-9",
+      "NFR-3",
+      "NFR-7",
+      "UX-DR16",
+      "UX-DR54",
+      "UX-DR55"
+    ],
+    "depends_on": [
+      "5-2"
+    ],
+    "scope": [
+      "Present immutable history and two-version comparison for geometry, parameters, evidence, choices, personalization, approval and validation."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "two non-deleted versions",
+        "when": "comparison opens",
+        "then": "changed and unchanged features plus every listed provenance/parameter/approval/validation dimension are distinguishable"
+      },
+      {
+        "given": "an older version",
+        "when": "its details open",
+        "then": "exact governing inputs, artifacts, activities and timestamps resolve rather than current mutable data"
+      },
+      {
+        "given": "preview degradation or a restored event",
+        "when": "history is inspected",
+        "then": "semantic differences remain readable and later history is retained"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-22": {
+      "text": "#### FR-22: Restorable version history\n\nThe user can view, compare, and restore prior Model Versions.\n\n**Consequences:**\n- Each Version preserves geometry, parameters, Research Plan, approvals, validations, Personalization, and generation metadata.\n- Comparing two Versions shows changed geometry, parameters, Claims, interpretation decisions, Personalization, approvals, and validation results.\n- Restoring a Version does not erase later history.\n- A restored Version retains its original approval states; the user must grant any approval required for a new Export.\n\nSource: PRD §4, FR-22.\n\n**Ratified application:** Restore mode-appropriate provenance: exact plan/approvals for evidence models; exact inputs, activity, uncertainty and snapshots for direct models. A new qualified export still checks current exact-model approval and validation.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 345
+    },
+    "AR-5": {
+      "text": "**AR-5: Provenance and immutable publication.** Preserve SourceRevision → ClaimRevision → Detail/Option → PlanRevision/PlanApproval → Parameter → Feature → ModelVersion → ModelApproval/Validation → Export links, including reverse navigation, competing choices, actors and times. Stable logical features have version-specific geometry/claim bindings. Artifacts owns one canonical JSON manifest-root/digest family with immutable ID, ownership, size, kind, byte digest, canonical serialization version, producing activity and child references. Approval, gateway access, restore, cleanup and deletion resolve the same manifest roots; object keys cannot redefine them. Staged output becomes usable/restorable only through verified coordinated publication.\n\nSource: AD-4, AD-13; shared artifact identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 591
+    },
+    "AR-9": {
+      "text": "**AR-9: Coordinate frames, measurement and versions.** Canonical content uses millimetres, right-handed coordinates and Z-up, retaining approved historical unit conversions. GLB explicitly converts to metres/Y-up; final-print scale/orientation is separately versioned. Every LOD preserves semantic feature IDs independently of triangles. Measurements use canonical geometry or labelled exact dimensions. Corrections rebuild dependency closure; restoration appends history and rechecks approval/profile validity without erasing successors.\n\nSource: AD-7; FR-18–FR-22.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 607
+    },
+    "NFR-3": {
+      "text": "**NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 545
+    },
+    "NFR-7": {
+      "text": "**NFR-7: Version durability.** Every Version presented as restorable must restore its geometry and provenance successfully. Deletion under FR-30 is the explicit exception.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 555
+    },
+    "UX-DR16": {
+      "text": "**UX-DR16: Immutable approvals and comparison.** Show exact plan/model version and readiness before approval. Compare geometry, parameters, evidence/choices, personalization, approvals and validation; restoration preserves later history and does not silently authorize an export. Changed interpretations, substantive repair and personalization route to the relevant successor approval.\n\nSource: FR-12/FR-13/FR-20–FR-23/FR-27.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 839
+    },
+    "UX-DR54": {
+      "text": "**UX-DR54: Version history (M-06).** Timeline/list of immutable Model Versions with governing Plan, approvals, validation, repair, and timestamps.\n\nRequired states/variants: Current, older, restored, deleted exception.\n\nSource: SCREEN-INVENTORY M-06; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1057
+    },
+    "UX-DR55": {
+      "text": "**UX-DR55: Version comparison (M-07).** Compare two Versions and identify changed versus unchanged features.\n\nRequired states/variants: Geometry change, evidence-only change, Personalization change, preview degraded.\n\nSource: SCREEN-INVENTORY M-07; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1063
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

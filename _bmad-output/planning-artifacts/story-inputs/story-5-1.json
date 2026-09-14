@@ -1,0 +1,99 @@
+{
+  "epic": {
+    "id": "5",
+    "title": "Correct, compare and approve exact model versions",
+    "goal": "Users can request evidence corrections, regenerate only affected geometry, restore history and approve the exact model they inspected."
+  },
+  "story": {
+    "id": "5-1",
+    "epic_id": "5",
+    "title": "Research a focused correction",
+    "user": "Account owner",
+    "want": "to explain a problem with selected features",
+    "benefit": "the evidence can be reconsidered without manual mesh editing",
+    "requirements": [
+      "FR-20",
+      "AR-5",
+      "AR-6",
+      "UX-DR16",
+      "UX-DR52",
+      "UX-DR53"
+    ],
+    "depends_on": [
+      "4-6",
+      "3-7"
+    ],
+    "scope": [
+      "Link a correction to selected claims/details, preview affected dependencies and route required research through existing cost controls."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "selected consequential features",
+        "when": "a plain-language correction is submitted",
+        "then": "the issue, affected details/dependencies and requested evidence are retained"
+      },
+      {
+        "given": "new evidence changes an interpretation",
+        "when": "a correction result is produced",
+        "then": "a successor whole plan exposes changed choices and blocks regeneration pending renewed Plan Approval"
+      },
+      {
+        "given": "research finds no change or fails",
+        "when": "the result is shown",
+        "then": "original approved state remains intact with reasons, known cost and permitted next action"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-20": {
+      "text": "#### FR-20: Focused correction request\n\nThe user can select a questionable Model Feature and request targeted additional research or correction.\n\n**Consequences:**\n- nova3D opens a correction flow scoped to the linked Claims and affected Consequential Details.\n- Changed interpretations require a new Research Plan version and Plan Approval before regeneration.\n\nSource: PRD §4, FR-20.\n\n**Ratified application:** Evidence corrections require a successor Research Plan and renewed Plan Approval. Direct-image work preserves honest image provenance; mode changes create successor request revisions rather than retroactive evidence labels.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 320
+    },
+    "AR-5": {
+      "text": "**AR-5: Provenance and immutable publication.** Preserve SourceRevision → ClaimRevision → Detail/Option → PlanRevision/PlanApproval → Parameter → Feature → ModelVersion → ModelApproval/Validation → Export links, including reverse navigation, competing choices, actors and times. Stable logical features have version-specific geometry/claim bindings. Artifacts owns one canonical JSON manifest-root/digest family with immutable ID, ownership, size, kind, byte digest, canonical serialization version, producing activity and child references. Approval, gateway access, restore, cleanup and deletion resolve the same manifest roots; object keys cannot redefine them. Staged output becomes usable/restorable only through verified coordinated publication.\n\nSource: AD-4, AD-13; shared artifact identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 591
+    },
+    "AR-6": {
+      "text": "**AR-6: Complete and eligible research.** Use the Middot package's finite checklist for shape, dimensions, materials, placement, printability and interpretation; require an independent omission review with no unresolved gap. Middot chapter 3 governs spatial reconstruction; low-authority pages remain leads. Project exclusions and Account toggles target stable source identities, increment effective policy epochs and invalidate/recheck affected active conclusions. Pin the Account-policy revision, Project-exclusion revision and explicit source set in attempts, private cache-adoption records and plan digests. Filtering is deterministic for those inputs; active changes create a successor draft and rerun affected conclusions and completeness before approval. Approved records stay immutable.\n\nSource: AD-5; evidence-policy identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 595
+    },
+    "UX-DR16": {
+      "text": "**UX-DR16: Immutable approvals and comparison.** Show exact plan/model version and readiness before approval. Compare geometry, parameters, evidence/choices, personalization, approvals and validation; restoration preserves later history and does not silently authorize an export. Changed interpretations, substantive repair and personalization route to the relevant successor approval.\n\nSource: FR-12/FR-13/FR-20–FR-23/FR-27.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 839
+    },
+    "UX-DR52": {
+      "text": "**UX-DR52: Focused correction (M-04).** Explain what seems wrong and request additional evidence/research rather than manual mesh editing.\n\nRequired states/variants: Draft, affected dependencies preview, paid permission needed, submitted.\n\nSource: SCREEN-INVENTORY M-04; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1045
+    },
+    "UX-DR53": {
+      "text": "**UX-DR53: Correction result (M-05).** Show revised Research Plan, changed details, dependent geometry impact, and renewed approval need.\n\nRequired states/variants: No change, evidence changed, Plan Approval required, generation blocked.\n\nSource: SCREEN-INVENTORY M-05; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1051
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

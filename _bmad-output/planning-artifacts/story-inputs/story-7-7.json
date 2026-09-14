@@ -1,0 +1,93 @@
+{
+  "epic": {
+    "id": "7",
+    "title": "Create direct models offline and synchronize safely",
+    "goal": "Prepared supported devices can create honestly labeled image-derived models offline, preserve them locally and synchronize without privacy or history loss."
+  },
+  "story": {
+    "id": "7-7",
+    "epic_id": "7",
+    "title": "Deliver optional private phone push",
+    "user": "Account owner",
+    "want": "to receive useful phone alerts",
+    "benefit": "I can return to completed work without losing in-app history",
+    "requirements": [
+      "FR-7",
+      "AR-25",
+      "SC-5",
+      "UX-DR18",
+      "UX-DR65"
+    ],
+    "depends_on": [
+      "2-10",
+      "6-9"
+    ],
+    "scope": [
+      "Implement category preferences and contextual install/permission guidance for research/generation/validation/export; printing remains inactive."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "an enabled category and a committed event",
+        "when": "push delivery is attempted",
+        "then": "payloads contain opaque references and generic category text, not private names, images or source excerpts"
+      },
+      {
+        "given": "permission denied, alerts off or failed/duplicate delivery",
+        "when": "the event is reviewed",
+        "then": "essential in-app history remains intact and deduplicated; delivery is not falsely guaranteed"
+      },
+      {
+        "given": "a received alert",
+        "when": "it is selected",
+        "then": "live authorization opens the exact related item or shows its unavailable state"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-7": {
+      "text": "#### FR-7: Actionable notifications\n\nThe app displays an app-wide Notification bar for Jobs and approval events.\n\n**Consequences:**\n- Notifications cover research readiness, generation completion or failure, Export readiness, and later printer events.\n- Selecting a Notification opens the exact Project, approval item, failed Job, Export, or later printer event requiring attention.\n\nSource: PRD §4, FR-7.\n\n**Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 157
+    },
+    "AR-25": {
+      "text": "**AR-25: Notification delivery and privacy.** Commit one durable in-app notification per recipient/event; deduplicate unreliable realtime/push and refresh canonical state. Resolve exact targets with live authorization. Push carries opaque event references and generic category text, no private excerpts/model names/images. Persist per-category research/generation/validation/export preferences and contextual permission/install guidance; denial does not erase in-app history. Printing notifications remain inactive.\n\nSource: AD-18; SC-5.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 681
+    },
+    "SC-5": {
+      "text": "##### SC-5: Phone push notifications\n\nThe first version adds phone push notifications for research, generation, validation, Export, and later printing events. Account Settings controls categories. In-app event history remains available when phone alerts are disabled.\n\nPrinting notifications remain inactive/Coming later in this version.\n\nSource: UX-SCOPE-CHANGES SC-5; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 514
+    },
+    "UX-DR18": {
+      "text": "**UX-DR18: Notifications and permissions.** Keep durable app-wide history and exact authorized deep links whether phone push is allowed, denied or off. Offer contextual install/permission guidance and independent research/generation/validation/export toggles; payload previews contain generic categories/opaque references only. Printing remains Coming later.\n\nSource: SC-5; UX-6; AD-18.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 847
+    },
+    "UX-DR65": {
+      "text": "**UX-DR65: Notification Settings (S-02).** Category-specific phone push controls while in-app history remains.\n\nRequired states/variants: Permission allowed/denied, all off, mixed categories.\n\nSource: SCREEN-INVENTORY S-02; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1123
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

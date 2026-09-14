@@ -1,0 +1,5 @@
+{
+  "regions": ["iad1"],
+  "framework": "nextjs",
+  "git": { "deploymentEnabled": { "main": true } }
+}

@@ -1,0 +1,153 @@
+{
+  "epic": {
+    "id": "1",
+    "title": "Enter and use a private workspace",
+    "goal": "Invited users can authenticate and use a responsive private workspace; Josh can control and recover access without inspecting private content."
+  },
+  "story": {
+    "id": "1-2",
+    "epic_id": "1",
+    "title": "Establish accessible localized navigation and preferences",
+    "user": "Account owner",
+    "want": "consistent navigation and readable controls",
+    "benefit": "I can use my workspace on phone or computer",
+    "requirements": [
+      "AR-28",
+      "SC-3",
+      "SC-4",
+      "SC-7",
+      "UX-DR1",
+      "UX-DR2",
+      "UX-DR3",
+      "UX-DR4",
+      "UX-DR5",
+      "UX-DR6",
+      "UX-DR7",
+      "UX-DR20",
+      "UX-DR24",
+      "UX-DR26",
+      "UX-DR64"
+    ],
+    "depends_on": [
+      "1-1"
+    ],
+    "scope": [
+      "Implement semantic tokens and reusable focus, status, empty/error, confirmation and navigation patterns under R-10.",
+      "Provide configured-language, light/dark and explanation preferences; every later surface inherits these patterns."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "a supported device language and no override",
+        "when": "the shell first opens",
+        "then": "it uses a configured language match, light neutral/slate/indigo styling and dismissible ordinary-language guidance"
+      },
+      {
+        "given": "an Account preference change",
+        "when": "language, explicit dark mode or technical detail is selected",
+        "then": "the preference persists without changing evidence or decisions and guidance can be reopened"
+      },
+      {
+        "given": "keyboard, screen reader, enlarged text, high contrast, reduced motion or an RTL locale",
+        "when": "the shell and its shared controls are exercised on phone and desktop",
+        "then": "focus, names, announcements, contrast, reflow and logical directions preserve all actions; bilingual spans remain distinct"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "AR-28": {
+      "text": "**AR-28: Shared interface preferences and semantics.** Use configured locale catalogs, logical layout directions and isolated mixed-language evidence spans; preserve original source, translation and explanation separately. Choose supported device locale initially and persist Account language/theme/detail overrides. Light default, explicit dark and reduced-motion/accessible semantic controls apply to the full phone/computer workflow. Technical explanations change depth only, not decisions or evidence. Complete visual/token/state work under R-10 without treating historical empty UX spines as approved mockups.\n\nSource: AD-17; R-10; canonical UX contract.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 693
+    },
+    "SC-3": {
+      "text": "##### SC-3: Complete phone workflow\n\nThe first version supports the complete workflow on desktop, laptop, and phone. Phone is not a reduced companion: creation, research review, 3D inspection, approvals, validation, and downloads must all work.\n\nSource: UX-SCOPE-CHANGES SC-3; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 502
+    },
+    "SC-4": {
+      "text": "##### SC-4: Internationalized interface\n\nThe interface supports any configured language, including full right-to-left layout. It initially follows the device language and can be changed in Account Settings. Original Source language, translation, and explanation remain distinguishable; Hebrew and English can appear together in evidence views.\n\nSource: UX-SCOPE-CHANGES SC-4; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 508
+    },
+    "SC-7": {
+      "text": "##### SC-7: First-version accessibility and preferences\n\nThe first version targets WCAG 2.2 AA and supports keyboard operation, screen readers, visible focus, text enlargement, high contrast, non-colour state cues, and reduced motion. Light mode is the default; dark mode is a manual option. Explanations use ordinary language by default, with a Settings option for more technical detail.\n\nR-10 adopts the light neutral/slate/indigo baseline and delegates detailed responsive design without another direction-selection checkpoint or a mandatory external design tool.\n\nSource: UX-SCOPE-CHANGES SC-7; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 531
+    },
+    "UX-DR1": {
+      "text": "**UX-DR1: Implement the ratified light/dark token system.** Define semantic tokens for neutral surfaces, slate text, indigo actions, evidence/status colors, typography, spacing, radii, elevation and component states. Apply consistent tokens to approvals, jobs, notifications, image-quality warnings, source exclusions, sync, validation, destructive actions and 3D selection. Preserve contrast in both themes; light is default. Specific values/components are delegated design work, not already-approved outputs.\n\nSource: R-10; UX-7; design handoff.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 779
+    },
+    "UX-DR2": {
+      "text": "**UX-DR2: Complete responsive workflow.** Every required surface has usable phone and desktop/laptop treatment. Desktop centers the model and evidence inspector; phones use stacked panels/drawers preserving every creation, review, inspection, approval, validation and download control. Maintain secondary global navigation without replacing My Projects, Create and In Progress.\n\nSource: SC-3; UX-1/UX-5/UX-7.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 783
+    },
+    "UX-DR3": {
+      "text": "**UX-DR3: Keyboard and screen-reader inspection.** Expose labelled semantic feature lists and evidence/inspection actions beyond canvas. Support complete keyboard navigation, visible focus, accessible names and dynamic-state announcements; touch alternatives cannot depend on hover, right-click or precision pointing.\n\nSource: SC-7; UX-5; AD-17.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 787
+    },
+    "UX-DR4": {
+      "text": "**UX-DR4: Accessible layout and state cues.** Verify WCAG 2.2 AA contrast, text enlargement/reflow, usable touch targets, non-colour status distinctions and reduced motion across every relevant surface. Use text/shape plus color for evidence, approvals, failures and warnings; do not remove functionality in accessibility modes.\n\nSource: SC-7; UX-5; design handoff.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 791
+    },
+    "UX-DR5": {
+      "text": "**UX-DR5: Configured localization and full RTL.** Initial locale matches a supported device language; an Account override persists. Use logical directions and support text expansion without clipping or semantic reversal; isolate mixed-direction IDs, units, extensions and citations. Keep original-language evidence, translation and explanation distinct and show Hebrew/English together correctly.\n\nSource: SC-4; UX-3/UX-5; AD-17.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 795
+    },
+    "UX-DR6": {
+      "text": "**UX-DR6: Honest language and guidance.** Use concise ordinary language and real nova3D terms; technical-detail preference changes explanation depth only. First-use guidance is dismissible and reopenable. Never fabricate passages/citations/dimensions/scholars or claim historical certainty, universal printability or safety certification; unverified design sample content is explicitly labelled.\n\nSource: UX-1/UX-5; design handoff.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 799
+    },
+    "UX-DR7": {
+      "text": "**UX-DR7: Explicit workflow and evidence distinctions.** Keep sourced, inferred, disputed, unknown and user-added distinct; internal user_added maps to the display label user-added. Distinguish lead/evidence, cached/fresh dates, reconstruction/personalization, direct/evidence modes, Plan/Model Approval, preview/manufacturing geometry, warning/failure/unknown, Project source exclusion/Account disabling, and every Job/local-sync state.\n\nSource: Screen inventory cross-surface states; UX-3; AD-3/AD-4.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 803
+    },
+    "UX-DR20": {
+      "text": "**UX-DR20: Traceable responsive design coverage.** Complete and verify every screen/state below under R-10, with desktop/phone, light/dark, a complete RTL journey, bilingual evidence, focus/names/announcements, enlarged text, contrast and reduced-motion coverage. Maintain a screen-to-implemented-design/state mapping when surfaces combine. DESIGN.md/EXPERIENCE.md are metadata-only historical drafts; neither a new direction-selection checkpoint nor a specific external design tool is required.\n\nSource: R-10; UX-7; screen inventory/design handoff.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 855
+    },
+    "UX-DR24": {
+      "text": "**UX-DR24: Global shell (G-01).** Access to Home, Notifications, Settings, Account, and contextual back navigation.\n\nRequired states/variants: Desktop/laptop, phone, LTR, RTL, light, dark.\n\nSource: SCREEN-INVENTORY G-01; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 877
+    },
+    "UX-DR26": {
+      "text": "**UX-DR26: First-use guidance (G-03).** Explain each workflow stage in ordinary language; dismiss and reopen later.\n\nRequired states/variants: First use, dismissed, reopened from Settings.\n\nSource: SCREEN-INVENTORY G-03; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 889
+    },
+    "UX-DR64": {
+      "text": "**UX-DR64: Account Settings (S-01).** Language, light/dark choice, simple/technical explanation level, onboarding replay.\n\nRequired states/variants: Device-language default, manual override, RTL preview, light default/dark selected.\n\nSource: SCREEN-INVENTORY S-01; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1117
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

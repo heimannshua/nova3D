@@ -1,0 +1,104 @@
+{
+  "epic": {
+    "id": "2",
+    "title": "Confirm requests and control background spending",
+    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state."
+  },
+  "story": {
+    "id": "2-10",
+    "epic_id": "2",
+    "title": "Record actionable in-app notifications",
+    "user": "Account owner",
+    "want": "to open the exact item needing attention",
+    "benefit": "background progress remains usable across sessions",
+    "requirements": [
+      "FR-7",
+      "AR-25",
+      "SC-5",
+      "UX-DR18",
+      "UX-DR25",
+      "UX-DR39",
+      "UX-DR40"
+    ],
+    "depends_on": [
+      "2-7"
+    ],
+    "scope": [
+      "Commit durable per-recipient event history and authorized deep links; realtime delivery is a hint."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "research readiness, generation success/failure or export readiness",
+        "when": "the event is committed",
+        "then": "one durable notification per recipient/event appears in the app-wide bar and history"
+      },
+      {
+        "given": "duplicate, missing or delayed realtime delivery",
+        "when": "the client refreshes",
+        "then": "canonical history reconciles without losing or duplicating events"
+      },
+      {
+        "given": "an unread/read notification or deleted/foreign target",
+        "when": "it is selected",
+        "then": "the exact live-authorized item opens or an unavailable state appears; Prints in Progress remains Coming later"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-7": {
+      "text": "#### FR-7: Actionable notifications\n\nThe app displays an app-wide Notification bar for Jobs and approval events.\n\n**Consequences:**\n- Notifications cover research readiness, generation completion or failure, Export readiness, and later printer events.\n- Selecting a Notification opens the exact Project, approval item, failed Job, Export, or later printer event requiring attention.\n\nSource: PRD §4, FR-7.\n\n**Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 157
+    },
+    "AR-25": {
+      "text": "**AR-25: Notification delivery and privacy.** Commit one durable in-app notification per recipient/event; deduplicate unreliable realtime/push and refresh canonical state. Resolve exact targets with live authorization. Push carries opaque event references and generic category text, no private excerpts/model names/images. Persist per-category research/generation/validation/export preferences and contextual permission/install guidance; denial does not erase in-app history. Printing notifications remain inactive.\n\nSource: AD-18; SC-5.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 681
+    },
+    "SC-5": {
+      "text": "##### SC-5: Phone push notifications\n\nThe first version adds phone push notifications for research, generation, validation, Export, and later printing events. Account Settings controls categories. In-app event history remains available when phone alerts are disabled.\n\nPrinting notifications remain inactive/Coming later in this version.\n\nSource: UX-SCOPE-CHANGES SC-5; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 514
+    },
+    "UX-DR18": {
+      "text": "**UX-DR18: Notifications and permissions.** Keep durable app-wide history and exact authorized deep links whether phone push is allowed, denied or off. Offer contextual install/permission guidance and independent research/generation/validation/export toggles; payload previews contain generic categories/opaque references only. Printing remains Coming later.\n\nSource: SC-5; UX-6; AD-18.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 847
+    },
+    "UX-DR25": {
+      "text": "**UX-DR25: Notifications (G-02).** Actionable event list opening the exact related item.\n\nRequired states/variants: Unread/read, empty, failure, permission disabled, grouped Project events.\n\nSource: SCREEN-INVENTORY G-02; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 883
+    },
+    "UX-DR39": {
+      "text": "**UX-DR39: In Progress overview (J-01).** Active research, generation, validation, repair, and sync Jobs; **Prints in Progress — Coming later**.\n\nRequired states/variants: No Jobs, several concurrent Jobs, mixed states, future-print placeholder.\n\nSource: SCREEN-INVENTORY J-01; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 967
+    },
+    "UX-DR40": {
+      "text": "**UX-DR40: Job detail (J-02).** Current stage, real progress, preserved state, cost impact when known, cancel action.\n\nRequired states/variants: Waiting, running, completed, failed, cancelled, stale result rejected.\n\nSource: SCREEN-INVENTORY J-02; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 973
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

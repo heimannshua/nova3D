@@ -1,0 +1,114 @@
+{
+  "epic": {
+    "id": "6",
+    "title": "Qualify and export an evidence-backed printable model",
+    "goal": "An approved model can pass exact profile checks, receive bounded audited repair and be downloaded with immutable bilingual provenance."
+  },
+  "story": {
+    "id": "6-5",
+    "epic_id": "6",
+    "title": "Allow one lineage-bound evidence regeneration",
+    "user": "Account owner",
+    "want": "to recover once after local repair fails",
+    "benefit": "automatic recovery has a firm limit",
+    "requirements": [
+      "FR-28",
+      "AR-12",
+      "AR-14",
+      "AR-16",
+      "NFR-3",
+      "NFR-9",
+      "UX-DR17",
+      "UX-DR61"
+    ],
+    "depends_on": [
+      "6-4",
+      "5-2",
+      "2-8"
+    ],
+    "scope": [
+      "Manufacturing owns an immutable validation lineage and one full_regeneration slot; this story implements the evidence-plan adapter and shared authority used later by direct reconversion."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "failed local repair and an exact approved evidence plan",
+        "when": "concurrent fallback triggers arrive",
+        "then": "one unique (lineage_id, full_regeneration) slot commits atomically with successor Job/outbox and required reservation; duplicates return its receipt"
+      },
+      {
+        "given": "a consumed slot followed by failed dispatch, cancellation, ambiguous charge, child version or retry",
+        "when": "another fallback is requested",
+        "then": "none can rearm the slot or evade the original lineage"
+      },
+      {
+        "given": "the permitted regeneration succeeds or fails",
+        "when": "its result is processed",
+        "then": "success preserves the original and creates a candidate needing inspection/approval/full validation; failure stops, and changed interpretations return to Plan Approval"
+      }
+    ],
+    "gates": [
+      "G-3"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-28": {
+      "text": "#### FR-28: Constrained full regeneration\n\nIf local repair cannot resolve printability, nova3D performs at most one full regeneration from the approved Research Plan using the Target Print Profile and failed validation constraints.\n\n**Consequences:**\n- The original Model Version and evidence chain remain available.\n- The regenerated Model is a new Version requiring inspection, Model Approval, and validation.\n- If that Version still fails, nova3D stops, explains the remaining problems, preserves every Version, and waits for the user to decide; no further automatic loop occurs.\n\nSource: PRD §4, FR-28.\n\n**Ratified application:** R-11 also allows at most one constrained full direct-image reconversion from the original pinned images/scope/engine and failed print constraints. Both modes atomically share the unresettable lineage slot across retries/children; a new Model Version requires inspection, approval and validation. An incapable engine or failed allowed attempt stops.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 417
+    },
+    "AR-12": {
+      "text": "**AR-12: Repair authority and one regeneration slot.** Every repaired byte representation gets a new artifact identity. Normals/winding fixes, duplicate/zero-area face removal or welding retain a Model Version only after R-2 proves nonconsequential equivalence. Hole filling, remeshing, thickening and dimension changes are consequential and require successor Model Version, inspection, approval and validation. Atomically consume unique (lineage_id, full_regeneration) with successor Job/outbox and any reservation; retries, cancellation, failure and children cannot rearm it. Evidence mode uses the approved plan; direct mode uses pinned original images/scope/engine, failed constraints and new settings digest, stopping if the engine cannot satisfy them.\n\nSource: AD-8; R-3, R-11; G-3/G-8.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 619
+    },
+    "AR-14": {
+      "text": "**AR-14: Durable Jobs and bounded retries.** Accept Jobs only with committed dispatch outbox; persist Job → JobAttempt → StepExecution → ExternalOperation identities and receipts. Upstash orchestrates bounded HTTP steps and worker completions; Postgres owns state. Configure workflow, explicit queue publishes and provider SDKs for zero failed-work retries, verifying effective behavior with a deliberately failing research step. Duplicate transport returns existing receipts without repeated side effects; terminal failed/cancelled attempts cannot be reclaimed. Lease loss becomes interrupted failure; user retries create new linked attempts under the same Job and wait for prior potentially chargeable work to reconcile. Logical step keys are unique per attempt, and operation ordinals per step; Jobs owns receipts while Usage owns their ledger entries. Preserve last approved state and actionable failure details.\n\nSource: AD-9; work/billing identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 637
+    },
+    "AR-16": {
+      "text": "**AR-16: Atomic money and paid permissions.** Paid categories independently disclose provider, purpose, outbound-data/retention categories and maximum, with Project permission off by default. Use one Usage-owned checked integer USD-microdollar/rational calculator: sum under immutable model/options/rates, apply billing increments, round upward once per operation, reject overflow/unknown rates/foreign currency/unsupported parameters. Atomically enforce Account-period allowance, $5 lifetime research-Job cap across attempts and $1 external-operation cap. Defaults are $25/invitee and $50/Administrator per UTC month. Preserve outstanding liabilities across resets; already-authorized work retains reservations while disable cancels it.\n\nSource: AD-11; R-6; G-6.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 645
+    },
+    "NFR-3": {
+      "text": "**NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 545
+    },
+    "NFR-9": {
+      "text": "**NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 559
+    },
+    "UX-DR17": {
+      "text": "**UX-DR17: Print-validation and bounded recovery states.** Expose exact profile/transform, check support, last-checked time, pass/warning/fail/unknown and stale results. Required unknowns block export. Show each repair and affected geometry; one full regeneration/reconversion is lineage-bound, preserves originals and returns to inspection/approval/validation. Failure after the allowed attempt stops with an actionable explanation.\n\nSource: FR-24–FR-28; R-3/R-11.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 843
+    },
+    "UX-DR61": {
+      "text": "**UX-DR61: Full regeneration fallback (V-04).** At most one constrained attempt after local repair failure. R-11 applies the same one-attempt lineage rule to direct-image constrained reconversion.\n\nRequired states/variants: Running, new Version awaiting inspection/approval, failed and stopped.\n\nSource: SCREEN-INVENTORY V-04; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1099
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

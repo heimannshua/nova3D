@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    name: Baseline checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Typecheck application
+        run: npm run typecheck
+      - name: Lint application
+        run: npm run lint
+      - name: Build application
+        run: npm run build
+      - name: Smoke test application health
+        run: npm run test:health
+      - name: Check repository metadata and local links
+        run: node scripts/ci/check-repository.mjs
+      - name: Test deployment environment guardrails
+        run: node scripts/test-env.mjs
+      - name: Validate shell scripts
+        run: |
+          while IFS= read -r file; do bash -n "$file"; done < <(find tools -type f -name '*.sh' -print)
+      - name: Validate Python syntax
+        run: python3 -m compileall -q tools/qualification
+      - name: Run credential-free recovery smoke probe
+        run: |
+          report="$(mktemp)"
+          python3 tools/qualification/recovery/probe.py --report "$report"
+          test -s "$report"
+          rm -f "$report"
+
+  optional-qualification:
+    name: Optional qualification probes (blocked without local dependencies)
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'Browser, CAD, print, and stack probes require heavyweight/local runtime dependencies and are run from tools/qualification.'

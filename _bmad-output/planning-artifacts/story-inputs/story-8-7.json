@@ -1,0 +1,159 @@
+{
+  "epic": {
+    "id": "8",
+    "title": "Delete private work and prove release readiness",
+    "goal": "Users can remove their data, Josh can close the instance, and the complete product is accepted only with real application/device and recovery evidence."
+  },
+  "story": {
+    "id": "8-7",
+    "epic_id": "8",
+    "title": "Prove cross-provider and first-version acceptance",
+    "user": "maintainer",
+    "want": "to see evidence that the integrated product meets its contract",
+    "benefit": "release decisions reflect the complete application",
+    "requirements": [
+      "AR-26",
+      "AR-27",
+      "NFR-1",
+      "NFR-2",
+      "NFR-3",
+      "NFR-4",
+      "NFR-5",
+      "NFR-6",
+      "NFR-7",
+      "NFR-8",
+      "NFR-9",
+      "NFR-10",
+      "NFR-11",
+      "NFR-12"
+    ],
+    "depends_on": [
+      "8-4",
+      "8-5",
+      "8-6"
+    ],
+    "scope": [
+      "Record actual US East provider topology, smallest suitable paid tiers/resources and pinned compatible deployment contracts.",
+      "Exercise all application seams and inherited PRD success/counter-metrics; retain historical probe boundaries."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "staging services and actual provider settings",
+        "when": "callback, private-file, environment isolation and rollout/rollback drills run",
+        "then": "the recorded Vercel/Supabase/Railway/Upstash topology enforces signed environment identity, consumer-before-producer evolution and redacted operational monitoring"
+      },
+      {
+        "given": "the complete evidence altar/ramp and direct/offline regression suites",
+        "when": "integrated acceptance runs",
+        "then": "all original PRD metrics, two-account isolation, invitations, cost/retry races, stale approvals, source-policy/cache privacy, repair lineage and deletion-aware restore have required evidence"
+      },
+      {
+        "given": "the September 14 PARTIAL/BLOCKED/NOT RUN baseline",
+        "when": "release is considered",
+        "then": "no applicable G-1–G-9 remains open; local probes, documents and a physical-box slice do not establish app acceptance, and physical printing/printer control are not required for the adopted software demonstration"
+      }
+    ],
+    "gates": [
+      "G-1",
+      "G-2",
+      "G-3",
+      "G-4",
+      "G-5",
+      "G-6",
+      "G-7",
+      "G-8",
+      "G-9"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "AR-26": {
+      "text": "**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify immutable environment IDs at CI/startup/dispatch; prevent preview/production mixing. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and nearest available Upstash with actual paid plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity and purge deadlines with redacted IDs; outages fail authorization closed.\n\nSource: AD-19; R-9; G-9.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 685
+    },
+    "AR-27": {
+      "text": "**AR-27: Acceptance evidence and remaining work.** Implement real application seams for two-Account API/storage denial, invitation races, replayed commands/callbacks, cancel/delete-versus-result races, concurrent budgets/unknown charges, stale approval, source-policy changes, cache privacy, offline duplicate/conflict sync, deletion-aware restore, canonical/preview transforms, accessible navigation and bilingual exports. Local primitives do not close application gates. G-1/G-2/G-3/G-6/G-9 are PARTIAL, G-5/G-8 BLOCKED and G-4/G-7 NOT RUN; retain these as explicit implementation/qualification obligations. No full release while applicable gates remain open.\n\nSource: Qualification REPORT; architecture implementation gates.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 689
+    },
+    "NFR-1": {
+      "text": "**NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 541
+    },
+    "NFR-2": {
+      "text": "**NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 543
+    },
+    "NFR-3": {
+      "text": "**NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 545
+    },
+    "NFR-4": {
+      "text": "**NFR-4: Durable job state.** Closing the browser, navigating to another Project, or a worker restart cannot lose an accepted Job, corrupt its Project, or misreport its final state.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 547
+    },
+    "NFR-5": {
+      "text": "**NFR-5: Safe concurrency.** Concurrent Jobs remain isolated and cannot overwrite newer approved Project state. Results generated from stale inputs cannot silently become current.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 549
+    },
+    "NFR-6": {
+      "text": "**NFR-6: Reproducibility.** Given fixed approved inputs, tool versions, and settings, nova3D reproduces geometrically equivalent Canonical Models within the tolerance ratified through AD-2.\n\nRatified application: this is evidence-recipe equivalence under R-2 / AR-10. The PRD's AD-2 means PRD:AD-2, not architecture AD-2. Direct inference preserves exact snapshots/provenance without an identical-reinference guarantee.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 551
+    },
+    "NFR-7": {
+      "text": "**NFR-7: Version durability.** Every Version presented as restorable must restore its geometry and provenance successfully. Deletion under FR-30 is the explicit exception.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 555
+    },
+    "NFR-8": {
+      "text": "**NFR-8: Explainable failures.** User-facing failures identify the failed stage, known cause, preserved state, cost impact where known, and permitted next action in beginner-friendly language.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 557
+    },
+    "NFR-9": {
+      "text": "**NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 559
+    },
+    "NFR-10": {
+      "text": "**NFR-10: Responsive workspace.** Research, generation, validation, repair, and export run without blocking navigation or ordinary Project inspection. Browser preview degradation or failure cannot damage manufacturing geometry.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 561
+    },
+    "NFR-11": {
+      "text": "**NFR-11: Honest print qualification.** Validation labels always identify the Target Print Profile, warnings, failures, unknowns, and last validation time; nova3D never presents validation as safety or universal manufacturability certification.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 563
+    },
+    "NFR-12": {
+      "text": "**NFR-12: Privacy-preserving cache and deletion.** Shared cached research contains only fields reproducible from identified non-private Sources and cannot expose user identity, private inputs, decisions, or deleted artifacts. Admission rejects all user- and Project-derived fields. Project or whole-Account deletion takes effect immediately through durable tombstones. It blocks late writes and cache promotion, promptly removes active private data, removes remaining copies from operational backups within 30 days, and remains enforced after backup restoration.\n\nSource: PRD §7. All twelve NFRs apply across the capability set, with the explicit mode distinction above. Architecture requirements below supply measurable limits and enforcement contracts.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 565
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

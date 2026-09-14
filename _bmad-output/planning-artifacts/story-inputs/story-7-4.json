@@ -1,0 +1,119 @@
+{
+  "epic": {
+    "id": "7",
+    "title": "Create direct models offline and synchronize safely",
+    "goal": "Prepared supported devices can create honestly labeled image-derived models offline, preserve them locally and synchronize without privacy or history loss."
+  },
+  "story": {
+    "id": "7-4",
+    "epic_id": "7",
+    "title": "Synchronize offline drafts without overwriting history",
+    "user": "Account owner",
+    "want": "to find local work in My Projects after reconnecting",
+    "benefit": "sync does not duplicate or discard versions",
+    "requirements": [
+      "AR-3",
+      "AR-5",
+      "AR-22",
+      "NFR-1",
+      "NFR-5",
+      "NFR-7",
+      "SC-2",
+      "UX-DR14",
+      "UX-DR28"
+    ],
+    "depends_on": [
+      "7-3",
+      "1-4"
+    ],
+    "scope": [
+      "Import stable UUIDs only into the original authorized Account with verified artifacts and expected parent revision."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "an authorized reconnect and a local draft",
+        "when": "sync is delivered more than once",
+        "then": "one idempotent import appears in original My Projects using verified digests and stable identities"
+      },
+      {
+        "given": "a newer server version or divergent local history",
+        "when": "import checks revisions",
+        "then": "both versions are retained for explicit conflict selection rather than silently overwriting either"
+      },
+      {
+        "given": "network/authentication uncertainty or a failed import",
+        "when": "sync stops",
+        "then": "pending/failed/conflict state is visible and local work is not erased or attached to another Account"
+      }
+    ],
+    "gates": [
+      "G-8"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "AR-3": {
+      "text": "**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions.\n\nSource: AD-2; Consistency Conventions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 583
+    },
+    "AR-5": {
+      "text": "**AR-5: Provenance and immutable publication.** Preserve SourceRevision → ClaimRevision → Detail/Option → PlanRevision/PlanApproval → Parameter → Feature → ModelVersion → ModelApproval/Validation → Export links, including reverse navigation, competing choices, actors and times. Stable logical features have version-specific geometry/claim bindings. Artifacts owns one canonical JSON manifest-root/digest family with immutable ID, ownership, size, kind, byte digest, canonical serialization version, producing activity and child references. Approval, gateway access, restore, cleanup and deletion resolve the same manifest roots; object keys cannot redefine them. Staged output becomes usable/restorable only through verified coordinated publication.\n\nSource: AD-4, AD-13; shared artifact identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 591
+    },
+    "AR-22": {
+      "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 669
+    },
+    "NFR-1": {
+      "text": "**NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 541
+    },
+    "NFR-5": {
+      "text": "**NFR-5: Safe concurrency.** Concurrent Jobs remain isolated and cannot overwrite newer approved Project state. Results generated from stale inputs cannot silently become current.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 549
+    },
+    "NFR-7": {
+      "text": "**NFR-7: Version durability.** Every Version presented as restorable must restore its geometry and provenance successfully. Deletion under FR-30 is the explicit exception.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 555
+    },
+    "SC-2": {
+      "text": "##### SC-2: Direct picture conversion works offline\n\nDirect image-derived conversion must work without internet on supported computer and phone devices. Offline-created Projects remain usable locally, show pending or failed sync state, and automatically sync into **My Projects** when connectivity returns without duplication or overwriting a newer Model Version.\n\nResearch-assisted reconstruction remains online-only. R-8 adopts on-device limits, preparation and revocation behavior; G-8 still requires a qualifying engine, actual offline/device execution and sync evidence.\n\nSource: UX-SCOPE-CHANGES SC-2; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 494
+    },
+    "UX-DR14": {
+      "text": "**UX-DR14: Offline authority and conflict visibility.** Explain no offline time lease and revocation-on-reconnect during preparation. Show locally saved, pending, syncing, failed and conflict states; automatically import into original Account's My Projects without duplicates/overwrites. Learned disable locks until newer authoritative re-enable; learned deletion purges before import; network uncertainty preserves work. Sign-out clears private stores and Account switching never transfers drafts.\n\nSource: UX-4; R-8.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 831
+    },
+    "UX-DR28": {
+      "text": "**UX-DR28: My Projects (H-02).** Model-focused collection of the Account's Projects.\n\nRequired states/variants: Empty, populated, search/filter if needed, locally saved, syncing, sync failed.\n\nSource: SCREEN-INVENTORY H-02; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 901
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

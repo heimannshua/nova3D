@@ -1,0 +1,105 @@
+{
+  "epic": {
+    "id": "5",
+    "title": "Correct, compare and approve exact model versions",
+    "goal": "Users can request evidence corrections, regenerate only affected geometry, restore history and approve the exact model they inspected."
+  },
+  "story": {
+    "id": "5-5",
+    "epic_id": "5",
+    "title": "Approve the exact inspected model",
+    "user": "Account owner",
+    "want": "to approve or reject the model I inspected",
+    "benefit": "export cannot use a different candidate",
+    "requirements": [
+      "FR-23",
+      "FR-27",
+      "AR-4",
+      "AR-5",
+      "NFR-3",
+      "UX-DR16",
+      "UX-DR57"
+    ],
+    "depends_on": [
+      "4-6",
+      "5-3"
+    ],
+    "scope": [
+      "Bind Model Approval to immutable version and canonical recipe/snapshot digest with approver/time."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "a model not yet inspected or changed since inspection",
+        "when": "approval is attempted",
+        "then": "approval is blocked and the exact required inspection is identified"
+      },
+      {
+        "given": "an inspected unchanged candidate",
+        "when": "the user approves or rejects",
+        "then": "the exact version/digest, actor, time and outcome are retained immutably"
+      },
+      {
+        "given": "a successor, consequential repair or personalization change",
+        "when": "export authority is queried",
+        "then": "old approval cannot authorize the changed candidate and renewed inspection/approval is required"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-23": {
+      "text": "#### FR-23: Version-bound model approval\n\nThe user can approve or reject a specific inspected Model Version.\n\n**Consequences:**\n- Export is blocked until Model Approval exists for the exact Model Version.\n- Geometry or Personalization changes invalidate Model Approval for the changed Version.\n- Model Approval records the approver and time.\n\nSource: PRD §4, FR-23.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 359
+    },
+    "FR-27": {
+      "text": "#### FR-27: Approval after substantive repair\n\nIf a repair changes visible geometry, historical dimensions, or Personalization, nova3D creates a new Model Version and requires inspection and Model Approval again.\n\n**Consequences:**\n- Export remains blocked until the repaired Version is approved and passes validation.\n- Repairs that do not change those properties still remain in the validation audit history.\n\nSource: PRD §4, FR-27.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 407
+    },
+    "AR-4": {
+      "text": "**AR-4: Explicit request modes.** Persist immutable evidence_text, evidence_images or image_direct revisions. Evidence modes need complete whole-plan approval of the exact digest. Direct mode needs confirmed scope, ordered image digests and acknowledged uncertainty, and never gains historical status. Changing modes creates a successor request. Every qualified export still requires exact-model approval and compatible validation.\n\nSource: AD-3; R-8, R-11; scope-and-readiness.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 587
+    },
+    "AR-5": {
+      "text": "**AR-5: Provenance and immutable publication.** Preserve SourceRevision → ClaimRevision → Detail/Option → PlanRevision/PlanApproval → Parameter → Feature → ModelVersion → ModelApproval/Validation → Export links, including reverse navigation, competing choices, actors and times. Stable logical features have version-specific geometry/claim bindings. Artifacts owns one canonical JSON manifest-root/digest family with immutable ID, ownership, size, kind, byte digest, canonical serialization version, producing activity and child references. Approval, gateway access, restore, cleanup and deletion resolve the same manifest roots; object keys cannot redefine them. Staged output becomes usable/restorable only through verified coordinated publication.\n\nSource: AD-4, AD-13; shared artifact identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 591
+    },
+    "NFR-3": {
+      "text": "**NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 545
+    },
+    "UX-DR16": {
+      "text": "**UX-DR16: Immutable approvals and comparison.** Show exact plan/model version and readiness before approval. Compare geometry, parameters, evidence/choices, personalization, approvals and validation; restoration preserves later history and does not silently authorize an export. Changed interpretations, substantive repair and personalization route to the relevant successor approval.\n\nSource: FR-12/FR-13/FR-20–FR-23/FR-27.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 839
+    },
+    "UX-DR57": {
+      "text": "**UX-DR57: Model Approval (M-09).** Approve or reject the exact inspected Model Version.\n\nRequired states/variants: Not inspected, ready, approved, rejected, invalidated by later change.\n\nSource: SCREEN-INVENTORY M-09; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1075
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

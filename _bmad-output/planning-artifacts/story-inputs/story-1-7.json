@@ -1,0 +1,124 @@
+{
+  "epic": {
+    "id": "1",
+    "title": "Enter and use a private workspace",
+    "goal": "Invited users can authenticate and use a responsive private workspace; Josh can control and recover access without inspecting private content."
+  },
+  "story": {
+    "id": "1-7",
+    "epic_id": "1",
+    "title": "Navigate My Projects and project state",
+    "user": "Account owner",
+    "want": "to find and reopen my Projects",
+    "benefit": "I can resume the next required action",
+    "requirements": [
+      "FR-2",
+      "FR-5",
+      "AR-3",
+      "NFR-1",
+      "SC-3",
+      "UX-DR24",
+      "UX-DR27",
+      "UX-DR28",
+      "UX-DR29",
+      "UX-DR30"
+    ],
+    "depends_on": [
+      "1-2",
+      "1-4"
+    ],
+    "scope": [
+      "Create Project identity and model-focused collection with My Projects, Create and In Progress.",
+      "Expose current stage and navigation; feature-specific transitions and deletion are supplied by their owning stories."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "a new Account",
+        "when": "Home opens",
+        "then": "the three primary actions and useful empty states are visible on phone and desktop"
+      },
+      {
+        "given": "owned Projects with current stage/version metadata",
+        "when": "an item is opened",
+        "then": "the model/stage and Sources entry are selected with the next required action reachable"
+      },
+      {
+        "given": "a stale, deleted or foreign Project link",
+        "when": "navigation resolves it",
+        "then": "live ownership/lifecycle checks prevent disclosure and a clear unavailable state is shown"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-2": {
+      "text": "#### FR-2: Authentication and workspace isolation\n\nAn Account can authenticate and access only its own Workspace.\n\n**Consequences:**\n- Cross-Account access to Projects, Sources, decisions, Models, Versions, Jobs, Exports, and Notifications is denied.\n- Administrative usage controls do not expose ordinary Project content.\n- The Administrator cannot impersonate an Account, browse its private Workspace, or assign additional administrative privileges through the app.\n\nSource: PRD §4, FR-2.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 85
+    },
+    "FR-5": {
+      "text": "#### FR-5: Natural-language project intake\n\nAn Account can start a Project by describing the desired model in ordinary language without finding or uploading source texts.\n\n**Consequences:**\n- If the request permits materially different subjects, periods, scopes, or outcomes, nova3D asks clarifying questions before starting paid research.\n- The user sees and confirms nova3D's understanding of the Project scope.\n\nSource: PRD §4, FR-5.\n\n**Ratified application:** SC-1 also requires ordered multi-view picture intake and the two explicit picture modes; natural-language intake does not defer them.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 133
+    },
+    "AR-3": {
+      "text": "**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions.\n\nSource: AD-2; Consistency Conventions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 583
+    },
+    "NFR-1": {
+      "text": "**NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 541
+    },
+    "SC-3": {
+      "text": "##### SC-3: Complete phone workflow\n\nThe first version supports the complete workflow on desktop, laptop, and phone. Phone is not a reduced companion: creation, research review, 3D inspection, approvals, validation, and downloads must all work.\n\nSource: UX-SCOPE-CHANGES SC-3; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 502
+    },
+    "UX-DR24": {
+      "text": "**UX-DR24: Global shell (G-01).** Access to Home, Notifications, Settings, Account, and contextual back navigation.\n\nRequired states/variants: Desktop/laptop, phone, LTR, RTL, light, dark.\n\nSource: SCREEN-INVENTORY G-01; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 877
+    },
+    "UX-DR27": {
+      "text": "**UX-DR27: Home dashboard (H-01).** Three primary actions: **My Projects**, **Create**, **In Progress**.\n\nRequired states/variants: New Account/empty, active Jobs, unread Notification, desktop, phone.\n\nSource: SCREEN-INVENTORY H-01; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 895
+    },
+    "UX-DR28": {
+      "text": "**UX-DR28: My Projects (H-02).** Model-focused collection of the Account's Projects.\n\nRequired states/variants: Empty, populated, search/filter if needed, locally saved, syncing, sync failed.\n\nSource: SCREEN-INVENTORY H-02; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 901
+    },
+    "UX-DR29": {
+      "text": "**UX-DR29: Project/model overview (H-03).** Open a model, see current stage and Version, reach Sources and Project actions.\n\nRequired states/variants: Researching, awaiting Plan Approval, generating, awaiting Model Approval, validation failed, Export ready.\n\nSource: SCREEN-INVENTORY H-03; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 907
+    },
+    "UX-DR30": {
+      "text": "**UX-DR30: Project actions (H-04).** Rename if supported, delete Project/Export, inspect history, resume next required action.\n\nRequired states/variants: Safe actions, destructive confirmation, tombstoned/cleanup state.\n\nSource: SCREEN-INVENTORY H-04; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 913
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

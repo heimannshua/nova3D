@@ -1,0 +1,111 @@
+{
+  "epic": {
+    "id": "3",
+    "title": "Research and approve a complete evidence plan",
+    "goal": "Users can inspect authoritative evidence, control source eligibility, resolve interpretations and approve one complete reconstruction plan."
+  },
+  "story": {
+    "id": "3-3",
+    "epic_id": "3",
+    "title": "Account for every consequential physical detail",
+    "user": "Account owner",
+    "want": "to see complete evidence and unresolved gaps",
+    "benefit": "I do not approve a reconstruction with hidden omissions",
+    "requirements": [
+      "FR-10",
+      "FR-11",
+      "FR-12",
+      "AR-6",
+      "NFR-3",
+      "NFR-8",
+      "UX-DR45",
+      "UX-DR46"
+    ],
+    "depends_on": [
+      "3-1",
+      "3-2"
+    ],
+    "scope": [
+      "Build the finite subject-specific detail checklist, statuses and independent omission review; product FRs are not physical detail records."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "a requested reconstruction scope",
+        "when": "completeness is assessed",
+        "then": "shape, dimensions, materials, placement, printability and historical interpretation are accounted for with evidence or explicit sourced/inferred/disputed/unknown/user-added status"
+      },
+      {
+        "given": "a missing checklist item or unresolved independent-review gap",
+        "when": "plan readiness is evaluated",
+        "then": "whole-plan approval is blocked until the gap is resolved; the separate omission pass is retained"
+      },
+      {
+        "given": "uncertainty or a personal addition",
+        "when": "a detail is displayed",
+        "then": "evidence, reasoning/confidence, expected geometry effect and honest status are visible without fabricated historical detail"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-10": {
+      "text": "#### FR-10: Complete consequential-detail coverage\n\nnova3D identifies every Consequential Detail needed for the complete requested Model and links it to Claims or an explicit Detail Status.\n\n**Consequences:**\n- nova3D builds a finite Project checklist covering shape, dimensions, materials, placement, printability, and historical interpretation.\n- A second independent review pass searches the requested scope and Research Plan specifically for missing Consequential Details.\n- The Research Plan is not ready for review while any checklist item is unaccounted for or the independent pass has an unresolved gap.\n- The user can inspect the completed checklist and gap-review result before Plan Approval.\n- No missing detail may be silently invented or presented as historically certain.\n\nSource: PRD §4, FR-10.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 193
+    },
+    "FR-11": {
+      "text": "#### FR-11: Explainable conclusions and options\n\nFor each uncertain Consequential Detail, nova3D presents its recommendation and Defensible Options with transparent reasoning.\n\n**Consequences:**\n- The user can inspect supporting Sources, conflicting evidence, the reasoning chain, and expected geometry effects.\n- Confidence is explained through evidence and reasoning rather than only an opaque score.\n- If evidence cannot settle the detail, the user must choose an option.\n\nSource: PRD §4, FR-11.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 206
+    },
+    "FR-12": {
+      "text": "#### FR-12: Whole-project review before generation\n\nnova3D presents one complete Research Plan for the requested Model before any Canonical Model is generated.\n\n**Consequences:**\n- The review includes proposed choices, rejected or competing alternatives, citations, reasoning, Detail Status, and expected geometry effects.\n- The review groups related Consequential Details into evidence packages for each model section while preserving one final whole-Project approval boundary.\n- Apparently clear sections are not generated incrementally while other research remains unresolved.\n\nSource: PRD §4, FR-12.\n\n**Ratified application:** Whole-plan completeness and approval govern evidence_text and evidence_images. image_direct uses confirmed scope, ordered images and explicit uncertainty acknowledgment; it never fabricates a Research Plan.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 217
+    },
+    "AR-6": {
+      "text": "**AR-6: Complete and eligible research.** Use the Middot package's finite checklist for shape, dimensions, materials, placement, printability and interpretation; require an independent omission review with no unresolved gap. Middot chapter 3 governs spatial reconstruction; low-authority pages remain leads. Project exclusions and Account toggles target stable source identities, increment effective policy epochs and invalidate/recheck affected active conclusions. Pin the Account-policy revision, Project-exclusion revision and explicit source set in attempts, private cache-adoption records and plan digests. Filtering is deterministic for those inputs; active changes create a successor draft and rerun affected conclusions and completeness before approval. Approved records stay immutable.\n\nSource: AD-5; evidence-policy identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 595
+    },
+    "NFR-3": {
+      "text": "**NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 545
+    },
+    "NFR-8": {
+      "text": "**NFR-8: Explainable failures.** User-facing failures identify the failed stage, known cause, preserved state, cost impact where known, and permitted next action in beginner-friendly language.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 557
+    },
+    "UX-DR45": {
+      "text": "**UX-DR45: Completeness checklist (R-02).** Shape, dimensions, materials, placement, printability, historical interpretation, independent gap review.\n\nRequired states/variants: Complete, missing detail, unresolved gap, newly invalidated item.\n\nSource: SCREEN-INVENTORY R-02; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1003
+    },
+    "UX-DR46": {
+      "text": "**UX-DR46: Consequential Detail review (R-03).** Claim, exact Source, reasoning, Detail Status, expected geometry effect.\n\nRequired states/variants: `sourced`, `inferred`, `disputed`, `unknown`, `user-added`.\n\nSource: SCREEN-INVENTORY R-03; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1009
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

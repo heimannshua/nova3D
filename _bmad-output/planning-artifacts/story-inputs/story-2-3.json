@@ -1,0 +1,130 @@
+{
+  "epic": {
+    "id": "2",
+    "title": "Confirm requests and control background spending",
+    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state."
+  },
+  "story": {
+    "id": "2-3",
+    "epic_id": "2",
+    "title": "Choose picture mode and acknowledge uncertainty",
+    "user": "Account owner",
+    "want": "to choose direct conversion or evidence research",
+    "benefit": "I understand what the resulting geometry can claim",
+    "requirements": [
+      "FR-5",
+      "FR-12",
+      "FR-13",
+      "AR-4",
+      "SC-1",
+      "UX-DR8",
+      "UX-DR10",
+      "UX-DR34",
+      "UX-DR35",
+      "UX-DR36",
+      "UX-DR38"
+    ],
+    "depends_on": [
+      "2-1",
+      "2-2"
+    ],
+    "scope": [
+      "Check clarity/obstruction/angle coverage and recommend useful additional views before conversion.",
+      "Persist evidence_images versus image_direct with the appropriate confirmed-input gate."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "unclear or incomplete views",
+        "when": "quality review runs",
+        "then": "detected blur, obstruction or missing angles and useful remedies are explained"
+      },
+      {
+        "given": "incomplete direct inputs",
+        "when": "Generate anyway is selected",
+        "then": "explicit invented/inaccurate-geometry acknowledgment is pinned to the ordered images and confirmed scope"
+      },
+      {
+        "given": "a picture-mode choice or later mode change",
+        "when": "the request is confirmed",
+        "then": "research-assisted mode requires whole-plan approval later; direct mode has no synthetic Research Plan, and mode changes create successor requests"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-5": {
+      "text": "#### FR-5: Natural-language project intake\n\nAn Account can start a Project by describing the desired model in ordinary language without finding or uploading source texts.\n\n**Consequences:**\n- If the request permits materially different subjects, periods, scopes, or outcomes, nova3D asks clarifying questions before starting paid research.\n- The user sees and confirms nova3D's understanding of the Project scope.\n\nSource: PRD §4, FR-5.\n\n**Ratified application:** SC-1 also requires ordered multi-view picture intake and the two explicit picture modes; natural-language intake does not defer them.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 133
+    },
+    "FR-12": {
+      "text": "#### FR-12: Whole-project review before generation\n\nnova3D presents one complete Research Plan for the requested Model before any Canonical Model is generated.\n\n**Consequences:**\n- The review includes proposed choices, rejected or competing alternatives, citations, reasoning, Detail Status, and expected geometry effects.\n- The review groups related Consequential Details into evidence packages for each model section while preserving one final whole-Project approval boundary.\n- Apparently clear sections are not generated incrementally while other research remains unresolved.\n\nSource: PRD §4, FR-12.\n\n**Ratified application:** Whole-plan completeness and approval govern evidence_text and evidence_images. image_direct uses confirmed scope, ordered images and explicit uncertainty acknowledgment; it never fabricates a Research Plan.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 217
+    },
+    "FR-13": {
+      "text": "#### FR-13: Version-bound plan approval\n\nThe user can approve or reject a specific Research Plan version.\n\n**Consequences:**\n- Geometry generation is blocked until Plan Approval exists.\n- Plan Approval records the approver, time, selected and rejected options, and affected Consequential Details.\n- A change to an approved Research Plan creates a new version and invalidates generation authority until that version is approved.\n\nSource: PRD §4, FR-13.\n\n**Ratified application:** Plan Approval gates only the two evidence modes. Direct conversion has its own immutable confirmed-input/uncertainty gate, followed by exact-model approval and validation for qualified export.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 230
+    },
+    "AR-4": {
+      "text": "**AR-4: Explicit request modes.** Persist immutable evidence_text, evidence_images or image_direct revisions. Evidence modes need complete whole-plan approval of the exact digest. Direct mode needs confirmed scope, ordered image digests and acknowledged uncertainty, and never gains historical status. Changing modes creates a successor request. Every qualified export still requires exact-model approval and compatible validation.\n\nSource: AD-3; R-8, R-11; scope-and-readiness.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 587
+    },
+    "SC-1": {
+      "text": "##### SC-1: Picture workflows move into the first version\n\nThe PRD deferred picture workflows. The first version now includes both:\n\n- **Direct picture-to-model:** labelled image-derived and not historically verified.\n- **Research-assisted picture reconstruction:** identifies the subject, researches it, builds a complete Research Plan, and follows Plan Approval before evidence-backed generation.\n\nPicture intake supports existing images, phone camera capture, and multiple images of one subject from different angles. Before conversion, nova3D checks clarity and angle coverage and recommends additional views. The user may choose **Generate anyway** after an explicit warning that incomplete views can cause invented or inaccurate geometry.\n\nSource: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 483
+    },
+    "UX-DR8": {
+      "text": "**UX-DR8: Intake sequence and paid consent.** Confirm subject, scope, outcome, picture mode and personalization after text/image intake. For research, separately select free/paid and cache/fresh afterward, before dispatch. Present provider/category/purpose, outbound-data/retention and maximum before paid permission. Scope confirmation, start confirmation, Plan Approval and Model Approval remain distinct.\n\nSource: UX-2; FR-4/FR-5/FR-14.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 807
+    },
+    "UX-DR10": {
+      "text": "**UX-DR10: Image clarity and coverage guidance.** Before conversion explain blur/obstruction/coverage issues and recommend specific additional views. Direct conversion may proceed with incomplete coverage only after explicit Generate anyway acknowledgment of potentially invented/inaccurate geometry; warnings remain associated with the immutable request/model.\n\nSource: SC-1; UX-2.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 815
+    },
+    "UX-DR34": {
+      "text": "**UX-DR34: Picture quality and coverage (C-04).** Explain blur, obstruction, or missing angles and recommend better/additional views.\n\nRequired states/variants: Sufficient, insufficient, additional view requested, **Generate anyway** warning.\n\nSource: SCREEN-INVENTORY C-04; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 937
+    },
+    "UX-DR35": {
+      "text": "**UX-DR35: Picture path choice (C-05).** Choose direct image-derived conversion or research-assisted evidence-backed reconstruction.\n\nRequired states/variants: Plain explanation of accuracy difference, online/offline availability.\n\nSource: SCREEN-INVENTORY C-05; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 943
+    },
+    "UX-DR36": {
+      "text": "**UX-DR36: Understood request (C-06).** Show subject, scope, intended outcome, picture mode, and Personalization; wait for confirmation.\n\nRequired states/variants: Clear, ambiguous with clarification questions, edit request, confirmed.\n\nSource: SCREEN-INVENTORY C-06; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 949
+    },
+    "UX-DR38": {
+      "text": "**UX-DR38: Start confirmation (C-08).** Summarize the exact Job that will begin without duplicating Plan Approval.\n\nRequired states/variants: Ready, offline direct conversion, provider disclosure unresolved, insufficient allowance.\n\nSource: SCREEN-INVENTORY C-08; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 961
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "epic": {
+    "id": "6",
+    "title": "Qualify and export an evidence-backed printable model",
+    "goal": "An approved model can pass exact profile checks, receive bounded audited repair and be downloaded with immutable bilingual provenance."
+  },
+  "story": {
+    "id": "6-2",
+    "epic_id": "6",
+    "title": "Validate manufacturing mesh structure",
+    "user": "Account owner",
+    "want": "to know whether the model is a valid solid",
+    "benefit": "structural defects cannot reach qualified export",
+    "requirements": [
+      "FR-25",
+      "AR-11",
+      "NFR-11",
+      "UX-DR17",
+      "UX-DR59"
+    ],
+    "depends_on": [
+      "6-1"
+    ],
+    "scope": [
+      "Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on manufacturing authority."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "valid and deliberately defective meshes",
+        "when": "structural validation runs",
+        "then": "each required check records pass/warning/fail/unknown for the exact model/profile/transform/tessellation/validator identity"
+      },
+      {
+        "given": "an unsupported required check or open/nonmanifold/degenerate/out-of-bounds mesh",
+        "when": "readiness is evaluated",
+        "then": "unknown or failure blocks qualified export with its reason"
+      },
+      {
+        "given": "a preview derivative or stale validation record",
+        "when": "it is offered as manufacturing evidence",
+        "then": "it cannot substitute for the canonical export mesh and exact validation identity"
+      }
+    ],
+    "gates": [
+      "G-3"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-25": {
+      "text": "#### FR-25: Profile-qualified print validation\n\nnova3D validates the approved Model Version against geometric and Target Print Profile requirements.\n\n**Consequences:**\n- Geometric checks include explicit units, closed volume, manifold edges, outward orientation, positive volume, and nondegenerate geometry.\n- Profile checks include build envelope, minimum wall or feature size, clearances, material assumptions, and any supported orientation or support constraints.\n- Results distinguish passing checks, warnings, blocking failures, and unknowns.\n- A passing result is described as validated for the named Target Print Profile, not as a universal guarantee of manufacturability or safety.\n\nSource: PRD §4, FR-25.\n\n**Ratified application:** R-3 / AR-11 makes unsupported or unknown required checks export-blocking; passing a limited synthetic fixture is not acceptance of general printability.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 381
+    },
+    "AR-11": {
+      "text": "**AR-11: Exact print profile and fail-closed checks.** Pin the manufacturer profile's complete inheritance closure for A1 mini 0.4 mm, Bambu PLA Silk+ Gold, ≤90 mm cube, 0.20 mm layers and an explicit three-perimeter override. Enforce wall ≥1.2 mm, isolated feature ≥0.8 mm, clearance ≥0.4 mm and relief ≥0.6 mm. Overhang >45° from vertical or bridge >5 mm requires verified support/slicing analysis. Validation binds model digest, profile revision, transform, tessellation and validator version; unsupported/unknown required checks block qualified export.\n\nSource: AD-8; R-3; G-3.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 615
+    },
+    "NFR-11": {
+      "text": "**NFR-11: Honest print qualification.** Validation labels always identify the Target Print Profile, warnings, failures, unknowns, and last validation time; nova3D never presents validation as safety or universal manufacturability certification.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 563
+    },
+    "UX-DR17": {
+      "text": "**UX-DR17: Print-validation and bounded recovery states.** Expose exact profile/transform, check support, last-checked time, pass/warning/fail/unknown and stale results. Required unknowns block export. Show each repair and affected geometry; one full regeneration/reconversion is lineage-bound, preserves originals and returns to inspection/approval/validation. Failure after the allowed attempt stops with an actionable explanation.\n\nSource: FR-24–FR-28; R-3/R-11.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 843
+    },
+    "UX-DR59": {
+      "text": "**UX-DR59: Validation results (V-02).** Supported checks, profile, last checked time, pass/warning/failure/unknown; never claim universal safety.\n\nRequired states/variants: Pass, warning, blocking failure, unknown, stale after profile change.\n\nSource: SCREEN-INVENTORY V-02; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1087
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}
