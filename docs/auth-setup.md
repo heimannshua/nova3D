@@ -10,4 +10,4 @@ When the `nova3D` Supabase project is resumed:
 4. Create or invite `heimannshua@gmail.com` and `daniel@orvex.ai` in Supabase Auth. Google sign-in accepts only those normalized email addresses through `AUTH_ALLOWED_EMAILS`; the variable is a deployment boundary and does not create Auth records.
 5. Remove `NOVA_INTERIM_PASSWORD` from Vercel after both users can sign in with Google. While it exists, it is an intentionally shared temporary access path.
 
-No OAuth secret belongs in the repository or in a `NEXT_PUBLIC_*` variable. Until these steps are completed, `/api/health` correctly reports `authConfigured: false`.
+No OAuth secret belongs in the repository or in a `NEXT_PUBLIC_*` variable. `/api/health` reports the public Supabase configuration state; the Google button is usable only after the Google provider is enabled in Supabase.
