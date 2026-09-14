@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/broadsheet-7fe4643f-5635-431e-8f97-f5008b231761/styles.css">
+<script src="_ds/broadsheet-7fe4643f-5635-431e-8f97-f5008b231761/_ds_bundle.js"></script>
+<style>
+body{margin:0;background:#e6e4e1}
+.mk-head{padding:36px 44px 22px}
+.mk-scr{padding:26px 44px 34px;border-top:1px solid rgba(0,0,0,.10);scroll-margin-top:16px}
+.mk-id{font:600 11px ui-monospace,Menlo,monospace;padding:3px 8px;background:#201e1d;color:#f3f2f2;border-radius:3px;text-decoration:none}
+.mk-name{font:600 17px/1.2 "Source Serif 4",serif;color:#201e1d}
+.mk-thd{display:flex;align-items:baseline;gap:11px;margin:0 0 6px}
+.mk-note{font:400 13px/1.55 "Source Serif 4",serif;color:#3d3a38;max-width:78ch;margin:0 0 18px}
+.mk-row{display:flex;flex-wrap:wrap;gap:30px;align-items:flex-start}
+.mk-cap{font:400 10.5px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:#5d5956;margin:0 0 7px}
+.mk-frame{background:#f3f2f2;box-shadow:0 1px 3px rgba(0,0,0,.12);overflow:hidden}
+.mk-a11y{font:400 12.5px/1.5 "Source Serif 4",serif;color:#3d3a38;max-width:34ch;padding-left:16px;border-left:2px solid rgba(0,136,176,.5)}
+.mk-a11y b{font-weight:600}
+.ic{flex:none;display:block}
+.reg{position:absolute;width:18px;height:18px;opacity:.42}
+.reg::before,.reg::after{content:"";position:absolute;background:#201e1d}
+.reg::before{left:8px;top:0;width:1px;height:18px}
+.reg::after{top:8px;left:0;height:1px;width:18px}
+.reg span{position:absolute;left:4px;top:4px;width:10px;height:10px;border:1px solid #201e1d;border-radius:50%}
+.wedge{display:flex}
+.wedge i{display:block;width:13px;height:8px}
+
+</style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><symbol id="i-printer" viewBox="0 0 256 256" fill="currentColor"><path d="M232,96v80H192V152H64v24H24V96c0-8.84,7.76-16,17.33-16H214.67C224.24,80,232,87.16,232,96Z" opacity="0.2"></path><path d="M214.67,72H200V40a8,8,0,0,0-8-8H64a8,8,0,0,0-8,8V72H41.33C27.36,72,16,82.77,16,96v80a8,8,0,0,0,8,8H56v32a8,8,0,0,0,8,8H192a8,8,0,0,0,8-8V184h32a8,8,0,0,0,8-8V96C240,82.77,228.64,72,214.67,72ZM72,48H184V72H72ZM184,208H72V160H184Zm40-40H200V152a8,8,0,0,0-8-8H64a8,8,0,0,0-8,8v16H32V96c0-4.41,4.19-8,9.33-8H214.67c5.14,0,9.33,3.59,9.33,8Zm-24-52a12,12,0,1,1-12-12A12,12,0,0,1,200,116Z"></path></symbol><symbol id="i-folders" viewBox="0 0 256 256" fill="currentColor"><path d="M232,80v88.89a7.11,7.11,0,0,1-7.11,7.11H200V112a8,8,0,0,0-8-8H120L90.13,81.6a8,8,0,0,0-4.8-1.6H64V56a8,8,0,0,1,8-8h45.33a8,8,0,0,1,4.8,1.6L152,72h72A8,8,0,0,1,232,80Z" opacity="0.2"></path><path d="M224,64H154.67L126.93,43.2a16.12,16.12,0,0,0-9.6-3.2H72A16,16,0,0,0,56,56V72H40A16,16,0,0,0,24,88V200a16,16,0,0,0,16,16H192.89A15.13,15.13,0,0,0,208,200.89V184h16.89A15.13,15.13,0,0,0,240,168.89V80A16,16,0,0,0,224,64ZM192,200H40V88H85.33l29.87,22.4A8,8,0,0,0,120,112h72Zm32-32H208V112a16,16,0,0,0-16-16H122.67L94.93,75.2a16.12,16.12,0,0,0-9.6-3.2H72V56h45.33L147.2,78.4A8,8,0,0,0,152,80h72Z"></path></symbol><symbol id="i-pencil" viewBox="0 0 256 256" fill="currentColor"><path d="M221.66,90.34,192,120,136,64l29.66-29.66a8,8,0,0,1,11.31,0L221.66,79A8,8,0,0,1,221.66,90.34Z" opacity="0.2"></path><path d="M227.31,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"></path></symbol><symbol id="i-activity" viewBox="0 0 256 256" fill="currentColor"><path d="M96,40l33.52,88H56Zm104,88H129.52L160,208Z" opacity="0.2"></path><path d="M240,128a8,8,0,0,1-8,8H204.94l-37.78,75.58A8,8,0,0,1,160,216h-.4a8,8,0,0,1-7.08-5.14L95.35,60.76,63.28,131.31A8,8,0,0,1,56,136H24a8,8,0,0,1,0-16H50.85L88.72,36.69a8,8,0,0,1,14.76.46l57.51,151,31.85-63.71A8,8,0,0,1,200,120h32A8,8,0,0,1,240,128Z"></path></symbol><symbol id="i-bell" viewBox="0 0 256 256" fill="currentColor"><path d="M208,192H48a8,8,0,0,1-6.88-12C47.71,168.6,56,147.81,56,112a72,72,0,0,1,144,0c0,35.82,8.3,56.6,14.9,68A8,8,0,0,1,208,192Z" opacity="0.2"></path><path d="M224,71.1a8,8,0,0,1-10.78-3.42,94.13,94.13,0,0,0-33.46-36.91,8,8,0,1,1,8.54-13.54,111.46,111.46,0,0,1,39.12,43.09A8,8,0,0,1,224,71.1ZM35.71,72a8,8,0,0,0,7.1-4.32A94.13,94.13,0,0,1,76.27,30.77a8,8,0,1,0-8.54-13.54A111.46,111.46,0,0,0,28.61,60.32,8,8,0,0,0,35.71,72Zm186.1,103.94A16,16,0,0,1,208,200H167.2a40,40,0,0,1-78.4,0H48a16,16,0,0,1-13.79-24.06C43.22,160.39,48,138.28,48,112a80,80,0,0,1,160,0C208,138.27,212.78,160.38,221.81,175.94ZM150.62,200H105.38a24,24,0,0,0,45.24,0ZM208,184c-10.64-18.27-16-42.49-16-72a64,64,0,0,0-128,0c0,29.52-5.38,53.74-16,72Z"></path></symbol><symbol id="i-camera" viewBox="0 0 256 256" fill="currentColor"><path d="M208,64H176L160,40H96L80,64H48A16,16,0,0,0,32,80V192a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V80A16,16,0,0,0,208,64ZM128,168a36,36,0,1,1,36-36A36,36,0,0,1,128,168Z" opacity="0.2"></path><path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"></path></symbol><symbol id="i-keyboard" viewBox="0 0 256 256" fill="currentColor"><path d="M232,164c0,15.46-14.33,28-32,28s-32-12.54-32-28,14.33-28,32-28S232,148.54,232,164ZM34.82,152h90.36L80,56Z" opacity="0.2"></path><path d="M87.24,52.59a8,8,0,0,0-14.48,0l-64,136a8,8,0,1,0,14.48,6.81L39.9,160h80.2l16.66,35.4a8,8,0,1,0,14.48-6.81ZM47.43,144,80,74.79,112.57,144ZM200,96c-12.76,0-22.73,3.47-29.63,10.32a8,8,0,0,0,11.26,11.36c3.8-3.77,10-5.68,18.37-5.68,13.23,0,24,9,24,20v3.22A42.76,42.76,0,0,0,200,128c-22.06,0-40,16.15-40,36s17.94,36,40,36a42.73,42.73,0,0,0,24-7.25,8,8,0,0,0,16-.75V132C240,112.15,222.06,96,200,96Zm0,88c-13.23,0-24-9-24-20s10.77-20,24-20,24,9,24,20S213.23,184,200,184Z"></path></symbol><symbol id="i-video" viewBox="0 0 256 256" fill="currentColor"><path d="M200,72V184a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V72a8,8,0,0,1,8-8H192A8,8,0,0,1,200,72Z" opacity="0.2"></path><path d="M251.77,73a8,8,0,0,0-8.21.39L208,97.05V72a16,16,0,0,0-16-16H32A16,16,0,0,0,16,72V184a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V159l35.56,23.71A8,8,0,0,0,248,184a8,8,0,0,0,8-8V80A8,8,0,0,0,251.77,73ZM192,184H32V72H192V184Zm48-22.95-32-21.33V116.28L240,95Z"></path></symbol><symbol id="i-drop" viewBox="0 0 256 256" fill="currentColor"><path d="M208,144a80,80,0,0,1-80,80V16S208,72,208,144Z" opacity="0.2"></path><path d="M174,47.75a254.19,254.19,0,0,0-41.45-38.3,8,8,0,0,0-9.18,0A254.19,254.19,0,0,0,82,47.75C54.51,79.32,40,112.6,40,144a88,88,0,0,0,176,0C216,112.6,201.49,79.32,174,47.75ZM56,144c0-50,42.26-92.71,64-111.4V215.54A72.08,72.08,0,0,1,56,144Zm80,71.54V32.6C157.74,51.29,200,94,200,144A72.08,72.08,0,0,1,136,215.54Z"></path></symbol><symbol id="i-pause" viewBox="0 0 256 256" fill="currentColor"><path d="M208,48V208a8,8,0,0,1-8,8H160a8,8,0,0,1-8-8V48a8,8,0,0,1,8-8h40A8,8,0,0,1,208,48ZM96,40H56a8,8,0,0,0-8,8V208a8,8,0,0,0,8,8H96a8,8,0,0,0,8-8V48A8,8,0,0,0,96,40Z" opacity="0.2"></path><path d="M200,32H160a16,16,0,0,0-16,16V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Zm0,176H160V48h40ZM96,32H56A16,16,0,0,0,40,48V208a16,16,0,0,0,16,16H96a16,16,0,0,0,16-16V48A16,16,0,0,0,96,32Zm0,176H56V48H96Z"></path></symbol><symbol id="i-sliders" viewBox="0 0 256 256" fill="currentColor"><path d="M80,136a24,24,0,1,1-24-24A24,24,0,0,1,80,136Zm48-72a24,24,0,1,0,24,24A24,24,0,0,0,128,64Zm72,80a24,24,0,1,0,24,24A24,24,0,0,0,200,144Z" opacity="0.2"></path><path d="M64,105V40a8,8,0,0,0-16,0v65a32,32,0,0,0,0,62v49a8,8,0,0,0,16,0V167a32,32,0,0,0,0-62Zm-8,47a16,16,0,1,1,16-16A16,16,0,0,1,56,152Zm80-95V40a8,8,0,0,0-16,0V57a32,32,0,0,0,0,62v97a8,8,0,0,0,16,0V119a32,32,0,0,0,0-62Zm-8,47a16,16,0,1,1,16-16A16,16,0,0,1,128,104Zm104,64a32.06,32.06,0,0,0-24-31V40a8,8,0,0,0-16,0v97a32,32,0,0,0,0,62v17a8,8,0,0,0,16,0V199A32.06,32.06,0,0,0,232,168Zm-32,16a16,16,0,1,1,16-16A16,16,0,0,1,200,184Z"></path></symbol><symbol id="i-search" viewBox="0 0 256 256" fill="currentColor"><path d="M192,112a80,80,0,1,1-80-80A80,80,0,0,1,192,112Z" opacity="0.2"></path><path d="M229.66,218.34,179.6,168.28a88.21,88.21,0,1,0-11.32,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path></symbol><symbol id="i-cloud-warning" viewBox="0 0 256 256" fill="currentColor"><path d="M240,127.62a80,80,0,0,1-80,80H72A56,56,0,1,1,85.92,97.36l0,.1A80,80,0,0,1,240,127.62Z" opacity="0.2"></path><path d="M160,40A88.09,88.09,0,0,0,81.29,88.67,64,64,0,1,0,72,216h88a88,88,0,0,0,0-176Zm0,160H72a48,48,0,0,1,0-96c1.1,0,2.2,0,3.29.11A88,88,0,0,0,72,128a8,8,0,0,0,16,0,72,72,0,1,1,72,72Zm-8-72V88a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,172,164Z"></path></symbol><symbol id="i-house" viewBox="0 0 256 256" fill="currentColor"><path d="M216,120v96H152V152H104v64H40V120a8,8,0,0,1,2.34-5.66l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,216,120Z" opacity="0.2"></path><path d="M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z"></path></symbol><symbol id="i-sliders-h" viewBox="0 0 256 256" fill="currentColor"><path d="M128,80a24,24,0,1,1-24-24A24,24,0,0,1,128,80Zm40,72a24,24,0,1,0,24,24A24,24,0,0,0,168,152Z" opacity="0.2"></path><path d="M40,88H73a32,32,0,0,0,62,0h81a8,8,0,0,0,0-16H135a32,32,0,0,0-62,0H40a8,8,0,0,0,0,16Zm64-24A16,16,0,1,1,88,80,16,16,0,0,1,104,64ZM216,168H199a32,32,0,0,0-62,0H40a8,8,0,0,0,0,16h97a32,32,0,0,0,62,0h17a8,8,0,0,0,0-16Zm-48,24a16,16,0,1,1,16-16A16,16,0,0,1,168,192Z"></path></symbol><symbol id="i-user" viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a95.76,95.76,0,0,1-31.8,71.37A72,72,0,0,0,128,160a40,40,0,1,0-40-40,40,40,0,0,0,40,40,72,72,0,0,0-64.2,39.37h0A96,96,0,1,1,224,128Z" opacity="0.2"></path><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM74.08,197.5a64,64,0,0,1,107.84,0,87.83,87.83,0,0,1-107.84,0ZM96,120a32,32,0,1,1,32,32A32,32,0,0,1,96,120Zm97.76,66.41a79.66,79.66,0,0,0-36.06-28.75,48,48,0,1,0-59.4,0,79.66,79.66,0,0,0-36.06,28.75,88,88,0,1,1,131.52,0Z"></path></symbol><symbol id="i-shield" viewBox="0 0 256 256" fill="currentColor"><path d="M216,56v56c0,96-88,120-88,120S40,208,40,112V56a8,8,0,0,1,8-8H208A8,8,0,0,1,216,56Z" opacity="0.2"></path><path d="M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z"></path></symbol><symbol id="i-wifi" viewBox="0 0 256 256" fill="currentColor"><path d="M238.2,87.69l-104,125.43a8,8,0,0,1-12.3,0L17.8,87.69a7.79,7.79,0,0,1,1.31-11.21,180.75,180.75,0,0,1,217.78,0A7.79,7.79,0,0,1,238.2,87.69Z" opacity="0.2"></path><path d="M247.89,80.91a15.93,15.93,0,0,0-6.17-10.81A186.67,186.67,0,0,0,128,32,186.67,186.67,0,0,0,14.28,70.1,15.93,15.93,0,0,0,8.11,80.91,15.65,15.65,0,0,0,11.65,92.8l104,125.43A15.93,15.93,0,0,0,128,224h0a15.93,15.93,0,0,0,12.31-5.77l104-125.43A15.65,15.65,0,0,0,247.89,80.91ZM128,208,24.09,82.74A170.76,170.76,0,0,1,128,48,170.76,170.76,0,0,1,231.91,82.74Z"></path></symbol><symbol id="i-bulb" viewBox="0 0 256 256" fill="currentColor"><path d="M208,104a79.86,79.86,0,0,1-30.59,62.92A24.29,24.29,0,0,0,168,186v6a8,8,0,0,1-8,8H96a8,8,0,0,1-8-8v-6a24.11,24.11,0,0,0-9.3-19A79.87,79.87,0,0,1,48,104.45C47.76,61.09,82.72,25,126.07,24A80,80,0,0,1,208,104Z" opacity="0.2"></path><path d="M176,232a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h80A8,8,0,0,1,176,232Zm40-128a87.55,87.55,0,0,1-33.64,69.21A16.24,16.24,0,0,0,176,186v6a16,16,0,0,1-16,16H96a16,16,0,0,1-16-16v-6a16,16,0,0,0-6.23-12.66A87.59,87.59,0,0,1,40,104.49C39.74,56.83,78.26,17.14,125.88,16A88,88,0,0,1,216,104Zm-16,0a72,72,0,0,0-73.74-72c-39,.92-70.47,33.39-70.26,72.39a71.65,71.65,0,0,0,27.64,56.3A32,32,0,0,1,96,186v6h64v-6a32.15,32.15,0,0,1,12.47-25.35A71.65,71.65,0,0,0,200,104Zm-16.11-9.34a57.6,57.6,0,0,0-46.56-46.55,8,8,0,0,0-2.66,15.78c16.57,2.79,30.63,16.85,33.44,33.45A8,8,0,0,0,176,104a9,9,0,0,0,1.35-.11A8,8,0,0,0,183.89,94.66Z"></path></symbol><symbol id="i-film" viewBox="0 0 256 256" fill="currentColor"><path d="M32,176H224v24a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8ZM216,48H40a8,8,0,0,0-8,8V80H224V56A8,8,0,0,0,216,48Z" opacity="0.2"></path><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM40,88h80v80H40Zm96-16V56h32V72Zm-16,0H88V56h32Zm0,112v16H88V184Zm16,0h32v16H136Zm0-16V88h80v80Zm80-96H184V56h32ZM72,56V72H40V56ZM40,184H72v16H40Zm176,16H184V184h32v16Z"></path></symbol><symbol id="i-thermo" viewBox="0 0 256 256" fill="currentColor"><path d="M152,138V48a32,32,0,0,0-64,0v90a56,56,0,1,0,64,0Zm-32,70a24,24,0,1,1,24-24A24,24,0,0,1,120,208Z" opacity="0.2"></path><path d="M212,56a28,28,0,1,0,28,28A28,28,0,0,0,212,56Zm0,40a12,12,0,1,1,12-12A12,12,0,0,1,212,96Zm-84,57V88a8,8,0,0,0-16,0v65a32,32,0,1,0,16,0Zm-8,47a16,16,0,1,1,16-16A16,16,0,0,1,120,200Zm40-66V48a40,40,0,0,0-80,0v86a64,64,0,1,0,80,0Zm-40,98a48,48,0,0,1-27.42-87.4A8,8,0,0,0,96,138V48a24,24,0,0,1,48,0v90a8,8,0,0,0,3.42,6.56A48,48,0,0,1,120,232Z"></path></symbol><symbol id="i-move" viewBox="0 0 256 256" fill="currentColor"><path d="M232,128,128,232,24,128,128,24Z" opacity="0.2"></path><path d="M90.34,61.66a8,8,0,0,1,0-11.32l32-32a8,8,0,0,1,11.32,0l32,32a8,8,0,0,1-11.32,11.32L136,43.31V96a8,8,0,0,1-16,0V43.31L101.66,61.66A8,8,0,0,1,90.34,61.66Zm64,132.68L136,212.69V160a8,8,0,0,0-16,0v52.69l-18.34-18.35a8,8,0,0,0-11.32,11.32l32,32a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Zm83.32-72-32-32a8,8,0,0,0-11.32,11.32L212.69,120H160a8,8,0,0,0,0,16h52.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,237.66,122.34ZM43.31,136H96a8,8,0,0,0,0-16H43.31l18.35-18.34A8,8,0,0,0,50.34,90.34l-32,32a8,8,0,0,0,0,11.32l32,32a8,8,0,0,0,11.32-11.32Z"></path></symbol><symbol id="i-fan" viewBox="0 0 256 256" fill="currentColor"><path d="M136.5,150.45A52,52,0,1,1,33,155.13l71.91-20.54h0A24,24,0,0,0,128,152a23.75,23.75,0,0,0,8.5-1.56Zm-32.19-26.31h0a24,24,0,0,1,29.52-19.42h0L152,32.17a52,52,0,1,0-47.69,92ZM201,105.5a52,52,0,0,0-57.84,3.91h0a24,24,0,0,1,2.06,35.26h0l53.74,52a52,52,0,0,0,2-91.2Z" opacity="0.2"></path><path d="M233,135a60,60,0,0,0-89.62-35.45l16.39-65.44a8,8,0,0,0-3.45-8.68A60,60,0,1,0,95.69,128.91L30.82,147.44a8,8,0,0,0-5.8,7.32,60,60,0,0,0,44.42,60.66,60.52,60.52,0,0,0,15.62,2.07,60.07,60.07,0,0,0,59.88-62l48.48,46.92a8,8,0,0,0,9.25,1.35A60,60,0,0,0,233,135Zm-121-7a16,16,0,1,1,16,16A16,16,0,0,1,112,128ZM80,76a44,44,0,0,1,62.75-39.82L127.77,96A32,32,0,0,0,99.85,112.8,43.85,43.85,0,0,1,80,76Zm27,119.57a44,44,0,0,1-65.86-34.43l59.31-16.94A32,32,0,0,0,128,160l.91,0A43.82,43.82,0,0,1,107,195.57Zm106.17-23a43.92,43.92,0,0,1-13,14.14l-44.32-42.89a31.91,31.91,0,0,0-.59-32.57,44,44,0,0,1,57.91,61.32Z"></path></symbol><symbol id="i-wrench" viewBox="0 0 256 256" fill="currentColor"><path d="M224,96a64,64,0,0,1-94.94,56L73,217A24,24,0,0,1,39,183L104,126.94a64,64,0,0,1,80-90.29L144,80l5.66,26.34L176,112l43.35-40A63.8,63.8,0,0,1,224,96Z" opacity="0.2"></path><path d="M226.76,69a8,8,0,0,0-12.84-2.88l-40.3,37.19-17.23-3.7-3.7-17.23,37.19-40.3A8,8,0,0,0,187,29.24,72,72,0,0,0,88,96,72.34,72.34,0,0,0,94,124.94L33.79,177c-.15.12-.29.26-.43.39a32,32,0,0,0,45.26,45.26c.13-.13.27-.28.39-.42L131.06,162A72,72,0,0,0,232,96,71.56,71.56,0,0,0,226.76,69ZM160,152a56.14,56.14,0,0,1-27.07-7,8,8,0,0,0-9.92,1.77L67.11,211.51a16,16,0,0,1-22.62-22.62L109.18,133a8,8,0,0,0,1.77-9.93,56,56,0,0,1,58.36-82.31l-31.2,33.81a8,8,0,0,0-1.94,7.1L141.83,108a8,8,0,0,0,6.14,6.14l26.35,5.66a8,8,0,0,0,7.1-1.94l33.81-31.2A56.06,56.06,0,0,1,160,152Z"></path></symbol><symbol id="i-ruler" viewBox="0 0 256 256" fill="currentColor"><path d="M229.66,90.34,90.34,229.66a8,8,0,0,1-11.31,0L26.34,177a8,8,0,0,1,0-11.31L165.66,26.34a8,8,0,0,1,11.31,0L229.66,79A8,8,0,0,1,229.66,90.34Z" opacity="0.2"></path><path d="M235.32,73.37,182.63,20.69a16,16,0,0,0-22.63,0L20.68,160a16,16,0,0,0,0,22.63l52.69,52.68a16,16,0,0,0,22.63,0L235.32,96A16,16,0,0,0,235.32,73.37ZM84.68,224,32,171.31l32-32,26.34,26.35a8,8,0,0,0,11.32-11.32L75.31,128,96,107.31l26.34,26.35a8,8,0,0,0,11.32-11.32L107.31,96,128,75.31l26.34,26.35a8,8,0,0,0,11.32-11.32L139.31,64l32-32L224,84.69Z"></path></symbol><symbol id="i-wave" viewBox="0 0 256 256" fill="currentColor"><path d="M208,96v64H48V96Z" opacity="0.2"></path><path d="M56,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM88,24a8,8,0,0,0-8,8V224a8,8,0,0,0,16,0V32A8,8,0,0,0,88,24Zm40,32a8,8,0,0,0-8,8V192a8,8,0,0,0,16,0V64A8,8,0,0,0,128,56Zm40,32a8,8,0,0,0-8,8v64a8,8,0,0,0,16,0V96A8,8,0,0,0,168,88Zm40-16a8,8,0,0,0-8,8v96a8,8,0,0,0,16,0V80A8,8,0,0,0,208,72Z"></path></symbol><symbol id="i-check" viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z" opacity="0.2"></path><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"></path></symbol><symbol id="i-warn" viewBox="0 0 256 256" fill="currentColor"><path d="M215.46,216H40.54C27.92,216,20,202.79,26.13,192.09L113.59,40.22c6.3-11,22.52-11,28.82,0l87.46,151.87C236,202.79,228.08,216,215.46,216Z" opacity="0.2"></path><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z"></path></symbol><symbol id="i-question" viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z" opacity="0.2"></path><path d="M140,180a12,12,0,1,1-12-12A12,12,0,0,1,140,180ZM128,72c-22.06,0-40,16.15-40,36v4a8,8,0,0,0,16,0v-4c0-11,10.77-20,24-20s24,9,24,20-10.77,20-24,20a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-.72c18.24-3.35,32-17.9,32-35.28C168,88.15,150.06,72,128,72Zm104,56A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"></path></symbol><symbol id="i-list" viewBox="0 0 256 256" fill="currentColor"><path d="M216,64V192H128V64Z" opacity="0.2"></path><path d="M224,128a8,8,0,0,1-8,8H128a8,8,0,0,1,0-16h88A8,8,0,0,1,224,128ZM128,72h88a8,8,0,0,0,0-16H128a8,8,0,0,0,0,16Zm88,112H128a8,8,0,0,0,0,16h88a8,8,0,0,0,0-16ZM82.34,42.34,56,68.69,45.66,58.34A8,8,0,0,0,34.34,69.66l16,16a8,8,0,0,0,11.32,0l32-32A8,8,0,0,0,82.34,42.34Zm0,64L56,132.69,45.66,122.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Zm0,64L56,196.69,45.66,186.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Z"></path></symbol><symbol id="i-sparkle" viewBox="0 0 256 256" fill="currentColor"><path d="M194.82,151.43l-55.09,20.3-20.3,55.09a7.92,7.92,0,0,1-14.86,0l-20.3-55.09-55.09-20.3a7.92,7.92,0,0,1,0-14.86l55.09-20.3,20.3-55.09a7.92,7.92,0,0,1,14.86,0l20.3,55.09,55.09,20.3A7.92,7.92,0,0,1,194.82,151.43Z" opacity="0.2"></path><path d="M197.58,129.06,146,110l-19-51.62a15.92,15.92,0,0,0-29.88,0L78,110l-51.62,19a15.92,15.92,0,0,0,0,29.88L78,178l19,51.62a15.92,15.92,0,0,0,29.88,0L146,178l51.62-19a15.92,15.92,0,0,0,0-29.88ZM137,164.22a8,8,0,0,0-4.74,4.74L112,223.85,91.78,169A8,8,0,0,0,87,164.22L32.15,144,87,123.78A8,8,0,0,0,91.78,119L112,64.15,132.22,119a8,8,0,0,0,4.74,4.74L191.85,144ZM144,40a8,8,0,0,1,8-8h16V16a8,8,0,0,1,16,0V32h16a8,8,0,0,1,0,16H184V64a8,8,0,0,1-16,0V48H152A8,8,0,0,1,144,40ZM248,88a8,8,0,0,1-8,8h-8v8a8,8,0,0,1-16,0V96h-8a8,8,0,0,1,0-16h8V72a8,8,0,0,1,16,0v8h8A8,8,0,0,1,248,88Z"></path></symbol></defs></svg>
+
+<div class="mk-head">
+<div style="display:flex;align-items:flex-end;gap:22px">
+<div class="cmyk-head" style="font-family:var(--font-heading);font-weight:600;font-size:52px;line-height:.95;letter-spacing:-.03em"><span class="paper">nova3D</span><span class="plate plate-c" aria-hidden="true">nova3D</span><span class="plate plate-m" aria-hidden="true">nova3D</span><span class="plate plate-y" aria-hidden="true">nova3D</span></div>
+<div style="font:400 14px/1.5 'Source Serif 4',serif;color:#3d3a38;padding-bottom:6px">Round 2 mockups · batch 5 of 6 — <strong style="font-weight:600">Home, My Projects, In Progress</strong> (H-01 to H-04, J-01 to J-05)<br>Where direction 1c's plate identity does most of its work</div>
+</div>
+<p class="mk-note" style="margin-top:18px">Home carries the three primary actions as plate numerals, and now shows <strong style="font-weight:600">live prints</strong> rather than a reserved area — the print scope change reaches all the way back to the first screen. In Progress holds every Job kind: research, generation, repair, slicing, printing and sync. Nothing invented; figures the system would read from a machine or a Source read “value pending”.</p>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<a class="mk-id" href="#H-01">H-01</a><a class="mk-id" href="#H-02">H-02</a><a class="mk-id" href="#H-03">H-03</a><a class="mk-id" href="#H-04">H-04</a><a class="mk-id" href="#J-01">J-01</a><a class="mk-id" href="#J-02">J-02</a><a class="mk-id" href="#J-03">J-03</a><a class="mk-id" href="#J-04">J-04</a><a class="mk-id" href="#J-05">J-05</a>
+</div>
+</div>
+
+<section class="mk-scr" id="H-01">
+<div class="mk-thd"><a class="mk-id" href="#H-01">H-01</a><span class="mk-name">Home</span></div>
+<p class="mk-note">The three primary actions as plate numerals, one unread Notification, live work below. States shown: desktop with a print running and a research Job going, phone, and the first-run state with nothing yet.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 1280 · print running · research running</p>
+<div class="mk-frame" style="width:1280px">
+<div style="padding:28px 40px 34px">
+
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:26px">
+<div>
+<div class="cmyk-head" style="font-family:var(--font-heading);font-weight:600;font-size:62px;line-height:.95;letter-spacing:-.03em"><span class="paper">nova3D</span><span class="plate plate-c" aria-hidden="true">nova3D</span><span class="plate plate-m" aria-hidden="true">nova3D</span><span class="plate plate-y" aria-hidden="true">nova3D</span></div>
+<div style="font-size:13px;color:var(--color-neutral-800);margin-top:7px">Private Workspace — Josh, Administrator · online, all work saved</div>
+</div>
+<div style="display:flex;flex-direction:column;align-items:flex-end;gap:11px;padding-top:6px">
+<a href="#H-01" style="text-decoration:none;display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--color-accent-2-100)">
+<span style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-800);flex:none">● 1 unread</span>
+<span style="font-size:13.5px;color:var(--color-text)">Research Plan ready for review — Middot 3</span>
+</a>
+<div style="display:flex;gap:18px;font-size:13.5px">
+<a href="#H-01" style="color:inherit;text-decoration:none"><svg class="ic" width="17" height="17" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-printer"></use></svg>Printers</a>
+<a href="#H-01" style="color:inherit;text-decoration:none"><svg class="ic" width="17" height="17" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-sliders-h"></use></svg>Settings</a>
+<a href="#H-01" style="color:inherit;text-decoration:none"><svg class="ic" width="17" height="17" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-user"></use></svg>Account</a>
+<a href="#H-01" style="color:inherit;text-decoration:none"><svg class="ic" width="17" height="17" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-shield"></use></svg>Administrator</a>
+<a href="#H-01" style="color:inherit;text-decoration:none">Help</a>
+</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:34px;margin-top:38px">
+<div style="display:flex;flex-direction:column;gap:11px;align-items:flex-start">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:60px"><span class="paper">01</span><span class="plate plate-c" aria-hidden="true">01</span><span class="plate plate-m" aria-hidden="true">01</span><span class="plate plate-y" aria-hidden="true">01</span></span>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:27px;line-height:1.08;letter-spacing:-.02em">My Projects</div>
+<p style="margin:0;font-size:14px;color:var(--color-neutral-900)">Saved models and their approved Versions, each Model Feature still attached to its Sources.</p>
+<div style="font-size:13px;color:var(--color-neutral-800)">4 Projects · 1 saved on this device only</div>
+<a href="#H-01" class="btn btn-secondary" style="min-height:44px">Open My Projects</a>
+</div>
+<div style="display:flex;flex-direction:column;gap:11px;align-items:flex-start">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:60px"><span class="paper">02</span><span class="plate plate-c" aria-hidden="true">02</span><span class="plate plate-m" aria-hidden="true">02</span><span class="plate plate-y" aria-hidden="true">02</span></span>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:27px;line-height:1.08;letter-spacing:-.02em">Create</div>
+<p style="margin:0;font-size:14px;color:var(--color-neutral-900)">Describe it or photograph it. nova3D shows what it understood before any work begins.</p>
+<div style="font-size:13px;color:var(--color-neutral-800)">Picture conversion also works offline</div>
+<div style="display:flex;gap:8px"><a href="#H-01" class="btn btn-primary" style="min-height:44px">Enter text</a><a href="#H-01" class="btn btn-secondary" style="min-height:44px">Upload picture</a></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:11px;align-items:flex-start">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:60px"><span class="paper">03</span><span class="plate plate-c" aria-hidden="true">03</span><span class="plate plate-m" aria-hidden="true">03</span><span class="plate plate-y" aria-hidden="true">03</span></span>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:27px;line-height:1.08;letter-spacing:-.02em">In Progress</div>
+<p style="margin:0;font-size:14px;color:var(--color-neutral-900)">Research, generation, slicing, printing and sync. Leave it running and go and read a Source.</p>
+<div style="font-size:13px;color:var(--color-neutral-800)">1 printing · 1 researching · 1 waiting to sync</div>
+<a href="#H-01" class="btn btn-secondary" style="min-height:44px">Open In Progress</a>
+</div>
+</div>
+
+<div style="margin-top:40px;padding-top:20px;border-top:1px solid var(--color-divider)">
+<div style="display:flex;align-items:baseline;gap:14px;margin-bottom:14px">
+<h4 style="display:flex;align-items:center;gap:9px;margin:0"><svg class="ic" width="21" height="21" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-printer"></use></svg>Printing now</h4>
+<span style="font-size:13px;color:var(--color-neutral-800)">nova3D is watching this print through the printer's camera.</span>
+<div style="flex:1"></div>
+<a href="#H-01" class="btn btn-ghost" style="color:var(--color-accent-700)">All printers</a>
+</div>
+<div style="display:flex;gap:20px;align-items:flex-start;padding:16px;background:var(--color-surface)">
+<figure class="halftone" style="margin:0;width:150px;flex:none;aspect-ratio:1;background:var(--color-neutral-300);display:grid;place-items:center;text-align:center"><figcaption style="margin:0;font-size:12px;color:var(--color-neutral-800);padding:0 10px">Printer camera<br>placeholder</figcaption></figure>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:baseline;gap:12px">
+<span style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-700)">▶ Printing</span>
+<span style="font-size:12.5px;color:var(--color-neutral-800)">A1 mini — workshop · watching on</span>
+</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:19px;margin-top:4px">Outer Altar and Ramp — Middot 3 · Version 3</div>
+<div style="font-size:13.5px;color:var(--color-neutral-900);margin-top:3px">Layer 148 · time remaining, value pending. Reported by the printer.</div>
+<div style="display:flex;gap:3px;margin-top:10px;max-width:420px">
+<div style="flex:1;height:9px;background:var(--color-accent)"></div><div style="flex:1;height:9px;background:var(--color-accent)"></div><div style="flex:1;height:9px;background:var(--color-neutral-300)"></div><div style="flex:1;height:9px;background:var(--color-neutral-300)"></div><div style="flex:1;height:9px;background:var(--color-neutral-300)"></div>
+</div>
+<div style="display:flex;gap:8px;margin-top:12px">
+<a href="#H-01" class="btn btn-primary" style="min-height:44px">Pause</a>
+<a href="#H-01" class="btn btn-secondary" style="min-height:44px">Full control</a>
+</div>
+</div>
+</div>
+</div>
+
+<div style="margin-top:26px;padding-top:18px;border-top:1px solid var(--color-divider)">
+<h4 style="display:flex;align-items:center;gap:9px;margin:0 0 12px"><svg class="ic" width="21" height="21" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-list"></use></svg>Other work running</h4>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;gap:22px;align-items:flex-start;padding:14px 0;border-top:1px solid var(--color-divider)">
+<div style="width:120px;flex:none;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-700)">▶ Running</div>
+<div style="flex:1;min-width:0">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:17px">Second Temple Court — scope check</div>
+<div style="font-size:13.5px;color:var(--color-neutral-900);margin-top:2px">Researching materials, step 3 of 7. Free research, no charge.</div>
+</div>
+<div style="width:200px;flex:none;text-align:right">
+<div style="font-size:12.5px;color:var(--color-neutral-800)">Started 10:31 · Job 4140</div>
+<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><a href="#H-01" class="btn btn-ghost" style="color:var(--color-accent-700)">Open Job</a><a href="#H-01" class="btn btn-secondary">Cancel</a></div>
+</div>
+</div>
+<div style="display:flex;gap:22px;align-items:flex-start;padding:14px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)">
+<div style="width:120px;flex:none;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-2-800)">▲ Sync failed</div>
+<div style="flex:1;min-width:0">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:17px">Untitled picture Project — image-derived</div>
+<div style="font-size:13.5px;color:var(--color-neutral-900);margin-top:2px">Made offline on this device and still saved here. The upload failed; nothing was lost or overwritten, and it will not retry by itself.</div>
+</div>
+<div style="width:200px;flex:none;text-align:right">
+<div style="font-size:12.5px;color:var(--color-neutral-800)">Last try 08:40</div>
+<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><a href="#H-01" class="btn btn-ghost" style="color:var(--color-accent-700)">Why it failed</a><a href="#H-01" class="btn btn-secondary">Try sync</a></div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Phone 390 · Home</p>
+<div class="mk-frame" style="width:390px;height:844px">
+<div style="height:100%;display:flex;flex-direction:column">
+<div style="flex:1;min-height:0;overflow-y:auto;padding:20px 18px 0">
+<div style="display:flex;align-items:flex-start;justify-content:space-between">
+<div class="cmyk-head" style="font-family:var(--font-heading);font-weight:600;font-size:34px;line-height:.95;letter-spacing:-.03em"><span class="paper">nova3D</span><span class="plate plate-c" aria-hidden="true">nova3D</span><span class="plate plate-m" aria-hidden="true">nova3D</span><span class="plate plate-y" aria-hidden="true">nova3D</span></div>
+<a href="#H-01" style="color:var(--color-accent-700);text-decoration:none;font-size:12.5px;padding-top:6px">● 1 unread</a>
+</div>
+<div style="font-size:12px;color:var(--color-neutral-800);margin-top:6px">Josh, Administrator · online</div>
+
+<div style="margin-top:16px;padding:11px 12px;background:var(--color-accent-2-100)">
+<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-2-800)">● Unread</div>
+<div style="font-size:13.5px;margin-top:2px">Research Plan ready for review — Middot 3</div>
+</div>
+
+<div style="margin-top:18px;padding:13px;background:var(--color-surface)">
+<div style="display:flex;align-items:baseline;gap:10px">
+<span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-700)">▶ Printing</span>
+<span style="font-size:12px;color:var(--color-neutral-800)">watching on</span>
+</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15.5px;margin-top:3px">Outer Altar and Ramp · V3</div>
+<div style="display:flex;gap:3px;margin-top:8px">
+<div style="flex:1;height:8px;background:var(--color-accent)"></div><div style="flex:1;height:8px;background:var(--color-accent)"></div><div style="flex:1;height:8px;background:var(--color-neutral-300)"></div><div style="flex:1;height:8px;background:var(--color-neutral-300)"></div><div style="flex:1;height:8px;background:var(--color-neutral-300)"></div>
+</div>
+<div style="font-size:12px;color:var(--color-neutral-800);margin-top:5px">Layer 148 · reported by the printer</div>
+<div style="display:flex;gap:8px;margin-top:10px"><a href="#H-01" class="btn btn-primary" style="flex:1;min-height:44px">Pause</a><a href="#H-01" class="btn btn-secondary" style="flex:1;min-height:44px">Control</a></div>
+</div>
+
+<div style="margin-top:20px;display:flex;flex-direction:column;gap:20px">
+<div style="display:flex;align-items:center;gap:14px">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:40px"><span class="paper">01</span><span class="plate plate-c" aria-hidden="true">01</span><span class="plate plate-m" aria-hidden="true">01</span><span class="plate plate-y" aria-hidden="true">01</span></span>
+<div><div style="font-family:var(--font-heading);font-weight:600;font-size:21px;line-height:1.1">My Projects</div><div style="font-size:12.5px;color:var(--color-neutral-800)">4 · 1 on this device only</div></div>
+</div>
+<div style="display:flex;align-items:center;gap:14px">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:40px"><span class="paper">02</span><span class="plate plate-c" aria-hidden="true">02</span><span class="plate plate-m" aria-hidden="true">02</span><span class="plate plate-y" aria-hidden="true">02</span></span>
+<div><div style="font-family:var(--font-heading);font-weight:600;font-size:21px;line-height:1.1">Create</div><div style="font-size:12.5px;color:var(--color-neutral-800)">Text or pictures</div></div>
+</div>
+<div style="display:flex;gap:8px"><a href="#H-01" class="btn btn-primary" style="flex:1;min-height:48px">Enter text</a><a href="#H-01" class="btn btn-secondary" style="flex:1;min-height:48px">Upload picture</a></div>
+<div style="display:flex;align-items:center;gap:14px">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:40px"><span class="paper">03</span><span class="plate plate-c" aria-hidden="true">03</span><span class="plate plate-m" aria-hidden="true">03</span><span class="plate plate-y" aria-hidden="true">03</span></span>
+<div><div style="font-family:var(--font-heading);font-weight:600;font-size:21px;line-height:1.1">In Progress</div><div style="font-size:12.5px;color:var(--color-neutral-800)">1 printing · 1 researching · 1 to sync</div></div>
+</div>
+</div>
+<div style="height:18px"></div>
+</div>
+<div style="flex:none;border-top:1px solid var(--color-divider);display:flex;padding:8px 6px 22px;background:var(--color-surface)">
+<a href="#H-01" style="flex:1;text-align:center;text-decoration:none;color:var(--color-accent-700);font-size:12px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px"><svg class="ic" width="17" height="17" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-house"></use></svg>Home</a>
+<a href="#H-01" style="flex:1;text-align:center;text-decoration:none;color:inherit;font-size:12px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px"><svg class="ic" width="17" height="17" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-folders"></use></svg>Projects</a>
+<a href="#H-01" style="flex:1;text-align:center;text-decoration:none;color:inherit;font-size:12px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px"><svg class="ic" width="17" height="17" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-printer"></use></svg>Printers</a>
+<a href="#H-01" style="flex:1;text-align:center;text-decoration:none;color:inherit;font-size:12px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px"><svg class="ic" width="17" height="17" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-sliders-h"></use></svg>Settings</a>
+</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop · first run</p>
+<div class="mk-frame" style="width:560px">
+<div style="padding:26px 22px">
+<div class="cmyk-head" style="font-family:var(--font-heading);font-weight:600;font-size:44px;line-height:.95;letter-spacing:-.03em"><span class="paper">nova3D</span><span class="plate plate-c" aria-hidden="true">nova3D</span><span class="plate plate-m" aria-hidden="true">nova3D</span><span class="plate plate-y" aria-hidden="true">nova3D</span></div>
+<h4 style="margin:16px 0 6px">Nothing here yet</h4>
+<p style="margin:0 0 16px;font-size:13.5px;color:var(--color-neutral-900)">nova3D builds 3D models from historical evidence, and shows you where every decision came from. Start by describing something, or by photographing an object you have.</p>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:14px">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:38px"><span class="paper">01</span><span class="plate plate-c" aria-hidden="true">01</span><span class="plate plate-m" aria-hidden="true">01</span><span class="plate plate-y" aria-hidden="true">01</span></span>
+<div style="flex:1"><div style="font-family:var(--font-heading);font-weight:600;font-size:18px">Describe something</div><div style="font-size:12.5px;color:var(--color-neutral-800)">Evidence-backed, with a Research Plan you approve</div></div>
+</div>
+<div style="display:flex;align-items:center;gap:14px">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:38px"><span class="paper">02</span><span class="plate plate-c" aria-hidden="true">02</span><span class="plate plate-m" aria-hidden="true">02</span><span class="plate plate-y" aria-hidden="true">02</span></span>
+<div style="flex:1"><div style="font-family:var(--font-heading);font-weight:600;font-size:18px">Photograph something</div><div style="font-size:12.5px;color:var(--color-neutral-800)">Faster, image-derived, works offline</div></div>
+</div>
+</div>
+<div style="display:flex;gap:8px;margin-top:18px"><a href="#H-01" class="btn btn-primary" style="flex:1;min-height:44px">Enter text</a><a href="#H-01" class="btn btn-secondary" style="flex:1;min-height:44px">Upload picture</a></div>
+<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--color-divider);font-size:13px;color:var(--color-neutral-900)">nova3D found 2 printers on your network. You can print from here once you have a model — no setup needed.</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>Plate numerals are decorative repeats; each action's accessible name is its heading, so a screen reader hears “My Projects”, not “01 01 01 01”. The unread Notification is a link whose text carries the count and the subject. Printing state gives ▶ Printing plus “watching on” as words, and progress is labelled as reported by the printer. Phone keeps Pause reachable from Home without a detour.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="H-02">
+<div class="mk-thd"><a class="mk-id" href="#H-02">H-02</a><span class="mk-name">My Projects</span></div>
+<p class="mk-note">Every Project with its accuracy claim visible in the list, because that is what distinguishes them. States shown: the populated list, a device-only Project awaiting sync, and the empty state.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 1120 · 4 Projects</p>
+<div class="mk-frame" style="width:1120px">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#H-02" class="btn btn-secondary" style="font-size:13px">← Home</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">My Projects · 4</div>
+<div style="flex:1"></div>
+<div class="seg"><span class="seg-opt" aria-current="true">All</span><span class="seg-opt">Evidence-backed</span><span class="seg-opt">Image-derived</span></div>
+<a href="#H-02" class="btn btn-primary" style="font-size:13px"><svg class="ic" width="17" height="17" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-pencil"></use></svg>Create</a>
+</div>
+<div style="padding:20px 22px;display:flex;flex-direction:column">
+
+<div style="display:flex;gap:20px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--color-divider)">
+<figure class="halftone" style="margin:0;width:120px;flex:none;aspect-ratio:1;background:var(--color-neutral-300);display:grid;place-items:center;text-align:center"><figcaption style="margin:0;font-size:12px;color:var(--color-neutral-800);padding:0 8px">Model<br>placeholder</figcaption></figure>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+<span style="font-family:var(--font-heading);font-weight:600;font-size:19px">Outer Altar and Ramp — Middot 3</span>
+<span class="tag tag-neutral">Evidence-backed</span>
+<span style="font-size:12.5px;color:var(--color-accent-700)">▶ printing now</span>
+</div>
+<div style="font-size:13.5px;color:var(--color-neutral-900);margin-top:4px">Version 3 approved · Plan revision 5 · 17 Model Features</div>
+<div style="font-size:13px;color:var(--color-neutral-800);margin-top:3px">● 9 sourced · ○ 4 inferred · ◐ 2 disputed · ? 1 unknown · + 1 user-added</div>
+</div>
+<div style="width:170px;flex:none;text-align:right">
+<div style="font-size:12.5px;color:var(--color-neutral-800)">Opened 10:24 today</div>
+<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><a href="#H-02" class="btn btn-secondary">Open</a><a href="#H-02" class="btn btn-ghost" style="color:var(--color-accent-700)">Source Record</a></div>
+</div>
+</div>
+
+<div style="display:flex;gap:20px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--color-divider)">
+<figure class="halftone" style="margin:0;width:120px;flex:none;aspect-ratio:1;background:var(--color-neutral-300);display:grid;place-items:center;text-align:center"><figcaption style="margin:0;font-size:12px;color:var(--color-neutral-800);padding:0 8px">Model<br>placeholder</figcaption></figure>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+<span style="font-family:var(--font-heading);font-weight:600;font-size:19px">Second Temple Court — scope check</span>
+<span class="tag tag-neutral">Evidence-backed</span>
+<span style="font-size:12.5px;color:var(--color-accent-700)">▶ researching</span>
+</div>
+<div style="font-size:13.5px;color:var(--color-neutral-900);margin-top:4px">No Plan yet. Research step 3 of 7, free.</div>
+<div style="font-size:13px;color:var(--color-neutral-800);margin-top:3px">Nothing has been built. Geometry waits for an approved Research Plan.</div>
+</div>
+<div style="width:170px;flex:none;text-align:right">
+<div style="font-size:12.5px;color:var(--color-neutral-800)">Started 10:31</div>
+<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><a href="#H-02" class="btn btn-secondary">Open</a></div>
+</div>
+</div>
+
+<div style="display:flex;gap:20px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--color-divider);background:var(--color-surface)">
+<figure class="halftone" style="margin:0;width:120px;flex:none;aspect-ratio:1;background:var(--color-neutral-300);display:grid;place-items:center;text-align:center"><figcaption style="margin:0;font-size:12px;color:var(--color-neutral-800);padding:0 8px">Model<br>placeholder</figcaption></figure>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+<span style="font-family:var(--font-heading);font-weight:600;font-size:19px">Untitled picture Project</span>
+<span class="tag tag-outline">Image-derived — not historically verified</span>
+<span style="font-size:12.5px;color:var(--color-accent-2-800)">▲ on this device only</span>
+</div>
+<div style="font-size:13.5px;color:var(--color-neutral-900);margin-top:4px">Version 1 · made offline from 6 pictures · 3 sides never photographed, warning recorded</div>
+<div style="font-size:13px;color:var(--color-neutral-800);margin-top:3px">No Sources and no Research Plan, because nothing was researched.</div>
+</div>
+<div style="width:170px;flex:none;text-align:right">
+<div style="font-size:12.5px;color:var(--color-neutral-800)">Sync failed 08:40</div>
+<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><a href="#H-02" class="btn btn-secondary">Open</a><a href="#H-02" class="btn btn-ghost" style="color:var(--color-accent-700)">Try sync</a></div>
+</div>
+</div>
+
+<div style="display:flex;gap:20px;align-items:flex-start;padding:16px 0">
+<figure class="halftone" style="margin:0;width:120px;flex:none;aspect-ratio:1;background:var(--color-neutral-300);display:grid;place-items:center;text-align:center"><figcaption style="margin:0;font-size:12px;color:var(--color-neutral-800);padding:0 8px">Model<br>placeholder</figcaption></figure>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+<span style="font-family:var(--font-heading);font-weight:600;font-size:19px">Menorah study — early draft</span>
+<span class="tag tag-neutral">Evidence-backed</span>
+</div>
+<div style="font-size:13.5px;color:var(--color-neutral-900);margin-top:4px">Plan revision 2 rejected by you — “materials needs deeper research”. No Version generated.</div>
+<div style="font-size:13px;color:var(--color-neutral-800);margin-top:3px">Picking this up again starts from your rejection reason.</div>
+</div>
+<div style="width:170px;flex:none;text-align:right">
+<div style="font-size:12.5px;color:var(--color-neutral-800)">Last opened 12 June</div>
+<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><a href="#H-02" class="btn btn-secondary">Open</a></div>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Phone 390 · list</p>
+<div class="mk-frame" style="width:390px;height:844px">
+<div style="height:100%;display:flex;flex-direction:column">
+<div style="flex:none;padding:12px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:10px">
+<a href="#H-02" class="btn btn-secondary" style="min-height:40px;font-size:12.5px">←</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">My Projects · 4</div>
+</div>
+<div style="flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px">
+<div class="seg"><span class="seg-opt" aria-current="true">All</span><span class="seg-opt">Evidence</span><span class="seg-opt">Image</span></div>
+<div style="display:flex;gap:12px;align-items:flex-start;padding-bottom:14px;border-bottom:1px solid var(--color-divider)">
+<figure class="halftone" style="margin:0;width:64px;flex:none;aspect-ratio:1;background:var(--color-neutral-300)"></figure>
+<div style="flex:1;min-width:0">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Outer Altar and Ramp</div>
+<div style="font-size:12px;color:var(--color-accent-700);margin-top:2px">▶ printing now</div>
+<div style="font-size:12px;color:var(--color-neutral-800)">Evidence-backed · V3 approved</div>
+</div>
+</div>
+<div style="display:flex;gap:12px;align-items:flex-start;padding-bottom:14px;border-bottom:1px solid var(--color-divider)">
+<figure class="halftone" style="margin:0;width:64px;flex:none;aspect-ratio:1;background:var(--color-neutral-300)"></figure>
+<div style="flex:1;min-width:0">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Second Temple Court</div>
+<div style="font-size:12px;color:var(--color-accent-700);margin-top:2px">▶ researching · step 3 of 7</div>
+<div style="font-size:12px;color:var(--color-neutral-800)">No Plan yet</div>
+</div>
+</div>
+<div style="display:flex;gap:12px;align-items:flex-start;padding-bottom:14px;border-bottom:1px solid var(--color-divider)">
+<figure class="halftone" style="margin:0;width:64px;flex:none;aspect-ratio:1;background:var(--color-neutral-300)"></figure>
+<div style="flex:1;min-width:0">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Untitled picture Project</div>
+<div style="font-size:12px;color:var(--color-accent-2-800);margin-top:2px">▲ on this device only</div>
+<div style="font-size:12px;color:var(--color-neutral-800)">Image-derived — not historically verified</div>
+</div>
+</div>
+<div style="display:flex;gap:12px;align-items:flex-start">
+<figure class="halftone" style="margin:0;width:64px;flex:none;aspect-ratio:1;background:var(--color-neutral-300)"></figure>
+<div style="flex:1;min-width:0">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Menorah study</div>
+<div style="font-size:12px;color:var(--color-neutral-800);margin-top:2px">Plan rejected by you · no Version</div>
+</div>
+</div>
+</div>
+<div style="flex:none;border-top:1px solid var(--color-divider);padding:12px 16px 22px;background:var(--color-surface)">
+<a href="#H-02" class="btn btn-primary btn-block" style="min-height:48px;margin-top:0">Create a Project</a>
+</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>Every row carries its accuracy claim as a tag with full words — “Image-derived — not historically verified” is never shortened to a colour or an icon. Device-only Projects are marked ▲ with text, not by a dimmed row. The filter is a segmented control with <code>aria-current</code>. Thumbnails are decorative; the row's name and claim carry the meaning.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="H-03">
+<div class="mk-thd"><a class="mk-id" href="#H-03">H-03</a><span class="mk-name">Project overview</span></div>
+<p class="mk-note">One Project's whole history in order: what was asked, what was researched, what was approved, what was printed. The spine that makes traceability navigable. States shown: a complete Project, and one stalled at a rejected Plan.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 1120 · complete history</p>
+<div class="mk-frame" style="width:1120px">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#H-03" class="btn btn-secondary" style="font-size:13px">← My Projects</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Outer Altar and Ramp — Middot 3</div>
+<span class="tag tag-neutral">Evidence-backed</span>
+<div style="flex:1"></div>
+<a href="#H-03" class="btn btn-secondary" style="font-size:13px">Source Record</a>
+<a href="#H-03" class="btn btn-primary" style="font-size:13px">Open the model</a>
+</div>
+<div style="display:flex;gap:28px;padding:22px">
+<div style="flex:1;min-width:0">
+<h4 style="display:flex;align-items:center;gap:9px;margin:0 0 12px"><svg class="ic" width="21" height="21" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-list"></use></svg>History</h4>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;gap:16px;padding:13px 0;border-top:1px solid var(--color-divider)">
+<span style="width:104px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">09:12 · you</span>
+<div style="flex:1"><div style="font-size:14px;font-family:var(--font-heading);font-weight:600">Asked for the outer altar and its ramp, Middot 3</div><div style="font-size:13px;color:var(--color-neutral-900);margin-top:2px">Plus a plaque of your own, kept separate from the reconstruction.</div></div>
+</div>
+<div style="display:flex;gap:16px;padding:13px 0;border-top:1px solid var(--color-divider)">
+<span style="width:104px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">09:14 · nova3D</span>
+<div style="flex:1"><div style="font-size:14px;font-family:var(--font-heading);font-weight:600">Researched it · 4 Plan revisions</div><div style="font-size:13px;color:var(--color-neutral-900);margin-top:2px">Cached research of 12 June, extended with fresh research. Gap review clean.</div></div>
+</div>
+<div style="display:flex;gap:16px;padding:13px 0;border-top:1px solid var(--color-divider)">
+<span style="width:104px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">09:52 · you</span>
+<div style="flex:1"><div style="font-size:14px;font-family:var(--font-heading);font-weight:600">Decided a disputed reading</div><div style="font-size:13px;color:var(--color-neutral-900);margin-top:2px">Corner projection — chose the plain text. Created Plan revision 5 and withdrew the earlier approval.</div></div>
+</div>
+<div style="display:flex;gap:16px;padding:13px 0;border-top:1px solid var(--color-divider)">
+<span style="width:104px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">09:56 · you</span>
+<div style="flex:1"><div style="font-size:14px;font-family:var(--font-heading);font-weight:600">Approved Plan revision 5</div><div style="font-size:13px;color:var(--color-neutral-900);margin-top:2px">Geometry generation began only after this.</div></div>
+</div>
+<div style="display:flex;gap:16px;padding:13px 0;border-top:1px solid var(--color-divider)">
+<span style="width:104px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">10:02 · you</span>
+<div style="flex:1"><div style="font-size:14px;font-family:var(--font-heading);font-weight:600">Approved Model Version 3</div><div style="font-size:13px;color:var(--color-neutral-900);margin-top:2px">17 of 17 features opened, both disputed details reviewed.</div></div>
+</div>
+<div style="display:flex;gap:16px;padding:13px 0;border-top:1px solid var(--color-divider)">
+<span style="width:104px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">10:18 · you</span>
+<div style="flex:1"><div style="font-size:14px;font-family:var(--font-heading);font-weight:600">Chose evidence over printability</div><div style="font-size:13px;color:var(--color-neutral-900);margin-top:2px">Kept the thin corner wall as the Sources describe it, accepting a fragile print.</div></div>
+</div>
+<div style="display:flex;gap:16px;padding:13px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)">
+<span style="width:104px;flex:none;font-size:12.5px;color:var(--color-accent-700)">10:24 · now</span>
+<div style="flex:1"><div style="font-size:14px;font-family:var(--font-heading);font-weight:600">▶ Printing on the A1 mini</div><div style="font-size:13px;color:var(--color-neutral-900);margin-top:2px">Layer 148. nova3D is watching through the camera.</div></div>
+</div>
+</div>
+</div>
+<div style="width:280px;flex:none;display:flex;flex-direction:column;gap:14px">
+<figure class="halftone" style="margin:0;aspect-ratio:1;background:var(--color-neutral-300);display:grid;place-items:center;text-align:center"><figcaption style="margin:0;font-size:12px;color:var(--color-neutral-800);padding:0 14px">Version 3<br>placeholder</figcaption></figure>
+<div style="display:flex;flex-direction:column;gap:7px;font-size:13px">
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Versions</span><span>3</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Plan revisions</span><span>5</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Sources used</span><span>6 · 1 rejected</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Prints</span><span>1 running</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Total cost</span><span>free research only</span></div>
+</div>
+<a href="#H-03" class="btn btn-secondary" style="min-height:44px">All Versions</a>
+<a href="#H-03" class="btn btn-secondary" style="min-height:44px">All Sources</a>
+<a href="#H-03" class="btn btn-secondary" style="min-height:44px">Print again</a>
+</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop · stalled at a rejected Plan</p>
+<div class="mk-frame" style="width:560px">
+<div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;align-items:baseline;gap:10px">
+<span style="font-family:var(--font-heading);font-weight:600;font-size:17px">Menorah study — early draft</span>
+<span class="tag tag-neutral">Evidence-backed</span>
+</div>
+<div style="padding:12px 13px;background:var(--color-surface);font-size:13.5px">
+<strong style="font-family:var(--font-heading);font-weight:600">Waiting on you since 12 June.</strong> You rejected Plan revision 2 because materials needed deeper research. Nothing has run since.
+</div>
+<div style="display:flex;flex-direction:column;gap:7px;font-size:13.5px">
+<div style="display:flex;justify-content:space-between"><span>Your reason</span><span>“materials needs deeper research”</span></div>
+<div style="display:flex;justify-content:space-between"><span>Plan revisions</span><span>2 · none approved</span></div>
+<div style="display:flex;justify-content:space-between"><span>Model Versions</span><span>none — nothing was built</span></div>
+<div style="display:flex;justify-content:space-between"><span>Cost so far</span><span>free research only</span></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<a href="#H-03" class="btn btn-primary" style="min-height:44px">Research materials again</a>
+<a href="#H-03" class="btn btn-secondary" style="min-height:44px">Read Plan revision 2</a>
+<a href="#H-03" class="btn btn-secondary" style="min-height:44px">Change what I asked for</a>
+</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>Each history row names the actor — “you” or “nova3D” — so responsibility is never ambiguous when read aloud. Withdrawn approvals and the evidence-versus-printability decision appear as their own rows rather than being folded into a summary. The stalled Project quotes the user's own rejection reason back to them instead of describing it.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="H-04">
+<div class="mk-thd"><a class="mk-id" href="#H-04">H-04</a><span class="mk-name">Search across Projects</span></div>
+<p class="mk-note">Search reaches Projects, Model Features, Claims and Sources — the point being that evidence is findable, not just filenames. States shown: results grouped by kind, and no results with useful next steps.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 900 · results</p>
+<div class="mk-frame" style="width:900px">
+<div style="display:flex;align-items:center;gap:14px;padding:11px 20px;border-bottom:1px solid var(--color-divider)">
+<a href="#H-04" class="btn btn-secondary" style="font-size:13px">← Home</a>
+<div style="flex:1"><input class="input" value="ramp" style="font-size:15px" aria-label="Search Projects, features, Claims and Sources"></div>
+</div>
+<div style="padding:20px;display:flex;flex-direction:column;gap:20px">
+<div style="font-size:13px;color:var(--color-neutral-800)">11 results for “ramp” across 4 Projects</div>
+
+<div>
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:9px">Model Features · 3</div>
+<div style="display:flex;flex-direction:column">
+<a href="#H-04" style="text-decoration:none;color:var(--color-text);display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--color-divider)">
+<span><span style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">Ramp</span><span style="display:block;font-size:12.5px;color:var(--color-neutral-800)">Outer Altar and Ramp · Version 3</span></span>
+<span style="flex:none;font-size:12.5px">● sourced</span>
+</a>
+<a href="#H-04" style="text-decoration:none;color:var(--color-text);display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--color-divider)">
+<span><span style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">Ramp join</span><span style="display:block;font-size:12.5px;color:var(--color-neutral-800)">Outer Altar and Ramp · Version 3 · repaired</span></span>
+<span style="flex:none;font-size:12.5px">● sourced</span>
+</a>
+<a href="#H-04" style="text-decoration:none;color:var(--color-text);display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)">
+<span><span style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">Ramp slope</span><span style="display:block;font-size:12.5px;color:var(--color-neutral-800)">Outer Altar and Ramp · Version 3</span></span>
+<span style="flex:none;font-size:12.5px;color:var(--color-neutral-700)">○ inferred</span>
+</a>
+</div>
+</div>
+
+<div>
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:9px">Claims · 5</div>
+<div style="display:flex;flex-direction:column">
+<a href="#H-04" style="text-decoration:none;color:var(--color-text);display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--color-divider)">
+<span><span style="font-size:14px">A ramp is on one side, not steps</span><span style="display:block;font-size:12.5px;color:var(--color-neutral-800)">2 Sources · governs 4 features</span></span>
+<span style="flex:none;font-size:12.5px">● sourced</span>
+</a>
+<a href="#H-04" style="text-decoration:none;color:var(--color-text);display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)">
+<span><span style="font-size:14px">Joined to the body as one piece</span><span style="display:block;font-size:12.5px;color:var(--color-neutral-800)">1 Source · your step-3 answer agrees</span></span>
+<span style="flex:none;font-size:12.5px">● sourced</span>
+</a>
+</div>
+</div>
+
+<div>
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:9px">Sources · 2</div>
+<div style="display:flex;flex-direction:column">
+<a href="#H-04" style="text-decoration:none;color:var(--color-text);display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)">
+<span><span style="font-size:14px">Source name — verified content pending</span><span style="display:block;font-size:12.5px;color:var(--color-neutral-800)">Primary text · mentions the ramp in 3 Claims</span></span>
+<span style="flex:none;font-size:12.5px;color:var(--color-neutral-800)">accepted evidence</span>
+</a>
+</div>
+</div>
+
+<div>
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:9px">Projects · 1</div>
+<a href="#H-04" style="text-decoration:none;color:var(--color-text);display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)">
+<span><span style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">Outer Altar and Ramp — Middot 3</span><span style="display:block;font-size:12.5px;color:var(--color-neutral-800)">Evidence-backed · printing now</span></span>
+</a>
+</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop · no results</p>
+<div class="mk-frame" style="width:520px">
+<div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+<input class="input" value="lampstand base" style="font-size:15px" aria-label="Search">
+<h4 style="margin:0">Nothing found for “lampstand base”</h4>
+<p style="margin:0;font-size:13.5px;color:var(--color-neutral-900)">Search looks inside your own Projects — their features, Claims and Sources. It does not search the wider world.</p>
+<div style="display:flex;flex-direction:column;gap:8px">
+<a href="#H-04" class="btn btn-primary" style="min-height:44px">Create a Project for this instead</a>
+<a href="#H-04" class="btn btn-secondary" style="min-height:44px">Search “lampstand” on its own</a>
+</div>
+<div style="padding:11px 12px;background:var(--color-surface);font-size:13px">Your Menorah study Project may be related. It stalled at a rejected Plan in June.</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>Results are grouped under headings with counts, so a screen reader can skip to the kind of thing wanted. Each result names its Project and Version, so no row depends on visual grouping alone. The empty state states search's scope and offers two real actions rather than only an apology.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="J-01">
+<div class="mk-thd"><a class="mk-id" href="#J-01">J-01</a><span class="mk-name">In Progress</span></div>
+<p class="mk-note">Every Job kind in one list — research, generation, repair, slicing, printing, sync — each with stage, real progress, cost impact and the actions that are legal for it. States shown: the busy list, and the empty state.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 1120 · 6 Jobs</p>
+<div class="mk-frame" style="width:1120px">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#J-01" class="btn btn-secondary" style="font-size:13px">← Home</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">In Progress</div>
+<div style="flex:1"></div>
+<div class="seg"><span class="seg-opt" aria-current="true">Active 4</span><span class="seg-opt">Needs attention 2</span><span class="seg-opt">Finished today</span></div>
+</div>
+<div style="padding:20px 22px">
+<table class="table">
+<thead><tr><th style="width:112px">State</th><th style="width:106px">Kind</th><th>Project and stage</th><th style="width:130px">Progress</th><th style="width:112px">Cost</th><th style="width:150px"></th></tr></thead>
+<tbody>
+<tr>
+<td style="vertical-align:top"><span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-700)">▶ Printing</span></td>
+<td style="vertical-align:top">Print</td>
+<td style="vertical-align:top"><div style="font-family:var(--font-heading);font-weight:600">Outer Altar and Ramp · V3</div><div style="font-size:12.5px;color:var(--color-neutral-900)">A1 mini · layer 148 · watching on</div></td>
+<td style="vertical-align:top"><div style="display:flex;gap:2px"><div style="flex:1;height:8px;background:var(--color-accent)"></div><div style="flex:1;height:8px;background:var(--color-accent)"></div><div style="flex:1;height:8px;background:var(--color-neutral-300)"></div><div style="flex:1;height:8px;background:var(--color-neutral-300)"></div><div style="flex:1;height:8px;background:var(--color-neutral-300)"></div></div><div style="font-size:12px;margin-top:4px;color:var(--color-neutral-800)">by the printer</div></td>
+<td style="vertical-align:top">Material only</td>
+<td style="vertical-align:top"><div style="display:flex;gap:5px"><a href="#J-01" class="btn btn-secondary">Pause</a><a href="#J-01" class="btn btn-ghost" style="color:var(--color-accent-700)">Control</a></div></td>
+</tr>
+<tr>
+<td style="vertical-align:top"><span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-700)">▶ Running</span></td>
+<td style="vertical-align:top">Research</td>
+<td style="vertical-align:top"><div style="font-family:var(--font-heading);font-weight:600">Second Temple Court</div><div style="font-size:12.5px;color:var(--color-neutral-900)">Researching materials · step 3 of 7</div></td>
+<td style="vertical-align:top"><div style="display:flex;gap:2px"><div style="flex:1;height:8px;background:var(--color-accent)"></div><div style="flex:1;height:8px;background:var(--color-accent)"></div><div style="flex:1;height:8px;background:var(--color-accent)"></div><div style="flex:1;height:8px;background:var(--color-neutral-300)"></div><div style="flex:1;height:8px;background:var(--color-neutral-300)"></div><div style="flex:1;height:8px;background:var(--color-neutral-300)"></div><div style="flex:1;height:8px;background:var(--color-neutral-300)"></div></div></td>
+<td style="vertical-align:top">Free<div style="font-size:12px;color:var(--color-neutral-800)">no charge</div></td>
+<td style="vertical-align:top"><a href="#J-01" class="btn btn-ghost" style="color:var(--color-accent-700)">Cancel</a></td>
+</tr>
+<tr>
+<td style="vertical-align:top"><span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-700)">▶ Running</span></td>
+<td style="vertical-align:top">Slice</td>
+<td style="vertical-align:top"><div style="font-family:var(--font-heading);font-weight:600">Base plaque · V3</div><div style="font-size:12.5px;color:var(--color-neutral-900)">Generating layers · step 2 of 4</div></td>
+<td style="vertical-align:top"><div style="display:flex;gap:2px"><div style="flex:1;height:8px;background:var(--color-accent)"></div><div style="flex:1;height:8px;background:var(--color-accent)"></div><div style="flex:1;height:8px;background:var(--color-neutral-300)"></div><div style="flex:1;height:8px;background:var(--color-neutral-300)"></div></div></td>
+<td style="vertical-align:top">Free</td>
+<td style="vertical-align:top"><a href="#J-01" class="btn btn-ghost" style="color:var(--color-accent-700)">Cancel</a></td>
+</tr>
+<tr>
+<td style="vertical-align:top"><span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-800)">◷ Queued</span></td>
+<td style="vertical-align:top">Print</td>
+<td style="vertical-align:top"><div style="font-family:var(--font-heading);font-weight:600">Base plaque · V3</div><div style="font-size:12.5px;color:var(--color-neutral-900)">Waits for the plate to be cleared · nova3D will ask</div></td>
+<td style="vertical-align:top"><span style="font-size:12.5px;color:var(--color-neutral-800)">not started</span></td>
+<td style="vertical-align:top">Material only</td>
+<td style="vertical-align:top"><a href="#J-01" class="btn btn-ghost" style="color:var(--color-accent-700)">Remove</a></td>
+</tr>
+<tr>
+<td style="vertical-align:top"><span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-800)">▲ Sync failed</span></td>
+<td style="vertical-align:top">Sync</td>
+<td style="vertical-align:top"><div style="font-family:var(--font-heading);font-weight:600">Untitled picture Project</div><div style="font-size:12.5px;color:var(--color-neutral-900)">Upload failed. Still saved on this device; nothing lost or overwritten.</div></td>
+<td style="vertical-align:top"><span style="font-size:12.5px;color:var(--color-neutral-800)">stopped · will not retry by itself</span></td>
+<td style="vertical-align:top">None</td>
+<td style="vertical-align:top"><div style="display:flex;gap:5px"><a href="#J-01" class="btn btn-secondary">Try sync</a><a href="#J-01" class="btn btn-ghost" style="color:var(--color-accent-700)">Why</a></div></td>
+</tr>
+<tr>
+<td style="vertical-align:top"><span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-800)">▲ Failed</span></td>
+<td style="vertical-align:top">Repair</td>
+<td style="vertical-align:top"><div style="font-family:var(--font-heading);font-weight:600">Menorah study · V1</div><div style="font-size:12.5px;color:var(--color-neutral-900)">Stopped at self-intersection repair. Nothing was changed.</div></td>
+<td style="vertical-align:top"><span style="font-size:12.5px;color:var(--color-neutral-800)">stopped at step 2 of 3</span></td>
+<td style="vertical-align:top">None</td>
+<td style="vertical-align:top"><div style="display:flex;gap:5px"><a href="#J-01" class="btn btn-secondary">Retry</a><a href="#J-01" class="btn btn-ghost" style="color:var(--color-accent-700)">Details</a></div></td>
+</tr>
+</tbody>
+</table>
+<div style="margin-top:16px;padding:12px 14px;background:var(--color-surface);font-size:13.5px;max-width:84ch">No Job blocks navigation. You can read Sources, inspect other models and start new work while all of this runs. Nothing retries by itself, so a failure waits for you rather than looping.</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop · nothing running</p>
+<div class="mk-frame" style="width:520px">
+<div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+<h4 style="margin:0">Nothing is running</h4>
+<p style="margin:0;font-size:13.5px;color:var(--color-neutral-900)">All work has finished and nothing failed. Jobs that finished today are still listed for an hour.</p>
+<div style="display:flex;flex-direction:column;gap:7px;font-size:13.5px">
+<div style="display:flex;justify-content:space-between"><span>✓ Print finished</span><span style="color:var(--color-neutral-800)">09:02 · Menorah study</span></div>
+<div style="display:flex;justify-content:space-between"><span>✓ Research finished</span><span style="color:var(--color-neutral-800)">08:14 · Second Temple Court</span></div>
+</div>
+<a href="#J-01" class="btn btn-secondary" style="min-height:44px;align-self:flex-start">Finished today</a>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>State is a glyph-and-word pair in its own column, and the Kind column names the work — so no row relies on colour or position. Progress that comes from the machine is labelled “by the printer”. Only legal actions appear per row: a queued print offers Remove, not Pause. The closing note states the two contract guarantees — nothing blocks, nothing retries by itself.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="J-02">
+<div class="mk-thd"><a class="mk-id" href="#J-02">J-02</a><span class="mk-name">Job detail</span></div>
+<p class="mk-note">One Job's full record: stages with times, what it produced, what it cost. States shown: a completed research Job, and a running print Job with its watching record.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 760 · completed research Job</p>
+<div class="mk-frame" style="width:760px">
+<div style="display:flex;align-items:center;gap:14px;padding:11px 20px;border-bottom:1px solid var(--color-divider)">
+<a href="#J-02" class="btn btn-secondary" style="font-size:13px">← In Progress</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Job 4118 · Research</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-accent-700)">✓ Completed</span>
+</div>
+<div style="padding:22px 20px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;flex-direction:column;gap:7px;font-size:13.5px">
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Project</span><span>Outer Altar and Ramp — Middot 3</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Started · finished</span><span>09:12 · 09:41</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Research used</span><span>Cached revision 12 June, extended fresh</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Cost</span><span>Free research only · no charge</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Produced</span><span>Plan revisions 1 to 4</span></div>
+</div>
+<div>
+<h4 style="display:flex;align-items:center;gap:9px;margin:0 0 9px"><svg class="ic" width="21" height="21" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-list"></use></svg>Stages</h4>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px"><span>Read the confirmed scope</span><span style="color:var(--color-accent-700);flex:none">✓ 09:12</span></div>
+<div style="display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px"><span>Reused the cached research revision</span><span style="color:var(--color-accent-700);flex:none">✓ 09:14</span></div>
+<div style="display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px"><span>Researched 7 completeness areas</span><span style="color:var(--color-accent-700);flex:none">✓ 09:36</span></div>
+<div style="display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px"><span>Independent gap review</span><span style="color:var(--color-accent-700);flex:none">✓ 09:40 · clean</span></div>
+<div style="display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);font-size:13.5px"><span>Assembled Plan revision 4</span><span style="color:var(--color-accent-700);flex:none">✓ 09:41</span></div>
+</div>
+</div>
+<div style="display:flex;gap:8px">
+<a href="#J-02" class="btn btn-primary" style="min-height:44px">Read Plan revision 4</a>
+<a href="#J-02" class="btn btn-secondary" style="min-height:44px">Open the Project</a>
+</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop · running print Job</p>
+<div class="mk-frame" style="width:560px">
+<div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;align-items:baseline;gap:10px">
+<span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-700)">▶ Printing</span>
+<span style="font-size:12.5px;color:var(--color-neutral-800)">Job 4133 · A1 mini</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:7px;font-size:13.5px">
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Printing</span><span>Outer Altar and Ramp · V3</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Started</span><span>10:24</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Layer</span><span>148 · reported by the printer</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Watching</span><span style="color:var(--color-accent-700)">✓ on · nothing found so far</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Pauses</span><span>1 · by nova3D at 10:52, resumed by you</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Carried warning</span><span>▲ fragile corner projection</span></div>
+</div>
+<div style="padding:11px 12px;background:var(--color-surface);font-size:13px">The pause and the reason nova3D gave are kept on this Job, so a finished print has a record of what happened during it.</div>
+<div style="display:flex;gap:8px">
+<a href="#J-02" class="btn btn-primary" style="flex:1;min-height:44px">Watch the camera</a>
+<a href="#J-02" class="btn btn-secondary" style="flex:1;min-height:44px">Pause</a>
+</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>Stages are a list of step plus outcome plus time, readable without the visual rhythm. The print Job records its own pause history including who resumed it, so a camera-triggered pause is auditable rather than transient. Every machine reading is attributed to the printer.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="J-03">
+<div class="mk-thd"><a class="mk-id" href="#J-03">J-03</a><span class="mk-name">Job failure</span></div>
+<p class="mk-note">The shape every failure takes: failed stage, known cause, what was preserved, cost impact, and that nothing retries by itself. States shown: a paid research failure where a reservation was released, and a generation failure.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 760 · paid research failed · reservation released</p>
+<div class="mk-frame" style="width:760px">
+<div style="display:flex;align-items:center;gap:14px;padding:11px 20px;border-bottom:1px solid var(--color-divider)">
+<a href="#J-03" class="btn btn-secondary" style="font-size:13px">← In Progress</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Job 4145 · Research</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-accent-2-800)">▲ Failed 11:06</span>
+</div>
+<div style="padding:22px 20px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;gap:10px;padding:12px 13px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<span style="flex:none;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-800)">▲ Failed</span>
+<span style="font-size:13.5px">The paid provider stopped responding while retrieving Source material.</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:7px;font-size:13.5px">
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Failed at</span><span>Retrieving Sources · step 4 of 7</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Known cause</span><span>Cause — verified content pending</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">What was preserved</span><span>3 completed areas, kept in the Plan</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Cost impact</span><span style="color:var(--color-accent-700)">✓ reservation released · nothing charged</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Your Usage Limit</span><span>unchanged</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Will it retry</span><span>No — not by itself</span></div>
+</div>
+<div style="padding:12px 13px;background:var(--color-surface);font-size:13.5px">Partial research is still research. The three finished areas are in the Plan and marked as incomplete rather than discarded, so retrying does not start from nothing.</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<a href="#J-03" class="btn btn-primary" style="min-height:44px;align-self:flex-start">Retry the remaining areas</a>
+<div style="display:flex;gap:8px">
+<a href="#J-03" class="btn btn-secondary" style="min-height:44px">Continue with free research only</a>
+<a href="#J-03" class="btn btn-secondary" style="min-height:44px">Read what was found</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop · generation failed</p>
+<div class="mk-frame" style="width:520px">
+<div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:10px;padding:11px 12px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<span style="flex:none;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-800)">▲ Failed</span>
+<span style="font-size:13.5px">Geometry generation stopped while building Model Features.</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:7px;font-size:13.5px">
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Failed at</span><span>Building features · step 3 of 5</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Known cause</span><span>Cause — verified content pending</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">What was preserved</span><span>Plan revision 5 and its approval</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Versions affected</span><span>none — no partial Version was saved</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Cost impact</span><span>none</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-800)">Will it retry</span><span>No — not by itself</span></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<a href="#J-03" class="btn btn-primary" style="min-height:44px">Generate again from revision 5</a>
+<a href="#J-03" class="btn btn-secondary" style="min-height:44px">Re-read the approved Plan</a>
+</div>
+<div style="font-size:12.5px;color:var(--color-neutral-800)">Your Plan Approval still stands, so generating again does not need a new approval.</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>Every failure answers the same six questions in the same order, so the pattern is learnable and never depends on prose scanning. Cost impact is stated even when it is “none”, and a released reservation is stated positively with ✓. Recovery actions come before explanatory prose in focus order.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="J-04">
+<div class="mk-thd"><a class="mk-id" href="#J-04">J-04</a><span class="mk-name">Notifications</span></div>
+<p class="mk-note">One list, grouped by whether the item needs a decision. Print problems arrive here too, with the fix. States shown: the list with unread items, and a single problem Notification opened.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 900 · list</p>
+<div class="mk-frame" style="width:900px">
+<div style="display:flex;align-items:center;gap:14px;padding:11px 20px;border-bottom:1px solid var(--color-divider)">
+<a href="#J-04" class="btn btn-secondary" style="font-size:13px">← Home</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Notifications · 2 unread</div>
+<div style="flex:1"></div>
+<a href="#J-04" class="btn btn-ghost" style="color:var(--color-accent-700)">Mark all as read</a>
+</div>
+<div style="padding:20px;display:flex;flex-direction:column;gap:20px">
+
+<div>
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:10px">Needs a decision · 2</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<a href="#J-04" style="text-decoration:none;color:var(--color-text);display:flex;gap:16px;padding:13px 14px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<span style="flex:none;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-2-800);width:96px">● Unread</span>
+<span style="flex:1">
+<span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:15px">Print paused — a corner is lifting off the plate</span>
+<span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:2px">Outer Altar and Ramp · A1 mini · 10:52. nova3D paused at layer 212 and can tell you how to fix it.</span>
+</span>
+<span style="flex:none;font-size:12.5px;color:var(--color-neutral-800)">10:52</span>
+</a>
+<a href="#J-04" style="text-decoration:none;color:var(--color-text);display:flex;gap:16px;padding:13px 14px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<span style="flex:none;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-2-800);width:96px">● Unread</span>
+<span style="flex:1">
+<span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:15px">Research Plan ready for review</span>
+<span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:2px">Outer Altar and Ramp · revision 5 complete, waiting for Plan Approval.</span>
+</span>
+<span style="flex:none;font-size:12.5px;color:var(--color-neutral-800)">09:41</span>
+</a>
+</div>
+</div>
+
+<div>
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:10px">For information · 4</div>
+<div style="display:flex;flex-direction:column">
+<a href="#J-04" style="text-decoration:none;color:var(--color-text);display:flex;gap:16px;padding:12px 0;border-top:1px solid var(--color-divider)">
+<span style="flex:none;width:96px;font-size:12.5px;color:var(--color-accent-700)">✓ Finished</span>
+<span style="flex:1;font-size:13.5px">Slicing finished for the Base plaque. Queued behind the current print.</span>
+<span style="flex:none;font-size:12.5px;color:var(--color-neutral-800)">10:44</span>
+</a>
+<a href="#J-04" style="text-decoration:none;color:var(--color-text);display:flex;gap:16px;padding:12px 0;border-top:1px solid var(--color-divider)">
+<span style="flex:none;width:96px;font-size:12.5px;color:var(--color-neutral-800)">▲ Sync</span>
+<span style="flex:1;font-size:13.5px">The picture Project could not upload. It is still saved on this device.</span>
+<span style="flex:none;font-size:12.5px;color:var(--color-neutral-800)">08:40</span>
+</a>
+<a href="#J-04" style="text-decoration:none;color:var(--color-text);display:flex;gap:16px;padding:12px 0;border-top:1px solid var(--color-divider)">
+<span style="flex:none;width:96px;font-size:12.5px;color:var(--color-accent-700)">✓ Finished</span>
+<span style="flex:1;font-size:13.5px">Model Version 3 generated from approved Plan revision 5.</span>
+<span style="flex:none;font-size:12.5px;color:var(--color-neutral-800)">09:48</span>
+</a>
+<a href="#J-04" style="text-decoration:none;color:var(--color-text);display:flex;gap:16px;padding:12px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)">
+<span style="flex:none;width:96px;font-size:12.5px;color:var(--color-neutral-800)">◇ Printer</span>
+<span style="flex:1;font-size:13.5px">Workshop spare has not been reachable since 09:02.</span>
+<span style="flex:none;font-size:12.5px;color:var(--color-neutral-800)">09:02</span>
+</a>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Phone 390 · problem Notification</p>
+<div class="mk-frame" style="width:390px;height:844px">
+<div style="height:100%;display:flex;flex-direction:column">
+<div style="flex:none;padding:12px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:10px">
+<a href="#J-04" class="btn btn-secondary" style="min-height:40px;font-size:12.5px">←</a>
+<div><div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">Notifications</div><div style="font-size:12px;color:var(--color-accent-2-800)">2 need a decision</div></div>
+</div>
+<div style="flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700)">Needs a decision</div>
+<a href="#J-04" style="text-decoration:none;color:var(--color-text);display:block;padding:12px 13px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-2-800)">● Unread · 10:52</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px;margin-top:3px">Print paused — a corner is lifting off the plate</div>
+<div style="font-size:12.5px;color:var(--color-neutral-900);margin-top:2px">A1 mini · layer 212. Tap to see what nova3D saw and how to fix it.</div>
+</a>
+<a href="#J-04" style="text-decoration:none;color:var(--color-text);display:block;padding:12px 13px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-2-800)">● Unread · 09:41</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px;margin-top:3px">Research Plan ready for review</div>
+<div style="font-size:12.5px;color:var(--color-neutral-900);margin-top:2px">Revision 5 · waiting for Plan Approval</div>
+</a>
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-top:6px">For information</div>
+<div style="display:flex;flex-direction:column">
+<div style="padding:11px 0;border-top:1px solid var(--color-divider);font-size:13px"><span style="color:var(--color-accent-700)">✓</span> Slicing finished for the Base plaque · 10:44</div>
+<div style="padding:11px 0;border-top:1px solid var(--color-divider);font-size:13px"><span style="color:var(--color-neutral-800)">▲</span> Picture Project could not upload · 08:40</div>
+<div style="padding:11px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);font-size:13px"><span style="color:var(--color-neutral-800)">◇</span> Workshop spare not reachable · 09:02</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>Grouping by “needs a decision” versus “for information” means urgency is structural, not chromatic. Each item states its Project, machine and time in text. The print-problem Notification says what it will show when opened, so tapping is an informed choice. Unread is ● plus the word.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="J-05">
+<div class="mk-thd"><a class="mk-id" href="#J-05">J-05</a><span class="mk-name">Offline and sync</span></div>
+<p class="mk-note">What works with no internet, what is waiting, and the promise that nothing is silently lost or overwritten. States shown: working offline with a queue, and a sync conflict resolved without data loss.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 760 · offline</p>
+<div class="mk-frame" style="width:760px">
+<div style="display:flex;align-items:center;gap:14px;padding:11px 20px;border-bottom:1px solid var(--color-divider)">
+<a href="#J-05" class="btn btn-secondary" style="font-size:13px">← Home</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Working offline</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-accent-2-800)">◇ No internet since 08:36</span>
+</div>
+<div style="padding:22px 20px;display:flex;flex-direction:column;gap:16px">
+<div>
+<h4 style="margin:0 0 4px">Nothing has been lost</h4>
+<p style="margin:0;font-size:13.5px;color:var(--color-neutral-900);max-width:64ch">Everything you do offline is saved on this device and syncs when you are back online. nova3D will never overwrite work without telling you.</p>
+</div>
+<div>
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:9px">Available offline</div>
+<div style="display:flex;flex-direction:column;gap:7px;font-size:13.5px">
+<div style="display:flex;justify-content:space-between"><span>Read Projects, models and Sources already on this device</span><span style="color:var(--color-accent-700)">✓</span></div>
+<div style="display:flex;justify-content:space-between"><span>Create a Project from pictures, converted directly</span><span style="color:var(--color-accent-700)">✓</span></div>
+<div style="display:flex;justify-content:space-between"><span>Inspect and approve a Model Version</span><span style="color:var(--color-accent-700)">✓</span></div>
+<div style="display:flex;justify-content:space-between"><span>Prepare and slice for a known printer</span><span style="color:var(--color-accent-700)">✓</span></div>
+</div>
+</div>
+<div>
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:9px">Needs internet</div>
+<div style="display:flex;flex-direction:column;gap:7px;font-size:13.5px">
+<div style="display:flex;justify-content:space-between"><span>Research of any kind</span><span style="color:var(--color-accent-2-800)">■</span></div>
+<div style="display:flex;justify-content:space-between"><span>Sending a print to a printer, and watching it</span><span style="color:var(--color-accent-2-800)">■</span></div>
+<div style="display:flex;justify-content:space-between"><span>Syncing to My Projects</span><span style="color:var(--color-accent-2-800)">■</span></div>
+</div>
+</div>
+<div>
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:9px">Waiting to sync · 2</div>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--color-divider);font-size:13.5px"><span><strong style="font-family:var(--font-heading);font-weight:600">Untitled picture Project</strong> · created 08:41 on this device</span><span style="flex:none;color:var(--color-neutral-800)">◷ queued</span></div>
+<div style="display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);font-size:13.5px"><span>Your approval of <strong style="font-family:var(--font-heading);font-weight:600">Menorah study V1</strong> · 09:02</span><span style="flex:none;color:var(--color-neutral-800)">◷ queued</span></div>
+</div>
+</div>
+<a href="#J-05" class="btn btn-secondary" style="min-height:44px;align-self:flex-start">Try to reconnect</a>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop · sync conflict, nothing overwritten</p>
+<div class="mk-frame" style="width:560px">
+<div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:10px;padding:11px 12px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<span style="flex:none;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-800)">▲ Two versions</span>
+<span style="font-size:13.5px">This Project changed in both places while you were offline.</span>
+</div>
+<h4 style="margin:0">Both have been kept</h4>
+<p style="margin:0;font-size:13.5px;color:var(--color-neutral-900)">nova3D did not choose between them and did not overwrite either. Read both and tell it which to carry forward — or keep both as separate Projects.</p>
+<div style="display:flex;flex-direction:column;gap:9px">
+<label style="display:flex;gap:11px;padding:12px 13px;background:var(--color-surface)">
+<span class="radio" style="margin-top:2px"><input type="radio" name="cf"><span class="dot"></span></span>
+<span><span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:14.5px">The version on this device</span><span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:2px">Changed offline at 09:02 — you approved Version 1.</span></span>
+</label>
+<label style="display:flex;gap:11px;padding:12px 13px;background:var(--color-surface)">
+<span class="radio" style="margin-top:2px"><input type="radio" name="cf"><span class="dot"></span></span>
+<span><span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:14.5px">The version in My Projects</span><span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:2px">Changed at 08:58 on another device — a Source was rejected, creating Plan revision 3.</span></span>
+</label>
+<label style="display:flex;gap:11px;padding:12px 13px;background:var(--color-accent-100);border-left:3px solid var(--color-accent)">
+<span class="radio" style="margin-top:2px"><input type="radio" name="cf" checked="checked"><span class="dot"></span></span>
+<span><span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:14.5px">Keep both as separate Projects</span><span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:2px">Nothing is lost and nothing needs deciding now. Recommended.</span></span>
+</label>
+</div>
+<div style="display:flex;gap:8px">
+<a href="#J-05" class="btn btn-secondary" style="flex:1;min-height:44px">Compare them</a>
+<a href="#J-05" class="btn btn-primary" style="flex:1;min-height:44px">Keep both</a>
+</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>Available and unavailable capabilities are two labelled lists with ✓ and ■ plus their headings, so the offline boundary is readable without colour. The conflict screen preselects the non-destructive option and labels it Recommended, and every option states what changed, when and where. No wording implies data was discarded.
+</div>
+</div>
+</section>
+</x-dc>
+</body>
+</html>

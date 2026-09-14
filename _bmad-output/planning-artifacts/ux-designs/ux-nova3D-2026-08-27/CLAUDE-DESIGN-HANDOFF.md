@@ -1,10 +1,16 @@
 ---
 title: nova3D Producer Brief for Claude Design
-status: ready-for-handoff
-updated: 2026-08-30
+status: delivered-historical
+updated: 2026-09-02
 ---
 
 # Claude Design Handoff: nova3D
+
+> **Historical, 2 September 2026.** This brief was delivered and the work it commissioned is complete: the outputs are imported into `DESIGN.md`, `EXPERIENCE.md`, `SCREEN-INVENTORY.md`, and `SCOPE-CHANGE-print.md`. It is kept as the record of what was asked for. Do not brief new work from it without reading the note below.
+>
+> **Two instructions in it are now wrong.** It twice specifies **Prints in Progress — Coming later** as a reserved, non-functional area (§ Home dashboard, § Round 1 deliverables). The print scope change of 31 August 2026 made printing part of the first version: live prints replace that reserved area on `H-01`. `SCOPE-CHANGE-print.md` is authoritative, and `prd.md` §0.1 reflects it.
+>
+> The brief also predates the 18 screens added by the `SCREEN-INVENTORY.md` appendix, which have no mockups yet.
 
 ## Your role
 

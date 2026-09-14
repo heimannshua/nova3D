@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/broadsheet-7fe4643f-5635-431e-8f97-f5008b231761/styles.css">
+<script src="_ds/broadsheet-7fe4643f-5635-431e-8f97-f5008b231761/_ds_bundle.js"></script>
+<style>
+body{margin:0;background:#e6e4e1}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#201e1d;color:#f3f2f2;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 15px/1.2 "Source Serif 4",serif;color:#201e1d}
+.dv-opts{display:flex;flex-wrap:wrap;gap:56px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.09);color:#201e1d;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:9px;font:600 15px/1.3 "Source Serif 4",serif;color:#201e1d}
+.dv-sub{font:400 12px/1.4 "Source Serif 4",serif;color:rgba(32,30,29,.72)}
+.dv-card{background:#f3f2f2;box-shadow:0 1px 3px rgba(0,0,0,.10);overflow:hidden}
+.dv-cap{font:400 10px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:rgba(32,30,29,.72);margin:0 0 6px}
+.dv-opt:target .dv-oid{background:#0088b0;color:#fff}
+.dv-next{margin:26px 0 0;font:12px/1.6 "Source Serif 4",serif;color:rgba(32,30,29,.72)}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Page-per-step — one focused screen per stage, forward and back</span></div>
+<p style="max-width:980px;margin:-8px 0 26px;font:400 14px/1.6 'Source Serif 4',serif;color:rgba(32,30,29,.82)">Taking the note that the earlier rounds read as a document rather than an app. This is app chrome: a fixed step bar that shows where you are and what is left, one decision per screen, real controls rather than prose, and a pinned action bar at the foot of every step with Back and one clear forward action. Steps you have passed stay reachable; steps ahead are visibly locked. Four consecutive steps of the evidence-backed text journey are drawn here, ending on the Plan Approval gate.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="3a">
+<div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Stepped flow</div>
+<div class="dv-sub" style="max-width:700px">Same shell on every step: header with exit, step bar, one panel of decisions, pinned action bar. Nothing scrolls away from the action; the gate is a step, not a button in a page.</div>
+
+<div style="display:flex;flex-direction:column;gap:26px;margin-top:6px">
+
+<div>
+<p class="dv-cap">Step 2 of 6 · Describe the model (C-02) · desktop 1120</p>
+<div class="dv-card" style="width:1120px">
+<div style="display:flex;flex-direction:column">
+
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#3a" class="btn btn-secondary" style="font-size:13px">← Leave</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">New Project · evidence-backed from text</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-neutral-800)">Saved as you type · online</span>
+<a href="#3a" style="color:var(--color-accent-700);text-decoration:none;font-size:13px">● 1 unread</a>
+</div>
+
+<div style="display:flex;align-items:center;gap:0;padding:14px 22px;border-bottom:1px solid var(--color-divider);background:var(--color-surface)">
+<div style="display:flex;align-items:center;gap:9px;flex:none">
+<span style="width:24px;height:24px;background:var(--color-neutral-300);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-900)">✓</span>
+<span style="font-size:12.5px;color:var(--color-neutral-800)">Start</span>
+</div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px;flex:none">
+<span style="width:24px;height:24px;background:var(--color-accent);display:grid;place-items:center;font-size:12px;color:var(--color-bg)">2</span>
+<span style="font-size:13px;font-family:var(--font-heading);font-weight:600">Describe</span>
+</div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px;flex:none">
+<span style="width:24px;height:24px;border:1px solid var(--color-neutral-400);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-700)">3</span>
+<span style="font-size:12.5px;color:var(--color-neutral-700)">Check understanding</span>
+</div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px;flex:none">
+<span style="width:24px;height:24px;border:1px solid var(--color-neutral-400);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-700)">4</span>
+<span style="font-size:12.5px;color:var(--color-neutral-700)">Research choices</span>
+</div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px;flex:none">
+<span style="width:24px;height:24px;border:1px solid var(--color-neutral-400);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-700)">5</span>
+<span style="font-size:12.5px;color:var(--color-neutral-700)">Research runs</span>
+</div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px;flex:none">
+<span style="width:24px;height:24px;border:1px solid var(--color-neutral-400);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-700)">6</span>
+<span style="font-size:12.5px;color:var(--color-neutral-700)">Plan Approval</span>
+</div>
+</div>
+
+<div style="display:flex;gap:34px;padding:26px 22px 22px">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:18px">
+<div>
+<h3 style="margin:0 0 4px">What should nova3D build?</h3>
+<p style="margin:0;font-size:14px;color:var(--color-neutral-800);max-width:62ch">Ordinary language is fine. Say what the thing is and where it is described. nova3D will show you what it understood on the next step before any research starts.</p>
+</div>
+<div class="field">
+<label for="desc-3a">Description</label>
+<textarea class="input" id="desc-3a" style="min-height:132px;font-size:15px">The outer altar and its ramp as described in Mishnah Middot chapter 3.</textarea>
+<div style="display:flex;justify-content:space-between;margin-top:5px;font-size:12px;color:var(--color-neutral-800)"><span>Name the source text if you know it — it makes the research plan tighter.</span><span>68 characters</span></div>
+</div>
+<div class="field">
+<label for="pers-3a">Personalization — optional, kept separate from the historical reconstruction</label>
+<input class="input" id="pers-3a" value="Add a small plaque on the base reading “Middot 3”." style="font-size:15px">
+<div style="margin-top:5px;font-size:12px;color:var(--color-neutral-800)">Anything here is marked <strong>+ user-added</strong> on the model and in the Source Record. It is never presented as historical evidence.</div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--color-accent-100)">
+<span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-800)">Note</span>
+<span style="font-size:13px">nova3D cannot prove what the altar looked like. It can show every Source behind every decision.</span>
+</div>
+</div>
+<div style="width:296px;flex:none;padding:16px;background:var(--color-surface);align-self:flex-start">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700)">Examples</div>
+<p style="margin:8px 0 0;font-size:13px;color:var(--color-neutral-900)">Wording that works well:</p>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;font-size:13px">
+<div style="padding:9px 10px;background:var(--color-bg)">“A named object described in a specific chapter of a specific text.”</div>
+<div style="padding:9px 10px;background:var(--color-bg)">“The same object at a size that fits my printer.”</div>
+</div>
+<p style="margin:12px 0 0;font-size:12.5px;color:var(--color-neutral-800)">These are examples of phrasing only. Nothing here is copied into your description.</p>
+</div>
+</div>
+
+<div style="display:flex;align-items:center;gap:14px;padding:13px 22px;border-top:1px solid var(--color-divider);background:var(--color-surface)">
+<a href="#3a" class="btn btn-secondary" style="min-height:42px">Back</a>
+<div style="flex:1;font-size:12.5px;color:var(--color-neutral-800)">Next step shows what nova3D understood. No research runs and nothing is charged until step 4.</div>
+<a href="#3a" class="btn btn-primary" style="min-height:42px;font-size:15px">Continue</a>
+</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="dv-cap">Step 3 of 6 · What nova3D understood (C-06) · ambiguous, with clarification questions</p>
+<div class="dv-card" style="width:1120px">
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#3a" class="btn btn-secondary" style="font-size:13px">← Leave</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">New Project · evidence-backed from text</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-neutral-800)">Saved · online</span>
+</div>
+<div style="display:flex;align-items:center;padding:14px 22px;border-bottom:1px solid var(--color-divider);background:var(--color-surface)">
+<div style="display:flex;align-items:center;gap:9px;flex:none"><span style="width:24px;height:24px;background:var(--color-neutral-300);display:grid;place-items:center;font-size:11px">✓</span><span style="font-size:12.5px;color:var(--color-neutral-800)">Describe</span></div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px;flex:none"><span style="width:24px;height:24px;background:var(--color-accent);display:grid;place-items:center;font-size:12px;color:var(--color-bg)">3</span><span style="font-size:13px;font-family:var(--font-heading);font-weight:600">Check understanding</span></div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px;flex:none"><span style="width:24px;height:24px;border:1px solid var(--color-neutral-400);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-700)">4</span><span style="font-size:12.5px;color:var(--color-neutral-700)">Research choices</span></div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px;flex:none"><span style="width:24px;height:24px;border:1px solid var(--color-neutral-400);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-700)">5</span><span style="font-size:12.5px;color:var(--color-neutral-700)">Research runs</span></div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px;flex:none"><span style="width:24px;height:24px;border:1px solid var(--color-neutral-400);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-700)">6</span><span style="font-size:12.5px;color:var(--color-neutral-700)">Plan Approval</span></div>
+</div>
+
+<div style="display:flex;gap:34px;padding:26px 22px 22px">
+<div style="flex:1;min-width:0">
+<h3 style="margin:0 0 4px">Here is what nova3D understood</h3>
+<p style="margin:0 0 16px;font-size:14px;color:var(--color-neutral-800);max-width:64ch">Correct anything that is wrong. Nothing runs until you confirm this.</p>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;gap:20px;padding:12px 0;border-top:1px solid var(--color-divider)">
+<div style="width:150px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Subject</div>
+<div style="flex:1;font-size:14px">The outer altar and its ramp, as described in Mishnah tractate Middot, chapter 3</div>
+<a href="#3a" class="btn btn-ghost" style="flex:none">Edit</a>
+</div>
+<div style="display:flex;gap:20px;padding:12px 0;border-top:1px solid var(--color-divider)">
+<div style="width:150px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Kind of Project</div>
+<div style="flex:1;font-size:14px">Historical reconstruction, evidence-backed — geometry waits for an approved Research Plan</div>
+<a href="#3a" class="btn btn-ghost" style="flex:none">Edit</a>
+</div>
+<div style="display:flex;gap:20px;padding:12px 0;border-top:1px solid var(--color-divider)">
+<div style="width:150px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Personalization</div>
+<div style="flex:1;font-size:14px">A small plaque on the base reading “Middot 3” · marked <strong>+ user-added</strong>, separate from the reconstruction</div>
+<a href="#3a" class="btn btn-ghost" style="flex:none">Edit</a>
+</div>
+<div style="display:flex;gap:20px;padding:12px 0;border-top:1px solid var(--color-divider)">
+<div style="width:150px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Intended outcome</div>
+<div style="flex:1;font-size:14px">A printable model with a PDF Source Record, sized to your Target Print Profile at the validation step</div>
+<a href="#3a" class="btn btn-ghost" style="flex:none">Edit</a>
+</div>
+<div style="display:flex;gap:20px;padding:12px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)">
+<div style="width:150px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Not included</div>
+<div style="flex:1;font-size:14px">Surrounding structures, colour and material realism, printing on your behalf</div>
+<span style="flex:none;font-size:12.5px;color:var(--color-neutral-700)">—</span>
+</div>
+</div>
+</div>
+<div style="width:340px;flex:none;padding:16px;background:var(--color-accent-2-100);align-self:flex-start">
+<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-2-800)">▲ 2 questions</span></div>
+<p style="margin:8px 0 12px;font-size:13px;color:var(--color-neutral-900)">Two things are ambiguous. Answering now keeps the Research Plan smaller.</p>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="padding:11px 12px;background:var(--color-bg)">
+<div style="font-size:13.5px;font-family:var(--font-heading);font-weight:600">Which reading should lead where sources differ?</div>
+<div style="display:flex;flex-direction:column;gap:7px;margin-top:8px">
+<label class="radio"><input type="radio" name="q1-3a" checked="checked"><span class="dot"></span>Follow the plain text of the chapter</label>
+<label class="radio"><input type="radio" name="q1-3a"><span class="dot"></span>Show me the options and let me choose</label>
+</div>
+</div>
+<div style="padding:11px 12px;background:var(--color-bg)">
+<div style="font-size:13.5px;font-family:var(--font-heading);font-weight:600">Ramp included as one piece, or separable?</div>
+<div style="display:flex;flex-direction:column;gap:7px;margin-top:8px">
+<label class="radio"><input type="radio" name="q2-3a" checked="checked"><span class="dot"></span>One piece</label>
+<label class="radio"><input type="radio" name="q2-3a"><span class="dot"></span>Separable for printing</label>
+</div>
+</div>
+</div>
+<div style="font-size:12.5px;color:var(--color-neutral-900);margin-top:12px">You can also leave these to the Research Plan, where they appear as Defensible Options.</div>
+</div>
+</div>
+
+<div style="display:flex;align-items:center;gap:14px;padding:13px 22px;border-top:1px solid var(--color-divider);background:var(--color-surface)">
+<a href="#3a" class="btn btn-secondary" style="min-height:42px">Back</a>
+<div style="flex:1;font-size:12.5px;color:var(--color-neutral-800)">Confirming the scope does not start research. The next step is where free, paid and cached choices are made.</div>
+<a href="#3a" class="btn btn-primary" style="min-height:42px;font-size:15px">This is correct — continue</a>
+</div>
+</div>
+</div>
+</div>
+
+<div style="display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap">
+<div>
+<p class="dv-cap">Step 4 of 6 · Research choices (C-07) · paid disclosure shown</p>
+<div class="dv-card" style="width:700px">
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:14px;padding:11px 20px;border-bottom:1px solid var(--color-divider)">
+<a href="#3a" class="btn btn-secondary" style="font-size:13px">← Leave</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">Step 4 of 6 · Research choices</div>
+</div>
+<div style="padding:22px 20px;display:flex;flex-direction:column;gap:18px">
+<div>
+<h3 style="margin:0 0 4px">How should nova3D research this?</h3>
+<p style="margin:0;font-size:14px;color:var(--color-neutral-800)">Two separate choices. Neither starts anything — step 5 confirms before the Job runs.</p>
+</div>
+
+<div>
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:9px">1 · Free or paid research</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<label style="display:flex;gap:11px;padding:13px 14px;background:var(--color-surface);cursor:pointer">
+<span class="radio" style="margin-top:2px"><input type="radio" name="pay-3a"><span class="dot"></span></span>
+<span>
+<span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:15px">Free research only</span>
+<span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:3px">Openly available Sources. No charge. Some details may stay <strong>? unknown</strong>.</span>
+</span>
+</label>
+<label style="display:flex;gap:11px;padding:13px 14px;background:var(--color-accent-100);border-left:3px solid var(--color-accent);cursor:pointer">
+<span class="radio" style="margin-top:2px"><input type="radio" name="pay-3a" checked="checked"><span class="dot"></span></span>
+<span>
+<span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:15px">Allow paid research</span>
+<span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:3px">nova3D may use a paid provider when free Sources are not enough.</span>
+<span style="display:block;margin-top:10px;padding:11px 12px;background:var(--color-bg);font-size:13px">
+<strong style="font-family:var(--font-heading);font-weight:600">Before anything is charged you will see:</strong>
+<span style="display:block;margin-top:5px">provider name · what it is used for · what data leaves nova3D · how long that provider keeps it · the maximum charge</span>
+<span style="display:block;margin-top:7px;color:var(--color-neutral-800)">Maximum for this Job: shown on step 5 and never exceeded. Your Usage Limit still applies.</span>
+</span>
+</span>
+</label>
+</div>
+</div>
+
+<div>
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:9px">2 · Cached or fresh research</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<label style="display:flex;gap:11px;padding:13px 14px;background:var(--color-surface);cursor:pointer">
+<span class="radio" style="margin-top:2px"><input type="radio" name="cache-3a" checked="checked"><span class="dot"></span></span>
+<span>
+<span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:15px">Reuse cached research</span>
+<span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:3px">Cached Research Revision available · recorded date shown on the Plan and in the Source Record. Faster, usually free.</span>
+</span>
+</label>
+<label style="display:flex;gap:11px;padding:13px 14px;background:var(--color-surface);cursor:pointer">
+<span class="radio" style="margin-top:2px"><input type="radio" name="cache-3a"><span class="dot"></span></span>
+<span>
+<span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:15px">Run fresh research</span>
+<span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:3px">Ignores the cache and searches again. Slower, and the paid choice above may apply.</span>
+</span>
+</label>
+</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:13px 20px;border-top:1px solid var(--color-divider);background:var(--color-surface)">
+<a href="#3a" class="btn btn-secondary" style="min-height:42px">Back</a>
+<div style="flex:1;font-size:12.5px;color:var(--color-neutral-800)">Nothing is charged on this step.</div>
+<a href="#3a" class="btn btn-primary" style="min-height:42px;font-size:15px">Continue</a>
+</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="dv-cap">Step 6 of 6 · Plan Approval (R-05) · ready to approve</p>
+<div class="dv-card" style="width:700px">
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:14px;padding:11px 20px;border-bottom:1px solid var(--color-divider)">
+<a href="#3a" class="btn btn-secondary" style="font-size:13px">← Leave</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">Step 6 of 6 · Plan Approval</div>
+<div style="flex:1"></div>
+<span class="tag tag-accent">Revision 4</span>
+</div>
+<div style="padding:22px 20px;display:flex;flex-direction:column;gap:16px">
+<div>
+<h3 style="margin:0 0 4px">Approve this Research Plan?</h3>
+<p style="margin:0;font-size:14px;color:var(--color-neutral-800)">You are approving revision 4 exactly as it stands. Only then does nova3D generate evidence-backed geometry. If the evidence changes later, this approval is withdrawn and asked for again.</p>
+</div>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px"><span>Completeness checklist · 7 areas</span><span style="color:var(--color-accent-700)">✓ complete</span></div>
+<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px"><span>Independent gap review</span><span style="color:var(--color-accent-700)">✓ no open gaps</span></div>
+<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px"><span>Consequential details reviewed</span><span>17 of 17</span></div>
+<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px"><span>Defensible Options decided</span><span>2 of 2 · your choices recorded</span></div>
+<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);font-size:13.5px"><span>Detail Status</span><span>● 9 · ○ 4 · ◐ 2 · ? 1 · + 1</span></div>
+</div>
+<div style="padding:12px 13px;background:var(--color-accent-100);font-size:13px">
+<strong style="font-family:var(--font-heading);font-weight:600">What approval does not mean:</strong> it is not a claim that the reconstruction is historically certain. It records that you reviewed this exact Plan, including its <strong>◐ disputed</strong> and <strong>? unknown</strong> details.
+</div>
+<div style="font-size:13px;color:var(--color-neutral-800)">Sources, Claims, reasoning and expected geometry effects sit one tap away on each detail — approval never requires taking them on trust.</div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;padding:13px 20px;border-top:1px solid var(--color-divider);background:var(--color-surface)">
+<a href="#3a" class="btn btn-secondary" style="min-height:44px">Back to the Plan</a>
+<a href="#3a" class="btn btn-secondary" style="min-height:44px">Reject with a reason</a>
+<div style="flex:1"></div>
+<a href="#3a" class="btn btn-primary" style="min-height:44px;font-size:15px">Approve revision 4</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+<div>
+<p class="dv-cap">Phone · 390 · the same step 4, one decision at a time</p>
+<div class="dv-card" style="width:390px;height:844px">
+<div style="height:100%;display:flex;flex-direction:column">
+<div style="flex:none;padding:12px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:12px">
+<a href="#3a" class="btn btn-secondary" style="min-height:40px;font-size:12.5px">←</a>
+<div style="min-width:0">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">Research choices</div>
+<div style="font-size:11.5px;color:var(--color-neutral-800)">Step 4 of 6 · nothing charged yet</div>
+</div>
+</div>
+<div style="flex:none;display:flex;gap:4px;padding:10px 16px;border-bottom:1px solid var(--color-divider);background:var(--color-surface)">
+<div style="flex:1;height:5px;background:var(--color-accent)"></div>
+<div style="flex:1;height:5px;background:var(--color-accent)"></div>
+<div style="flex:1;height:5px;background:var(--color-accent)"></div>
+<div style="flex:1;height:5px;background:var(--color-accent)"></div>
+<div style="flex:1;height:5px;background:var(--color-neutral-300)"></div>
+<div style="flex:1;height:5px;background:var(--color-neutral-300)"></div>
+</div>
+<div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
+<div>
+<h4 style="margin:0 0 4px">Free or paid research</h4>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+<label style="display:flex;gap:10px;padding:12px;background:var(--color-surface);min-height:44px">
+<span class="radio" style="margin-top:2px"><input type="radio" name="pay-p3a"><span class="dot"></span></span>
+<span><span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:14.5px">Free only</span><span style="display:block;font-size:12.5px;color:var(--color-neutral-900);margin-top:2px">No charge. Some details may stay <strong>? unknown</strong>.</span></span>
+</label>
+<label style="display:flex;gap:10px;padding:12px;background:var(--color-accent-100);border-left:3px solid var(--color-accent);min-height:44px">
+<span class="radio" style="margin-top:2px"><input type="radio" name="pay-p3a" checked="checked"><span class="dot"></span></span>
+<span><span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:14.5px">Allow paid research</span><span style="display:block;font-size:12.5px;color:var(--color-neutral-900);margin-top:2px">Provider, purpose, outbound data, retention and maximum charge are all shown before permission.</span></span>
+</label>
+</div>
+</div>
+<div>
+<h4 style="margin:0 0 4px">Cached or fresh</h4>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+<label style="display:flex;gap:10px;padding:12px;background:var(--color-surface);min-height:44px">
+<span class="radio" style="margin-top:2px"><input type="radio" name="cache-p3a" checked="checked"><span class="dot"></span></span>
+<span><span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:14.5px">Reuse cached research</span><span style="display:block;font-size:12.5px;color:var(--color-neutral-900);margin-top:2px">Recorded revision date travels with the Plan and the Source Record.</span></span>
+</label>
+<label style="display:flex;gap:10px;padding:12px;background:var(--color-surface);min-height:44px">
+<span class="radio" style="margin-top:2px"><input type="radio" name="cache-p3a"><span class="dot"></span></span>
+<span><span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:14.5px">Run fresh research</span><span style="display:block;font-size:12.5px;color:var(--color-neutral-900);margin-top:2px">Searches again; the paid choice above may apply.</span></span>
+</label>
+</div>
+</div>
+</div>
+<div style="flex:none;border-top:1px solid var(--color-divider);padding:12px 16px 22px;background:var(--color-surface);display:flex;flex-direction:column;gap:8px">
+<a href="#3a" class="btn btn-primary btn-block" style="min-height:48px;font-size:15px;margin-top:0">Continue</a>
+<div style="display:flex;justify-content:space-between;align-items:center">
+<a href="#3a" style="color:var(--color-accent-700);text-decoration:none;font-size:13px;min-height:44px;display:flex;align-items:center">Back</a>
+<span style="font-size:12px;color:var(--color-neutral-800)">Step 5 confirms before the Job starts</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div style="width:330px;font:400 13px/1.55 'Source Serif 4',serif;color:rgba(32,30,29,.82);display:flex;flex-direction:column;gap:14px">
+<div>
+<div class="dv-cap">What changed from the earlier rounds</div>
+<p style="margin:0">The page no longer explains itself in prose. Each screen asks one thing, controls are filled and hit-sized, the step bar states position and what remains, and the forward action is pinned in a bar rather than sitting in the text. Headlines dropped from 34–46px to 25px so the screen reads as chrome around a task.</p>
+</div>
+<div>
+<div class="dv-cap">How the gates behave</div>
+<p style="margin:0">Plan Approval is step 6, not a button somewhere on a long page — it is version-stamped in the header, states plainly what approval does not mean, and offers reject-with-reason at equal weight. Model Approval later gets the identical treatment on its own step.</p>
+</div>
+<div>
+<div class="dv-cap">Accessibility</div>
+<p style="margin:0">Steps are numbered text, not colour: passed ✓, current filled, ahead outlined. Radio cards are whole-label targets at 44px+. The phone step bar is six segments with a spoken "Step 4 of 6" beside it. Focus order follows the step: content, then the action bar.</p>
+</div>
+<div>
+<div class="dv-cap">Open question</div>
+<p style="margin:0">Where should the running research Job live in this shape — a step 5 screen you can leave and return to, or straight to In Progress with the Project resuming at the next required step? I'd suggest the latter, since Jobs must never block navigation.</p>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "yes, this shape — do the picture flow the same way" · "step bar too heavy" · "show the running-research step" · "approved — start Round 2 on this shape"</p>
+</section>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Workspace shell — the arrangement you liked, in nova3D's own terms</span></div>
+<p style="max-width:960px;margin:-8px 0 26px;font:400 14px/1.6 'Source Serif 4',serif;color:rgba(32,30,29,.78)">Same arrangement as your reference: a vertical rail on the far left, a settings panel with the primary action pinned at its foot, a large viewport in the middle, an inspector with tabs on the right, floating view controls, and a status strip along the bottom. Nothing of the reference product's styling, colour or wording is used — the rail carries nova3D's own six workflow stages, the panel carries the Model Approval gate, and the inspector carries Model Features and their Sources. This is the <strong>Model workspace</strong> (M-01/M-02/M-09), not the Home dashboard, so it sits alongside <a class="dv-oid" href="#1a">1a</a>–<a class="dv-oid" href="#1c">1c</a> rather than replacing them.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a">
+<div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Stage rail workspace</div>
+<div class="dv-sub" style="max-width:660px">Persistent shell for the whole Project. The rail is the workflow, so the two approval gates always have a visible position; the inspector keeps evidence one click from any Model Feature.</div>
+
+<div style="display:flex;gap:28px;align-items:flex-start;margin-top:6px">
+<div>
+<p class="dv-cap">Desktop / laptop · 1280 × 900 · light (default) · awaiting Model Approval</p>
+<div class="dv-card" style="width:1280px">
+<div style="display:flex;flex-direction:column;height:900px">
+
+<div style="display:flex;align-items:center;gap:26px;padding:12px 20px;border-bottom:1px solid var(--color-divider);flex:none">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:20px;letter-spacing:-.02em">nova3D</div>
+<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;background:var(--color-surface);font-size:13.5px"><span style="font-family:var(--font-heading);font-weight:600">Outer Altar and Ramp — Middot 3</span><span style="color:var(--color-neutral-700)">· Version 3 ▾</span></div>
+<div style="display:flex;gap:20px;font-size:13.5px">
+<a href="#2a" style="color:inherit;text-decoration:none">Home</a>
+<a href="#2a" style="color:inherit;text-decoration:none">My Projects</a>
+<a href="#2a" style="color:inherit;text-decoration:none">Create</a>
+<a href="#2a" style="color:var(--color-accent-700);text-decoration:none">In Progress</a>
+</div>
+<div style="flex:1"></div>
+<a href="#2a" style="color:var(--color-accent-700);text-decoration:none;font-size:13.5px;display:inline-flex;align-items:center;gap:7px"><span style="width:8px;height:8px;background:var(--color-accent-2);border-radius:50%;display:inline-block"></span>1 unread</a>
+<a href="#2a" style="color:inherit;text-decoration:none;font-size:13.5px">Settings</a>
+<a href="#2a" style="color:inherit;text-decoration:none;font-size:13.5px">Account</a>
+</div>
+
+<div style="display:flex;flex:1;min-height:0">
+
+<div style="width:96px;flex:none;border-right:1px solid var(--color-divider);padding:14px 0;display:flex;flex-direction:column;gap:4px">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);padding:0 10px 8px">Stages</div>
+<a href="#2a" style="text-decoration:none;color:var(--color-text);padding:9px 10px;display:flex;flex-direction:column;gap:5px;align-items:center;text-align:center">
+<span style="width:26px;height:26px;background:var(--color-neutral-200);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-800)">✓</span>
+<span style="font-size:11.5px;line-height:1.2">Request</span>
+</a>
+<a href="#2a" style="text-decoration:none;color:var(--color-text);padding:9px 10px;display:flex;flex-direction:column;gap:5px;align-items:center;text-align:center">
+<span style="width:26px;height:26px;background:var(--color-neutral-200);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-800)">✓</span>
+<span style="font-size:11.5px;line-height:1.2">Research</span>
+</a>
+<a href="#2a" style="text-decoration:none;color:var(--color-text);padding:9px 10px;display:flex;flex-direction:column;gap:5px;align-items:center;text-align:center">
+<span style="width:26px;height:26px;background:var(--color-neutral-200);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-800)">✓</span>
+<span style="font-size:11.5px;line-height:1.2">Plan<br>approved</span>
+</a>
+<a href="#2a" aria-current="page" style="text-decoration:none;color:var(--color-text);padding:9px 10px;display:flex;flex-direction:column;gap:5px;align-items:center;text-align:center;background:color-mix(in srgb,var(--color-accent) 14%,transparent);border-left:3px solid var(--color-accent)">
+<span style="width:26px;height:26px;background:var(--color-accent);display:grid;place-items:center;font-size:12px;color:var(--color-bg)">◆</span>
+<span style="font-size:11.5px;line-height:1.2;font-family:var(--font-heading);font-weight:600">Model<br>you are here</span>
+</a>
+<a href="#2a" style="text-decoration:none;color:var(--color-neutral-700);padding:9px 10px;display:flex;flex-direction:column;gap:5px;align-items:center;text-align:center">
+<span style="width:26px;height:26px;border:1px dashed var(--color-neutral-400);display:grid;place-items:center;font-size:11px">—</span>
+<span style="font-size:11.5px;line-height:1.2">Validate<br>locked</span>
+</a>
+<a href="#2a" style="text-decoration:none;color:var(--color-neutral-700);padding:9px 10px;display:flex;flex-direction:column;gap:5px;align-items:center;text-align:center">
+<span style="width:26px;height:26px;border:1px dashed var(--color-neutral-400);display:grid;place-items:center;font-size:11px">—</span>
+<span style="font-size:11.5px;line-height:1.2">Export<br>locked</span>
+</a>
+<div style="flex:1"></div>
+<div style="padding:0 8px;font-size:11px;line-height:1.45;color:var(--color-neutral-700);text-align:center">Locked stages need Model Approval first.</div>
+</div>
+
+<div style="width:352px;flex:none;border-right:1px solid var(--color-divider);display:flex;flex-direction:column;min-height:0">
+<div style="padding:16px 18px;flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px">
+<div>
+<h4 style="margin:0 0 4px">Model Approval</h4>
+<p style="margin:0;font-size:13.5px;color:var(--color-neutral-800)">You are approving one exact Model Version. Anything that changes the evidence afterwards needs a new approval.</p>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="display:flex;justify-content:space-between;font-size:13.5px"><span style="color:var(--color-neutral-800)">Model Version</span><span style="font-family:var(--font-heading);font-weight:600">3 · generated 09:48</span></div>
+<div style="display:flex;justify-content:space-between;font-size:13.5px"><span style="color:var(--color-neutral-800)">Governing Research Plan</span><span style="font-family:var(--font-heading);font-weight:600">Revision 4 · approved</span></div>
+<div style="display:flex;justify-content:space-between;font-size:13.5px"><span style="color:var(--color-neutral-800)">Kind of Project</span><span style="font-family:var(--font-heading);font-weight:600">Evidence-backed</span></div>
+<div style="display:flex;justify-content:space-between;font-size:13.5px"><span style="color:var(--color-neutral-800)">Personalization</span><span style="font-family:var(--font-heading);font-weight:600">1 detail, marked separately</span></div>
+</div>
+
+<div style="height:1px;background:var(--color-divider)"></div>
+
+<div>
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Detail Status across this Version</div>
+<div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
+<div style="display:flex;justify-content:space-between"><span>● sourced</span><span>9</span></div>
+<div style="display:flex;justify-content:space-between"><span>○ inferred</span><span>4</span></div>
+<div style="display:flex;justify-content:space-between;color:var(--color-accent-2-800)"><span>◐ disputed</span><span>2</span></div>
+<div style="display:flex;justify-content:space-between"><span>? unknown</span><span>1</span></div>
+<div style="display:flex;justify-content:space-between"><span>+ user-added</span><span>1</span></div>
+</div>
+</div>
+
+<div style="height:1px;background:var(--color-divider)"></div>
+
+<div>
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Inspection required before approval</div>
+<div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
+<div style="display:flex;gap:8px"><span style="color:var(--color-accent-700)">✓</span><span>Rotated, panned and fitted the model</span></div>
+<div style="display:flex;gap:8px"><span style="color:var(--color-accent-700)">✓</span><span>Opened 14 of 17 Model Features</span></div>
+<div style="display:flex;gap:8px"><span style="color:var(--color-accent-2-800)">▲</span><span>2 disputed details not yet reviewed</span></div>
+</div>
+</div>
+</div>
+<div style="border-top:1px solid var(--color-divider);padding:14px 18px;display:flex;flex-direction:column;gap:9px;background:var(--color-surface)">
+<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--color-accent-2-800)"><span>▲</span><span>Blocked: review the 2 disputed details first.</span></div>
+<button class="btn btn-primary btn-block" disabled="disabled" style="min-height:44px;margin-top:0">Approve Model Version 3</button>
+<div style="display:flex;gap:8px">
+<a href="#2a" class="btn btn-secondary" style="flex:1">Review disputed</a>
+<a href="#2a" class="btn btn-secondary" style="flex:1">Ask for a correction</a>
+</div>
+<div style="font-size:11.5px;color:var(--color-neutral-800)">Approval applies to Version 3 only. Export stays locked until validation passes.</div>
+</div>
+</div>
+
+<div style="flex:1;min-width:0;position:relative;background:var(--color-neutral-200);display:flex;flex-direction:column">
+<div style="position:absolute;left:16px;right:200px;top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span class="tag tag-neutral">Preview geometry — not the manufacturing geometry</span>
+<span class="tag tag-accent">Read-only · no mesh editing</span>
+</div>
+<div style="flex:1;display:grid;place-items:center;padding:60px 20px">
+<figure class="halftone" style="width:420px;aspect-ratio:4/3;background:var(--color-neutral-300);display:grid;place-items:center;text-align:center">
+<figcaption style="margin:0;font-size:12.5px;color:var(--color-neutral-800);padding:0 20px">3D inspection viewport<br>model preview placeholder — verified content pending</figcaption>
+</figure>
+</div>
+<div style="position:absolute;right:16px;top:14px;display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+<div style="width:64px;height:64px;background:var(--color-bg);display:grid;place-items:center;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-700);text-align:center;box-shadow:var(--shadow-sm)">Axis<br>gizmo</div>
+</div>
+<div style="position:absolute;right:16px;top:92px;display:flex;flex-direction:column;background:var(--color-bg);box-shadow:var(--shadow-sm)">
+<a href="#2a" style="text-decoration:none;color:var(--color-text);font-size:12px;padding:10px 12px;min-width:96px;min-height:44px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Fit / reset</a>
+<a href="#2a" style="text-decoration:none;color:var(--color-text);font-size:12px;padding:10px 12px;min-height:44px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Standard views</a>
+<a href="#2a" style="text-decoration:none;color:var(--color-text);font-size:12px;padding:10px 12px;min-height:44px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Section view</a>
+<a href="#2a" style="text-decoration:none;color:var(--color-text);font-size:12px;padding:10px 12px;min-height:44px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Hide / isolate</a>
+<a href="#2a" style="text-decoration:none;color:var(--color-text);font-size:12px;padding:10px 12px;min-height:44px;display:flex;align-items:center">Measure</a>
+</div>
+<div style="position:absolute;left:16px;bottom:14px;background:var(--color-bg);padding:9px 12px;box-shadow:var(--shadow-sm);font-size:12.5px;color:var(--color-neutral-800);max-width:420px">Selected: <strong style="font-family:var(--font-heading);font-weight:600;color:var(--color-text)">Ramp</strong> · keyboard: Tab to cycle Model Features, Enter to open evidence. Touch: one finger rotates, two fingers pan and zoom.</div>
+</div>
+
+<div style="width:328px;flex:none;border-left:1px solid var(--color-divider);display:flex;flex-direction:column;min-height:0">
+<div style="display:flex;border-bottom:1px solid var(--color-divider)">
+<a href="#2a" style="flex:1;text-align:center;text-decoration:none;font-family:var(--font-heading);font-weight:600;font-size:13.5px;padding:12px 0;color:var(--color-text);border-bottom:2px solid var(--color-accent)">Model Features</a>
+<a href="#2a" style="flex:1;text-align:center;text-decoration:none;font-size:13.5px;padding:12px 0;color:var(--color-neutral-800)">Sources</a>
+<a href="#2a" style="flex:1;text-align:center;text-decoration:none;font-size:13.5px;padding:12px 0;color:var(--color-neutral-800)">Versions</a>
+</div>
+<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;overflow:hidden">
+<div style="font-size:12.5px;color:var(--color-neutral-800)">Selecting a feature opens its Claims, Sources, interpretation and Detail Status. 17 features in Version 3.</div>
+
+<div style="padding:11px 12px;background:color-mix(in srgb,var(--color-accent) 12%,transparent);border-left:3px solid var(--color-accent)">
+<div style="display:flex;justify-content:space-between;align-items:baseline">
+<span style="font-family:var(--font-heading);font-weight:600;font-size:15px">Ramp</span>
+<span style="font-size:11.5px;color:var(--color-neutral-800)">selected</span>
+</div>
+<div style="font-size:12.5px;margin-top:5px">● sourced · 3 Claims · governed by Plan revision 4</div>
+<div style="font-size:12.5px;color:var(--color-neutral-800);margin-top:6px">Source text, translation and explanation: verified content pending — nothing quoted here until the Source is attached.</div>
+<a href="#2a" class="btn btn-ghost" style="margin-top:6px;padding-inline:0">Open evidence</a>
+</div>
+
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px"><span>Altar base</span><span>● sourced</span></div>
+<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px"><span>Upper course</span><span>○ inferred</span></div>
+<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px;color:var(--color-accent-2-800)"><span>Corner projection</span><span>◐ disputed</span></div>
+<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px;color:var(--color-accent-2-800)"><span>Surface finish</span><span>◐ disputed</span></div>
+<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px"><span>Drainage channel</span><span>? unknown</span></div>
+<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--color-divider);font-size:13.5px"><span>Base plaque</span><span>+ user-added</span></div>
+<div style="padding:10px 0;border-top:1px solid var(--color-divider)"><a href="#2a" class="btn btn-ghost" style="padding-inline:0">Show all 17 features</a></div>
+</div>
+</div>
+</div>
+</div>
+
+<div style="flex:none;border-top:1px solid var(--color-divider);padding:10px 20px;display:flex;align-items:center;gap:16px;background:var(--color-surface)">
+<span style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-700)">▶ Running</span>
+<span style="font-size:13px">Validation pre-check for the A1 mini profile — step 2 of 3. Job 4121, no charge.</span>
+<div style="width:180px;height:4px;background:var(--color-neutral-300)"><div style="width:64%;height:4px;background:var(--color-accent)"></div></div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-neutral-800)">Online · all work saved · Josh, Administrator</span>
+<a href="#2a" class="btn btn-secondary">Open In Progress</a>
+</div>
+
+</div>
+</div>
+</div>
+
+<div style="display:flex;gap:24px;align-items:flex-start">
+<div>
+<p class="dv-cap">Phone · 390 · same workspace, stage rail becomes a top strip</p>
+<div class="dv-card" style="width:390px;height:844px">
+<div style="height:100%;display:flex;flex-direction:column">
+<div style="padding:12px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;justify-content:space-between;flex:none">
+<div style="min-width:0">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Outer Altar and Ramp — Middot 3</div>
+<div style="font-size:11.5px;color:var(--color-neutral-800)">Version 3 · Plan revision 4 approved</div>
+</div>
+<a href="#2a" style="color:var(--color-accent-700);text-decoration:none;font-size:12.5px;flex:none;margin-left:10px">● 1</a>
+</div>
+<div style="display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--color-divider);overflow:hidden;flex:none">
+<span style="font-size:11.5px;padding:5px 8px;background:var(--color-neutral-200)">✓ Plan</span>
+<span style="font-size:11.5px;padding:5px 8px;background:color-mix(in srgb,var(--color-accent) 16%,transparent);font-family:var(--font-heading);font-weight:600">◆ Model</span>
+<span style="font-size:11.5px;padding:5px 8px;border:1px dashed var(--color-neutral-400);color:var(--color-neutral-700)">— Validate</span>
+<span style="font-size:11.5px;padding:5px 8px;border:1px dashed var(--color-neutral-400);color:var(--color-neutral-700)">— Export</span>
+</div>
+<div style="flex:1;background:var(--color-neutral-200);position:relative;display:grid;place-items:center;min-height:0">
+<span class="tag tag-neutral" style="position:absolute;left:12px;top:12px">Preview geometry</span>
+<figure class="halftone" style="width:280px;aspect-ratio:4/3;background:var(--color-neutral-300);display:grid;place-items:center;text-align:center">
+<figcaption style="margin:0;font-size:12px;color:var(--color-neutral-800);padding:0 14px">3D inspection viewport<br>placeholder</figcaption>
+</figure>
+<div style="position:absolute;right:12px;top:12px;display:flex;flex-direction:column;background:var(--color-bg);box-shadow:var(--shadow-sm)">
+<a href="#2a" style="text-decoration:none;color:var(--color-text);font-size:11.5px;padding:0 10px;min-height:44px;min-width:76px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Fit</a>
+<a href="#2a" style="text-decoration:none;color:var(--color-text);font-size:11.5px;padding:0 10px;min-height:44px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Views</a>
+<a href="#2a" style="text-decoration:none;color:var(--color-text);font-size:11.5px;padding:0 10px;min-height:44px;display:flex;align-items:center">Isolate</a>
+</div>
+<div style="position:absolute;left:12px;bottom:12px;font-size:11.5px;background:var(--color-bg);padding:7px 9px;box-shadow:var(--shadow-sm)">Selected: <strong style="font-family:var(--font-heading);font-weight:600">Ramp</strong> · ● sourced</div>
+</div>
+<div style="flex:none;border-top:1px solid var(--color-divider);padding:12px 16px;display:flex;flex-direction:column;gap:10px;background:var(--color-surface)">
+<div style="display:flex;gap:14px;font-size:13px">
+<span style="font-family:var(--font-heading);font-weight:600;border-bottom:2px solid var(--color-accent);padding-bottom:3px">Features</span>
+<span style="color:var(--color-neutral-800)">Sources</span>
+<span style="color:var(--color-neutral-800)">Versions</span>
+<div style="flex:1"></div>
+<span style="color:var(--color-neutral-800)">17</span>
+</div>
+<div style="display:flex;justify-content:space-between;font-size:13px;padding-top:2px"><span>Corner projection</span><span style="color:var(--color-accent-2-800)">◐ disputed</span></div>
+<div style="display:flex;justify-content:space-between;font-size:13px"><span>Surface finish</span><span style="color:var(--color-accent-2-800)">◐ disputed</span></div>
+<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--color-accent-2-800)"><span>▲</span><span>Blocked: review the 2 disputed details first.</span></div>
+<button class="btn btn-primary btn-block" disabled="disabled" style="min-height:48px;margin-top:0">Approve Model Version 3</button>
+<div style="display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--color-neutral-800);padding-bottom:8px">
+<span style="letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-700)">▶ Running</span>
+<span>Validation pre-check — step 2 of 3</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div style="width:330px;font:400 13px/1.55 'Source Serif 4',serif;color:rgba(32,30,29,.82);display:flex;flex-direction:column;gap:14px">
+<div>
+<div class="dv-cap">What was borrowed, and what was not</div>
+<p style="margin:0">Borrowed: the arrangement — far-left rail, settings panel with the primary action pinned at the foot, large viewport, tabbed right inspector, floating view controls, bottom status strip. Not borrowed: colour, type, iconography, wording, or any branded element. The rail carries nova3D's six stages instead of tool modes, which is what makes the two approval gates permanently visible.</p>
+</div>
+<div>
+<div class="dv-cap">How it serves the contracts</div>
+<p style="margin:0">The gate button is pinned and honestly disabled with its reason stated (2 disputed details unreviewed), so approval is version-bound and cannot be reached by scrolling past evidence. Validate and Export sit in the rail as locked stages rather than hidden. The viewport is labelled preview geometry, read-only, with keyboard and touch alternatives spelled out beside it.</p>
+</div>
+<div>
+<div class="dv-cap">Icons</div>
+<p style="margin:0">Rail marks are placeholders. The system specifies Phosphor duotone; those are not in this project yet, so the rail is text-led with plain squares standing in. Send them over, or say the word and I'll keep it text-only — Broadsheet's own guidance is that the serif is the chrome.</p>
+</div>
+<div>
+<div class="dv-cap">Open questions</div>
+<p style="margin:0">Should this shell also host the Research Plan review (R-01 to R-05) with the Plan Approval gate in the same pinned position? And on phone, is a bottom sheet the right home for the inspector, or should Features and Sources become their own full screens?</p>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "use this shell for the Research Plan too" · "put <a class="dv-oid" href="#1c">1c</a>'s plate masthead on this shell" · "show the dark mode of <a class="dv-oid" href="#2a">2a</a>" · "this shell plus <a class="dv-oid" href="#1a">1a</a> for Home — start Round 2"</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Round 1 — three visual directions for the nova3D Home dashboard</span></div>
+<p style="max-width:960px;margin:-8px 0 26px;font:400 14px/1.6 'Source Serif 4',serif;color:rgba(32,30,29,.75)">Identical behavior and wording in all three: the three primary actions <strong>My Projects</strong>, <strong>Create</strong> and <strong>In Progress</strong>, one active generation Job, <strong>Prints in Progress — Coming later</strong>, one unread Notification, secondary access to Notifications, Settings, Account and Administrator tools. Each direction shows desktop, phone, and a dark-mode phone to prove the translation. No Source passage, citation, dimension or research conclusion is invented — evidence content is shown as an explicit verified-content placeholder.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Front Page</div>
+<div class="dv-sub" style="max-width:640px">Newspaper front page. Flush-left masthead, thick-thin rule pair around a dateline rail, the three actions set as headline columns. Airy, type-led, no boxes. Lowest risk, highest legibility.</div>
+
+<div style="display:flex;gap:28px;align-items:flex-start;margin-top:6px">
+<div>
+<p class="dv-cap">Desktop / laptop · 1280 · light (default)</p>
+<div class="dv-card" style="width:1280px">
+<div style="padding:30px 44px 36px">
+
+<div style="display:flex;align-items:flex-end;gap:28px">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:46px;line-height:1;letter-spacing:-.025em">nova3D</div>
+<div style="flex:1"></div>
+<div style="display:flex;align-items:center;gap:22px;font-size:14px;padding-bottom:6px">
+<a href="#1a" style="color:var(--color-accent);text-decoration:none;display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:var(--color-accent-2);border-radius:50%;display:inline-block"></span>Notifications — 1 unread</a>
+<a href="#1a" style="color:inherit;text-decoration:none">Settings</a>
+<a href="#1a" style="color:inherit;text-decoration:none">Account</a>
+<a href="#1a" style="color:inherit;text-decoration:none">Administrator</a>
+<a href="#1a" style="color:inherit;text-decoration:none">Help</a>
+</div>
+</div>
+
+<div style="height:3px;background:var(--color-text);margin-top:14px"></div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:rgba(32,30,29,.72)">
+<span>Home · Private Workspace — Josh, Administrator</span>
+<span>English (LTR) · Light · Ordinary language</span>
+<span>Online · All work saved</span>
+</div>
+<div style="height:1px;background:var(--color-divider)"></div>
+
+<div style="display:flex;align-items:baseline;gap:14px;padding:16px 0 18px">
+<span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2)">● Unread</span>
+<span style="font-family:var(--font-heading);font-weight:600;font-size:17px">Research Plan ready for review</span>
+<span style="font-size:14px;color:rgba(32,30,29,.72)">Outer Altar and Ramp — Middot 3 · complete Plan, waiting for Plan Approval</span>
+<div style="flex:1"></div>
+<a href="#1a" class="btn btn-ghost" style="font-size:14px">Open the Research Plan</a>
+</div>
+<div style="height:1px;background:var(--color-divider)"></div>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:44px;padding:34px 0 6px">
+<div style="display:flex;flex-direction:column;gap:10px;align-items:flex-start">
+<div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">01 — My Projects</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:34px;line-height:1.08;letter-spacing:-.02em">Open a saved model</div>
+<p style="font-size:14px;color:rgba(32,30,29,.72);margin:0">Every Project and every approved Model Version, with the evidence behind each Model Feature.</p>
+<div style="font-size:13px;color:rgba(32,30,29,.72)">4 Projects · 1 saved on this device only</div>
+<a href="#1a" class="btn btn-secondary" style="margin-top:4px">My Projects</a>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;align-items:flex-start">
+<div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">02 — Create</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:34px;line-height:1.08;letter-spacing:-.02em">Describe it or photograph it</div>
+<p style="font-size:14px;color:rgba(32,30,29,.72);margin:0">Enter text, or upload pictures. nova3D explains what it understood before any work begins.</p>
+<div style="font-size:13px;color:rgba(32,30,29,.72)">Upload picture also works offline</div>
+<div style="display:flex;gap:8px;margin-top:4px"><a href="#1a" class="btn btn-primary">Enter text</a><a href="#1a" class="btn btn-secondary">Upload picture</a></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;align-items:flex-start">
+<div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">03 — In Progress</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:34px;line-height:1.08;letter-spacing:-.02em">Watch the work as it runs</div>
+<p style="font-size:14px;color:rgba(32,30,29,.72);margin:0">Research, generation, validation, repair and sync Jobs. You can keep working while they run.</p>
+<div style="font-size:13px;color:rgba(32,30,29,.72)">1 running · 1 waiting to sync</div>
+<a href="#1a" class="btn btn-secondary" style="margin-top:4px">In Progress</a>
+</div>
+</div>
+
+<div style="height:1px;background:var(--color-divider);margin-top:30px"></div>
+<div style="display:flex;align-items:baseline;gap:12px;padding:18px 0 10px">
+<h3 style="margin:0">In Progress</h3>
+<span style="font-size:13px;color:rgba(32,30,29,.72)">Background work never blocks navigation or inspection.</span>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:0">
+<div style="display:flex;gap:28px;align-items:flex-start;padding:16px 0;border-top:1px solid var(--color-divider)">
+<div style="width:112px;flex:none;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-700)">▶ Running</div>
+<div style="flex:1">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:19px">Outer Altar and Ramp — Middot 3</div>
+<div style="font-size:14px;color:rgba(32,30,29,.72);margin-top:3px">Generating evidence-backed geometry from the approved Research Plan, revision 4. Step 3 of 5 — building Model Features.</div>
+<div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+<div style="flex:1;height:4px;background:var(--color-neutral-300)"><div style="width:58%;height:4px;background:var(--color-accent)"></div></div>
+<span style="font-size:12px;color:rgba(32,30,29,.72)">58% · no cost — free research</span>
+</div>
+</div>
+<div style="width:242px;flex:none;text-align:right">
+<div style="font-size:12px;color:rgba(32,30,29,.72)">Started 09:12 · Job 4118</div>
+<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><a href="#1a" class="btn btn-ghost">Open Job</a><a href="#1a" class="btn btn-secondary">Cancel</a></div>
+</div>
+</div>
+<div style="display:flex;gap:28px;align-items:flex-start;padding:16px 0;border-top:1px solid var(--color-divider)">
+<div style="width:112px;flex:none;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-2)">▲ Sync failed</div>
+<div style="flex:1">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:19px">Untitled picture Project — image-derived</div>
+<div style="font-size:14px;color:rgba(32,30,29,.72);margin-top:3px">Created offline on this device and still saved here. Sync to My Projects failed at upload; nothing was lost and nothing was overwritten. Image-derived — not historically verified.</div>
+</div>
+<div style="width:242px;flex:none;text-align:right">
+<div style="font-size:12px;color:rgba(32,30,29,.72)">Last try 08:40 · will not retry by itself</div>
+<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><a href="#1a" class="btn btn-ghost">Why it failed</a><a href="#1a" class="btn btn-secondary">Try sync</a></div>
+</div>
+</div>
+</div>
+
+<div style="border-top:1px dashed var(--color-divider);margin-top:22px;padding-top:16px;display:flex;align-items:center;gap:14px">
+<span style="font-family:var(--font-heading);font-weight:600;font-size:17px;color:rgba(32,30,29,.72)">Prints in Progress — Coming later</span>
+<span class="tag tag-outline">Coming later</span>
+<span style="font-size:13px;color:rgba(32,30,29,.72)">nova3D does not control a printer. This area is empty on purpose and cannot be used yet.</span>
+</div>
+
+</div>
+</div>
+</div>
+
+<div style="display:flex;gap:24px;align-items:flex-start">
+<div>
+<p class="dv-cap">Phone · 390 · light</p>
+<div class="dv-card" style="width:390px;height:844px">
+<div style="padding:20px 20px 0;height:100%;overflow:hidden;display:flex;flex-direction:column">
+<div style="display:flex;align-items:flex-end;justify-content:space-between">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:30px;line-height:1;letter-spacing:-.02em">nova3D</div>
+<a href="#1a" style="color:var(--color-accent);text-decoration:none;font-size:13px;display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:var(--color-accent-2);border-radius:50%;display:inline-block"></span>1 unread</a>
+</div>
+<div style="height:3px;background:var(--color-text);margin-top:10px"></div>
+<div style="padding:6px 0;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(32,30,29,.72)">Josh · Administrator · Online</div>
+<div style="height:1px;background:var(--color-divider)"></div>
+
+<div style="padding:14px 0;border-bottom:1px solid var(--color-divider)">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2)">● Unread</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:16px;margin-top:3px">Research Plan ready for review</div>
+<div style="font-size:13px;color:rgba(32,30,29,.68)">Outer Altar and Ramp — Middot 3</div>
+</div>
+
+<div style="padding:16px 0;border-bottom:1px solid var(--color-divider)">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">01 — My Projects</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:24px;line-height:1.1;margin-top:4px">Open a saved model</div>
+<div style="font-size:13px;color:rgba(32,30,29,.72);margin-top:2px">4 Projects · 1 saved on this device only</div>
+</div>
+<div style="padding:16px 0;border-bottom:1px solid var(--color-divider)">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">02 — Create</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:24px;line-height:1.1;margin-top:4px">Describe it or photograph it</div>
+<div style="display:flex;gap:8px;margin-top:10px"><a href="#1a" class="btn btn-primary" style="flex:1">Enter text</a><a href="#1a" class="btn btn-secondary" style="flex:1">Upload picture</a></div>
+</div>
+<div style="padding:16px 0;border-bottom:1px solid var(--color-divider)">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">03 — In Progress</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:24px;line-height:1.1;margin-top:4px">Watch the work as it runs</div>
+<div style="display:flex;align-items:baseline;gap:8px;margin-top:10px">
+<span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-700)">▶ Running</span>
+<span style="font-size:13px">Generating geometry — step 3 of 5</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+<div style="flex:1;height:4px;background:var(--color-neutral-300)"><div style="width:58%;height:4px;background:var(--color-accent)"></div></div>
+<span style="font-size:11px;color:rgba(32,30,29,.72)">58%</span>
+</div>
+<div style="display:flex;align-items:baseline;gap:8px;margin-top:12px">
+<span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-2)">▲ Sync failed</span>
+<span style="font-size:13px">Picture Project — saved on this device</span>
+</div>
+</div>
+<div style="padding:16px 0;display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:var(--font-heading);font-weight:600;font-size:15px;color:rgba(32,30,29,.72)">Prints in Progress</span><span class="tag tag-outline">Coming later</span></div>
+<div style="font-size:12px;color:rgba(32,30,29,.72)">nova3D does not control a printer yet.</div>
+</div>
+<div style="flex:1"></div>
+<div style="border-top:1px solid var(--color-divider);display:flex;justify-content:space-between;padding:14px 0 22px;font-size:13px">
+<a href="#1a" style="color:var(--color-accent-700);text-decoration:none">Home</a>
+<a href="#1a" style="color:inherit;text-decoration:none">Notifications</a>
+<a href="#1a" style="color:inherit;text-decoration:none">Settings</a>
+<a href="#1a" style="color:inherit;text-decoration:none">Account</a>
+</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="dv-cap">Phone · 390 · dark (manual)</p>
+<div class="dv-card" style="width:390px;height:844px;--color-bg:#1a1918;--color-surface:#2d2b2b;--color-text:#f3f2f2;--color-accent:#62c5ee;--color-accent-2:#ff90b1;--color-divider:rgba(243,242,242,.2);--color-neutral-300:#444141;background:#1a1918;color:#f3f2f2">
+<div style="padding:20px 20px 0;height:100%;overflow:hidden;display:flex;flex-direction:column">
+<div style="display:flex;align-items:flex-end;justify-content:space-between">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:30px;line-height:1;letter-spacing:-.02em">nova3D</div>
+<a href="#1a" style="color:#62c5ee;text-decoration:none;font-size:13px;display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:#ff90b1;border-radius:50%;display:inline-block"></span>1 unread</a>
+</div>
+<div style="height:3px;background:#f3f2f2;margin-top:10px"></div>
+<div style="padding:6px 0;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(243,242,242,.62)">Josh · Administrator · Online</div>
+<div style="height:1px;background:rgba(243,242,242,.2)"></div>
+<div style="padding:14px 0;border-bottom:1px solid rgba(243,242,242,.2)">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#ff90b1">● Unread</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:16px;margin-top:3px">Research Plan ready for review</div>
+<div style="font-size:13px;color:rgba(243,242,242,.68)">Outer Altar and Ramp — Middot 3</div>
+</div>
+<div style="padding:16px 0;border-bottom:1px solid rgba(243,242,242,.2)">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#62c5ee">01 — My Projects</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:24px;line-height:1.1;margin-top:4px">Open a saved model</div>
+<div style="font-size:13px;color:rgba(243,242,242,.6);margin-top:2px">4 Projects · 1 saved on this device only</div>
+</div>
+<div style="padding:16px 0;border-bottom:1px solid rgba(243,242,242,.2)">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#62c5ee">02 — Create</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:24px;line-height:1.1;margin-top:4px">Describe it or photograph it</div>
+<div style="display:flex;gap:8px;margin-top:10px"><a href="#1a" class="btn" style="flex:1;background:#62c5ee;color:#1a1918">Enter text</a><a href="#1a" class="btn" style="flex:1;border:1px solid rgba(243,242,242,.3);color:#f3f2f2">Upload picture</a></div>
+</div>
+<div style="padding:16px 0;border-bottom:1px solid rgba(243,242,242,.2)">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#62c5ee">03 — In Progress</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:24px;line-height:1.1;margin-top:4px">Watch the work as it runs</div>
+<div style="display:flex;align-items:baseline;gap:8px;margin-top:10px">
+<span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#62c5ee">▶ Running</span>
+<span style="font-size:13px">Generating geometry — step 3 of 5</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+<div style="flex:1;height:4px;background:#444141"><div style="width:58%;height:4px;background:#62c5ee"></div></div>
+<span style="font-size:11px;color:rgba(243,242,242,.6)">58%</span>
+</div>
+<div style="display:flex;align-items:baseline;gap:8px;margin-top:12px">
+<span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#ff90b1">▲ Sync failed</span>
+<span style="font-size:13px">Picture Project — saved on this device</span>
+</div>
+</div>
+<div style="padding:16px 0;display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:var(--font-heading);font-weight:600;font-size:15px;color:rgba(243,242,242,.55)">Prints in Progress</span><span class="tag" style="border:1px solid #62c5ee;color:#62c5ee">Coming later</span></div>
+<div style="font-size:12px;color:rgba(243,242,242,.55)">nova3D does not control a printer yet.</div>
+</div>
+<div style="flex:1"></div>
+<div style="border-top:1px solid rgba(243,242,242,.2);display:flex;justify-content:space-between;padding:14px 0 22px;font-size:13px">
+<a href="#1a" style="color:#62c5ee;text-decoration:none">Home</a>
+<a href="#1a" style="color:inherit;text-decoration:none">Notifications</a>
+<a href="#1a" style="color:inherit;text-decoration:none">Settings</a>
+<a href="#1a" style="color:inherit;text-decoration:none">Account</a>
+</div>
+</div>
+</div>
+</div>
+
+<div style="width:330px;font:400 13px/1.55 'Source Serif 4',serif;color:rgba(32,30,29,.8);display:flex;flex-direction:column;gap:14px">
+<div>
+<div class="dv-cap">Why this works</div>
+<p style="margin:0">The product's claim is traceability, and a front page is the most familiar form of "here is what is known, here is who says so". Hierarchy comes from serif scale and whitespace only — no cards, no chrome competing with the evidence. The three primary actions read as equal headline columns and cannot be mistaken for a nav bar.</p>
+</div>
+<div>
+<div class="dv-cap">Early tokens</div>
+<div style="display:flex;flex-direction:column;gap:5px;font:400 12px/1.4 ui-monospace,Menlo,monospace">
+<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:14px;background:#201e1d;display:inline-block"></span>ink #201e1d — text, rules</div>
+<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:14px;background:#f3f2f2;outline:1px solid rgba(0,0,0,.15);display:inline-block"></span>paper #f3f2f2 — ground</div>
+<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:14px;background:#0088b0;display:inline-block"></span>cyan #0088b0 — interactive, Job running</div>
+<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:14px;background:#d6006c;display:inline-block"></span>magenta #d6006c — unread, needs attention</div>
+</div>
+<div style="margin-top:8px;font-size:12px">Source Serif 4 600 / 400. Display 46 / 34 / 19 · body 14 · rail 11 uppercase. Radius 2px, spacing 5/10/15/20/30/40.</div>
+</div>
+<div>
+<div class="dv-cap">Accessibility</div>
+<p style="margin:0">Every state carries a word and a glyph before colour: ▶ Running, ▲ Sync failed, ● Unread. The 11px uppercase rail is the risk — it must go to 12px minimum and is not allowed to carry anything but redundant context. Long RTL Job titles need the two-column Job row to stack rather than mirror-crop.</p>
+</div>
+<div>
+<div class="dv-cap">Trade-offs</div>
+<p style="margin:0">Quiet to the point of plain; nothing here signals "3D tool". Column headlines cost vertical space on phone, so the phone list is longer than in <a class="dv-oid" href="#1b">1b</a>. Rules are load-bearing, so density changes later are expensive.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Work Ledger</div>
+<div class="dv-sub" style="max-width:640px">A working instrument, not a front page. Persistent left rail, tabular alignment, bracketed status codes, tight density. Built for the tenth visit rather than the first.</div>
+
+<div style="display:flex;gap:28px;align-items:flex-start;margin-top:6px">
+<div>
+<p class="dv-cap">Desktop / laptop · 1280 · light (default)</p>
+<div class="dv-card" style="width:1280px">
+<div style="display:flex;min-height:720px">
+
+<div style="width:232px;flex:none;background:var(--color-surface);padding:22px 18px;display:flex;flex-direction:column;gap:22px">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:22px;letter-spacing:-.02em">nova3D</div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<a href="#1b" style="text-decoration:none;color:var(--color-text);font-size:14px;padding:7px 8px;background:color-mix(in srgb,var(--color-accent) 14%,transparent);border-left:3px solid var(--color-accent);display:flex;justify-content:space-between"><span>Home</span></a>
+<a href="#1b" style="text-decoration:none;color:var(--color-text);font-size:14px;padding:7px 11px;display:flex;justify-content:space-between"><span>My Projects</span><span style="color:rgba(32,30,29,.72);font-size:12px">4</span></a>
+<a href="#1b" style="text-decoration:none;color:var(--color-text);font-size:14px;padding:7px 11px;display:flex;justify-content:space-between"><span>Create</span></a>
+<a href="#1b" style="text-decoration:none;color:var(--color-text);font-size:14px;padding:7px 11px;display:flex;justify-content:space-between"><span>In Progress</span><span style="color:var(--color-accent-700);font-size:12px">2</span></a>
+</div>
+<div style="height:1px;background:var(--color-divider)"></div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<a href="#1b" style="text-decoration:none;color:var(--color-text);font-size:14px;padding:7px 11px;display:flex;justify-content:space-between;align-items:center"><span>Notifications</span><span style="font-size:11px;color:var(--color-accent-2)">● 1 unread</span></a>
+<a href="#1b" style="text-decoration:none;color:var(--color-text);font-size:14px;padding:7px 11px">Settings</a>
+<a href="#1b" style="text-decoration:none;color:var(--color-text);font-size:14px;padding:7px 11px">Account</a>
+<a href="#1b" style="text-decoration:none;color:var(--color-text);font-size:14px;padding:7px 11px">Administrator</a>
+<a href="#1b" style="text-decoration:none;color:var(--color-text);font-size:14px;padding:7px 11px">Help</a>
+</div>
+<div style="flex:1"></div>
+<div style="font-size:11px;line-height:1.5;color:rgba(32,30,29,.72)">Josh · Administrator<br>Online · English (LTR)<br>Ordinary language · Light</div>
+</div>
+
+<div style="flex:1;padding:22px 26px">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<h2 style="margin:0">Home</h2>
+<div style="font-size:12px;color:rgba(32,30,29,.72)">30 August 2026 · 09:41 · all work saved</div>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;margin-top:14px;padding:10px 12px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-800)">● Unread</span>
+<span style="font-size:14px"><strong style="font-family:var(--font-heading);font-weight:600">Research Plan ready for review</strong> — Outer Altar and Ramp — Middot 3. Complete Plan, waiting for Plan Approval.</span>
+<div style="flex:1"></div>
+<a href="#1b" class="btn btn-ghost" style="color:var(--color-accent-2-700)">Review</a>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px">
+<div style="padding:14px 16px;background:var(--color-surface);display:flex;flex-direction:column;gap:6px">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">[ 01 ] My Projects</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:21px">4 Projects</div>
+<div style="font-size:12.5px;color:rgba(32,30,29,.7)">3 synced · 1 saved on this device only. Opens models, Versions and their Sources.</div>
+<a href="#1b" class="btn btn-secondary" style="margin-top:4px;align-self:flex-start">Open</a>
+</div>
+<div style="padding:14px 16px;background:var(--color-surface);display:flex;flex-direction:column;gap:6px">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">[ 02 ] Create</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:21px">Enter text · Upload picture</div>
+<div style="font-size:12.5px;color:rgba(32,30,29,.7)">Two equal ways in. Upload picture also works with no internet.</div>
+<div style="display:flex;gap:6px;margin-top:4px"><a href="#1b" class="btn btn-primary">Enter text</a><a href="#1b" class="btn btn-secondary">Upload picture</a></div>
+</div>
+<div style="padding:14px 16px;background:var(--color-surface);display:flex;flex-direction:column;gap:6px">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">[ 03 ] In Progress</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:21px">1 running · 1 sync failed</div>
+<div style="font-size:12.5px;color:rgba(32,30,29,.7)">Research, generation, validation, repair and sync. Nothing here blocks you.</div>
+<a href="#1b" class="btn btn-secondary" style="margin-top:4px;align-self:flex-start">Open</a>
+</div>
+</div>
+
+<h4 style="margin:26px 0 6px">Active Jobs</h4>
+<table class="table">
+<thead><tr><th style="width:86px">State</th><th>Project</th><th style="width:250px">Stage</th><th style="width:120px">Progress</th><th style="width:118px">Cost</th><th style="width:96px"></th></tr></thead>
+<tbody>
+<tr>
+<td style="vertical-align:top"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-700)">▶ Running</span></td>
+<td style="vertical-align:top"><div style="font-family:var(--font-heading);font-weight:600">Outer Altar and Ramp — Middot 3</div><div style="font-size:12px;color:rgba(32,30,29,.72)">Evidence-backed · Plan revision 4 approved</div></td>
+<td style="vertical-align:top">Generating geometry — step 3 of 5, building Model Features</td>
+<td style="vertical-align:top"><div style="height:4px;background:var(--color-neutral-300)"><div style="width:58%;height:4px;background:var(--color-accent)"></div></div><div style="font-size:12px;margin-top:4px">58%</div></td>
+<td style="vertical-align:top">Free research<div style="font-size:12px;color:rgba(32,30,29,.72)">no charge</div></td>
+<td style="vertical-align:top"><a href="#1b" class="btn btn-ghost">Cancel</a></td>
+</tr>
+<tr>
+<td style="vertical-align:top"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-700)">▲ Sync failed</span></td>
+<td style="vertical-align:top"><div style="font-family:var(--font-heading);font-weight:600">Untitled picture Project</div><div style="font-size:12px;color:rgba(32,30,29,.72)">Image-derived · not historically verified</div></td>
+<td style="vertical-align:top">Upload to My Projects failed. Still saved on this device; nothing lost, nothing overwritten.</td>
+<td style="vertical-align:top"><span style="font-size:12px">Stopped — will not retry by itself</span></td>
+<td style="vertical-align:top">None</td>
+<td style="vertical-align:top"><a href="#1b" class="btn btn-ghost">Try sync</a></td>
+</tr>
+<tr>
+<td style="vertical-align:top"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:rgba(32,30,29,.72)">◻ Coming later</span></td>
+<td style="vertical-align:top" colspan="4"><div style="display:flex;align-items:center;gap:10px"><span style="font-family:var(--font-heading);font-weight:600;color:rgba(32,30,29,.72)">Prints in Progress — Coming later</span><span class="tag tag-outline">Coming later</span><span style="font-size:12.5px;color:rgba(32,30,29,.72)">nova3D does not control a printer. Nothing can be started here.</span></div></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+
+<div style="display:flex;gap:24px;align-items:flex-start">
+<div>
+<p class="dv-cap">Phone · 390 · light</p>
+<div class="dv-card" style="width:390px;height:844px">
+<div style="height:100%;display:flex;flex-direction:column">
+<div style="padding:16px 18px 12px;background:var(--color-surface);display:flex;align-items:center;justify-content:space-between">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:20px">nova3D</div>
+<div style="display:flex;gap:14px;font-size:13px"><a href="#1b" style="color:var(--color-accent-2);text-decoration:none">● 1</a><a href="#1b" style="color:inherit;text-decoration:none">Menu</a></div>
+</div>
+<div style="padding:14px 18px;flex:1;overflow:hidden">
+<div style="display:flex;align-items:baseline;justify-content:space-between"><h4 style="margin:0">Home</h4><span style="font-size:11px;color:rgba(32,30,29,.72)">09:41 · saved</span></div>
+<div style="margin-top:10px;padding:9px 11px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-800)">● Unread</div>
+<div style="font-size:13.5px;margin-top:2px"><strong style="font-family:var(--font-heading);font-weight:600">Research Plan ready for review</strong> — Outer Altar and Ramp — Middot 3</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+<div style="padding:12px 14px;background:var(--color-surface)">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">[ 01 ] My Projects</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:19px;margin-top:3px">4 Projects</div>
+<div style="font-size:12.5px;color:rgba(32,30,29,.7)">3 synced · 1 on this device only</div>
+</div>
+<div style="padding:12px 14px;background:var(--color-surface)">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">[ 02 ] Create</div>
+<div style="display:flex;gap:8px;margin-top:8px"><a href="#1b" class="btn btn-primary" style="flex:1;min-height:44px">Enter text</a><a href="#1b" class="btn btn-secondary" style="flex:1;min-height:44px">Upload picture</a></div>
+</div>
+<div style="padding:12px 14px;background:var(--color-surface)">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">[ 03 ] In Progress</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:8px">
+<div>
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-700)">▶ Running</span><span style="font-size:11px;color:rgba(32,30,29,.72)">58%</span></div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px;margin-top:2px">Outer Altar and Ramp — Middot 3</div>
+<div style="font-size:12.5px;color:rgba(32,30,29,.7)">Generating geometry — step 3 of 5</div>
+<div style="height:4px;background:var(--color-neutral-300);margin-top:6px"><div style="width:58%;height:4px;background:var(--color-accent)"></div></div>
+</div>
+<div style="border-top:1px solid var(--color-divider);padding-top:9px">
+<div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-700)">▲ Sync failed</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px;margin-top:2px">Untitled picture Project</div>
+<div style="font-size:12.5px;color:rgba(32,30,29,.7)">Image-derived · saved on this device. Will not retry by itself.</div>
+</div>
+</div>
+</div>
+<div style="padding:12px 14px;border:1px dashed var(--color-divider)">
+<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:rgba(32,30,29,.72)">◻ Coming later</span><span class="tag tag-outline">Coming later</span></div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px;color:rgba(32,30,29,.72);margin-top:4px">Prints in Progress</div>
+<div style="font-size:12.5px;color:rgba(32,30,29,.72)">nova3D does not control a printer.</div>
+</div>
+</div>
+</div>
+<div style="border-top:1px solid var(--color-divider);display:flex;padding:10px 6px 24px;background:var(--color-surface)">
+<a href="#1b" style="flex:1;text-align:center;text-decoration:none;color:var(--color-accent-700);font-size:12px;min-height:44px;display:flex;align-items:center;justify-content:center">Home</a>
+<a href="#1b" style="flex:1;text-align:center;text-decoration:none;color:inherit;font-size:12px;min-height:44px;display:flex;align-items:center;justify-content:center">Projects</a>
+<a href="#1b" style="flex:1;text-align:center;text-decoration:none;color:inherit;font-size:12px;min-height:44px;display:flex;align-items:center;justify-content:center">Create</a>
+<a href="#1b" style="flex:1;text-align:center;text-decoration:none;color:inherit;font-size:12px;min-height:44px;display:flex;align-items:center;justify-content:center">In Progress</a>
+</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="dv-cap">Phone · 390 · dark (manual)</p>
+<div class="dv-card" style="width:390px;height:844px;--color-bg:#1a1918;--color-surface:#2d2b2b;--color-text:#f3f2f2;--color-accent:#62c5ee;--color-accent-2:#ff90b1;--color-divider:rgba(243,242,242,.2);--color-neutral-300:#444141;background:#1a1918;color:#f3f2f2">
+<div style="height:100%;display:flex;flex-direction:column">
+<div style="padding:16px 18px 12px;background:#2d2b2b;display:flex;align-items:center;justify-content:space-between">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:20px">nova3D</div>
+<div style="display:flex;gap:14px;font-size:13px"><a href="#1b" style="color:#ff90b1;text-decoration:none">● 1</a><a href="#1b" style="color:inherit;text-decoration:none">Menu</a></div>
+</div>
+<div style="padding:14px 18px;flex:1;overflow:hidden">
+<div style="display:flex;align-items:baseline;justify-content:space-between"><h4 style="margin:0">Home</h4><span style="font-size:11px;color:rgba(243,242,242,.55)">09:41 · saved</span></div>
+<div style="margin-top:10px;padding:9px 11px;background:#3a2530;border-left:3px solid #ff90b1">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#ffc0d0">● Unread</div>
+<div style="font-size:13.5px;margin-top:2px"><strong style="font-family:var(--font-heading);font-weight:600">Research Plan ready for review</strong> — Outer Altar and Ramp — Middot 3</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+<div style="padding:12px 14px;background:#2d2b2b">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#62c5ee">[ 01 ] My Projects</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:19px;margin-top:3px">4 Projects</div>
+<div style="font-size:12.5px;color:rgba(243,242,242,.7)">3 synced · 1 on this device only</div>
+</div>
+<div style="padding:12px 14px;background:#2d2b2b">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#62c5ee">[ 02 ] Create</div>
+<div style="display:flex;gap:8px;margin-top:8px"><a href="#1b" class="btn" style="flex:1;min-height:44px;background:#62c5ee;color:#1a1918">Enter text</a><a href="#1b" class="btn" style="flex:1;min-height:44px;border:1px solid rgba(243,242,242,.3);color:#f3f2f2">Upload picture</a></div>
+</div>
+<div style="padding:12px 14px;background:#2d2b2b">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#62c5ee">[ 03 ] In Progress</div>
+<div style="margin-top:8px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#99e0ff">▶ Running</span><span style="font-size:11px;color:rgba(243,242,242,.6)">58%</span></div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px;margin-top:2px">Outer Altar and Ramp — Middot 3</div>
+<div style="font-size:12.5px;color:rgba(243,242,242,.7)">Generating geometry — step 3 of 5</div>
+<div style="height:4px;background:#444141;margin-top:6px"><div style="width:58%;height:4px;background:#62c5ee"></div></div>
+</div>
+<div style="border-top:1px solid rgba(243,242,242,.2);padding-top:9px;margin-top:9px">
+<div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#ffc0d0">▲ Sync failed</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px;margin-top:2px">Untitled picture Project</div>
+<div style="font-size:12.5px;color:rgba(243,242,242,.7)">Image-derived · saved on this device.</div>
+</div>
+</div>
+<div style="padding:12px 14px;border:1px dashed rgba(243,242,242,.25)">
+<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:rgba(243,242,242,.5)">◻ Coming later</span><span class="tag" style="border:1px solid #62c5ee;color:#62c5ee">Coming later</span></div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px;color:rgba(243,242,242,.6);margin-top:4px">Prints in Progress</div>
+<div style="font-size:12.5px;color:rgba(243,242,242,.6)">nova3D does not control a printer.</div>
+</div>
+</div>
+</div>
+<div style="border-top:1px solid rgba(243,242,242,.2);display:flex;padding:10px 6px 24px;background:#2d2b2b">
+<a href="#1b" style="flex:1;text-align:center;text-decoration:none;color:#62c5ee;font-size:12px;min-height:44px;display:flex;align-items:center;justify-content:center">Home</a>
+<a href="#1b" style="flex:1;text-align:center;text-decoration:none;color:inherit;font-size:12px;min-height:44px;display:flex;align-items:center;justify-content:center">Projects</a>
+<a href="#1b" style="flex:1;text-align:center;text-decoration:none;color:inherit;font-size:12px;min-height:44px;display:flex;align-items:center;justify-content:center">Create</a>
+<a href="#1b" style="flex:1;text-align:center;text-decoration:none;color:inherit;font-size:12px;min-height:44px;display:flex;align-items:center;justify-content:center">In Progress</a>
+</div>
+</div>
+</div>
+</div>
+
+<div style="width:330px;font:400 13px/1.55 'Source Serif 4',serif;color:rgba(32,30,29,.8);display:flex;flex-direction:column;gap:14px">
+<div>
+<div class="dv-cap">Why this works</div>
+<p style="margin:0">The workflow has many named states, and this direction treats them as a ledger: fixed columns for state, Project, stage, progress and cost, so two Jobs can be compared at a glance. The rail keeps Notifications, Settings, Account and Administrator tools one click away without promoting them, and the three primary actions stay at the top of the page as well as in the rail.</p>
+</div>
+<div>
+<div class="dv-cap">Early tokens</div>
+<div style="display:flex;flex-direction:column;gap:5px;font:400 12px/1.4 ui-monospace,Menlo,monospace">
+<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:14px;background:#eae9e9;outline:1px solid rgba(0,0,0,.15);display:inline-block"></span>surface #eae9e9 — rail, action tiles</div>
+<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:14px;background:#006786;display:inline-block"></span>cyan-700 #006786 — status text on tint</div>
+<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:14px;background:#fff1f4;outline:1px solid rgba(0,0,0,.1);display:inline-block"></span>magenta-100 #fff1f4 — unread band fill</div>
+<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:14px;background:#aa0b56;display:inline-block"></span>magenta-700 #aa0b56 — text on that fill</div>
+</div>
+<div style="margin-top:8px;font-size:12px">Source Serif 4 600 / 400. Display 32 / 21 · body 14 / 12.5 · codes 11 uppercase. Rail 232px, table row 10px padding, tiles at surface with no radius beyond 2px.</div>
+</div>
+<div>
+<div class="dv-cap">Accessibility</div>
+<p style="margin:0">Status is a bracketed word plus a glyph — ▶ Running, ▲ Sync failed, ◻ Coming later — and the tinted bands carry a 3px left edge so the tint is never the only cue. Deep ramp steps (700/800) carry all small text on tint. Risks: 12.5px body is at the floor and must survive 200% enlargement without the table collapsing, and the rail must become a sheet, not a squeeze, in RTL and on small laptops.</p>
+</div>
+<div>
+<div class="dv-cap">Trade-offs</div>
+<p style="margin:0">Denser than the system's airy default, so it argues with Broadsheet's whitespace rule and uses the boxed <code>.card</code> grammar more than the guide likes. It reads as capable and slightly severe; a first-time user gets less encouragement than in <a class="dv-oid" href="#1a">1a</a>. The table is the best home for many Jobs and the worst home for long RTL stage sentences.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Plate &amp; Proof</div>
+<div class="dv-sub" style="max-width:640px">The press treatment as the identity: misregistered process plates for the wordmark and the three action numerals, halftone preview placeholders, a proof-margin rail of press furniture. Most personality, most risk.</div>
+
+<div style="display:flex;gap:28px;align-items:flex-start;margin-top:6px">
+<div>
+<p class="dv-cap">Desktop / laptop · 1280 · light (default)</p>
+<div class="dv-card" style="width:1280px">
+<div style="display:flex">
+<div style="flex:1;padding:34px 40px 38px;min-width:0">
+
+<div style="display:flex;align-items:flex-start;justify-content:space-between">
+<div>
+<div class="cmyk-head" style="font-family:var(--font-heading);font-weight:600;font-size:68px;line-height:.95;letter-spacing:-.03em"><span class="paper">nova3D</span><span class="plate plate-c" aria-hidden="true">nova3D</span><span class="plate plate-m" aria-hidden="true">nova3D</span><span class="plate plate-y" aria-hidden="true">nova3D</span></div>
+<div style="font-size:13px;color:rgba(32,30,29,.72);margin-top:8px">Evidence to fabrication · Private Workspace — Josh, Administrator</div>
+</div>
+<div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;padding-top:6px">
+<a href="#1c" style="text-decoration:none;display:flex;align-items:center;gap:9px;padding:8px 12px;background:var(--color-accent-2-100);color:var(--color-accent-2-800)"><span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase">● 1 unread</span><span style="font-size:13.5px;color:var(--color-text)">Research Plan ready for review — Middot 3</span></a>
+<div style="display:flex;gap:18px;font-size:13.5px">
+<a href="#1c" style="color:inherit;text-decoration:none">Settings</a>
+<a href="#1c" style="color:inherit;text-decoration:none">Account</a>
+<a href="#1c" style="color:inherit;text-decoration:none">Administrator</a>
+<a href="#1c" style="color:inherit;text-decoration:none">Help</a>
+</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:34px;margin-top:40px">
+<div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:64px"><span class="paper">01</span><span class="plate plate-c" aria-hidden="true">01</span><span class="plate plate-m" aria-hidden="true">01</span><span class="plate plate-y" aria-hidden="true">01</span></span>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:29px;line-height:1.06;letter-spacing:-.02em">My Projects</div>
+<p style="font-size:14px;color:rgba(32,30,29,.74);margin:0">Saved models and their approved Versions, each Model Feature still attached to its Sources.</p>
+<div style="font-size:13px;color:rgba(32,30,29,.72)">4 Projects · 1 saved on this device only</div>
+<a href="#1c" class="btn btn-secondary">Open My Projects</a>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:64px"><span class="paper">02</span><span class="plate plate-c" aria-hidden="true">02</span><span class="plate plate-m" aria-hidden="true">02</span><span class="plate plate-y" aria-hidden="true">02</span></span>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:29px;line-height:1.06;letter-spacing:-.02em">Create</div>
+<p style="font-size:14px;color:rgba(32,30,29,.74);margin:0">Enter text or upload pictures. nova3D shows what it understood, and what it will cost, before it starts.</p>
+<div style="font-size:13px;color:rgba(32,30,29,.72)">Upload picture also works offline</div>
+<div style="display:flex;gap:8px"><a href="#1c" class="btn btn-primary">Enter text</a><a href="#1c" class="btn btn-secondary">Upload picture</a></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:64px"><span class="paper">03</span><span class="plate plate-c" aria-hidden="true">03</span><span class="plate plate-m" aria-hidden="true">03</span><span class="plate plate-y" aria-hidden="true">03</span></span>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:29px;line-height:1.06;letter-spacing:-.02em">In Progress</div>
+<p style="font-size:14px;color:rgba(32,30,29,.74);margin:0">Research, generation, validation, repair and sync. Leave it running and go and read a Source.</p>
+<div style="font-size:13px;color:rgba(32,30,29,.72)">1 running · 1 waiting to sync</div>
+<a href="#1c" class="btn btn-secondary">Open In Progress</a>
+</div>
+</div>
+
+<div style="display:flex;gap:26px;margin-top:44px;align-items:flex-start">
+<figure class="halftone" style="width:300px;flex:none;aspect-ratio:4/3;background:var(--color-neutral-300);display:grid;place-items:center;text-align:center">
+<figcaption style="margin:0;font-size:12px;color:rgba(32,30,29,.7);padding:0 18px">Model preview placeholder<br>verified content pending</figcaption>
+</figure>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:baseline;gap:12px">
+<span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">▶ Running</span>
+<span style="font-size:12px;color:rgba(32,30,29,.72)">Job 4118 · started 09:12 · free research, no charge</span>
+</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:28px;line-height:1.1;margin-top:6px">Outer Altar and Ramp — Middot 3</div>
+<p style="font-size:14.5px;color:rgba(32,30,29,.76);margin:8px 0 0;max-width:56ch">Generating evidence-backed geometry from the approved Research Plan, revision 4. Step 3 of 5 — building Model Features. You can keep working; this does not block anything.</p>
+<div style="display:flex;align-items:center;gap:14px;margin-top:14px">
+<div style="flex:1;display:flex;gap:3px">
+<div style="flex:1;height:10px;background:var(--color-accent)"></div>
+<div style="flex:1;height:10px;background:var(--color-accent)"></div>
+<div style="flex:1;height:10px;background:var(--color-accent)"></div>
+<div style="flex:1;height:10px;background:var(--color-neutral-300)"></div>
+<div style="flex:1;height:10px;background:var(--color-neutral-300)"></div>
+</div>
+<span style="font-size:13px;color:rgba(32,30,29,.72)">Step 3 of 5</span>
+<a href="#1c" class="btn btn-ghost">Open Job</a>
+<a href="#1c" class="btn btn-secondary">Cancel</a>
+</div>
+<div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--color-divider);display:flex;align-items:baseline;gap:12px">
+<span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700)">▲ Sync failed</span>
+<div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:17px">Untitled picture Project — image-derived, not historically verified</div>
+<div style="font-size:13.5px;color:rgba(32,30,29,.72)">Made offline on this device and still saved here. The upload failed; nothing was lost or overwritten, and it will not retry by itself.</div>
+</div>
+</div>
+</div>
+</div>
+
+<div style="margin-top:38px;padding:18px 0 0;border-top:1px dashed var(--color-divider);display:flex;align-items:center;gap:16px">
+<span style="font-family:var(--font-heading);font-weight:600;font-size:19px;color:rgba(32,30,29,.72)">Prints in Progress — Coming later</span>
+<span class="tag tag-outline">Coming later</span>
+<span style="font-size:13.5px;color:rgba(32,30,29,.72)">nova3D does not control a printer. This area is reserved and cannot be used yet.</span>
+</div>
+
+</div>
+
+<div style="width:74px;flex:none;padding:34px 0 38px;display:flex;flex-direction:column;align-items:center;gap:20px;border-left:1px solid var(--color-divider)">
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);writing-mode:vertical-rl">Proof margin</div>
+<div style="display:flex;flex-direction:column">
+<div style="width:26px;height:11px;background:#f3f2f2"></div>
+<div style="width:26px;height:11px;background:#d7d3d3"></div>
+<div style="width:26px;height:11px;background:#bab6b6"></div>
+<div style="width:26px;height:11px;background:#9b9797"></div>
+<div style="width:26px;height:11px;background:#7d7979"></div>
+<div style="width:26px;height:11px;background:#605d5d"></div>
+<div style="width:26px;height:11px;background:#444141"></div>
+<div style="width:26px;height:11px;background:#2d2b2b"></div>
+</div>
+<div style="display:flex;flex-direction:column">
+<div style="width:26px;height:13px;background:#0088b0"></div>
+<div style="width:26px;height:13px;background:#d6006c"></div>
+<div style="width:26px;height:13px;background:#edbb00"></div>
+<div style="width:26px;height:13px;background:#201e1d"></div>
+</div>
+<div style="flex:1"></div>
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);writing-mode:vertical-rl">Online · saved</div>
+</div>
+</div>
+</div>
+</div>
+
+<div style="display:flex;gap:24px;align-items:flex-start">
+<div>
+<p class="dv-cap">Phone · 390 · light</p>
+<div class="dv-card" style="width:390px;height:844px">
+<div style="padding:22px 20px 0;height:100%;overflow:hidden;display:flex;flex-direction:column">
+<div style="display:flex;align-items:flex-start;justify-content:space-between">
+<div class="cmyk-head" style="font-family:var(--font-heading);font-weight:600;font-size:38px;line-height:.95;letter-spacing:-.03em"><span class="paper">nova3D</span><span class="plate plate-c" aria-hidden="true">nova3D</span><span class="plate plate-m" aria-hidden="true">nova3D</span><span class="plate plate-y" aria-hidden="true">nova3D</span></div>
+<a href="#1c" class="btn btn-secondary" style="min-height:44px;font-size:12px">Menu</a>
+</div>
+<a href="#1c" style="text-decoration:none;display:block;margin-top:16px;padding:10px 12px;background:var(--color-accent-2-100)">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-800)">● 1 unread</div>
+<div style="font-size:13.5px;color:var(--color-text);margin-top:2px">Research Plan ready for review — Outer Altar and Ramp — Middot 3</div>
+</a>
+<div style="display:flex;flex-direction:column;gap:20px;margin-top:22px">
+<div style="display:flex;align-items:center;gap:14px">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:40px"><span class="paper">01</span><span class="plate plate-c" aria-hidden="true">01</span><span class="plate plate-m" aria-hidden="true">01</span><span class="plate plate-y" aria-hidden="true">01</span></span>
+<div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1.1">My Projects</div>
+<div style="font-size:12.5px;color:rgba(32,30,29,.72)">4 Projects · 1 on this device only</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:14px">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:40px"><span class="paper">02</span><span class="plate plate-c" aria-hidden="true">02</span><span class="plate plate-m" aria-hidden="true">02</span><span class="plate plate-y" aria-hidden="true">02</span></span>
+<div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1.1">Create</div>
+<div style="font-size:12.5px;color:rgba(32,30,29,.72)">Enter text · Upload picture (works offline)</div>
+</div>
+</div>
+<div style="display:flex;gap:8px"><a href="#1c" class="btn btn-primary" style="flex:1;min-height:44px">Enter text</a><a href="#1c" class="btn btn-secondary" style="flex:1;min-height:44px">Upload picture</a></div>
+<div style="display:flex;align-items:center;gap:14px">
+<span class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:40px"><span class="paper">03</span><span class="plate plate-c" aria-hidden="true">03</span><span class="plate plate-m" aria-hidden="true">03</span><span class="plate plate-y" aria-hidden="true">03</span></span>
+<div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1.1">In Progress</div>
+<div style="font-size:12.5px;color:rgba(32,30,29,.72)">1 running · 1 waiting to sync</div>
+</div>
+</div>
+</div>
+<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--color-divider)">
+<div style="display:flex;align-items:baseline;gap:10px">
+<span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">▶ Running</span>
+<span style="font-size:11.5px;color:rgba(32,30,29,.72)">Job 4118 · no charge</span>
+</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:17px;margin-top:4px">Outer Altar and Ramp — Middot 3</div>
+<div style="font-size:13px;color:rgba(32,30,29,.74)">Generating geometry — step 3 of 5</div>
+<div style="display:flex;gap:3px;margin-top:9px">
+<div style="flex:1;height:9px;background:var(--color-accent)"></div>
+<div style="flex:1;height:9px;background:var(--color-accent)"></div>
+<div style="flex:1;height:9px;background:var(--color-accent)"></div>
+<div style="flex:1;height:9px;background:var(--color-neutral-300)"></div>
+<div style="flex:1;height:9px;background:var(--color-neutral-300)"></div>
+</div>
+<div style="display:flex;align-items:baseline;gap:10px;margin-top:14px">
+<span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700)">▲ Sync failed</span>
+<span style="font-size:13px">Picture Project — saved on this device</span>
+</div>
+</div>
+<div style="flex:1"></div>
+<div style="padding:14px 0;border-top:1px dashed var(--color-divider);display:flex;align-items:center;gap:10px">
+<span style="font-family:var(--font-heading);font-weight:600;font-size:15px;color:rgba(32,30,29,.72)">Prints in Progress</span><span class="tag tag-outline">Coming later</span>
+</div>
+<div style="display:flex;justify-content:space-between;padding:0 0 24px;font-size:13px">
+<a href="#1c" style="color:var(--color-accent-700);text-decoration:none">Home</a>
+<a href="#1c" style="color:inherit;text-decoration:none">Notifications</a>
+<a href="#1c" style="color:inherit;text-decoration:none">Settings</a>
+<a href="#1c" style="color:inherit;text-decoration:none">Account</a>
+</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="dv-cap">Phone · 390 · dark (manual)</p>
+<div class="dv-card" style="width:390px;height:844px;--color-bg:#1a1918;--color-surface:#2d2b2b;--color-text:#f3f2f2;--color-accent:#62c5ee;--color-accent-2:#ff90b1;--color-divider:rgba(243,242,242,.2);--color-neutral-300:#444141;background:#1a1918;color:#f3f2f2">
+<div style="padding:22px 20px 0;height:100%;overflow:hidden;display:flex;flex-direction:column">
+<div style="display:flex;align-items:flex-start;justify-content:space-between">
+<div class="cmyk-head" style="--color-bg:#f3f2f2;font-family:var(--font-heading);font-weight:600;font-size:38px;line-height:.95;letter-spacing:-.03em;background:#f3f2f2;padding:2px 6px"><span class="paper">nova3D</span><span class="plate plate-c" aria-hidden="true">nova3D</span><span class="plate plate-m" aria-hidden="true">nova3D</span><span class="plate plate-y" aria-hidden="true">nova3D</span></div>
+<a href="#1c" class="btn" style="min-height:44px;font-size:12px;border:1px solid rgba(243,242,242,.3);color:#f3f2f2">Menu</a>
+</div>
+<a href="#1c" style="text-decoration:none;display:block;margin-top:16px;padding:10px 12px;background:#3a2530">
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#ffc0d0">● 1 unread</div>
+<div style="font-size:13.5px;color:#f3f2f2;margin-top:2px">Research Plan ready for review — Outer Altar and Ramp — Middot 3</div>
+</a>
+<div style="display:flex;flex-direction:column;gap:20px;margin-top:22px">
+<div style="display:flex;align-items:center;gap:14px">
+<span class="cmyk-num" style="--color-bg:#f3f2f2;font-family:var(--font-heading);font-weight:600;font-size:40px"><span class="paper">01</span><span class="plate plate-c" aria-hidden="true">01</span><span class="plate plate-m" aria-hidden="true">01</span><span class="plate plate-y" aria-hidden="true">01</span></span>
+<div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1.1">My Projects</div>
+<div style="font-size:12.5px;color:rgba(243,242,242,.62)">4 Projects · 1 on this device only</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:14px">
+<span class="cmyk-num" style="--color-bg:#f3f2f2;font-family:var(--font-heading);font-weight:600;font-size:40px"><span class="paper">02</span><span class="plate plate-c" aria-hidden="true">02</span><span class="plate plate-m" aria-hidden="true">02</span><span class="plate plate-y" aria-hidden="true">02</span></span>
+<div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1.1">Create</div>
+<div style="font-size:12.5px;color:rgba(243,242,242,.62)">Enter text · Upload picture (works offline)</div>
+</div>
+</div>
+<div style="display:flex;gap:8px"><a href="#1c" class="btn" style="flex:1;min-height:44px;background:#62c5ee;color:#1a1918">Enter text</a><a href="#1c" class="btn" style="flex:1;min-height:44px;border:1px solid rgba(243,242,242,.3);color:#f3f2f2">Upload picture</a></div>
+<div style="display:flex;align-items:center;gap:14px">
+<span class="cmyk-num" style="--color-bg:#f3f2f2;font-family:var(--font-heading);font-weight:600;font-size:40px"><span class="paper">03</span><span class="plate plate-c" aria-hidden="true">03</span><span class="plate plate-m" aria-hidden="true">03</span><span class="plate plate-y" aria-hidden="true">03</span></span>
+<div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1.1">In Progress</div>
+<div style="font-size:12.5px;color:rgba(243,242,242,.62)">1 running · 1 waiting to sync</div>
+</div>
+</div>
+</div>
+<div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(243,242,242,.2)">
+<div style="display:flex;align-items:baseline;gap:10px">
+<span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#99e0ff">▶ Running</span>
+<span style="font-size:11.5px;color:rgba(243,242,242,.55)">Job 4118 · no charge</span>
+</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:17px;margin-top:4px">Outer Altar and Ramp — Middot 3</div>
+<div style="font-size:13px;color:rgba(243,242,242,.74)">Generating geometry — step 3 of 5</div>
+<div style="display:flex;gap:3px;margin-top:9px">
+<div style="flex:1;height:9px;background:#62c5ee"></div>
+<div style="flex:1;height:9px;background:#62c5ee"></div>
+<div style="flex:1;height:9px;background:#62c5ee"></div>
+<div style="flex:1;height:9px;background:#444141"></div>
+<div style="flex:1;height:9px;background:#444141"></div>
+</div>
+<div style="display:flex;align-items:baseline;gap:10px;margin-top:14px">
+<span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#ffc0d0">▲ Sync failed</span>
+<span style="font-size:13px">Picture Project — saved on this device</span>
+</div>
+</div>
+<div style="flex:1"></div>
+<div style="padding:14px 0;border-top:1px dashed rgba(243,242,242,.25);display:flex;align-items:center;gap:10px">
+<span style="font-family:var(--font-heading);font-weight:600;font-size:15px;color:rgba(243,242,242,.5)">Prints in Progress</span><span class="tag" style="border:1px solid #62c5ee;color:#62c5ee">Coming later</span>
+</div>
+<div style="display:flex;justify-content:space-between;padding:0 0 24px;font-size:13px">
+<a href="#1c" style="color:#62c5ee;text-decoration:none">Home</a>
+<a href="#1c" style="color:inherit;text-decoration:none">Notifications</a>
+<a href="#1c" style="color:inherit;text-decoration:none">Settings</a>
+<a href="#1c" style="color:inherit;text-decoration:none">Account</a>
+</div>
+</div>
+</div>
+</div>
+
+<div style="width:330px;font:400 13px/1.55 'Source Serif 4',serif;color:rgba(32,30,29,.8);display:flex;flex-direction:column;gap:14px">
+<div>
+<div class="dv-cap">Why this works</div>
+<p style="margin:0">A print plate is a physical record of how an image was made, which is the product's argument in one image. The plate wordmark and numerals give nova3D a mark of its own, the proof margin turns global status into press furniture at the sheet edge, and the halftone frame keeps preview geometry visibly a preview rather than authoritative manufacturing geometry.</p>
+</div>
+<div>
+<div class="dv-cap">Early tokens</div>
+<div style="display:flex;flex-direction:column;gap:5px;font:400 12px/1.4 ui-monospace,Menlo,monospace">
+<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:14px;background:#0088b0;display:inline-block"></span>plate C #0088b0</div>
+<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:14px;background:#d6006c;display:inline-block"></span>plate M #d6006c</div>
+<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:14px;background:#edbb00;display:inline-block"></span>plate Y #edbb00 — print treatment only</div>
+<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:14px;background:#201e1d;display:inline-block"></span>ink #201e1d — from the C×M×Y overlap</div>
+</div>
+<div style="margin-top:8px;font-size:12px">Display 68 / 40-64 plate numerals / 29 · body 14.5 · rail 9-11 uppercase. Progress as five discrete step blocks, not a continuous bar.</div>
+</div>
+<div>
+<div class="dv-cap">Accessibility</div>
+<p style="margin:0">Plate text needs care: the plate repeats are <code>aria-hidden</code> and the paper layer carries the real string, so screen readers hear the wordmark once. The plate fringe reduces effective contrast, so plates are display-only — never body copy, never a control label — and must have a flat fallback under high contrast and forced colours. Step blocks give progress a countable shape as well as a colour. Reduced motion turns the plate drift off entirely.</p>
+</div>
+<div>
+<div class="dv-cap">Trade-offs</div>
+<p style="margin:0">Strongest identity and the highest chance of feeling decorative next to serious evidence work; the plate treatment must never touch a Detail Status or an approval gate. Dark mode needs the numerals to keep their own paper patch, which is a real constraint rather than a token swap. Heavier to build and to keep accessible than <a class="dv-oid" href="#1a">1a</a> or <a class="dv-oid" href="#1b">1b</a>.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "go with <a class="dv-oid" href="#1b">1b</a> but the masthead from <a class="dv-oid" href="#1c">1c</a>" · "<a class="dv-oid" href="#1a">1a</a> at <a class="dv-oid" href="#1b">1b</a>'s density" · "show me a fourth direction outside the Broadsheet system" · "approved — start Round 2"</p>
+</section>
+</x-dc>
+</body>
+</html>

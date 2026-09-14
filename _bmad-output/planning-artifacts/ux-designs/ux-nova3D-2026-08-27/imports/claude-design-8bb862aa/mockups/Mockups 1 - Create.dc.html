@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/broadsheet-7fe4643f-5635-431e-8f97-f5008b231761/styles.css">
+<script src="_ds/broadsheet-7fe4643f-5635-431e-8f97-f5008b231761/_ds_bundle.js"></script>
+<style>
+body{margin:0;background:#e6e4e1}
+.mk-head{padding:36px 44px 22px}
+.mk-scr{padding:26px 44px 34px;border-top:1px solid rgba(0,0,0,.10);scroll-margin-top:16px}
+.mk-id{font:600 11px ui-monospace,Menlo,monospace;padding:3px 8px;background:#201e1d;color:#f3f2f2;border-radius:3px;text-decoration:none}
+.mk-name{font:600 17px/1.2 "Source Serif 4",serif;color:#201e1d}
+.mk-thd{display:flex;align-items:baseline;gap:11px;margin:0 0 6px}
+.mk-note{font:400 13px/1.55 "Source Serif 4",serif;color:#3d3a38;max-width:78ch;margin:0 0 18px}
+.mk-row{display:flex;flex-wrap:wrap;gap:30px;align-items:flex-start}
+.mk-cap{font:400 10.5px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:#5d5956;margin:0 0 7px}
+.mk-frame{background:#f3f2f2;box-shadow:0 1px 3px rgba(0,0,0,.12);overflow:hidden}
+.mk-a11y{font:400 12.5px/1.5 "Source Serif 4",serif;color:#3d3a38;max-width:34ch;padding-left:16px;border-left:2px solid rgba(0,136,176,.5)}
+.mk-a11y b{font-weight:600}
+.ic{flex:none;display:block}
+.reg{position:absolute;width:18px;height:18px;opacity:.42}
+.reg::before,.reg::after{content:"";position:absolute;background:#201e1d}
+.reg::before{left:8px;top:0;width:1px;height:18px}
+.reg::after{top:8px;left:0;height:1px;width:18px}
+.reg span{position:absolute;left:4px;top:4px;width:10px;height:10px;border:1px solid #201e1d;border-radius:50%}
+.wedge{display:flex}
+.wedge i{display:block;width:13px;height:8px}
+
+</style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><symbol id="i-printer" viewBox="0 0 256 256" fill="currentColor"><path d="M232,96v80H192V152H64v24H24V96c0-8.84,7.76-16,17.33-16H214.67C224.24,80,232,87.16,232,96Z" opacity="0.2"></path><path d="M214.67,72H200V40a8,8,0,0,0-8-8H64a8,8,0,0,0-8,8V72H41.33C27.36,72,16,82.77,16,96v80a8,8,0,0,0,8,8H56v32a8,8,0,0,0,8,8H192a8,8,0,0,0,8-8V184h32a8,8,0,0,0,8-8V96C240,82.77,228.64,72,214.67,72ZM72,48H184V72H72ZM184,208H72V160H184Zm40-40H200V152a8,8,0,0,0-8-8H64a8,8,0,0,0-8,8v16H32V96c0-4.41,4.19-8,9.33-8H214.67c5.14,0,9.33,3.59,9.33,8Zm-24-52a12,12,0,1,1-12-12A12,12,0,0,1,200,116Z"></path></symbol><symbol id="i-folders" viewBox="0 0 256 256" fill="currentColor"><path d="M232,80v88.89a7.11,7.11,0,0,1-7.11,7.11H200V112a8,8,0,0,0-8-8H120L90.13,81.6a8,8,0,0,0-4.8-1.6H64V56a8,8,0,0,1,8-8h45.33a8,8,0,0,1,4.8,1.6L152,72h72A8,8,0,0,1,232,80Z" opacity="0.2"></path><path d="M224,64H154.67L126.93,43.2a16.12,16.12,0,0,0-9.6-3.2H72A16,16,0,0,0,56,56V72H40A16,16,0,0,0,24,88V200a16,16,0,0,0,16,16H192.89A15.13,15.13,0,0,0,208,200.89V184h16.89A15.13,15.13,0,0,0,240,168.89V80A16,16,0,0,0,224,64ZM192,200H40V88H85.33l29.87,22.4A8,8,0,0,0,120,112h72Zm32-32H208V112a16,16,0,0,0-16-16H122.67L94.93,75.2a16.12,16.12,0,0,0-9.6-3.2H72V56h45.33L147.2,78.4A8,8,0,0,0,152,80h72Z"></path></symbol><symbol id="i-pencil" viewBox="0 0 256 256" fill="currentColor"><path d="M221.66,90.34,192,120,136,64l29.66-29.66a8,8,0,0,1,11.31,0L221.66,79A8,8,0,0,1,221.66,90.34Z" opacity="0.2"></path><path d="M227.31,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"></path></symbol><symbol id="i-activity" viewBox="0 0 256 256" fill="currentColor"><path d="M96,40l33.52,88H56Zm104,88H129.52L160,208Z" opacity="0.2"></path><path d="M240,128a8,8,0,0,1-8,8H204.94l-37.78,75.58A8,8,0,0,1,160,216h-.4a8,8,0,0,1-7.08-5.14L95.35,60.76,63.28,131.31A8,8,0,0,1,56,136H24a8,8,0,0,1,0-16H50.85L88.72,36.69a8,8,0,0,1,14.76.46l57.51,151,31.85-63.71A8,8,0,0,1,200,120h32A8,8,0,0,1,240,128Z"></path></symbol><symbol id="i-bell" viewBox="0 0 256 256" fill="currentColor"><path d="M208,192H48a8,8,0,0,1-6.88-12C47.71,168.6,56,147.81,56,112a72,72,0,0,1,144,0c0,35.82,8.3,56.6,14.9,68A8,8,0,0,1,208,192Z" opacity="0.2"></path><path d="M224,71.1a8,8,0,0,1-10.78-3.42,94.13,94.13,0,0,0-33.46-36.91,8,8,0,1,1,8.54-13.54,111.46,111.46,0,0,1,39.12,43.09A8,8,0,0,1,224,71.1ZM35.71,72a8,8,0,0,0,7.1-4.32A94.13,94.13,0,0,1,76.27,30.77a8,8,0,1,0-8.54-13.54A111.46,111.46,0,0,0,28.61,60.32,8,8,0,0,0,35.71,72Zm186.1,103.94A16,16,0,0,1,208,200H167.2a40,40,0,0,1-78.4,0H48a16,16,0,0,1-13.79-24.06C43.22,160.39,48,138.28,48,112a80,80,0,0,1,160,0C208,138.27,212.78,160.38,221.81,175.94ZM150.62,200H105.38a24,24,0,0,0,45.24,0ZM208,184c-10.64-18.27-16-42.49-16-72a64,64,0,0,0-128,0c0,29.52-5.38,53.74-16,72Z"></path></symbol><symbol id="i-camera" viewBox="0 0 256 256" fill="currentColor"><path d="M208,64H176L160,40H96L80,64H48A16,16,0,0,0,32,80V192a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V80A16,16,0,0,0,208,64ZM128,168a36,36,0,1,1,36-36A36,36,0,0,1,128,168Z" opacity="0.2"></path><path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"></path></symbol><symbol id="i-keyboard" viewBox="0 0 256 256" fill="currentColor"><path d="M232,164c0,15.46-14.33,28-32,28s-32-12.54-32-28,14.33-28,32-28S232,148.54,232,164ZM34.82,152h90.36L80,56Z" opacity="0.2"></path><path d="M87.24,52.59a8,8,0,0,0-14.48,0l-64,136a8,8,0,1,0,14.48,6.81L39.9,160h80.2l16.66,35.4a8,8,0,1,0,14.48-6.81ZM47.43,144,80,74.79,112.57,144ZM200,96c-12.76,0-22.73,3.47-29.63,10.32a8,8,0,0,0,11.26,11.36c3.8-3.77,10-5.68,18.37-5.68,13.23,0,24,9,24,20v3.22A42.76,42.76,0,0,0,200,128c-22.06,0-40,16.15-40,36s17.94,36,40,36a42.73,42.73,0,0,0,24-7.25,8,8,0,0,0,16-.75V132C240,112.15,222.06,96,200,96Zm0,88c-13.23,0-24-9-24-20s10.77-20,24-20,24,9,24,20S213.23,184,200,184Z"></path></symbol><symbol id="i-video" viewBox="0 0 256 256" fill="currentColor"><path d="M200,72V184a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V72a8,8,0,0,1,8-8H192A8,8,0,0,1,200,72Z" opacity="0.2"></path><path d="M251.77,73a8,8,0,0,0-8.21.39L208,97.05V72a16,16,0,0,0-16-16H32A16,16,0,0,0,16,72V184a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V159l35.56,23.71A8,8,0,0,0,248,184a8,8,0,0,0,8-8V80A8,8,0,0,0,251.77,73ZM192,184H32V72H192V184Zm48-22.95-32-21.33V116.28L240,95Z"></path></symbol><symbol id="i-drop" viewBox="0 0 256 256" fill="currentColor"><path d="M208,144a80,80,0,0,1-80,80V16S208,72,208,144Z" opacity="0.2"></path><path d="M174,47.75a254.19,254.19,0,0,0-41.45-38.3,8,8,0,0,0-9.18,0A254.19,254.19,0,0,0,82,47.75C54.51,79.32,40,112.6,40,144a88,88,0,0,0,176,0C216,112.6,201.49,79.32,174,47.75ZM56,144c0-50,42.26-92.71,64-111.4V215.54A72.08,72.08,0,0,1,56,144Zm80,71.54V32.6C157.74,51.29,200,94,200,144A72.08,72.08,0,0,1,136,215.54Z"></path></symbol><symbol id="i-pause" viewBox="0 0 256 256" fill="currentColor"><path d="M208,48V208a8,8,0,0,1-8,8H160a8,8,0,0,1-8-8V48a8,8,0,0,1,8-8h40A8,8,0,0,1,208,48ZM96,40H56a8,8,0,0,0-8,8V208a8,8,0,0,0,8,8H96a8,8,0,0,0,8-8V48A8,8,0,0,0,96,40Z" opacity="0.2"></path><path d="M200,32H160a16,16,0,0,0-16,16V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Zm0,176H160V48h40ZM96,32H56A16,16,0,0,0,40,48V208a16,16,0,0,0,16,16H96a16,16,0,0,0,16-16V48A16,16,0,0,0,96,32Zm0,176H56V48H96Z"></path></symbol><symbol id="i-sliders" viewBox="0 0 256 256" fill="currentColor"><path d="M80,136a24,24,0,1,1-24-24A24,24,0,0,1,80,136Zm48-72a24,24,0,1,0,24,24A24,24,0,0,0,128,64Zm72,80a24,24,0,1,0,24,24A24,24,0,0,0,200,144Z" opacity="0.2"></path><path d="M64,105V40a8,8,0,0,0-16,0v65a32,32,0,0,0,0,62v49a8,8,0,0,0,16,0V167a32,32,0,0,0,0-62Zm-8,47a16,16,0,1,1,16-16A16,16,0,0,1,56,152Zm80-95V40a8,8,0,0,0-16,0V57a32,32,0,0,0,0,62v97a8,8,0,0,0,16,0V119a32,32,0,0,0,0-62Zm-8,47a16,16,0,1,1,16-16A16,16,0,0,1,128,104Zm104,64a32.06,32.06,0,0,0-24-31V40a8,8,0,0,0-16,0v97a32,32,0,0,0,0,62v17a8,8,0,0,0,16,0V199A32.06,32.06,0,0,0,232,168Zm-32,16a16,16,0,1,1,16-16A16,16,0,0,1,200,184Z"></path></symbol><symbol id="i-search" viewBox="0 0 256 256" fill="currentColor"><path d="M192,112a80,80,0,1,1-80-80A80,80,0,0,1,192,112Z" opacity="0.2"></path><path d="M229.66,218.34,179.6,168.28a88.21,88.21,0,1,0-11.32,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path></symbol><symbol id="i-cloud-warning" viewBox="0 0 256 256" fill="currentColor"><path d="M240,127.62a80,80,0,0,1-80,80H72A56,56,0,1,1,85.92,97.36l0,.1A80,80,0,0,1,240,127.62Z" opacity="0.2"></path><path d="M160,40A88.09,88.09,0,0,0,81.29,88.67,64,64,0,1,0,72,216h88a88,88,0,0,0,0-176Zm0,160H72a48,48,0,0,1,0-96c1.1,0,2.2,0,3.29.11A88,88,0,0,0,72,128a8,8,0,0,0,16,0,72,72,0,1,1,72,72Zm-8-72V88a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,172,164Z"></path></symbol><symbol id="i-house" viewBox="0 0 256 256" fill="currentColor"><path d="M216,120v96H152V152H104v64H40V120a8,8,0,0,1,2.34-5.66l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,216,120Z" opacity="0.2"></path><path d="M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z"></path></symbol><symbol id="i-sliders-h" viewBox="0 0 256 256" fill="currentColor"><path d="M128,80a24,24,0,1,1-24-24A24,24,0,0,1,128,80Zm40,72a24,24,0,1,0,24,24A24,24,0,0,0,168,152Z" opacity="0.2"></path><path d="M40,88H73a32,32,0,0,0,62,0h81a8,8,0,0,0,0-16H135a32,32,0,0,0-62,0H40a8,8,0,0,0,0,16Zm64-24A16,16,0,1,1,88,80,16,16,0,0,1,104,64ZM216,168H199a32,32,0,0,0-62,0H40a8,8,0,0,0,0,16h97a32,32,0,0,0,62,0h17a8,8,0,0,0,0-16Zm-48,24a16,16,0,1,1,16-16A16,16,0,0,1,168,192Z"></path></symbol><symbol id="i-user" viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a95.76,95.76,0,0,1-31.8,71.37A72,72,0,0,0,128,160a40,40,0,1,0-40-40,40,40,0,0,0,40,40,72,72,0,0,0-64.2,39.37h0A96,96,0,1,1,224,128Z" opacity="0.2"></path><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM74.08,197.5a64,64,0,0,1,107.84,0,87.83,87.83,0,0,1-107.84,0ZM96,120a32,32,0,1,1,32,32A32,32,0,0,1,96,120Zm97.76,66.41a79.66,79.66,0,0,0-36.06-28.75,48,48,0,1,0-59.4,0,79.66,79.66,0,0,0-36.06,28.75,88,88,0,1,1,131.52,0Z"></path></symbol><symbol id="i-shield" viewBox="0 0 256 256" fill="currentColor"><path d="M216,56v56c0,96-88,120-88,120S40,208,40,112V56a8,8,0,0,1,8-8H208A8,8,0,0,1,216,56Z" opacity="0.2"></path><path d="M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z"></path></symbol><symbol id="i-wifi" viewBox="0 0 256 256" fill="currentColor"><path d="M238.2,87.69l-104,125.43a8,8,0,0,1-12.3,0L17.8,87.69a7.79,7.79,0,0,1,1.31-11.21,180.75,180.75,0,0,1,217.78,0A7.79,7.79,0,0,1,238.2,87.69Z" opacity="0.2"></path><path d="M247.89,80.91a15.93,15.93,0,0,0-6.17-10.81A186.67,186.67,0,0,0,128,32,186.67,186.67,0,0,0,14.28,70.1,15.93,15.93,0,0,0,8.11,80.91,15.65,15.65,0,0,0,11.65,92.8l104,125.43A15.93,15.93,0,0,0,128,224h0a15.93,15.93,0,0,0,12.31-5.77l104-125.43A15.65,15.65,0,0,0,247.89,80.91ZM128,208,24.09,82.74A170.76,170.76,0,0,1,128,48,170.76,170.76,0,0,1,231.91,82.74Z"></path></symbol><symbol id="i-bulb" viewBox="0 0 256 256" fill="currentColor"><path d="M208,104a79.86,79.86,0,0,1-30.59,62.92A24.29,24.29,0,0,0,168,186v6a8,8,0,0,1-8,8H96a8,8,0,0,1-8-8v-6a24.11,24.11,0,0,0-9.3-19A79.87,79.87,0,0,1,48,104.45C47.76,61.09,82.72,25,126.07,24A80,80,0,0,1,208,104Z" opacity="0.2"></path><path d="M176,232a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h80A8,8,0,0,1,176,232Zm40-128a87.55,87.55,0,0,1-33.64,69.21A16.24,16.24,0,0,0,176,186v6a16,16,0,0,1-16,16H96a16,16,0,0,1-16-16v-6a16,16,0,0,0-6.23-12.66A87.59,87.59,0,0,1,40,104.49C39.74,56.83,78.26,17.14,125.88,16A88,88,0,0,1,216,104Zm-16,0a72,72,0,0,0-73.74-72c-39,.92-70.47,33.39-70.26,72.39a71.65,71.65,0,0,0,27.64,56.3A32,32,0,0,1,96,186v6h64v-6a32.15,32.15,0,0,1,12.47-25.35A71.65,71.65,0,0,0,200,104Zm-16.11-9.34a57.6,57.6,0,0,0-46.56-46.55,8,8,0,0,0-2.66,15.78c16.57,2.79,30.63,16.85,33.44,33.45A8,8,0,0,0,176,104a9,9,0,0,0,1.35-.11A8,8,0,0,0,183.89,94.66Z"></path></symbol><symbol id="i-film" viewBox="0 0 256 256" fill="currentColor"><path d="M32,176H224v24a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8ZM216,48H40a8,8,0,0,0-8,8V80H224V56A8,8,0,0,0,216,48Z" opacity="0.2"></path><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM40,88h80v80H40Zm96-16V56h32V72Zm-16,0H88V56h32Zm0,112v16H88V184Zm16,0h32v16H136Zm0-16V88h80v80Zm80-96H184V56h32ZM72,56V72H40V56ZM40,184H72v16H40Zm176,16H184V184h32v16Z"></path></symbol><symbol id="i-thermo" viewBox="0 0 256 256" fill="currentColor"><path d="M152,138V48a32,32,0,0,0-64,0v90a56,56,0,1,0,64,0Zm-32,70a24,24,0,1,1,24-24A24,24,0,0,1,120,208Z" opacity="0.2"></path><path d="M212,56a28,28,0,1,0,28,28A28,28,0,0,0,212,56Zm0,40a12,12,0,1,1,12-12A12,12,0,0,1,212,96Zm-84,57V88a8,8,0,0,0-16,0v65a32,32,0,1,0,16,0Zm-8,47a16,16,0,1,1,16-16A16,16,0,0,1,120,200Zm40-66V48a40,40,0,0,0-80,0v86a64,64,0,1,0,80,0Zm-40,98a48,48,0,0,1-27.42-87.4A8,8,0,0,0,96,138V48a24,24,0,0,1,48,0v90a8,8,0,0,0,3.42,6.56A48,48,0,0,1,120,232Z"></path></symbol><symbol id="i-move" viewBox="0 0 256 256" fill="currentColor"><path d="M232,128,128,232,24,128,128,24Z" opacity="0.2"></path><path d="M90.34,61.66a8,8,0,0,1,0-11.32l32-32a8,8,0,0,1,11.32,0l32,32a8,8,0,0,1-11.32,11.32L136,43.31V96a8,8,0,0,1-16,0V43.31L101.66,61.66A8,8,0,0,1,90.34,61.66Zm64,132.68L136,212.69V160a8,8,0,0,0-16,0v52.69l-18.34-18.35a8,8,0,0,0-11.32,11.32l32,32a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Zm83.32-72-32-32a8,8,0,0,0-11.32,11.32L212.69,120H160a8,8,0,0,0,0,16h52.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,237.66,122.34ZM43.31,136H96a8,8,0,0,0,0-16H43.31l18.35-18.34A8,8,0,0,0,50.34,90.34l-32,32a8,8,0,0,0,0,11.32l32,32a8,8,0,0,0,11.32-11.32Z"></path></symbol><symbol id="i-fan" viewBox="0 0 256 256" fill="currentColor"><path d="M136.5,150.45A52,52,0,1,1,33,155.13l71.91-20.54h0A24,24,0,0,0,128,152a23.75,23.75,0,0,0,8.5-1.56Zm-32.19-26.31h0a24,24,0,0,1,29.52-19.42h0L152,32.17a52,52,0,1,0-47.69,92ZM201,105.5a52,52,0,0,0-57.84,3.91h0a24,24,0,0,1,2.06,35.26h0l53.74,52a52,52,0,0,0,2-91.2Z" opacity="0.2"></path><path d="M233,135a60,60,0,0,0-89.62-35.45l16.39-65.44a8,8,0,0,0-3.45-8.68A60,60,0,1,0,95.69,128.91L30.82,147.44a8,8,0,0,0-5.8,7.32,60,60,0,0,0,44.42,60.66,60.52,60.52,0,0,0,15.62,2.07,60.07,60.07,0,0,0,59.88-62l48.48,46.92a8,8,0,0,0,9.25,1.35A60,60,0,0,0,233,135Zm-121-7a16,16,0,1,1,16,16A16,16,0,0,1,112,128ZM80,76a44,44,0,0,1,62.75-39.82L127.77,96A32,32,0,0,0,99.85,112.8,43.85,43.85,0,0,1,80,76Zm27,119.57a44,44,0,0,1-65.86-34.43l59.31-16.94A32,32,0,0,0,128,160l.91,0A43.82,43.82,0,0,1,107,195.57Zm106.17-23a43.92,43.92,0,0,1-13,14.14l-44.32-42.89a31.91,31.91,0,0,0-.59-32.57,44,44,0,0,1,57.91,61.32Z"></path></symbol><symbol id="i-wrench" viewBox="0 0 256 256" fill="currentColor"><path d="M224,96a64,64,0,0,1-94.94,56L73,217A24,24,0,0,1,39,183L104,126.94a64,64,0,0,1,80-90.29L144,80l5.66,26.34L176,112l43.35-40A63.8,63.8,0,0,1,224,96Z" opacity="0.2"></path><path d="M226.76,69a8,8,0,0,0-12.84-2.88l-40.3,37.19-17.23-3.7-3.7-17.23,37.19-40.3A8,8,0,0,0,187,29.24,72,72,0,0,0,88,96,72.34,72.34,0,0,0,94,124.94L33.79,177c-.15.12-.29.26-.43.39a32,32,0,0,0,45.26,45.26c.13-.13.27-.28.39-.42L131.06,162A72,72,0,0,0,232,96,71.56,71.56,0,0,0,226.76,69ZM160,152a56.14,56.14,0,0,1-27.07-7,8,8,0,0,0-9.92,1.77L67.11,211.51a16,16,0,0,1-22.62-22.62L109.18,133a8,8,0,0,0,1.77-9.93,56,56,0,0,1,58.36-82.31l-31.2,33.81a8,8,0,0,0-1.94,7.1L141.83,108a8,8,0,0,0,6.14,6.14l26.35,5.66a8,8,0,0,0,7.1-1.94l33.81-31.2A56.06,56.06,0,0,1,160,152Z"></path></symbol><symbol id="i-ruler" viewBox="0 0 256 256" fill="currentColor"><path d="M229.66,90.34,90.34,229.66a8,8,0,0,1-11.31,0L26.34,177a8,8,0,0,1,0-11.31L165.66,26.34a8,8,0,0,1,11.31,0L229.66,79A8,8,0,0,1,229.66,90.34Z" opacity="0.2"></path><path d="M235.32,73.37,182.63,20.69a16,16,0,0,0-22.63,0L20.68,160a16,16,0,0,0,0,22.63l52.69,52.68a16,16,0,0,0,22.63,0L235.32,96A16,16,0,0,0,235.32,73.37ZM84.68,224,32,171.31l32-32,26.34,26.35a8,8,0,0,0,11.32-11.32L75.31,128,96,107.31l26.34,26.35a8,8,0,0,0,11.32-11.32L107.31,96,128,75.31l26.34,26.35a8,8,0,0,0,11.32-11.32L139.31,64l32-32L224,84.69Z"></path></symbol><symbol id="i-wave" viewBox="0 0 256 256" fill="currentColor"><path d="M208,96v64H48V96Z" opacity="0.2"></path><path d="M56,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM88,24a8,8,0,0,0-8,8V224a8,8,0,0,0,16,0V32A8,8,0,0,0,88,24Zm40,32a8,8,0,0,0-8,8V192a8,8,0,0,0,16,0V64A8,8,0,0,0,128,56Zm40,32a8,8,0,0,0-8,8v64a8,8,0,0,0,16,0V96A8,8,0,0,0,168,88Zm40-16a8,8,0,0,0-8,8v96a8,8,0,0,0,16,0V80A8,8,0,0,0,208,72Z"></path></symbol><symbol id="i-check" viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z" opacity="0.2"></path><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"></path></symbol><symbol id="i-warn" viewBox="0 0 256 256" fill="currentColor"><path d="M215.46,216H40.54C27.92,216,20,202.79,26.13,192.09L113.59,40.22c6.3-11,22.52-11,28.82,0l87.46,151.87C236,202.79,228.08,216,215.46,216Z" opacity="0.2"></path><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z"></path></symbol><symbol id="i-question" viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z" opacity="0.2"></path><path d="M140,180a12,12,0,1,1-12-12A12,12,0,0,1,140,180ZM128,72c-22.06,0-40,16.15-40,36v4a8,8,0,0,0,16,0v-4c0-11,10.77-20,24-20s24,9,24,20-10.77,20-24,20a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-.72c18.24-3.35,32-17.9,32-35.28C168,88.15,150.06,72,128,72Zm104,56A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"></path></symbol><symbol id="i-list" viewBox="0 0 256 256" fill="currentColor"><path d="M216,64V192H128V64Z" opacity="0.2"></path><path d="M224,128a8,8,0,0,1-8,8H128a8,8,0,0,1,0-16h88A8,8,0,0,1,224,128ZM128,72h88a8,8,0,0,0,0-16H128a8,8,0,0,0,0,16Zm88,112H128a8,8,0,0,0,0,16h88a8,8,0,0,0,0-16ZM82.34,42.34,56,68.69,45.66,58.34A8,8,0,0,0,34.34,69.66l16,16a8,8,0,0,0,11.32,0l32-32A8,8,0,0,0,82.34,42.34Zm0,64L56,132.69,45.66,122.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Zm0,64L56,196.69,45.66,186.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Z"></path></symbol><symbol id="i-sparkle" viewBox="0 0 256 256" fill="currentColor"><path d="M194.82,151.43l-55.09,20.3-20.3,55.09a7.92,7.92,0,0,1-14.86,0l-20.3-55.09-55.09-20.3a7.92,7.92,0,0,1,0-14.86l55.09-20.3,20.3-55.09a7.92,7.92,0,0,1,14.86,0l20.3,55.09,55.09,20.3A7.92,7.92,0,0,1,194.82,151.43Z" opacity="0.2"></path><path d="M197.58,129.06,146,110l-19-51.62a15.92,15.92,0,0,0-29.88,0L78,110l-51.62,19a15.92,15.92,0,0,0,0,29.88L78,178l19,51.62a15.92,15.92,0,0,0,29.88,0L146,178l51.62-19a15.92,15.92,0,0,0,0-29.88ZM137,164.22a8,8,0,0,0-4.74,4.74L112,223.85,91.78,169A8,8,0,0,0,87,164.22L32.15,144,87,123.78A8,8,0,0,0,91.78,119L112,64.15,132.22,119a8,8,0,0,0,4.74,4.74L191.85,144ZM144,40a8,8,0,0,1,8-8h16V16a8,8,0,0,1,16,0V32h16a8,8,0,0,1,0,16H184V64a8,8,0,0,1-16,0V48H152A8,8,0,0,1,144,40ZM248,88a8,8,0,0,1-8,8h-8v8a8,8,0,0,1-16,0V96h-8a8,8,0,0,1,0-16h8V72a8,8,0,0,1,16,0v8h8A8,8,0,0,1,248,88Z"></path></symbol></defs></svg>
+
+<div class="mk-head">
+<div style="display:flex;align-items:flex-end;gap:22px">
+<div class="cmyk-head" style="font-family:var(--font-heading);font-weight:600;font-size:52px;line-height:.95;letter-spacing:-.03em"><span class="paper">nova3D</span><span class="plate plate-c" aria-hidden="true">nova3D</span><span class="plate plate-m" aria-hidden="true">nova3D</span><span class="plate plate-y" aria-hidden="true">nova3D</span></div>
+<div style="font:400 14px/1.5 'Source Serif 4',serif;color:#3d3a38;padding-bottom:6px">Round 2 mockups · batch 1 of 6 — <strong style="font-weight:600">Create</strong> (C-01 to C-08)<br>Direction 1c Plate &amp; Proof on the 3a stepped shell · tokens per DESIGN.md</div>
+</div>
+<p class="mk-note" style="margin-top:18px">Every screen below is a required surface from <code>SCREEN-INVENTORY.md</code> with its named states. Light is the default; dark, RTL and the bilingual evidence screen arrive with their own batches. No Source passage, citation, dimension or research conclusion is invented — unverified content reads “verified content pending”.</p>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<a class="mk-id" href="#C-01">C-01</a><a class="mk-id" href="#C-02">C-02</a><a class="mk-id" href="#C-03">C-03</a><a class="mk-id" href="#C-04">C-04</a><a class="mk-id" href="#C-05">C-05</a><a class="mk-id" href="#C-06">C-06</a><a class="mk-id" href="#C-07">C-07</a><a class="mk-id" href="#C-08">C-08</a>
+</div>
+</div>
+
+<section class="mk-scr" id="C-01">
+<div class="mk-thd"><a class="mk-id" href="#C-01">C-01</a><span class="mk-name">Create entry</span></div>
+<p class="mk-note">Two equal first-version choices. The plate numerals from 1c label them, so Create reads as the same product as Home. Offline availability is stated on the choice itself, not buried in help. States shown: desktop, phone, and the offline variant where research-backed creation is unavailable.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 1120 · light · online</p>
+<div class="mk-frame" style="width:1120px">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#C-01" class="btn btn-secondary" style="font-size:13px">← Home</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Create</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-neutral-700)">Online · Josh, Administrator</span>
+</div>
+<div style="padding:34px 22px 30px">
+<h3 style="margin:0 0 6px">How do you want to start?</h3>
+<p style="margin:0 0 26px;font-size:14px;color:var(--color-neutral-800);max-width:66ch">Both ways end in the same place: a model you have inspected and approved, with a record of where every decision came from.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:26px">
+<div style="padding:20px;background:var(--color-surface);display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+<span class="cmyk-num" style="--cmyk-num-ground:var(--color-surface);font-family:var(--font-heading);font-weight:600;font-size:48px"><span class="paper">01</span><span class="plate plate-c" aria-hidden="true">01</span><span class="plate plate-m" aria-hidden="true">01</span><span class="plate plate-y" aria-hidden="true">01</span></span>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:25px;line-height:1.1">Enter text</div>
+<p style="margin:0;font-size:14px;color:var(--color-neutral-900)">Describe the model in ordinary language. nova3D researches it, shows you a complete Research Plan, and waits for your approval before it builds anything.</p>
+<div style="font-size:13px;color:var(--color-neutral-800)">Evidence-backed · needs internet</div>
+<a href="#C-01" class="btn btn-primary" style="min-height:44px">Enter text</a>
+</div>
+<div style="padding:20px;background:var(--color-surface);display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+<span class="cmyk-num" style="--cmyk-num-ground:var(--color-surface);font-family:var(--font-heading);font-weight:600;font-size:48px"><span class="paper">02</span><span class="plate plate-c" aria-hidden="true">02</span><span class="plate plate-m" aria-hidden="true">02</span><span class="plate plate-y" aria-hidden="true">02</span></span>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:25px;line-height:1.1">Upload picture</div>
+<p style="margin:0;font-size:14px;color:var(--color-neutral-900)">Use photographs or existing images. Convert them directly, or ask nova3D to identify the subject and research it first.</p>
+<div style="font-size:13px;color:var(--color-neutral-800)">Direct conversion works offline · research-assisted needs internet</div>
+<a href="#C-01" class="btn btn-primary" style="min-height:44px">Upload picture</a>
+</div>
+</div>
+<p style="margin:26px 0 0;font-size:13px;color:var(--color-neutral-800);max-width:74ch">Not sure which? Pictures give a faster likeness of a specific object. Text gives an evidence-backed reconstruction with a Source Record. Only the text route, and the research-assisted picture route, claim to be evidence-backed.</p>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop 1120 · offline variant</p>
+<div class="mk-frame" style="width:1120px">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#C-01" class="btn btn-secondary" style="font-size:13px">← Home</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Create</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-accent-2-800)">◇ Offline — working on this device</span>
+</div>
+<div style="padding:22px">
+<div style="display:flex;gap:12px;padding:12px 14px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2);margin-bottom:22px">
+<span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-800);flex:none">◇ Offline</span>
+<span style="font-size:13.5px">No internet, so research cannot run. Direct picture conversion still works on this device and the Project will sync into My Projects when you are back online.</span>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:26px">
+<div style="padding:20px;background:var(--color-surface);display:flex;flex-direction:column;gap:12px;align-items:flex-start;opacity:.55">
+<span style="font-family:var(--font-heading);font-weight:600;font-size:48px;line-height:.9;color:var(--color-neutral-700)">01</span>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:25px;line-height:1.1">Enter text</div>
+<p style="margin:0;font-size:14px;color:var(--color-neutral-900)">Unavailable offline. Research needs internet.</p>
+<button class="btn btn-primary" disabled="disabled" style="min-height:44px">Enter text</button>
+</div>
+<div style="padding:20px;background:var(--color-surface);display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+<span class="cmyk-num" style="--cmyk-num-ground:var(--color-surface);font-family:var(--font-heading);font-weight:600;font-size:48px"><span class="paper">02</span><span class="plate plate-c" aria-hidden="true">02</span><span class="plate plate-m" aria-hidden="true">02</span><span class="plate plate-y" aria-hidden="true">02</span></span>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:25px;line-height:1.1">Upload picture</div>
+<p style="margin:0;font-size:14px;color:var(--color-neutral-900)">Direct conversion only while offline. The Project is labelled image-derived and not historically verified.</p>
+<div style="font-size:13px;color:var(--color-neutral-800)">Saves on this device · syncs later</div>
+<a href="#C-01" class="btn btn-primary" style="min-height:44px">Upload picture</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Phone 390 · light</p>
+<div class="mk-frame" style="width:390px;height:844px">
+<div style="height:100%;display:flex;flex-direction:column">
+<div style="flex:none;padding:12px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:12px">
+<a href="#C-01" class="btn btn-secondary" style="min-height:40px;font-size:12.5px">←</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Create</div>
+<div style="flex:1"></div>
+<span style="font-size:12px;color:var(--color-neutral-700)">Online</span>
+</div>
+<div style="flex:1;min-height:0;overflow-y:auto;padding:18px 16px;display:flex;flex-direction:column;gap:16px">
+<div>
+<h4 style="margin:0 0 4px">How do you want to start?</h4>
+<p style="margin:0;font-size:13px;color:var(--color-neutral-800)">Both ways end in a model you have inspected and approved.</p>
+</div>
+<div style="padding:16px;background:var(--color-surface);display:flex;flex-direction:column;gap:10px;align-items:flex-start">
+<span class="cmyk-num" style="--cmyk-num-ground:var(--color-surface);font-family:var(--font-heading);font-weight:600;font-size:38px"><span class="paper">01</span><span class="plate plate-c" aria-hidden="true">01</span><span class="plate plate-m" aria-hidden="true">01</span><span class="plate plate-y" aria-hidden="true">01</span></span>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:21px">Enter text</div>
+<p style="margin:0;font-size:13px;color:var(--color-neutral-900)">Describe it. nova3D researches, then waits for your approval of the Research Plan.</p>
+<div style="font-size:12.5px;color:var(--color-neutral-800)">Evidence-backed · needs internet</div>
+<a href="#C-01" class="btn btn-primary btn-block" style="min-height:48px;margin-top:2px">Enter text</a>
+</div>
+<div style="padding:16px;background:var(--color-surface);display:flex;flex-direction:column;gap:10px;align-items:flex-start">
+<span class="cmyk-num" style="--cmyk-num-ground:var(--color-surface);font-family:var(--font-heading);font-weight:600;font-size:38px"><span class="paper">02</span><span class="plate plate-c" aria-hidden="true">02</span><span class="plate plate-m" aria-hidden="true">02</span><span class="plate plate-y" aria-hidden="true">02</span></span>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:21px">Upload picture</div>
+<p style="margin:0;font-size:13px;color:var(--color-neutral-900)">Photograph it or pick images. Convert directly, or research the subject first.</p>
+<div style="font-size:12.5px;color:var(--color-neutral-800)">Direct conversion works offline</div>
+<a href="#C-01" class="btn btn-primary btn-block" style="min-height:48px;margin-top:2px">Upload picture</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>Both entries are h3-level landmarks in one list, so a screen reader hears “2 ways to start”. The disabled offline card keeps its text at 6:1 and states the reason in copy, not by dimming alone. Offline is announced as a status message when connectivity drops. Plate numerals are decorative repeats with the real digits in the paper layer; the heading carries the accessible name.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="C-02">
+<div class="mk-thd"><a class="mk-id" href="#C-02">C-02</a><span class="mk-name">Text request</span></div>
+<p class="mk-note">One question per step. States shown: empty (first arrival), writing with Personalization, and a validation problem where the description is too vague to scope. Examples are phrasing only and never pre-fill intent.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 1120 · empty</p>
+<div class="mk-frame" style="width:1120px">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#C-02" class="btn btn-secondary" style="font-size:13px">← Leave</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">New Project · evidence-backed from text</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-neutral-700)">Nothing saved yet</span>
+</div>
+<div style="display:flex;align-items:center;padding:13px 22px;border-bottom:1px solid var(--color-divider);background:var(--color-surface)">
+<div style="display:flex;align-items:center;gap:9px"><span style="width:24px;height:24px;background:var(--color-neutral-300);display:grid;place-items:center;font-size:12px">✓</span><span style="font-size:12px;color:var(--color-neutral-800)">Start</span></div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px"><span style="width:24px;height:24px;background:var(--color-accent);display:grid;place-items:center;font-size:12px;color:var(--color-bg)">2</span><span style="font-size:13px;font-family:var(--font-heading);font-weight:600">Describe</span></div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px"><span style="width:24px;height:24px;border:1px solid var(--color-neutral-400);display:grid;place-items:center;font-size:12px;color:var(--color-neutral-700)">3</span><span style="font-size:12px;color:var(--color-neutral-700)">Check understanding</span></div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px"><span style="width:24px;height:24px;border:1px solid var(--color-neutral-400);display:grid;place-items:center;font-size:12px;color:var(--color-neutral-700)">4</span><span style="font-size:12px;color:var(--color-neutral-700)">Research choices</span></div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px"><span style="width:24px;height:24px;border:1px solid var(--color-neutral-400);display:grid;place-items:center;font-size:12px;color:var(--color-neutral-700)">5</span><span style="font-size:12px;color:var(--color-neutral-700)">Research runs</span></div>
+<div style="flex:1;height:1px;background:var(--color-neutral-400);margin:0 12px"></div>
+<div style="display:flex;align-items:center;gap:9px"><span style="width:24px;height:24px;border:1px solid var(--color-neutral-400);display:grid;place-items:center;font-size:12px;color:var(--color-neutral-700)">6</span><span style="font-size:12px;color:var(--color-neutral-700)">Plan Approval</span></div>
+</div>
+<div style="display:flex;gap:34px;padding:26px 22px 22px">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:18px">
+<div>
+<h3 style="margin:0 0 4px">What should nova3D build?</h3>
+<p style="margin:0;font-size:14px;color:var(--color-neutral-800);max-width:62ch">Ordinary language is fine. Say what the thing is and where it is described. You will see what nova3D understood on the next step, before any research starts.</p>
+</div>
+<div class="field">
+<label for="d2">Description</label>
+<textarea class="input" id="d2" placeholder="For example: the object named in a specific chapter of a specific text." style="min-height:132px;font-size:15px"></textarea>
+<div style="margin-top:5px;font-size:12px;color:var(--color-neutral-800)">Naming the source text makes the Research Plan tighter.</div>
+</div>
+<div class="field">
+<label for="p2">Personalization — optional, kept separate from the historical reconstruction</label>
+<input class="input" id="p2" placeholder="For example: an inscription of your own on the base." style="font-size:15px">
+<div style="margin-top:5px;font-size:12px;color:var(--color-neutral-800)">Anything here is marked <strong>+ user-added</strong> on the model and in the Source Record, never presented as evidence.</div>
+</div>
+</div>
+<div style="width:296px;flex:none;padding:16px;background:var(--color-surface);align-self:flex-start">
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700)">Examples</div>
+<p style="margin:8px 0 0;font-size:13px;color:var(--color-neutral-900)">Phrasing that scopes well:</p>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;font-size:13px">
+<div style="padding:9px 10px;background:var(--color-bg)">“A named object described in a specific chapter of a specific text.”</div>
+<div style="padding:9px 10px;background:var(--color-bg)">“The same object at a size that fits my printer.”</div>
+</div>
+<p style="margin:12px 0 0;font-size:12.5px;color:var(--color-neutral-800)">Examples of phrasing only. Nothing here is copied into your description.</p>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:13px 22px;border-top:1px solid var(--color-divider);background:var(--color-surface)">
+<a href="#C-02" class="btn btn-secondary" style="min-height:42px">Back</a>
+<div style="flex:1;font-size:12.5px;color:var(--color-neutral-800)">No research runs and nothing is charged until step 4.</div>
+<button class="btn btn-primary" disabled="disabled" style="min-height:42px;font-size:15px">Continue</button>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop 1120 · validation problem · too vague to scope</p>
+<div class="mk-frame" style="width:1120px">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#C-02" class="btn btn-secondary" style="font-size:13px">← Leave</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">New Project · evidence-backed from text</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-neutral-700)">Saved as you type</span>
+</div>
+<div style="display:flex;gap:34px;padding:22px">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+<div>
+<h3 style="margin:0 0 4px">What should nova3D build?</h3>
+<p style="margin:0;font-size:14px;color:var(--color-neutral-800);max-width:62ch">One more detail is needed before this can be scoped.</p>
+</div>
+<div class="field">
+<label for="d3">Description</label>
+<textarea class="input" id="d3" style="min-height:96px;font-size:15px;border-color:var(--color-accent-2);border-width:2px">an altar</textarea>
+<div style="display:flex;gap:9px;margin-top:7px;padding:10px 12px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<span style="flex:none;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-800)">▲ Needs more</span>
+<span style="font-size:13.5px">“An altar” could describe many objects across many texts. nova3D will not guess which one, because the guess would end up inside the evidence chain. Add the text, the chapter, or a distinguishing feature.</span>
+</div>
+<div style="display:flex;gap:8px;margin-top:9px">
+<a href="#C-02" class="btn btn-secondary" style="font-size:13px">Which texts does nova3D research?</a>
+<a href="#C-02" class="btn btn-secondary" style="font-size:13px">Let nova3D ask me questions instead</a>
+</div>
+</div>
+<div class="field">
+<label for="p3">Personalization — optional</label>
+<input class="input" id="p3" style="font-size:15px" value="">
+</div>
+</div>
+<div style="width:296px;flex:none;padding:16px;background:var(--color-surface);align-self:flex-start">
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700)">What is missing</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:9px;font-size:13px">
+<div style="display:flex;gap:8px"><span style="color:var(--color-accent-2-800)">▲</span><span>Which text or tradition describes it</span></div>
+<div style="display:flex;gap:8px"><span style="color:var(--color-accent-2-800)">▲</span><span>Which part or chapter, if you know it</span></div>
+<div style="display:flex;gap:8px"><span style="color:var(--color-accent-700)">✓</span><span>A rough size is optional — the print profile handles that later</span></div>
+</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:13px 22px;border-top:1px solid var(--color-divider);background:var(--color-surface)">
+<a href="#C-02" class="btn btn-secondary" style="min-height:42px">Back</a>
+<div style="flex:1;font-size:12.5px;color:var(--color-accent-2-800)">▲ Add the missing detail to continue. Nothing is lost while you edit.</div>
+<button class="btn btn-primary" disabled="disabled" style="min-height:42px;font-size:15px">Continue</button>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Phone 390 · writing, with Personalization</p>
+<div class="mk-frame" style="width:390px;height:844px">
+<div style="height:100%;display:flex;flex-direction:column">
+<div style="flex:none;padding:12px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:12px">
+<a href="#C-02" class="btn btn-secondary" style="min-height:40px;font-size:12.5px">←</a>
+<div style="min-width:0"><div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">Describe the model</div><div style="font-size:12px;color:var(--color-neutral-800)">Step 2 of 6 · saved as you type</div></div>
+</div>
+<div style="flex:none;display:flex;gap:4px;padding:10px 16px;border-bottom:1px solid var(--color-divider);background:var(--color-surface)">
+<div style="flex:1;height:5px;background:var(--color-accent)"></div><div style="flex:1;height:5px;background:var(--color-accent)"></div><div style="flex:1;height:5px;background:var(--color-neutral-300)"></div><div style="flex:1;height:5px;background:var(--color-neutral-300)"></div><div style="flex:1;height:5px;background:var(--color-neutral-300)"></div><div style="flex:1;height:5px;background:var(--color-neutral-300)"></div>
+</div>
+<div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
+<p style="margin:0;font-size:13.5px;color:var(--color-neutral-900)">Say what the thing is and where it is described. You will check nova3D's understanding next.</p>
+<div class="field">
+<label for="dp">Description</label>
+<textarea class="input" id="dp" style="min-height:120px;font-size:15px">The outer altar and its ramp as described in Mishnah Middot chapter 3.</textarea>
+</div>
+<div class="field">
+<label for="pp">Personalization — optional</label>
+<input class="input" id="pp" value="A small plaque reading “Middot 3”." style="font-size:15px">
+<div style="margin-top:5px;font-size:12px;color:var(--color-neutral-800)">Marked <strong>+ user-added</strong>, never presented as evidence.</div>
+</div>
+</div>
+<div style="flex:none;border-top:1px solid var(--color-divider);padding:12px 16px 22px;background:var(--color-surface);display:flex;flex-direction:column;gap:8px">
+<a href="#C-02" class="btn btn-primary btn-block" style="min-height:48px;font-size:15px;margin-top:0">Continue</a>
+<div style="display:flex;justify-content:space-between;align-items:center">
+<a href="#C-02" style="color:var(--color-accent-700);text-decoration:none;font-size:13px;min-height:44px;display:flex;align-items:center">Back</a>
+<span style="font-size:12px;color:var(--color-neutral-800)">Nothing charged yet</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>The validation message is bound to the field with <code>aria-describedby</code> and announced politely, never as a colour change alone; the ▲ glyph and the word “Needs more” carry it. Continue stays visibly disabled with the reason repeated in the action bar, so keyboard users meet it in focus order. Textarea grows with 200% text without clipping the action bar, which is pinned outside the scroll area.
+</div>
+</div>
+</section>
+
+
+<section class="mk-scr" id="C-03">
+<div class="mk-thd"><a class="mk-id" href="#C-03">C-03</a><span class="mk-name">Picture intake</span></div>
+<p class="mk-note">Existing images on any device, camera capture on phone, several angles of one subject. States shown: previews with replace/reorder/remove and a file error (desktop), camera permission prompt and permission denied (phone).</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 1120 · previews · one file error</p>
+<div class="mk-frame" style="width:1120px">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#C-03" class="btn btn-secondary" style="font-size:13px">← Leave</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">New Project · from pictures</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-neutral-700)">Step 2 of 6 · saved on this device</span>
+</div>
+<div style="padding:24px 22px">
+<h3 style="display:flex;align-items:center;gap:9px;margin:0 0 4px"><svg class="ic" width="24" height="24" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-camera"></use></svg>Add pictures of the subject</h3>
+<p style="margin:0 0 18px;font-size:14px;color:var(--color-neutral-800);max-width:66ch">Several angles of the same object give a better result than one. nova3D checks the pictures on the next step and tells you what is missing.</p>
+<div style="display:flex;gap:14px;flex-wrap:wrap">
+<div style="width:196px">
+<div style="aspect-ratio:1;background:var(--color-neutral-300);display:grid;place-items:center;text-align:center;font-size:12px;color:var(--color-neutral-800);padding:10px">Photograph 1<br>front · placeholder</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px">
+<span style="color:var(--color-neutral-800)">1 · front</span>
+<div style="display:flex;gap:2px"><a href="#C-03" class="btn btn-ghost" style="font-size:12px">Replace</a><a href="#C-03" class="btn btn-ghost" style="font-size:12px">Remove</a></div>
+</div>
+</div>
+<div style="width:196px">
+<div style="aspect-ratio:1;background:var(--color-neutral-300);display:grid;place-items:center;text-align:center;font-size:12px;color:var(--color-neutral-800);padding:10px">Photograph 2<br>side · placeholder</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px">
+<span style="color:var(--color-neutral-800)">2 · side</span>
+<div style="display:flex;gap:2px"><a href="#C-03" class="btn btn-ghost" style="font-size:12px">Replace</a><a href="#C-03" class="btn btn-ghost" style="font-size:12px">Remove</a></div>
+</div>
+</div>
+<div style="width:196px">
+<div style="aspect-ratio:1;background:var(--color-accent-2-100);border:2px solid var(--color-accent-2);display:grid;place-items:center;text-align:center;font-size:12.5px;color:var(--color-accent-2-800);padding:12px">▲ Not added<br><span style="color:var(--color-neutral-900)">altar-scan.tiff — this file type is not supported. JPEG, PNG or HEIC.</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px">
+<span style="color:var(--color-accent-2-800)">File error</span>
+<a href="#C-03" class="btn btn-ghost" style="font-size:12px">Choose another file</a>
+</div>
+</div>
+<div style="width:196px">
+<div style="aspect-ratio:1;border:1px dashed var(--color-neutral-500);display:grid;place-items:center;text-align:center">
+<div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Add pictures</div>
+<div style="font-size:12px;color:var(--color-neutral-800);margin-top:4px">or drop files here</div>
+</div>
+</div>
+<div style="margin-top:6px;font-size:12px;color:var(--color-neutral-800)">Drag a card to reorder</div>
+</div>
+</div>
+<div style="margin-top:20px;padding:12px 14px;background:var(--color-surface);font-size:13px;color:var(--color-neutral-900);max-width:74ch">Pictures stay in this Workspace. If you are offline they stay on this device until it syncs. A Project made from pictures is labelled <strong>image-derived</strong> unless you choose research-assisted reconstruction on step 4.</div>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:13px 22px;border-top:1px solid var(--color-divider);background:var(--color-surface)">
+<a href="#C-03" class="btn btn-secondary" style="min-height:42px">Back</a>
+<div style="flex:1;font-size:12.5px;color:var(--color-neutral-800)">2 pictures added · 1 file not added</div>
+<a href="#C-03" class="btn btn-primary" style="min-height:42px;font-size:15px">Check the pictures</a>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Phone 390 · camera permission prompt</p>
+<div class="mk-frame" style="width:390px;height:844px">
+<div style="height:100%;display:flex;flex-direction:column">
+<div style="flex:none;padding:12px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:12px">
+<a href="#C-03" class="btn btn-secondary" style="min-height:40px;font-size:12.5px">←</a>
+<div><div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">Add pictures</div><div style="font-size:12px;color:var(--color-neutral-800)">Step 2 of 6</div></div>
+</div>
+<div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:10px">
+<a href="#C-03" class="btn btn-primary" style="flex:1;min-height:48px">Take a photo</a>
+<a href="#C-03" class="btn btn-secondary" style="flex:1;min-height:48px">Choose files</a>
+</div>
+<div style="padding:14px;background:var(--color-surface)">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">nova3D needs the camera</div>
+<p style="margin:6px 0 10px;font-size:13px;color:var(--color-neutral-900)">Only for the photographs you take here. They stay in your Workspace on this device until it syncs. You can add files instead and skip this.</p>
+<div style="display:flex;gap:8px"><a href="#C-03" class="btn btn-primary" style="flex:1;min-height:44px">Allow camera</a><a href="#C-03" class="btn btn-secondary" style="flex:1;min-height:44px">Not now</a></div>
+</div>
+<div style="display:flex;gap:10px">
+<div style="flex:1;aspect-ratio:1;background:var(--color-neutral-300);display:grid;place-items:center;font-size:12px;color:var(--color-neutral-800);text-align:center;padding:8px">Photograph 1<br>placeholder</div>
+<div style="flex:1;aspect-ratio:1;border:1px dashed var(--color-neutral-500);display:grid;place-items:center;font-size:12px;text-align:center">Add<br>picture</div>
+</div>
+</div>
+<div style="flex:none;border-top:1px solid var(--color-divider);padding:12px 16px 22px;background:var(--color-surface)">
+<a href="#C-03" class="btn btn-primary btn-block" style="min-height:48px;font-size:15px;margin-top:0">Check the pictures</a>
+</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Phone 390 · permission denied</p>
+<div class="mk-frame" style="width:390px;height:844px">
+<div style="height:100%;display:flex;flex-direction:column">
+<div style="flex:none;padding:12px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:12px">
+<a href="#C-03" class="btn btn-secondary" style="min-height:40px;font-size:12.5px">←</a>
+<div><div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">Add pictures</div><div style="font-size:12px;color:var(--color-neutral-800)">Step 2 of 6</div></div>
+</div>
+<div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px">
+<div style="padding:14px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-800)">▲ Camera blocked</div>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px;margin-top:4px">The camera is turned off for nova3D</div>
+<p style="margin:6px 0 10px;font-size:13px;color:var(--color-neutral-900)">This does not stop you. Choose pictures from this device instead, or turn the camera on in your browser settings for this site.</p>
+<div style="display:flex;flex-direction:column;gap:8px">
+<a href="#C-03" class="btn btn-primary" style="min-height:44px">Choose files instead</a>
+<a href="#C-03" class="btn btn-secondary" style="min-height:44px">How to turn the camera on</a>
+</div>
+</div>
+<div style="font-size:13px;color:var(--color-neutral-800)">Nothing has been lost. The Project is saved on this device.</div>
+</div>
+<div style="flex:none;border-top:1px solid var(--color-divider);padding:12px 16px 22px;background:var(--color-surface)">
+<button class="btn btn-primary btn-block" disabled="disabled" style="min-height:48px;font-size:15px;margin-top:0">Check the pictures</button>
+<div style="font-size:12px;color:var(--color-neutral-800);margin-top:7px">Add at least one picture to continue.</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>Each picture card is a group with an accessible name (“Picture 1, front”) and its own Replace and Remove buttons at 44px — no hover-only affordances and no drag-only reordering: “Move earlier / later” sits in each card's menu for keyboard and touch. The file error is a live-region alert naming the file and the accepted types. Permission-denied offers a working alternative rather than a dead end.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="C-04">
+<div class="mk-thd"><a class="mk-id" href="#C-04">C-04</a><span class="mk-name">Picture quality and coverage</span></div>
+<p class="mk-note">nova3D explains blur, obstruction and missing angles in plain words. States shown: insufficient coverage with a recommendation, the <strong>Generate anyway</strong> warning as an explicit dialog, and the sufficient state.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 1120 · insufficient · additional view requested</p>
+<div class="mk-frame" style="width:1120px">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#C-04" class="btn btn-secondary" style="font-size:13px">← Leave</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">New Project · from pictures</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-neutral-700)">Step 3 of 6</span>
+</div>
+<div style="display:flex;gap:30px;padding:24px 22px">
+<div style="flex:1;min-width:0">
+<h3 style="display:flex;align-items:center;gap:9px;margin:0 0 4px"><svg class="ic" width="24" height="24" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-camera"></use></svg>What the pictures do and do not show</h3>
+<p style="margin:0 0 16px;font-size:14px;color:var(--color-neutral-800);max-width:62ch">This is a check of the pictures, not of the object. nova3D can still build a model from what you have — the warning below says what that would cost you in accuracy.</p>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;gap:16px;padding:12px 0;border-top:1px solid var(--color-divider);align-items:flex-start">
+<span style="width:120px;flex:none;font-size:12.5px;color:var(--color-accent-700)">✓ Clear</span>
+<div style="flex:1;font-size:13.5px">Picture 1 (front) and picture 2 (side) are sharp enough to trace edges.</div>
+</div>
+<div style="display:flex;gap:16px;padding:12px 0;border-top:1px solid var(--color-divider);align-items:flex-start">
+<span style="width:120px;flex:none;font-size:12.5px;color:var(--color-accent-2-800)">▲ Missing</span>
+<div style="flex:1;font-size:13.5px">Nothing shows the back or the underside. Those parts would be invented rather than observed.</div>
+</div>
+<div style="display:flex;gap:16px;padding:12px 0;border-top:1px solid var(--color-divider);align-items:flex-start">
+<span style="width:120px;flex:none;font-size:12.5px;color:var(--color-accent-2-800)">▲ Obstructed</span>
+<div style="flex:1;font-size:13.5px">In picture 2 the lower left is hidden behind another object.</div>
+</div>
+<div style="display:flex;gap:16px;padding:12px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);align-items:flex-start">
+<span style="width:120px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">? Unclear</span>
+<div style="flex:1;font-size:13.5px">Scale is unknown. Without a known measurement in a picture, size will be a guess you can correct later.</div>
+</div>
+</div>
+<div style="margin-top:18px;padding:14px;background:var(--color-accent-100)">
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Recommended: two more pictures</div>
+<div style="font-size:13.5px;color:var(--color-neutral-900);margin-top:5px">One from the back, one from above. Include a ruler or a coin in one of them if you want the size to be observed rather than guessed.</div>
+<div style="display:flex;gap:8px;margin-top:11px">
+<a href="#C-04" class="btn btn-primary" style="min-height:44px">Add pictures</a>
+<a href="#C-04" class="btn btn-secondary" style="min-height:44px">Generate anyway</a>
+</div>
+</div>
+</div>
+<div style="width:220px;flex:none">
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Coverage</div>
+<div style="display:flex;flex-direction:column;gap:7px;font-size:13px">
+<div style="display:flex;justify-content:space-between"><span>Front</span><span style="color:var(--color-accent-700)">✓ covered</span></div>
+<div style="display:flex;justify-content:space-between"><span>Side</span><span style="color:var(--color-accent-700)">✓ covered</span></div>
+<div style="display:flex;justify-content:space-between"><span>Back</span><span style="color:var(--color-accent-2-800)">▲ none</span></div>
+<div style="display:flex;justify-content:space-between"><span>Top</span><span style="color:var(--color-accent-2-800)">▲ none</span></div>
+<div style="display:flex;justify-content:space-between"><span>Underside</span><span style="color:var(--color-accent-2-800)">▲ none</span></div>
+<div style="display:flex;justify-content:space-between"><span>Scale reference</span><span style="color:var(--color-neutral-800)">? none</span></div>
+</div>
+<div style="margin-top:12px;display:flex;gap:8px">
+<div style="width:100px"><div style="aspect-ratio:1;background:var(--color-neutral-300);display:grid;place-items:center;font-size:12px;color:var(--color-neutral-800);text-align:center;padding:6px">1 front<br>placeholder</div></div>
+<div style="width:100px"><div style="aspect-ratio:1;background:var(--color-neutral-300);display:grid;place-items:center;font-size:12px;color:var(--color-neutral-800);text-align:center;padding:6px">2 side<br>placeholder</div></div>
+</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:13px 22px;border-top:1px solid var(--color-divider);background:var(--color-surface)">
+<a href="#C-04" class="btn btn-secondary" style="min-height:42px">Back</a>
+<div style="flex:1;font-size:12.5px;color:var(--color-accent-2-800)">▲ Coverage is incomplete. You can continue, with the accuracy warning recorded on the Project.</div>
+<a href="#C-04" class="btn btn-primary" style="min-height:42px;font-size:15px">Add pictures</a>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop · Generate anyway · explicit warning dialog</p>
+<div class="mk-frame" style="width:520px;padding:26px;background:var(--color-neutral-400)">
+<div class="dialog" style="width:100%;background:var(--color-bg)">
+<div class="dialog-title">Generate from incomplete pictures?</div>
+<div class="dialog-body" style="opacity:1">
+<p style="margin:0 0 10px;font-size:14px">Three sides of this object were never photographed. nova3D will invent that geometry to close the shape. That part of the model will not be observed and will not be evidence-backed.</p>
+<div style="padding:11px 12px;background:var(--color-accent-2-100);font-size:13.5px">
+<div style="display:flex;gap:8px"><span style="color:var(--color-accent-2-800)">▲</span><span>The Project stays labelled <strong>image-derived, not historically verified</strong>, and this warning is recorded in its history and in the Source Record.</span></div>
+</div>
+<p style="margin:10px 0 0;font-size:13.5px;color:var(--color-neutral-900)">You can add pictures later and generate a new Version. Nothing here is permanent.</p>
+</div>
+<div class="dialog-actions">
+<a href="#C-04" class="btn btn-secondary" style="min-height:44px">Add pictures instead</a>
+<a href="#C-04" class="btn btn-primary" style="min-height:44px">Generate anyway</a>
+</div>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop 1120 · sufficient</p>
+<div class="mk-frame" style="width:520px">
+<div style="padding:22px">
+<div style="display:flex;align-items:center;gap:10px">
+<span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-700)">✓ Sufficient</span>
+<span style="font-size:12.5px;color:var(--color-neutral-800)">6 pictures · 5 sides covered</span>
+</div>
+<h4 style="display:flex;align-items:center;gap:9px;margin:8px 0 6px"><svg class="ic" width="21" height="21" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-check"></use></svg>The pictures cover the object</h4>
+<p style="margin:0 0 14px;font-size:13.5px;color:var(--color-neutral-900)">Sharp enough, and every side except the underside is shown. The underside will be closed flat, which is stated on the model.</p>
+<div style="display:flex;flex-direction:column;gap:7px;font-size:13px">
+<div style="display:flex;justify-content:space-between"><span>Front · side · back · top</span><span style="color:var(--color-accent-700)">✓ covered</span></div>
+<div style="display:flex;justify-content:space-between"><span>Underside</span><span style="color:var(--color-neutral-800)">? closed flat</span></div>
+<div style="display:flex;justify-content:space-between"><span>Scale reference</span><span style="color:var(--color-accent-700)">✓ ruler in picture 4</span></div>
+</div>
+<a href="#C-04" class="btn btn-primary btn-block" style="min-height:44px">Continue</a>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>Coverage is a definition list of side → state, each state a glyph plus a word, so it reads correctly without the colour and without the thumbnails. The Generate anyway dialog traps focus, is titled by its heading, and puts the safer action first in focus order while keeping the destructive-of-accuracy action clearly available. Warning text never relies on the pink fill.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="C-05">
+<div class="mk-thd"><a class="mk-id" href="#C-05">C-05</a><span class="mk-name">Picture path choice</span></div>
+<p class="mk-note">The one screen where the two accuracy claims are set side by side. Direct conversion is fast and image-derived; research-assisted goes through the complete Research Plan and Plan Approval. States shown: online (both available) and offline (research-assisted unavailable, with the reason).</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 1120 · online</p>
+<div class="mk-frame" style="width:1120px">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#C-05" class="btn btn-secondary" style="font-size:13px">← Leave</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">New Project · from pictures</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-neutral-700)">Step 4 of 6 · online</span>
+</div>
+<div style="padding:24px 22px">
+<h3 style="margin:0 0 4px">What should nova3D do with these pictures?</h3>
+<p style="margin:0 0 20px;font-size:14px;color:var(--color-neutral-800);max-width:66ch">These two routes make different claims. The difference is recorded on the Project and in the Source Record, and it cannot be changed afterwards without a new Version.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">
+<label style="display:flex;flex-direction:column;gap:10px;padding:18px;background:var(--color-accent-100);border-left:3px solid var(--color-accent);cursor:pointer">
+<span style="display:flex;align-items:center;gap:10px"><span class="radio"><input type="radio" name="path" checked="checked"><span class="dot"></span></span><span style="font-family:var(--font-heading);font-weight:600;font-size:20px">Convert the pictures directly</span></span>
+<span style="font-size:13.5px;color:var(--color-neutral-900)">Builds a likeness of the object in the pictures. Minutes, not hours. Works offline.</span>
+<span style="display:block;padding:11px 12px;background:var(--color-bg);font-size:13px">
+<strong style="font-family:var(--font-heading);font-weight:600">Claim:</strong> image-derived, <strong>not historically verified</strong>. There is no Research Plan, no Sources, and no Plan Approval — because nothing was researched.
+</span>
+<span style="font-size:13px;color:var(--color-neutral-800)">You still inspect and approve the Model Version before validation and Export.</span>
+</label>
+<label style="display:flex;flex-direction:column;gap:10px;padding:18px;background:var(--color-surface);cursor:pointer">
+<span style="display:flex;align-items:center;gap:10px"><span class="radio"><input type="radio" name="path"><span class="dot"></span></span><span style="font-family:var(--font-heading);font-weight:600;font-size:20px">Identify and research the subject</span></span>
+<span style="font-size:13.5px;color:var(--color-neutral-900)">nova3D works out what the object is, researches it, and builds a complete Research Plan for your approval before any geometry.</span>
+<span style="display:block;padding:11px 12px;background:var(--color-bg);font-size:13px">
+<strong style="font-family:var(--font-heading);font-weight:600">Claim:</strong> evidence-backed, with every decision traceable to a Source. Longer, needs internet, and may involve the free or paid research choices.
+</span>
+<span style="font-size:13px;color:var(--color-neutral-800)">The pictures become evidence about your object, not the only evidence.</span>
+</label>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:13px 22px;border-top:1px solid var(--color-divider);background:var(--color-surface)">
+<a href="#C-05" class="btn btn-secondary" style="min-height:42px">Back</a>
+<div style="flex:1;font-size:12.5px;color:var(--color-neutral-800)">Next: nova3D shows what it understood before anything runs.</div>
+<a href="#C-05" class="btn btn-primary" style="min-height:42px;font-size:15px">Continue</a>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop · offline variant</p>
+<div class="mk-frame" style="width:520px">
+<div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:10px;padding:11px 12px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<span style="flex:none;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-800)">◇ Offline</span>
+<span style="font-size:13.5px">Research needs internet, so only direct conversion is available now.</span>
+</div>
+<label style="display:flex;flex-direction:column;gap:8px;padding:15px;background:var(--color-accent-100);border-left:3px solid var(--color-accent)">
+<span style="display:flex;align-items:center;gap:10px"><span class="radio"><input type="radio" name="path2" checked="checked"><span class="dot"></span></span><span style="font-family:var(--font-heading);font-weight:600;font-size:18px">Convert directly, on this device</span></span>
+<span style="font-size:13px;color:var(--color-neutral-900)">Image-derived, not historically verified. Saves here and syncs to My Projects when you are online.</span>
+</label>
+<div style="display:flex;flex-direction:column;gap:8px;padding:15px;background:var(--color-surface);opacity:.55">
+<span style="display:flex;align-items:center;gap:10px"><span class="radio"><input type="radio" name="path2" disabled="disabled"><span class="dot"></span></span><span style="font-family:var(--font-heading);font-weight:600;font-size:18px">Identify and research the subject</span></span>
+<span style="font-size:13px;color:var(--color-neutral-900)">Unavailable offline. You can convert now and start a researched Version of the same Project later.</span>
+</div>
+<a href="#C-05" class="btn btn-primary" style="min-height:44px">Continue offline</a>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>The two routes are one radio group with the claim sentence inside each label, so the accuracy difference is read as part of the choice, not as a footnote. The disabled option keeps 6:1 text and states why in words. Nothing distinguishes the routes by colour alone — each carries its own “Claim:” block.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="C-06">
+<div class="mk-thd"><a class="mk-id" href="#C-06">C-06</a><span class="mk-name">Understood request</span></div>
+<p class="mk-note">Scope confirmation, and the last screen before any choice about money. States shown: clear and confirmed (desktop), ambiguous with clarification questions (see also <a class="mk-id" href="#C-02" style="background:rgba(0,0,0,.09);color:#201e1d">C-02</a>'s validation), and the phone treatment.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 1120 · clear · picture mode included</p>
+<div class="mk-frame" style="width:1120px">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#C-06" class="btn btn-secondary" style="font-size:13px">← Leave</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">New Project · evidence-backed from text</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-neutral-700)">Step 3 of 6 · saved</span>
+</div>
+<div style="padding:24px 22px">
+<h3 style="margin:0 0 4px">Here is what nova3D understood</h3>
+<p style="margin:0 0 16px;font-size:14px;color:var(--color-neutral-800);max-width:64ch">Correct anything that is wrong. Confirming the scope does not start research and does not commit any money.</p>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;gap:20px;padding:12px 0;border-top:1px solid var(--color-divider)"><div style="width:160px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Subject</div><div style="flex:1;font-size:14px">The outer altar and its ramp, as described in Mishnah tractate Middot, chapter 3</div><a href="#C-06" class="btn btn-ghost">Edit</a></div>
+<div style="display:flex;gap:20px;padding:12px 0;border-top:1px solid var(--color-divider)"><div style="width:160px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Kind of Project</div><div style="flex:1;font-size:14px">Historical reconstruction, evidence-backed — geometry waits for an approved Research Plan</div><a href="#C-06" class="btn btn-ghost">Edit</a></div>
+<div style="display:flex;gap:20px;padding:12px 0;border-top:1px solid var(--color-divider)"><div style="width:160px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Picture mode</div><div style="flex:1;font-size:14px">Not applicable — this Project started from text</div><span style="font-size:12.5px;color:var(--color-neutral-700)">—</span></div>
+<div style="display:flex;gap:20px;padding:12px 0;border-top:1px solid var(--color-divider)"><div style="width:160px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Personalization</div><div style="flex:1;font-size:14px">A small plaque on the base reading “Middot 3” · marked <strong>+ user-added</strong>, separate from the reconstruction</div><a href="#C-06" class="btn btn-ghost">Edit</a></div>
+<div style="display:flex;gap:20px;padding:12px 0;border-top:1px solid var(--color-divider)"><div style="width:160px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Intended outcome</div><div style="flex:1;font-size:14px">A printable model with a PDF Source Record, sized to the Target Print Profile you choose at validation</div><a href="#C-06" class="btn btn-ghost">Edit</a></div>
+<div style="display:flex;gap:20px;padding:12px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)"><div style="width:160px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Not included</div><div style="flex:1;font-size:14px">Surrounding structures, colour and material realism, printing on your behalf</div><span style="font-size:12.5px;color:var(--color-neutral-700)">—</span></div>
+</div>
+<div style="margin-top:16px;padding:12px 14px;background:var(--color-accent-100);font-size:13.5px;max-width:78ch">nova3D will research this scope and build a Research Plan. It will not build geometry until you have read that Plan and approved it.</div>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:13px 22px;border-top:1px solid var(--color-divider);background:var(--color-surface)">
+<a href="#C-06" class="btn btn-secondary" style="min-height:42px">Back</a>
+<div style="flex:1;font-size:12.5px;color:var(--color-neutral-800)">Next step is where free, paid and cached research choices are made.</div>
+<a href="#C-06" class="btn btn-primary" style="min-height:42px;font-size:15px">This is correct — continue</a>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Phone 390 · confirmed state</p>
+<div class="mk-frame" style="width:390px;height:844px">
+<div style="height:100%;display:flex;flex-direction:column">
+<div style="flex:none;padding:12px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:12px">
+<a href="#C-06" class="btn btn-secondary" style="min-height:40px;font-size:12.5px">←</a>
+<div><div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">Check understanding</div><div style="font-size:12px;color:var(--color-neutral-800)">Step 3 of 6</div></div>
+</div>
+<div style="flex:none;display:flex;gap:4px;padding:10px 16px;border-bottom:1px solid var(--color-divider);background:var(--color-surface)">
+<div style="flex:1;height:5px;background:var(--color-accent)"></div><div style="flex:1;height:5px;background:var(--color-accent)"></div><div style="flex:1;height:5px;background:var(--color-accent)"></div><div style="flex:1;height:5px;background:var(--color-neutral-300)"></div><div style="flex:1;height:5px;background:var(--color-neutral-300)"></div><div style="flex:1;height:5px;background:var(--color-neutral-300)"></div>
+</div>
+<div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:9px"><span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-700)">✓ Confirmed</span><span style="font-size:12.5px;color:var(--color-neutral-800)">09:41</span></div>
+<div style="display:flex;flex-direction:column">
+<div style="padding:10px 0;border-top:1px solid var(--color-divider)"><div style="font-size:12px;color:var(--color-neutral-800)">Subject</div><div style="font-size:13.5px;margin-top:2px">The outer altar and its ramp, Mishnah Middot 3</div></div>
+<div style="padding:10px 0;border-top:1px solid var(--color-divider)"><div style="font-size:12px;color:var(--color-neutral-800)">Kind of Project</div><div style="font-size:13.5px;margin-top:2px">Evidence-backed reconstruction</div></div>
+<div style="padding:10px 0;border-top:1px solid var(--color-divider)"><div style="font-size:12px;color:var(--color-neutral-800)">Personalization</div><div style="font-size:13.5px;margin-top:2px">Plaque reading “Middot 3” · <strong>+ user-added</strong></div></div>
+<div style="padding:10px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)"><div style="font-size:12px;color:var(--color-neutral-800)">Not included</div><div style="font-size:13.5px;margin-top:2px">Surrounding structures, colour realism, printing for you</div></div>
+</div>
+<a href="#C-06" class="btn btn-secondary" style="min-height:44px;align-self:flex-start">Change something</a>
+</div>
+<div style="flex:none;border-top:1px solid var(--color-divider);padding:12px 16px 22px;background:var(--color-surface)">
+<a href="#C-06" class="btn btn-primary btn-block" style="min-height:48px;font-size:15px;margin-top:0">Continue to research choices</a>
+</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>Each row is a term/description pair, so the summary reads as “Subject: …, Kind of Project: …” rather than as a table of orphan cells. Edit buttons carry the row name (“Edit subject”). On phone the rows stack and the Edit affordance becomes one “Change something” button, since five 44px targets in a scroll list is worse for reach than one.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="C-07">
+<div class="mk-thd"><a class="mk-id" href="#C-07">C-07</a><span class="mk-name">Research and cache choices</span></div>
+<p class="mk-note">Two separate choices after scope confirmation, with the paid disclosure stated before permission. States shown: paid allowed with disclosure, cached revision date shown, and blocked by a Usage Limit.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 1120 · paid disclosure · cached revision offered</p>
+<div class="mk-frame" style="width:1120px">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#C-07" class="btn btn-secondary" style="font-size:13px">← Leave</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Step 4 of 6 · Research choices</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-neutral-700)">Nothing charged on this step</span>
+</div>
+<div style="display:flex;gap:26px;padding:24px 22px">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:18px">
+<div>
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:9px">1 · Free or paid research</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<label style="display:flex;gap:11px;padding:13px 14px;background:var(--color-surface);cursor:pointer">
+<span class="radio" style="margin-top:2px"><input type="radio" name="pay-c7"><span class="dot"></span></span>
+<span><span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:15px">Free research only</span><span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:3px">Openly available Sources. No charge. Some details may stay <strong>? unknown</strong>, and the Plan will say which.</span></span>
+</label>
+<label style="display:flex;gap:11px;padding:13px 14px;background:var(--color-accent-100);border-left:3px solid var(--color-accent);cursor:pointer">
+<span class="radio" style="margin-top:2px"><input type="radio" name="pay-c7" checked="checked"><span class="dot"></span></span>
+<span>
+<span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:15px">Allow paid research</span>
+<span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:3px">nova3D may use a paid provider when free Sources are not enough.</span>
+<span style="display:block;margin-top:10px;padding:12px;background:var(--color-bg);font-size:13px">
+<strong style="font-family:var(--font-heading);font-weight:600">Before anything is charged, you will see and permit:</strong>
+<span style="display:block;margin-top:7px">the provider's name · what it is used for · what data leaves nova3D · how long that provider keeps it · the maximum charge for the Job</span>
+<span style="display:block;margin-top:8px;color:var(--color-neutral-800)">Permission is per Job, not once for the Account. Your Usage Limit still applies and a reservation is taken before the work, then settled to the real amount.</span>
+</span>
+</span>
+</label>
+</div>
+</div>
+<div>
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:9px">2 · Cached or fresh research</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<label style="display:flex;gap:11px;padding:13px 14px;background:var(--color-surface);cursor:pointer">
+<span class="radio" style="margin-top:2px"><input type="radio" name="cache-c7" checked="checked"><span class="dot"></span></span>
+<span><span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:15px">Reuse cached research</span>
+<span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:3px">A Cached Research Revision exists for this subject. Faster and usually free.</span>
+<span style="display:block;margin-top:7px;font-size:13px;padding:9px 11px;background:var(--color-bg)">Cached Research Revision recorded <strong>12 June 2026</strong>. That date travels with the Plan, every Claim taken from it, and the PDF Source Record — so a reader can tell cached evidence from fresh.</span>
+</span>
+</label>
+<label style="display:flex;gap:11px;padding:13px 14px;background:var(--color-surface);cursor:pointer">
+<span class="radio" style="margin-top:2px"><input type="radio" name="cache-c7"><span class="dot"></span></span>
+<span><span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:15px">Run fresh research</span><span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:3px">Ignores the cache and searches again. Slower, and the paid choice above may apply.</span></span>
+</label>
+</div>
+</div>
+</div>
+<div style="width:300px;flex:none;padding:16px;background:var(--color-surface);align-self:flex-start">
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700)">Your allowance</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;font-size:13px">
+<div style="display:flex;justify-content:space-between"><span>Usage Limit</span><span>set by you</span></div>
+<div style="display:flex;justify-content:space-between"><span>Reserved right now</span><span>none</span></div>
+<div style="display:flex;justify-content:space-between"><span>Available</span><span style="color:var(--color-accent-700)">✓ enough for this Job</span></div>
+</div>
+<div style="height:1px;background:var(--color-divider);margin:14px 0"></div>
+<div style="font-size:13px;color:var(--color-neutral-900)">Paid work is only ever used to find evidence. It is never used to decide what the model should look like.</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:13px 22px;border-top:1px solid var(--color-divider);background:var(--color-surface)">
+<a href="#C-07" class="btn btn-secondary" style="min-height:42px">Back</a>
+<div style="flex:1;font-size:12.5px;color:var(--color-neutral-800)">Step 5 summarises the exact Job and asks for the paid permission, if any is needed.</div>
+<a href="#C-07" class="btn btn-primary" style="min-height:42px;font-size:15px">Continue</a>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop · limit blocked</p>
+<div class="mk-frame" style="width:520px">
+<div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:10px;padding:12px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<span style="flex:none;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-800)">■ Blocked</span>
+<span style="font-size:13.5px">Your Usage Limit has been reached, so no new paid Job can start. Free research is still available and running Jobs are unaffected.</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+<div style="display:flex;justify-content:space-between"><span>Usage Limit</span><span>reached</span></div>
+<div style="display:flex;justify-content:space-between"><span>Running Jobs</span><span style="color:var(--color-accent-700)">✓ allowed to finish</span></div>
+<div style="display:flex;justify-content:space-between"><span>New paid Jobs</span><span style="color:var(--color-accent-2-800)">■ blocked</span></div>
+</div>
+<label style="display:flex;gap:11px;padding:13px 14px;background:var(--color-accent-100);border-left:3px solid var(--color-accent);cursor:pointer">
+<span class="radio" style="margin-top:2px"><input type="radio" name="pay-b" checked="checked"><span class="dot"></span></span>
+<span><span style="display:block;font-family:var(--font-heading);font-weight:600;font-size:15px">Continue with free research only</span><span style="display:block;font-size:13px;color:var(--color-neutral-900);margin-top:3px">Some details may stay <strong>? unknown</strong>.</span></span>
+</label>
+<div style="display:flex;gap:8px">
+<a href="#C-07" class="btn btn-secondary" style="flex:1;min-height:44px">Change the limit</a>
+<a href="#C-07" class="btn btn-primary" style="flex:1;min-height:44px">Continue free</a>
+</div>
+<div style="font-size:12.5px;color:var(--color-neutral-800)">Changing a limit needs fresh sign-in and is recorded as an Administrator action.</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>Blocked uses ■ and the word “blocked”, distinct from ▲ “warning” — the inventory requires warning, blocking failure and unknown to be told apart without colour. The cached option's revision date is inside the label so it is announced with the choice. The allowance panel is a definition list, and “enough for this Job” is a statement, not a colour.
+</div>
+</div>
+</section>
+
+<section class="mk-scr" id="C-08">
+<div class="mk-thd"><a class="mk-id" href="#C-08">C-08</a><span class="mk-name">Start confirmation</span></div>
+<p class="mk-note">The last screen before a Job exists. It summarises exactly what will run and does not repeat, resemble, or stand in for Plan Approval. States shown: ready with paid permission, offline direct conversion, and provider disclosure unresolved.</p>
+<div class="mk-row">
+
+<div>
+<p class="mk-cap">Desktop 1120 · ready · paid permission requested</p>
+<div class="mk-frame" style="width:1120px">
+<div style="display:flex;align-items:center;gap:16px;padding:11px 22px;border-bottom:1px solid var(--color-divider)">
+<a href="#C-08" class="btn btn-secondary" style="font-size:13px">← Leave</a>
+<div style="font-family:var(--font-heading);font-weight:600;font-size:15px">Step 5 of 6 · Start the research Job</div>
+<div style="flex:1"></div>
+<span style="font-size:12.5px;color:var(--color-neutral-700)">Nothing has started yet</span>
+</div>
+<div style="display:flex;gap:26px;padding:24px 22px">
+<div style="flex:1;min-width:0">
+<h3 style="display:flex;align-items:center;gap:9px;margin:0 0 4px"><svg class="ic" width="24" height="24" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-check"></use></svg>This is what will start</h3>
+<p style="margin:0 0 16px;font-size:14px;color:var(--color-neutral-800);max-width:62ch">Starting the Job does not approve anything. When the research finishes you will read the complete Research Plan and decide whether to approve it.</p>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;gap:20px;padding:11px 0;border-top:1px solid var(--color-divider)"><div style="width:170px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Job</div><div style="flex:1;font-size:14px">Research for an evidence-backed reconstruction</div></div>
+<div style="display:flex;gap:20px;padding:11px 0;border-top:1px solid var(--color-divider)"><div style="width:170px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Subject</div><div style="flex:1;font-size:14px">The outer altar and its ramp, Mishnah Middot 3</div></div>
+<div style="display:flex;gap:20px;padding:11px 0;border-top:1px solid var(--color-divider)"><div style="width:170px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Research</div><div style="flex:1;font-size:14px">Cached revision of 12 June 2026, extended with paid research where the cache is thin</div></div>
+<div style="display:flex;gap:20px;padding:11px 0;border-top:1px solid var(--color-divider)"><div style="width:170px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">Geometry</div><div style="flex:1;font-size:14px">Not included. Geometry waits for Plan Approval.</div></div>
+<div style="display:flex;gap:20px;padding:11px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)"><div style="width:170px;flex:none;font-size:12.5px;color:var(--color-neutral-800)">While it runs</div><div style="flex:1;font-size:14px">You can leave, open other Projects, and read Sources. Nothing is blocked.</div></div>
+</div>
+</div>
+<div style="width:360px;flex:none;padding:16px;background:var(--color-accent-100);align-self:flex-start">
+<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-800)">Paid work — your permission</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:10px;font-size:13px">
+<div><span style="color:var(--color-neutral-800)">Provider</span><br><strong style="font-family:var(--font-heading);font-weight:600">Provider name — verified content pending</strong></div>
+<div><span style="color:var(--color-neutral-800)">Purpose</span><br>Finding and retrieving Source material for this subject</div>
+<div><span style="color:var(--color-neutral-800)">Data leaving nova3D</span><br>Your subject description and search terms. Not your Personalization, not your pictures, not your Account details.</div>
+<div><span style="color:var(--color-neutral-800)">Retention by that provider</span><br>Stated retention limit — verified content pending</div>
+<div><span style="color:var(--color-neutral-800)">Maximum charge for this Job</span><br><strong style="font-family:var(--font-heading);font-weight:600">Capped amount shown here</strong> · never exceeded, reserved now and settled to the real cost afterwards</div>
+</div>
+<label class="radio" style="margin-top:12px;align-items:flex-start"><input type="checkbox"><span class="dot" style="border-radius:2px;margin-top:2px"></span><span style="font-size:13px">I permit this paid work for this Job.</span></label>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:13px 22px;border-top:1px solid var(--color-divider);background:var(--color-surface)">
+<a href="#C-08" class="btn btn-secondary" style="min-height:44px">Back</a>
+<div style="flex:1;font-size:12.5px;color:var(--color-neutral-800)">Tick the permission to start. Free-only research needs no permission.</div>
+<a href="#C-08" class="btn btn-secondary" style="min-height:44px">Start free-only instead</a>
+<button class="btn btn-primary" disabled="disabled" style="min-height:44px;font-size:15px">Start research</button>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop · offline direct conversion</p>
+<div class="mk-frame" style="width:520px">
+<div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:10px;padding:11px 12px;background:var(--color-surface)">
+<span style="flex:none;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-800)">◇ Offline</span>
+<span style="font-size:13.5px">This will run on this device. No internet is used and nothing is charged.</span>
+</div>
+<h4 style="display:flex;align-items:center;gap:9px;margin:0"><svg class="ic" width="21" height="21" viewBox="0 0 256 256" aria-hidden="true"><use href="#i-check"></use></svg>This is what will start</h4>
+<div style="display:flex;flex-direction:column;font-size:13.5px">
+<div style="display:flex;gap:14px;padding:10px 0;border-top:1px solid var(--color-divider)"><span style="width:130px;flex:none;color:var(--color-neutral-800);font-size:12.5px">Job</span><span>Direct conversion of 6 pictures</span></div>
+<div style="display:flex;gap:14px;padding:10px 0;border-top:1px solid var(--color-divider)"><span style="width:130px;flex:none;color:var(--color-neutral-800);font-size:12.5px">Claim</span><span>Image-derived, <strong>not historically verified</strong></span></div>
+<div style="display:flex;gap:14px;padding:10px 0;border-top:1px solid var(--color-divider)"><span style="width:130px;flex:none;color:var(--color-neutral-800);font-size:12.5px">Where it saves</span><span>On this device, then syncs to My Projects when you are online</span></div>
+<div style="display:flex;gap:14px;padding:10px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)"><span style="width:130px;flex:none;color:var(--color-neutral-800);font-size:12.5px">Recorded warning</span><span>▲ Three sides were never photographed</span></div>
+</div>
+<a href="#C-08" class="btn btn-primary" style="min-height:44px">Start on this device</a>
+</div>
+</div>
+</div>
+
+<div>
+<p class="mk-cap">Desktop · provider disclosure unresolved</p>
+<div class="mk-frame" style="width:520px">
+<div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:10px;padding:12px;background:var(--color-accent-2-100);border-left:3px solid var(--color-accent-2)">
+<span style="flex:none;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-2-800)">■ Blocked</span>
+<span style="font-size:13.5px">nova3D cannot show you the provider's retention limit right now, so it will not ask for your permission and will not start paid work.</span>
+</div>
+<p style="margin:0;font-size:13.5px">Paid research needs the full disclosure — provider, purpose, outbound data, retention, maximum charge — before permission. One part is missing, so the paid route is unavailable until it can be shown.</p>
+<div style="display:flex;flex-direction:column;gap:8px">
+<a href="#C-08" class="btn btn-primary" style="min-height:44px">Start free-only research</a>
+<a href="#C-08" class="btn btn-secondary" style="min-height:44px">Try the disclosure again</a>
+<a href="#C-08" class="btn btn-secondary" style="min-height:44px">Leave and come back later</a>
+</div>
+<div style="font-size:12.5px;color:var(--color-neutral-800)">Nothing has been reserved or charged, and your scope is saved.</div>
+</div>
+</div>
+</div>
+
+<div class="mk-a11y">
+<b>Accessibility</b><br>The paid permission is a real checkbox gating a disabled primary, with the requirement stated in the action bar so it is met in focus order. Every unverifiable value reads “verified content pending” rather than a plausible invented figure. The blocked variant offers three exits, each a full-width 44px target, and states that nothing was reserved.
+</div>
+</div>
+</section></x-dc>
+</body>
+</html>

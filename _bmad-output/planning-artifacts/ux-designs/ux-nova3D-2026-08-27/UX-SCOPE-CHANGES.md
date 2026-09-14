@@ -1,7 +1,7 @@
 ---
 title: nova3D UX Scope Changes After PRD Finalization
-status: approved-for-design-handoff
-updated: 2026-08-30
+status: approved-reflected-in-prd
+updated: 2026-09-02
 sources:
   - ../../prds/prd-nova3D-2026-08-27/prd.md
   - .memlog.md
@@ -10,6 +10,10 @@ sources:
 # UX Scope Changes After PRD Finalization
 
 These decisions were approved during UX discovery after the PRD reached `status: final`. Claude Design must include them. Architecture and product planning must reconcile them before implementation. Except where this file explicitly changes scope, the final PRD remains authoritative.
+
+> **Status, 2 September 2026.** SC-1 to SC-7 are now reflected in `../../prds/prd-nova3D-2026-08-27/prd.md` under §0.2, as FR-39 to FR-47, NFR-16 to NFR-19, SM-13 to SM-16, SM-C7, D-5, and AD-13 to AD-16. The PRD no longer contradicts them, so this file and the PRD can be read together rather than one against the other.
+>
+> **The print sections of this file are superseded by `SCOPE-CHANGE-print.md`,** which is authoritative wherever the two disagree. That affects SC-5, which lists printing as a "later" notification category — printing is in the first version, and the PRD reflects this. The rest of this file stands.
 
 ## SC-1 — Picture workflows move into the first version
 
