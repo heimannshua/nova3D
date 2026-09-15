@@ -12,7 +12,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
-    "test:health": "node scripts/test-health.mjs"
+    "test:health": "node scripts/test-health.mjs",
+    "test:dev-origins": "node --experimental-strip-types scripts/test-dev-origins.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

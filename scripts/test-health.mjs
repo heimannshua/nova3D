@@ -18,6 +18,7 @@ try {
   for (const [key, expected] of Object.entries({ok: true, providerCall: false, appMode: 'mock', syntheticData: true})) {
     if (payload[key] !== expected) throw new Error(`health.${key} expected ${expected}, received ${payload[key]}`);
   }
+  if (Object.hasOwn(payload, 'interimGateConfigured')) throw new Error('health must not expose the removed interim gate');
   console.log('Health smoke test passed.');
 } finally {
   stop();

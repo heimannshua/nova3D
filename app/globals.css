@@ -58,15 +58,8 @@ button:focus-visible, [role="button"]:focus-visible, input:focus-visible { outli
 .auth-card h1 { margin: 8px 0 0; color: #1c2336; font-size: 30px; letter-spacing: -.045em; }
 .auth-lede { margin: 12px 0 24px; color: var(--muted); font-size: 13px; line-height: 1.55; }
 .auth-error { margin: 0 0 14px; padding: 11px 12px; border: 1px solid #f0c9c4; border-radius: 9px; background: #fff4f2; color: #a64f45; font-size: 11px; line-height: 1.45; }
-.auth-google, .auth-submit { width: 100%; }
+.auth-google { width: 100%; }
 .auth-google:disabled { opacity: .48; cursor: not-allowed; }
 .auth-hint, .auth-footnote { color: #9298a8; font-size: 10px; line-height: 1.5; }
 .auth-hint { margin: 9px 0 0; }
-.auth-divider { display: flex; align-items: center; gap: 10px; margin: 25px 0 17px; color: #a0a6b5; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
-.auth-divider::before, .auth-divider::after { height: 1px; flex: 1; background: var(--line); content: ''; }
-.auth-form { display: grid; gap: 8px; }
-.auth-form label { color: #5a6275; font-size: 11px; font-weight: 700; }
-.auth-form input { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; background: #fbfbfe; color: var(--ink); font-size: 12px; }
-.auth-submit { margin-top: 4px; border-color: var(--line); background: #f3f4f8; color: #5d6577; }
-.auth-submit:hover { background: #e9eaf1; }
 .auth-footnote { margin: 22px 0 0; text-align: center; }

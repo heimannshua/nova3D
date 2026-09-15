@@ -32,6 +32,8 @@ jobs:
         run: node scripts/ci/check-repository.mjs
       - name: Test deployment environment guardrails
         run: node scripts/test-env.mjs
+      - name: Test local development origin configuration
+        run: npm run test:dev-origins
       - name: Validate shell scripts
         run: |
           while IFS= read -r file; do bash -n "$file"; done < <(find tools -type f -name '*.sh' -print)
