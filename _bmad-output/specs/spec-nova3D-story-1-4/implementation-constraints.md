@@ -35,7 +35,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 583 in the captured inp
 
 ### AR-18
 
-**AR-18: Identity and administrative enforcement.** Disable public Supabase signup; hash/atomically claim invitations and idempotently provision Auth plus Workspace with unusable partial activation. Rate-limit guessing; rotate shared codes only after success. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication and immutable audit; verified-email single-use short-lived recovery revokes prior sessions.
+**AR-18: Identity and administrative enforcement.** Google is the only credential and an Auth identity without an activated Account has no access (no public Account creation); hash/atomically claim invitations for the signed-in verified Google identity and idempotently provision the Account plus Workspace with unusable partial activation. Rate-limit guessing; rotate shared codes only after success. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication and immutable audit; verified-email single-use short-lived recovery revokes prior sessions.
 
 Source: AD-12; FR-1–FR-4.
 
@@ -57,7 +57,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 543 in the captured inp
 
 **UX-DR21: Sign in (A-01).** Account authentication, recovery entry, language access.
 
-Required states/variants: Default, invalid credentials, disabled Account, loading.
+Required states/variants: Default, Google sign-in failed, no activated Account (redeem an invitation), disabled Account, loading.
 
 Source: SCREEN-INVENTORY A-01; canonical ux-contract; applicable ratified decisions.
 

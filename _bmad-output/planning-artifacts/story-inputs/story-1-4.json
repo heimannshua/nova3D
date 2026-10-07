@@ -24,7 +24,9 @@
     ],
     "scope": [
       "Enforce JWT plus live Account and session grant on every currently implemented private API and direct database/storage path.",
-      "Carry ownership-scoped IDs, foreign keys and denial behavior into every subsequent module."
+      "Carry ownership-scoped IDs, foreign keys and denial behavior into every subsequent module.",
+      "Sign in uses Google OAuth through Supabase. Fresh authentication for sensitive actions means Google re-authentication within the fresh-authentication window.",
+      "Replace the interim `AUTH_ALLOWED_EMAILS` gate with the live-Account check in the same change, and remove the variable from the proxy, callback, health route, environment checks and docs."
     ],
     "acceptance_criteria": [
       {
@@ -38,7 +40,7 @@
         "then": "live authorization rejects it even if the browser bypasses the UI"
       },
       {
-        "given": "invalid credentials or an Administrator session",
+        "given": "a failed Google sign-in, a Google identity with no activated Account, or an Administrator session",
         "when": "sign-in or private browsing is attempted",
         "then": "generic failure states are usable and the Administrator cannot impersonate, browse another Workspace or grant administrators"
       }
@@ -64,7 +66,7 @@
       "line": 583
     },
     "AR-18": {
-      "text": "**AR-18: Identity and administrative enforcement.** Disable public Supabase signup; hash/atomically claim invitations and idempotently provision Auth plus Workspace with unusable partial activation. Rate-limit guessing; rotate shared codes only after success. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication and immutable audit; verified-email single-use short-lived recovery revokes prior sessions.\n\nSource: AD-12; FR-1–FR-4.",
+      "text": "**AR-18: Identity and administrative enforcement.** Google is the only credential and an Auth identity without an activated Account has no access (no public Account creation); hash/atomically claim invitations for the signed-in verified Google identity and idempotently provision the Account plus Workspace with unusable partial activation. Rate-limit guessing; rotate shared codes only after success. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication and immutable audit; verified-email single-use short-lived recovery revokes prior sessions.\n\nSource: AD-12; FR-1–FR-4.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 653
     },
@@ -79,7 +81,7 @@
       "line": 543
     },
     "UX-DR21": {
-      "text": "**UX-DR21: Sign in (A-01).** Account authentication, recovery entry, language access.\n\nRequired states/variants: Default, invalid credentials, disabled Account, loading.\n\nSource: SCREEN-INVENTORY A-01; canonical ux-contract; applicable ratified decisions.",
+      "text": "**UX-DR21: Sign in (A-01).** Account authentication, recovery entry, language access.\n\nRequired states/variants: Default, Google sign-in failed, no activated Account (redeem an invitation), disabled Account, loading.\n\nSource: SCREEN-INVENTORY A-01; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 859
     }

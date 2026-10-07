@@ -18,6 +18,7 @@ So that offline creation can meet the adopted device limits.
 ## Scope
 
 - Select/adapt licensed pinned weights with ONNX Runtime Web 1.29.0 as the first browser backend; no engine is currently qualified.
+- Expose the engine through a versioned engine port with a conformance test suite and a deterministic test engine, so Stories 7.2 to 7.5 can be built and accepted without qualified weights.
 
 ## Acceptance Criteria
 
@@ -31,13 +32,19 @@ So that offline creation can meet the adopted device limits.
 
 **Given** no compliant candidate or missing device evidence
 **When** readiness is evaluated
-**Then** G-8 remains BLOCKED and the first-version scope/limits stay unchanged; backend identity-model success is not reconstruction success
+**Then** G-8 remains BLOCKED and the first-version scope/limits stay unchanged; backend identity-model success is not reconstruction success; Story 7.1 completes with that recorded BLOCKED report and the G-8 product-decision checkpoint opens
 
 ### AC-3
 
 **Given** WebGPU/WASM execution, eviction or interruption
 **When** the candidate is exercised
 **Then** documented supported behavior preserves privacy and recovery without silently substituting cloud inference
+
+### AC-4
+
+**Given** Story 7.1 has completed with a recorded BLOCKED report
+**When** Stories 7.2 to 7.5 are built
+**Then** they run against the engine port using only the test engine, label every output non-qualified, never offer it to users as reconstruction, and cannot close G-8
 
 ## Engineering Gates
 

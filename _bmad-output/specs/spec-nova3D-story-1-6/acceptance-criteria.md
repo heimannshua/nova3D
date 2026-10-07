@@ -17,7 +17,7 @@ So that I can regain control without bypassing workspace privacy.
 
 ## Scope
 
-- Use a short-lived single-use verified-email recovery link and fresh authentication for sensitive actions.
+- Use a short-lived single-use verified-email recovery link and fresh authentication for sensitive actions. The link is the only non-Google sign-in path and exists only for the sole Administrator.
 
 ## Acceptance Criteria
 

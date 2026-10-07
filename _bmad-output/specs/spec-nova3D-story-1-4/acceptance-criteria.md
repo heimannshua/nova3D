@@ -18,6 +18,8 @@ So that my projects and files stay private.
 
 - Enforce JWT plus live Account and session grant on every currently implemented private API and direct database/storage path.
 - Carry ownership-scoped IDs, foreign keys and denial behavior into every subsequent module.
+- Sign in uses Google OAuth through Supabase. Fresh authentication for sensitive actions means Google re-authentication within the fresh-authentication window.
+- Replace the interim `AUTH_ALLOWED_EMAILS` gate with the live-Account check in the same change, and remove the variable from the proxy, callback, health route, environment checks and docs.
 
 ## Acceptance Criteria
 
@@ -35,7 +37,7 @@ So that my projects and files stay private.
 
 ### AC-3
 
-**Given** invalid credentials or an Administrator session
+**Given** a failed Google sign-in, a Google identity with no activated Account, or an Administrator session
 **When** sign-in or private browsing is attempted
 **Then** generic failure states are usable and the Administrator cannot impersonate, browse another Workspace or grant administrators
 

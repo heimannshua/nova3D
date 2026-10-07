@@ -17,8 +17,9 @@ So that my account starts in its own private workspace.
 
 ## Scope
 
-- Implement fresh-authenticated Administrator invitation issuance/revocation and narrow idempotent registration.
+- Implement fresh-authenticated Administrator invitation issuance/revocation and narrow idempotent registration: a user signs in with Google, then redeems an invitation code to activate an Account. No code, no Account.
 - Named and current general codes are hashed, single-use and nonexpiring until used or revoked; partial Auth provisioning is unusable.
+- Provision the Administrator and the other currently allowlisted identity once through a documented, audited seed rather than code redemption.
 
 ## Acceptance Criteria
 
@@ -26,7 +27,7 @@ So that my account starts in its own private workspace.
 
 **Given** one unused invitation and concurrent registrations
 **When** both attempt redemption
-**Then** at most one activated Account/Workspace is created; retries return the original outcome and partial provisioning cannot sign in
+**Then** at most one activated Account/Workspace is created; retries return the original outcome, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path
 
 ### AC-2
 

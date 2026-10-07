@@ -8,6 +8,8 @@
 
 The FAIL comes from missing recorded decisions, missing fallbacks, and stories in the wrong order. It does not come from G-1 to G-9 being open. The plan states that implementation and qualification may proceed while those gates are open (`specs/spec-nova3D/scope-and-readiness.md:85`).
 
+**Resolution status (2026-10-07):** findings 1, 3 and 8 are addressed by `sprint-change-proposal-2026-10-07.md`, approved and applied to `epics.md`, the Spine, R-8, the UX inventory, `scope-and-readiness.md` and the five affected story specs. Findings 2, 4, 5, 6, 7, 9 and 10 are still open, so the gate verdict stays FAIL until they are resolved and sprint planning is re-run.
+
 ## How this was produced
 
 Three parallel read-only audits (dependencies/independence, requirements traceability, unrecorded decisions/plan-vs-reality), plus my own reading of `specs/spec-nova3D/SPEC.md` and `scope-and-readiness.md`.

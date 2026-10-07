@@ -19,7 +19,7 @@ An invited user needs to register with a valid invitation. Their account starts 
 
 - **CAP-1**
   - **intent:** An invited user can register with a valid invitation.
-  - **success:** At most one activated Account/Workspace is created; retries return the original outcome and partial provisioning cannot sign in.
+  - **success:** At most one activated Account/Workspace is created; retries return the original outcome, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-At most one activated Account/Workspace is created; retries return the original outcome and partial provisioning cannot sign in. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+At most one activated Account/Workspace is created; retries return the original outcome, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

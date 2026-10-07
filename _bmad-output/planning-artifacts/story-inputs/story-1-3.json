@@ -25,14 +25,15 @@
       "1-2"
     ],
     "scope": [
-      "Implement fresh-authenticated Administrator invitation issuance/revocation and narrow idempotent registration.",
-      "Named and current general codes are hashed, single-use and nonexpiring until used or revoked; partial Auth provisioning is unusable."
+      "Implement fresh-authenticated Administrator invitation issuance/revocation and narrow idempotent registration: a user signs in with Google, then redeems an invitation code to activate an Account. No code, no Account.",
+      "Named and current general codes are hashed, single-use and nonexpiring until used or revoked; partial Auth provisioning is unusable.",
+      "Provision the Administrator and the other currently allowlisted identity once through a documented, audited seed rather than code redemption."
     ],
     "acceptance_criteria": [
       {
         "given": "one unused invitation and concurrent registrations",
         "when": "both attempt redemption",
-        "then": "at most one activated Account/Workspace is created; retries return the original outcome and partial provisioning cannot sign in"
+        "then": "at most one activated Account/Workspace is created; retries return the original outcome, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path"
       },
       {
         "given": "named codes and the current general code",
@@ -66,7 +67,7 @@
       "line": 85
     },
     "AR-18": {
-      "text": "**AR-18: Identity and administrative enforcement.** Disable public Supabase signup; hash/atomically claim invitations and idempotently provision Auth plus Workspace with unusable partial activation. Rate-limit guessing; rotate shared codes only after success. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication and immutable audit; verified-email single-use short-lived recovery revokes prior sessions.\n\nSource: AD-12; FR-1–FR-4.",
+      "text": "**AR-18: Identity and administrative enforcement.** Google is the only credential and an Auth identity without an activated Account has no access (no public Account creation); hash/atomically claim invitations for the signed-in verified Google identity and idempotently provision the Account plus Workspace with unusable partial activation. Rate-limit guessing; rotate shared codes only after success. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication and immutable audit; verified-email single-use short-lived recovery revokes prior sessions.\n\nSource: AD-12; FR-1–FR-4.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 653
     },
@@ -81,7 +82,7 @@
       "line": 543
     },
     "UX-DR22": {
-      "text": "**UX-DR22: Invitation registration (A-02).** Single-use Invitation Code, Account creation, clear generic failures.\n\nRequired states/variants: Valid, invalid/revoked/used code, rate-limited, success.\n\nSource: SCREEN-INVENTORY A-02; canonical ux-contract; applicable ratified decisions.",
+      "text": "**UX-DR22: Invitation registration (A-02).** Single-use Invitation Code redeemed by a signed-in Google identity, Account activation, clear generic failures.\n\nRequired states/variants: Valid, invalid/revoked/used code, rate-limited, success.\n\nSource: SCREEN-INVENTORY A-02; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 865
     },

@@ -1,7 +1,7 @@
 # Sprint Change Proposal: 2026-10-07
 
 **Project:** nova3D · **Prepared for:** Josh · **Trigger:** `implementation-readiness.md` (readiness gate FAIL), findings 1, 3 and 8
-**Status:** APPROVED by Josh on 2026-10-07. Planning-artifact edits (Sets A, B and C: Spine, R-8, `epics.md`, UX inventory, scope-and-readiness) are applied. Propagation to the story specs, manifest and validation is in progress and lands in a follow-up commit.
+**Status:** APPROVED by Josh on 2026-10-07. Sets A, B and C are applied to the Spine, R-8, `epics.md`, the UX inventory and scope-and-readiness, and propagated to the story specs, story inputs, index, manifest and validation report (the full multi-agent validation was not re-run; see the amendment in `story-specs-validation.md`). Still open: section 6 items and the remaining readiness findings.
 **Mode:** Incremental was selected, then Josh said "you decide", so the decisions below are mine, taken from the stated leanings. Every one is reversible before approval.
 **Scope class:** Moderate. No epic is added or removed and the PRD is unchanged. One architecture decision (AD-12 and AR-18) is amended, and five story specs need regeneration.
 

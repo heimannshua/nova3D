@@ -14,7 +14,7 @@ Invited users can authenticate and use a responsive private workspace; Josh can 
 
 | Story | Specification | Depends on | Engineering gates |
 | --- | --- | --- | --- |
-| 1.1 | [Bootstrap the qualified application seed](spec-nova3D-story-1-1/SPEC.md) | — | Inherited |
+| 1.1 | [Adopt and harden the qualified application seed](spec-nova3D-story-1-1/SPEC.md) | — | Inherited |
 | 1.2 | [Establish accessible localized navigation and preferences](spec-nova3D-story-1-2/SPEC.md) | 1.1 | Inherited |
 | 1.3 | [Create invitation-only accounts](spec-nova3D-story-1-3/SPEC.md) | 1.1, 1.2 | Inherited |
 | 1.4 | [Authenticate with live workspace isolation](spec-nova3D-story-1-4/SPEC.md) | 1.3 | Inherited |

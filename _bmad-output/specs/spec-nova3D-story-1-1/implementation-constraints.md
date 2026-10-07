@@ -12,7 +12,7 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 ### AR-1
 
-**AR-1: Starter and pinned runtime.** Epic 1 Story 1 must initialize the official create-next-app 16.3.5 TypeScript/App Router/Tailwind starter with the documented Supabase SSR integration. Preserve Node 24.21.0, React/DOM 19.3.0, TypeScript 5.9.3, Tailwind 4.3.3, supabase-js 2.116.0, ssr 0.12.7, Upstash Workflow 1.3.3/Redis 1.38.4 and Three 0.186.0 as the qualified seed; compatible patches are delegated. Install, typecheck and production-build before accepting the application lockfile. The old with-supabase example's Tailwind 3/lint pins are not the seed. Local probes already pass but the application is unbuilt.
+**AR-1: Starter and pinned runtime.** Epic 1 Story 1 adopts the existing Next 16.3.5 TypeScript/App Router/Tailwind application with its Supabase SSR integration. Preserve Node 24.21.0 (pinned in `engines` and CI), React/DOM 19.3.0, TypeScript 5.9.3, Tailwind 4.3.3, supabase-js 2.116.0, ssr 0.12.7, Upstash Workflow 1.3.3/Redis 1.38.4 as the qualified seed; Three 0.186.0 is added at this pin by the first story that uses it; compatible patches are delegated. Install, typecheck and production-build before accepting the application lockfile. The old with-supabase example's Tailwind 3/lint pins are not the seed. Local probes already pass; the application exists as a mock-first shell at the repository root.
 
 Source: Architecture Stack; R-1; qualification stack report.
 
