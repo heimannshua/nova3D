@@ -572,7 +572,7 @@ The adopted architecture is an implementation contract. These work items retain 
 
 **Starter requirement for Epic 1 Story 1:** AR-1 specifies the qualified greenfield seed. The first story below carries this bootstrap constraint.
 
-**AR-1: Starter and pinned runtime.** Epic 1 Story 1 must initialize the official create-next-app 16.3.5 TypeScript/App Router/Tailwind starter with the documented Supabase SSR integration. Preserve Node 24.21.0, React/DOM 19.3.0, TypeScript 5.9.3, Tailwind 4.3.3, supabase-js 2.116.0, ssr 0.12.7, Upstash Workflow 1.3.3/Redis 1.38.4 and Three 0.186.0 as the qualified seed; compatible patches are delegated. Install, typecheck and production-build before accepting the application lockfile. The old with-supabase example's Tailwind 3/lint pins are not the seed. Local probes already pass but the application is unbuilt.
+**AR-1: Starter and pinned runtime.** Epic 1 Story 1 adopts the existing Next 16.3.5 TypeScript/App Router/Tailwind application with its Supabase SSR integration. Preserve Node 24.21.0 (pinned in `engines` and CI), React/DOM 19.3.0, TypeScript 5.9.3, Tailwind 4.3.3, supabase-js 2.116.0, ssr 0.12.7, Upstash Workflow 1.3.3/Redis 1.38.4 as the qualified seed; Three 0.186.0 is added at this pin by the first story that uses it; compatible patches are delegated. Install, typecheck and production-build before accepting the application lockfile. The old with-supabase example's Tailwind 3/lint pins are not the seed. Local probes already pass; the application exists as a mock-first shell at the repository root.
 
 Source: Architecture Stack; R-1; qualification stack report.
 
@@ -650,7 +650,7 @@ Source: AD-11; R-6; G-6.
 
 Source: R-6; AD-11; G-6.
 
-**AR-18: Identity and administrative enforcement.** Disable public Supabase signup; hash/atomically claim invitations and idempotently provision Auth plus Workspace with unusable partial activation. Rate-limit guessing; rotate shared codes only after success. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication and immutable audit; verified-email single-use short-lived recovery revokes prior sessions.
+**AR-18: Identity and administrative enforcement.** Google is the only credential and an Auth identity without an activated Account has no access (no public Account creation); hash/atomically claim invitations for the signed-in verified Google identity and idempotently provision the Account plus Workspace with unusable partial activation. Rate-limit guessing; rotate shared codes only after success. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication and immutable audit; verified-email single-use short-lived recovery revokes prior sessions.
 
 Source: AD-12; FR-1–FR-4.
 
@@ -858,11 +858,11 @@ Source: R-10; UX-7; screen inventory/design handoff.
 
 **UX-DR21: Sign in (A-01).** Account authentication, recovery entry, language access.
 
-Required states/variants: Default, invalid credentials, disabled Account, loading.
+Required states/variants: Default, Google sign-in failed, no activated Account (redeem an invitation), disabled Account, loading.
 
 Source: SCREEN-INVENTORY A-01; canonical ux-contract; applicable ratified decisions.
 
-**UX-DR22: Invitation registration (A-02).** Single-use Invitation Code, Account creation, clear generic failures.
+**UX-DR22: Invitation registration (A-02).** Single-use Invitation Code redeemed by a signed-in Google identity, Account activation, clear generic failures.
 
 Required states/variants: Valid, invalid/revoked/used code, rate-limited, success.
 
@@ -1390,7 +1390,7 @@ Users can remove their data, Josh can close the instance, and the complete produ
 
 Invited users can authenticate and use a responsive private workspace; Josh can control and recover access without inspecting private content.
 
-### Story 1.1: Bootstrap the qualified application seed
+### Story 1.1: Adopt and harden the qualified application seed
 
 As a maintainer,
 I want a reproducible application startup,
@@ -1402,7 +1402,8 @@ So that implementation starts from the qualified runtime.
 
 **Scope:**
 
-- Initialize only the official pinned Next/App Router/TypeScript/Tailwind seed, Supabase SSR wiring and environment checks needed to serve an empty application.
+- Adopt the existing root Next.js App Router application (Next 16.3.5, React 19.3.0, TypeScript 5.9.3, Tailwind 4.3.3, Supabase SSR, interim Google sign-in) as the qualified seed and bring it to the pinned contract.
+- Verify the environment at startup and in the deployment build, and exercise the check in CI. Label the mock dashboard a synthetic shell that later stories replace.
 - Define module ownership and environment boundaries; later stories introduce their own entities.
 
 **Acceptance Criteria:**
@@ -1411,19 +1412,19 @@ So that implementation starts from the qualified runtime.
 
 **Given** a clean checkout and the ratified package set
 **When** dependencies install, typechecking and production build run
-**Then** the lockfile records the adopted versions and a loopback production page responds successfully
+**Then** the lockfile records the adopted versions, `engines` and CI both pin Node 24.21.0, build-only tooling is not a runtime dependency, the bundler choice is recorded with its qualification evidence, and a loopback production page responds successfully
 
 **AC-2**
 
 **Given** a preview environment
 **When** configuration is loaded
-**Then** production credentials and paid adapters are unavailable, and mixed environment identifiers fail startup
+**Then** production credentials and paid adapters are unavailable, and a mixed or unverifiable environment identifier fails startup and the deployment build. The check verifies an immutable environment identifier against each configured resource, not only the `APP_ENV` label, and CI exercises it against fixture environments. A credential-free local build still succeeds
 
 **AC-3**
 
-**Given** the initial starter
-**When** its migrations and modules are reviewed
-**Then** it contains only startup needs, not all future domain tables or a claim that deployed providers are qualified
+**Given** the adopted shell
+**When** its routes, data and modules are reviewed
+**Then** it contains only startup needs and a clearly labeled synthetic dashboard, with no persisted-data claim, no future domain tables, and no claim that deployed providers are qualified
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-1/SPEC.md).
 
@@ -1476,8 +1477,9 @@ So that my account starts in its own private workspace.
 
 **Scope:**
 
-- Implement fresh-authenticated Administrator invitation issuance/revocation and narrow idempotent registration.
+- Implement fresh-authenticated Administrator invitation issuance/revocation and narrow idempotent registration: a user signs in with Google, then redeems an invitation code to activate an Account. No code, no Account.
 - Named and current general codes are hashed, single-use and nonexpiring until used or revoked; partial Auth provisioning is unusable.
+- Provision the Administrator and the other currently allowlisted identity once through a documented, audited seed rather than code redemption.
 
 **Acceptance Criteria:**
 
@@ -1485,7 +1487,7 @@ So that my account starts in its own private workspace.
 
 **Given** one unused invitation and concurrent registrations
 **When** both attempt redemption
-**Then** at most one activated Account/Workspace is created; retries return the original outcome and partial provisioning cannot sign in
+**Then** at most one activated Account/Workspace is created; retries return the original outcome, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path
 
 **AC-2**
 
@@ -1515,6 +1517,8 @@ So that my projects and files stay private.
 
 - Enforce JWT plus live Account and session grant on every currently implemented private API and direct database/storage path.
 - Carry ownership-scoped IDs, foreign keys and denial behavior into every subsequent module.
+- Sign in uses Google OAuth through Supabase. Fresh authentication for sensitive actions means Google re-authentication within the fresh-authentication window.
+- Replace the interim `AUTH_ALLOWED_EMAILS` gate with the live-Account check in the same change, and remove the variable from the proxy, callback, health route, environment checks and docs.
 
 **Acceptance Criteria:**
 
@@ -1532,7 +1536,7 @@ So that my projects and files stay private.
 
 **AC-3**
 
-**Given** invalid credentials or an Administrator session
+**Given** a failed Google sign-in, a Google identity with no activated Account, or an Administrator session
 **When** sign-in or private browsing is attempted
 **Then** generic failure states are usable and the Administrator cannot impersonate, browse another Workspace or grant administrators
 
@@ -1587,7 +1591,7 @@ So that I can regain control without bypassing workspace privacy.
 
 **Scope:**
 
-- Use a short-lived single-use verified-email recovery link and fresh authentication for sensitive actions.
+- Use a short-lived single-use verified-email recovery link and fresh authentication for sensitive actions. The link is the only non-Google sign-in path and exists only for the sole Administrator.
 
 **Acceptance Criteria:**
 
@@ -3041,6 +3045,8 @@ So that large files remain private and access stops when revoked.
 
 Prepared supported devices can create honestly labeled image-derived models offline, preserve them locally and synchronize without privacy or history loss.
 
+A dependency on Story 7.1 means 7.1 has completed with either a qualified engine or a recorded BLOCKED report. Qualified-engine acceptance gates release, not build order.
+
 ### Story 7.1: Qualify a bounded multi-view reconstruction engine
 
 As a maintainer,
@@ -3054,6 +3060,7 @@ So that offline creation can meet the adopted device limits.
 **Scope:**
 
 - Select/adapt licensed pinned weights with ONNX Runtime Web 1.29.0 as the first browser backend; no engine is currently qualified.
+- Expose the engine through a versioned engine port with a conformance test suite and a deterministic test engine, so Stories 7.2 to 7.5 can be built and accepted without qualified weights.
 
 **Acceptance Criteria:**
 
@@ -3067,13 +3074,19 @@ So that offline creation can meet the adopted device limits.
 
 **Given** no compliant candidate or missing device evidence
 **When** readiness is evaluated
-**Then** G-8 remains BLOCKED and the first-version scope/limits stay unchanged; backend identity-model success is not reconstruction success
+**Then** G-8 remains BLOCKED and the first-version scope/limits stay unchanged; backend identity-model success is not reconstruction success; Story 7.1 completes with that recorded BLOCKED report and the G-8 product-decision checkpoint opens
 
 **AC-3**
 
 **Given** WebGPU/WASM execution, eviction or interruption
 **When** the candidate is exercised
 **Then** documented supported behavior preserves privacy and recovery without silently substituting cloud inference
+
+**AC-4**
+
+**Given** Story 7.1 has completed with a recorded BLOCKED report
+**When** Stories 7.2 to 7.5 are built
+**Then** they run against the engine port using only the test engine, label every output non-qualified, never offer it to users as reconstruction, and cannot close G-8
 
 **Engineering gates:** G-8; planning completion does not change their qualification status.
 
@@ -3583,6 +3596,7 @@ So that release decisions reflect the complete application.
 - Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.
 - Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.
 - Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question.
+- G-8 product-decision checkpoint: when Epic 6 is complete, or Story 7.1 has evaluated every available candidate (whichever comes first), and G-8 is still BLOCKED, Josh records one of: keep waiting, defer offline direct conversion to a later release, or add an online worker path. Until that record exists, scope and limits are unchanged and full first-version release stays blocked.
 
 Per-story spec folders carry their own stable capability IDs and canonical append-only memory. The project-wide SPEC retains CAP-1–CAP-17. Implementation dispatch checkpoints are not assigned by this planning run.
 

@@ -14,8 +14,8 @@ Every first-version surface needs usable desktop/laptop and phone designs. Where
 
 | ID | Surface | Must enable or show | Required states or variants |
 |---|---|---|---|
-| A-01 | Sign in | Account authentication, recovery entry, language access | Default, invalid credentials, disabled Account, loading |
-| A-02 | Invitation registration | Single-use Invitation Code, Account creation, clear generic failures | Valid, invalid/revoked/used code, rate-limited, success |
+| A-01 | Sign in | Account authentication, recovery entry, language access | Default, Google sign-in failed, no activated Account (redeem an invitation), disabled Account, loading |
+| A-02 | Invitation registration | Single-use Invitation Code redeemed by a signed-in Google identity, Account activation, clear generic failures | Valid, invalid/revoked/used code, rate-limited, success |
 | A-03 | Administrator recovery | Verified-email recovery without exposing other Workspaces | Request sent, expired/used link, success with session revocation |
 | G-01 | Global shell | Access to Home, Notifications, Settings, Account, and contextual back navigation | Desktop/laptop, phone, LTR, RTL, light, dark |
 | G-02 | Notifications | Actionable event list opening the exact related item | Unread/read, empty, failure, permission disabled, grouped Project events |
