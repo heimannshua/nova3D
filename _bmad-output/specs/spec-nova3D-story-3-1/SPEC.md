@@ -31,7 +31,7 @@ An Account owner needs to discover relevant authoritative sources. They need not
 
 - **CAP-4**
   - **intent:** Handle an unverifiable edition rights check without storing a body or silently continuing.
-  - **success:** Given an edition whose license or rights cannot be verified, when acquisition runs, then no body is stored, the registry's next ordered alternate edition is tried, and if none remains the Job ends with a clear blocked outcome naming the unverified edition.
+  - **success:** Given an edition whose license or rights cannot be verified, when acquisition runs, then no body is stored, the registry's next ordered alternate edition is tried, and if none remains the Job ends failed with the reason "blocked: edition rights unverified" naming the edition.
 
 - **CAP-5**
   - **intent:** Refuse research for an unconfirmed or unregistered subject.

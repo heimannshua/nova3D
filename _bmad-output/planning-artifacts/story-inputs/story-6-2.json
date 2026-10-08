@@ -22,7 +22,8 @@
       "6-10"
     ],
     "scope": [
-      "Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on the canonical manufacturing mesh produced by Story 6.10, using the tessellation settings of Story 4.3 in the print frame."
+      "Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on the canonical manufacturing mesh produced by Story 6.10, using the tessellation settings of Story 4.3 in the print frame.",
+      "Run as a `workers/cad` Job."
     ],
     "acceptance_criteria": [
       {

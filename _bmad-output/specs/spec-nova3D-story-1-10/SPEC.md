@@ -19,7 +19,7 @@ An Administrator needs to have every external account, credential and spend limi
 
 - **CAP-1**
   - **intent:** An Administrator can have every external account, credential and spend limit created, recorded and checked for each environment.
-  - **success:** Each service names an owner, plan, region, spend backstop, first-needed story and per-environment secret names, and the free-tier limits relied on are recorded with the trigger for upgrading.
+  - **success:** Each service names an owner, plan, region, spend backstop, first-needed story, verification kind and per-environment secret names, and the free-tier limits relied on are recorded with the trigger for upgrading.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Each service names an owner, plan, region, spend backstop, first-needed story and per-environment secret names, and the free-tier limits relied on are recorded with the trigger for upgrading. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Each service names an owner, plan, region, spend backstop, first-needed story, verification kind and per-environment secret names, and the free-tier limits relied on are recorded with the trigger for upgrading. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

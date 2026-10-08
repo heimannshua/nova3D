@@ -22,9 +22,10 @@ So that accepted work survives navigation and failures stay controlled.
 ## Scope
 
 - Commit the Job, its initial reservation and the dispatch outbox together, using the identities of Story 2.11.
-- Use signed environment-bound bounded steps (under the Story 1.12 signing-key contract), compatible worker registration and cancellation fencing; never automatically retry failed work. Use a 120-second worker lease renewed every 30 seconds. The committing request publishes the dispatch at once and a QStash schedule sweeps unpublished outbox rows older than 15 seconds every minute, as the Spine fixes. Run the deterministic test-workload step as a Vercel step that a test worker registered through the signed worker-registration endpoint can also take, so lease loss is testable. Workers read inputs and write staged outputs only through the Story 1.12 gateway with attempt-scoped tickets, and report completion with fenced signed commands. The test workload registers a test event type with Story 2.10. Register the outbox-age and expired-lease conditions with the Story 1.13 alarm channel.
+- Use signed environment-bound bounded steps (under the Story 1.12 signing-key contract), compatible worker registration and cancellation fencing; never automatically retry failed work. Use a 120-second worker lease renewed every 30 seconds. The committing request publishes the dispatch at once and a QStash schedule sweeps unpublished outbox rows older than 15 seconds every minute, as the Spine fixes; the same sweep expires leases past 120 seconds into interrupted failures. Run the deterministic test-workload step as a Vercel step that a test worker registered through the signed worker-registration endpoint can also take, so lease loss is testable. Workers read inputs and write staged outputs only through the Story 1.12 gateway with attempt-scoped tickets, and report completion with fenced signed commands. Register the outbox-age and expired-lease conditions with the Story 1.13 alarm channel.
 - Ship a deterministic test-workload step so durable-job behavior is testable before research exists.
 - A user cancel revokes commit authority first and starts no new external step; a completing Job settles actual usage against its reservation and releases only demonstrably unused allowance.
+- Show Job detail (J-02): state, stage, reason, cost impact when known, and the cancel action.
 
 ## Acceptance Criteria
 
@@ -68,7 +69,7 @@ So that accepted work survives navigation and failures stay controlled.
 
 **Given** an unpublished outbox row older than 15 seconds
 **When** the sweep runs
-**Then** it is published exactly once, an already published row is skipped, and an outbox age over 60 seconds raises the Story 1.13 alarm
+**Then** it is published exactly once, an already published row is skipped, an expired lease becomes an interrupted failure, and an outbox age over 120 seconds or a lease expired and unclaimed for 5 minutes raises the Story 1.13 alarm
 
 ## Engineering Gates
 

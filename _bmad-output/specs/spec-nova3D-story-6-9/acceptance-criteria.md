@@ -20,7 +20,7 @@ So that large files remain private and access stops when revoked.
 
 ## Scope
 
-- Deliver qualified export packages through the Story 1.12 gateway: each file with its content type and file name, and the whole package as one ZIP assembled on the fly by the gateway from the manifest's files in the order listed there (stored, not recompressed). A package is preparing while its manifest roots are verified, ready when every root verifies, and failed otherwise; resuming a download needs a new ticket; a foreign or tombstoned export returns the unavailable state.
+- Deliver qualified export packages through the Story 1.12 gateway: each file with its content type and file name, and the whole package as one ZIP assembled on the fly by the gateway from the manifest's files in the order listed there (stored, not recompressed). A package is preparing while its manifest roots are verified, ready when every root verifies, and failed otherwise; a browser-native download resumes through its transfer handle (30 minutes at most) and later needs a new ticket; the ZIP is named `<project-slug>-v<n>.zip`, is served as an attachment and carries a `SHA256SUMS` entry listing each file digest from the manifest, which is the verification basis; this story registers the export resolver and the ZIP assembler with the gateway; a foreign or tombstoned export returns the unavailable state.
 
 ## Acceptance Criteria
 
@@ -40,7 +40,7 @@ So that large files remain private and access stops when revoked.
 
 **Given** a phone, an interrupted download or a foreign object
 **When** the user requests files
-**Then** files and the ZIP download with correct names and content types, an interrupted download resumes with a new ticket from the last verified byte, a foreign or tombstoned export shows the unavailable state, preparing, ready and failed states are shown, and responses are no-store
+**Then** files and the ZIP download with correct names and content types, an interrupted download resumes through its transfer handle, or with a new ticket after it lapses, from the last byte received, and the downloaded files match the digests in `SHA256SUMS`, a foreign or tombstoned export shows the unavailable state, preparing, ready and failed states are shown, and responses are no-store
 
 ## Engineering Gates
 

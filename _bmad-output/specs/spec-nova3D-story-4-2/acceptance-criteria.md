@@ -19,9 +19,10 @@ So that I can obtain canonical geometry without manual modeling.
 ## Scope
 
 - Implement trusted declarative subject recipe and pinned native CadQuery worker for the evidence-backed altar/ramp fixture.
-- Declare in the domain package the base face, the personalization surfaces and the pinned source registry; Josh approves the G-1 corpus before the qualification run is recorded.
+- Declare in the domain package the base face and the personalization surfaces; Josh approves the G-1 corpus and the unit table before the qualification run is recorded.
 - Emit a ModelVersionCommitted outbox event from the shared Model Version commit that every producer uses (Stories 4.4, 5.2, 6.4 successors and 7.4 imports). The generator schema accepts optional failed print constraints (check, measured value, required value, feature references) for the constrained regeneration of Story 6.5.
 - Store with every Model Version the exact bounding box of the solid in the declared default print orientation (exact rationals in millimetres), which the print-frame function of Story 4.3 reads. Retain the generator image digest and dependency lock for every non-deleted Model Version. Define the regression corpus (the approved G-1 fixture set) in the repository before acceptance.
+- The domain package declares a parameter schema, and the recipe consumes the approved plan by binding each plan choice to a parameter through its stable detail ID. Failed print constraints may adjust only parameters the plan marks adjustable within their stated bounds; otherwise the generator returns "cannot satisfy" and the lineage fails.
 
 ## Acceptance Criteria
 
@@ -60,6 +61,24 @@ So that I can obtain canonical geometry without manual modeling.
 **Given** identical approved inputs and a pinned toolchain
 **When** generation runs twice
 **Then** the two Model Versions are equivalent within the R-2 tolerance (a comparator fixture until Story 4.3)
+
+### AC-7
+
+**Given** an approved plan fixture
+**When** the solid is generated
+**Then** its measured dimensions equal the plan's parameters within 0.01 mm
+
+### AC-8
+
+**Given** a Model Version commit
+**When** it is recorded
+**Then** its oriented bounding box is stored as exact rationals and exactly one ModelVersionCommitted event is emitted
+
+### AC-9
+
+**Given** failed print constraints for an adjustable and a non-adjustable parameter
+**When** constrained regeneration runs
+**Then** the adjustable one changes within its bounds and the other makes the generator return "cannot satisfy"
 
 ## Engineering Gates
 

@@ -24,7 +24,8 @@
     ],
     "scope": [
       "Render the shared immutable provenance using pinned container Playwright/Chromium and licensed Noto fonts with no external resources.",
-      "Render the required attribution and license identifier beside each cited edition."
+      "Render the required attribution and license identifier beside each cited edition.",
+      "Run the renderer in the `workers/cad` container as an export step."
     ],
     "acceptance_criteria": [
       {

@@ -19,7 +19,7 @@ An invited user needs to register with a valid invitation. Their account starts 
 
 - **CAP-1**
   - **intent:** An invited user can register with a valid invitation.
-  - **success:** At most one activated Account/Workspace is created; retries return the original outcome, the same command ID with a different payload is rejected, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path of the routes that exist (Story 1.4 extends the check to every path); the registration screen works on phone and desktop.
+  - **success:** At most one activated Account/Workspace is created; retries return the original outcome, the same command ID with a different payload is rejected, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path; the registration screen works on phone and desktop and tells users that the instance operator administers the hosting accounts that hold their data.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-At most one activated Account/Workspace is created; retries return the original outcome, the same command ID with a different payload is rejected, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path of the routes that exist (Story 1.4 extends the check to every path); the registration screen works on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+At most one activated Account/Workspace is created; retries return the original outcome, the same command ID with a different payload is rejected, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path; the registration screen works on phone and desktop and tells users that the instance operator administers the hosting accounts that hold their data. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

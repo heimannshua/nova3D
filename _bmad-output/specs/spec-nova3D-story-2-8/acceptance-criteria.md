@@ -22,6 +22,7 @@ So that retries cannot double-charge me.
 - Persist operation identity before dispatch and reconcile under that identity; user retries remain under the parent Job.
 - List each overrun incident on the Administrator usage page with provider, operation and amounts; only the freshly authenticated Administrator can review and clear it, which re-enables admissions for that provider.
 - Register the unknown-cost condition with the Story 1.13 alarm channel: an operation of unknown cost older than 24 hours.
+- The 24-hour ambiguous-charge deadline is settled by the Story 2.7 minute sweep.
 
 ## Acceptance Criteria
 

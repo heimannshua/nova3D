@@ -15,12 +15,13 @@ So that failures and silent stalls do not go unnoticed.
 - [1.6](../spec-nova3D-story-1-6/SPEC.md)
 - [1.8](../spec-nova3D-story-1-8/SPEC.md)
 - [1.9](../spec-nova3D-story-1-9/SPEC.md)
+- [1.12](../spec-nova3D-story-1-12/SPEC.md)
 
 ## Scope
 
 - Create the Lifecycle-owned alarm record family and an Administrator operations page (phone and desktop) listing open alarms with condition, first and latest time and last receipt. Each alarm is emailed to the Administrator address through the application mailer of Story 1.6 once per condition per 24 hours.
 - Register the conditions this story can observe: a periodic task with no receipt within twice its interval, a ledger event pending over 15 minutes, and more than 25 Auth identities without an Account. Later stories register the others from the Spine's threshold list when their data exists: outbox age and expired leases (Story 2.7), unknown-cost operations (Story 2.8), storage integrity (Story 4.1), missed purge deadlines (Story 8.3) and backup snapshot age (Story 8.9).
-- Watch the schedulers against each other: a small Railway cron task posts a signed heartbeat every 30 minutes, the QStash schedule alarms when that heartbeat is more than two hours old, and the Railway task alarms when the latest QStash receipt is more than two hours old.
+- Watch the schedulers against each other: a small Railway cron task, which holds only a service-signing key (audience `heartbeat`), posts a signed heartbeat to the application every 30 minutes and asks a signed application route for the latest QStash receipt time. The application raises the alarm and sends the email in either direction when the other scheduler's latest receipt is more than two hours old.
 
 ## Acceptance Criteria
 
@@ -47,6 +48,12 @@ So that failures and silent stalls do not go unnoticed.
 **Given** a condition registered by a later story with its threshold (a fixture condition here)
 **When** the monitor evaluates
 **Then** the same alarm path handles it with no new channel
+
+### AC-5
+
+**Given** the mailer failing when an alarm is raised
+**When** the alarm is recorded
+**Then** the alarm record and operations page still show it, and the email is retried at the next evaluation
 
 ## Engineering Gates
 

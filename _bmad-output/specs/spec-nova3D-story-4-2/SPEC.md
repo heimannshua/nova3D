@@ -41,6 +41,18 @@ An Account owner needs to generate the approved reconstruction automatically. Th
   - **intent:** Produce equivalent versions from identical approved inputs.
   - **success:** Given identical approved inputs and a pinned toolchain, when generation runs twice, then the two Model Versions are equivalent within the R-2 tolerance (a comparator fixture until Story 4.3).
 
+- **CAP-7**
+  - **intent:** Produce a solid whose measured dimensions match the approved plan parameters.
+  - **success:** Given an approved plan fixture, when the solid is generated, then its measured dimensions equal the plan's parameters within 0.01 mm.
+
+- **CAP-8**
+  - **intent:** Record the oriented bounding box and emit exactly one commit event.
+  - **success:** Given a Model Version commit, when it is recorded, then its oriented bounding box is stored as exact rationals and exactly one ModelVersionCommitted event is emitted.
+
+- **CAP-9**
+  - **intent:** Adjust only plan-adjustable parameters under failed print constraints, or return cannot satisfy.
+  - **success:** Given failed print constraints for an adjustable and a non-adjustable parameter, when constrained regeneration runs, then the adjustable one changes within its bounds and the other makes the generator return "cannot satisfy".
+
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Constraints

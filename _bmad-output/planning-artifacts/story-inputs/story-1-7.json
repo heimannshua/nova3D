@@ -26,11 +26,13 @@
     "depends_on": [
       "1-2",
       "1-4",
-      "1-8"
+      "1-8",
+      "1-12"
     ],
     "scope": [
       "Create Project identity and model-focused collection with My Projects, Create and In Progress.",
-      "Expose current stage and navigation; feature-specific transitions and deletion are supplied by their owning stories."
+      "Expose current stage and navigation; feature-specific transitions and deletion are supplied by their owning stories.",
+      "Register the Project target resolver with the Story 1.12 gateway."
     ],
     "acceptance_criteria": [
       {

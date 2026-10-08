@@ -22,6 +22,7 @@ So that I need not locate or upload the texts myself.
 - The registry lists ordered alternate editions per source; none beyond the two initial editions is chosen yet. Open-web discovery exists only under the paid search category, and only passages nova3D itself fetches from a cited page are pinned. Pin exact Middot editions and permitted evidence retention.
 - Extend the Middot manifest with its pinned source registry. Research starts only for a confirmed subject that has a registered package.
 - Own the research start command: it validates the Story 2.9 choices and permission snapshot, dispatches the research Job through Story 2.7 and records each acquisition step (searching, opened, lead, accepted, rejected, replacement) as an Evidence-owned activity event that Story 3.7 renders.
+- The pinned registry enumerates its allowlisted hostnames (initially www.sefaria.org). Activity events for search-provider results hold only transient fields and expire with the Job, because Brave's terms bar storing results; a page nova3D fetches is recorded as a Source in the ordinary way.
 
 ## Acceptance Criteria
 
@@ -47,7 +48,7 @@ So that I need not locate or upload the texts myself.
 
 **Given** an edition whose license or rights cannot be verified
 **When** acquisition runs
-**Then** no body is stored, the registry's next ordered alternate edition is tried, and if none remains the Job ends with a clear blocked outcome naming the unverified edition
+**Then** no body is stored, the registry's next ordered alternate edition is tried, and if none remains the Job ends failed with the reason "blocked: edition rights unverified" naming the edition
 
 ### AC-5
 

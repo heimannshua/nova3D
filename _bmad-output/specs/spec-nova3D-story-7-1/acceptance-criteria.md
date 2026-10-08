@@ -21,6 +21,7 @@ So that offline creation can meet the adopted device limits.
 - Expose the engine through a versioned engine port with a conformance test suite and a deterministic test engine, so Stories 7.2 to 7.5 can be built and accepted without qualified weights.
 - The engine port also accepts optional explicit print constraints (failed check, measured value, required value, feature references) and stops with an actionable failure when it cannot satisfy them. The same pinned bundle runs in the browser worker and, for reconversion only, in the Railway engine worker (`workers/engine`); the conformance suite and the deterministic test engine run on both targets.
 - Record the reference corpus, the shape and coverage metrics with their pass thresholds and the reviewer in the qualification report before any candidate run.
+- Define the engine port's reference measurement (the three oriented-bounding-box axis lengths in snapshot units) and a planar-face report (Spine AD-8). Stop screening after at most five candidates. Josh is the reviewer named in the qualification report.
 
 ## Acceptance Criteria
 

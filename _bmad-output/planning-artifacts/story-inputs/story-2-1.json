@@ -46,7 +46,7 @@
         "then": "no Job begins and scope confirmation is not mistaken for Plan Approval or paid permission"
       },
       {
-        "given": "an image_direct request with a personalization wish",
+        "given": "an image_direct request (a fixture mode until Story 2.3 sets it) with a personalization wish",
         "when": "the request is confirmed",
         "then": "the wish is declined with that explanation and recorded as not applied"
       }

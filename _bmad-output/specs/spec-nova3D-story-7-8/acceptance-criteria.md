@@ -17,12 +17,14 @@ So that a repair failure does not force me to start over, and recovery cannot lo
 - [2.12](../spec-nova3D-story-2-12/SPEC.md)
 - [7.4](../spec-nova3D-story-7-4/SPEC.md)
 - [2.7](../spec-nova3D-story-2-7/SPEC.md)
+- [1.12](../spec-nova3D-story-1-12/SPEC.md)
 
 ## Scope
 
 - Integrate direct snapshots with the existing full-regeneration slot: one reconversion in the validation lineage, run as a fenced Job on the Railway engine worker (`workers/engine`) through the Story 2.7 machinery, from the Project's retained pictures (Story 2.12, synced by Story 7.4), the confirmed scope, the original pinned engine bundle and the failed print constraints, with a new settings digest.
 - The request screen states that the retained pictures are processed on the server. No provider is called, so no paid permission or reservation applies; admission checks that the Account is active, the lineage slot is unused and no other reconversion is running for the Account. A model whose pictures never synced cannot start it and says why. Reconversion is never a fallback for failed local inference.
 - For an image-derived lineage the successor's exact scale is recomputed from the inherited confirmed dimension and the engine port's declared reference measurement on the new mesh; a mesh that does not fit fails and is never rescaled afterwards. If no compatible engine worker is registered the Job waits with a visible reason, and the consumed slot is not rearmed.
+- Build `workers/engine` (Node 24, TypeScript, onnxruntime-node at the browser build's version), register it with the Story 2.7 worker registry, and fetch retained pictures and write staged output only through the gateway with worker tickets.
 
 ## Acceptance Criteria
 

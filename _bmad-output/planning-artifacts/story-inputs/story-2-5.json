@@ -25,13 +25,15 @@
       "2-1",
       "2-3",
       "2-4",
-      "2-6"
+      "2-6",
+      "2-12"
     ],
     "scope": [
       "Implement provider-neutral Anthropic (claude-sonnet-5-5) and Brave adapters and permission snapshots; provider terms/rates must be verified before enablement, and the Brave adapter ships disabled until the terms review is recorded in the Story 1.10 ledger.",
       "Use no paid external 3D provider or billable free-credit fallback; instance hosting/local inference remains overhead.",
       "Disclose each category's maximum using the computed bound of the Story 2.6 calculator.",
-      "Re-match the Project permission to category, provider, purpose, outbound-data categories and disclosed maximum inside the Story 2.6 admission transaction for every operation; a permission never carries over to another category, purpose or Project."
+      "Re-match the Project permission to category, provider, purpose, outbound-data categories and disclosed maximum inside the Story 2.6 admission transaction for every operation; a permission never carries over to another category, purpose or Project.",
+      "Provide the provider-bound picture derivative builder (all metadata removed, re-encoded as JPEG, long edge at most 1568 px, at most 5 MB each) that Story 2.13 and later vision operations use; it reads the retained pictures of Story 2.12. A permission covers one category, purpose and provider in one Project; its disclosed maximum is the calculator's bound for the exact payload; it lapses when the Job it was granted for reaches a terminal state or after 7 days, the user can revoke it at any time, and cumulative exposure stays bounded by the Job cap and the Account allowance."
     ],
     "acceptance_criteria": [
       {
@@ -53,6 +55,11 @@
         "given": "a permission granted for one category, purpose, provider or Project",
         "when": "an operation for another category, purpose, provider, outbound-data category or Project is admitted, or the disclosed maximum would be exceeded",
         "then": "admission is refused, because the permission is re-matched at every operation and never carries over"
+      },
+      {
+        "given": "a granted permission",
+        "when": "the user revokes it, its Job ends or 7 days pass",
+        "then": "no further operation is admitted under it"
       }
     ],
     "gates": [

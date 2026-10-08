@@ -17,6 +17,7 @@ So that background progress remains usable across sessions.
 ## Scope
 
 - Commit durable per-recipient event history and authorized deep links; realtime delivery is a hint.
+- Register an event type for the Story 2.7 test workload so the bar and history can be exercised before research exists.
 
 ## Acceptance Criteria
 

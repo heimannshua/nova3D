@@ -17,7 +17,7 @@ So that later research, conversion and recovery use the exact pictures I confirm
 
 ## Scope
 
-- When the user confirms the ordered pictures (the end of the Story 2.3 quality review), attach them to the Project as retained artifacts and pin their roots in a successor request revision: create the Artifacts-owned manifest record family and the coordinated verified publication command (canonical JSON manifest root, ownership scope, digest and length), strip location tags from the retained copy and record its digest, then let the staging copies expire. A retained-picture quota of 2 GiB per Account applies, and a breach rejects the whole confirmation rather than part of it. The metadata strip runs inside the attach step of the Story 1.12 gateway; the retained digest is recorded together with the original staged digest it replaces, so acknowledgments pinned to originals stay verifiable; a repeated confirmation returns the same roots; and staging copies expire when the retained roots commit or at their lease end, whichever comes first.
+- When the user confirms the ordered pictures (the end of the Story 2.3 quality review), attach them to the Project as retained artifacts and pin their roots in a successor request revision: create the Artifacts-owned manifest record family and the coordinated verified publication command (canonical JSON manifest root, ownership scope, digest and length), strip location tags from the retained copy and record its digest, then let the staging copies expire. A retained-picture quota of 2 GiB per Account applies, and a breach rejects the whole confirmation rather than part of it. The metadata strip runs inside the attach step of the Story 1.12 gateway as a lossless removal of every metadata segment except the EXIF orientation tag (pixel data untouched, so the retained digest is reproducible), and this story registers the retained-picture resolver and that transform with the gateway; the retained digest is recorded together with the original staged digest it replaces, so acknowledgments pinned to originals stay verifiable; a repeated confirmation returns the same roots; and staging copies expire when the retained roots commit or at their lease end, whichever comes first.
 - Later consumers (subject identification, research, direct conversion and reconversion) read these retained roots, never lease-bounded staging. Story 4.1 extends the same family to worker outputs.
 
 ## Acceptance Criteria
@@ -44,7 +44,7 @@ So that later research, conversion and recovery use the exact pictures I confirm
 
 **Given** the retained-picture quota is exceeded or an image carries location tags
 **When** retention runs
-**Then** the quota rejects the excess with an actionable state, and the retained copy has no location tags while its digest and the confirmed order are recorded
+**Then** the quota rejects the whole confirmation with an actionable state, and the retained copy has no location tags while its digest and the confirmed order are recorded
 
 ### AC-5
 

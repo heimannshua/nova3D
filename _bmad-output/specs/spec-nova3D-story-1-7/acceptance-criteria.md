@@ -15,11 +15,13 @@ So that I can resume the next required action.
 - [1.2](../spec-nova3D-story-1-2/SPEC.md)
 - [1.4](../spec-nova3D-story-1-4/SPEC.md)
 - [1.8](../spec-nova3D-story-1-8/SPEC.md)
+- [1.12](../spec-nova3D-story-1-12/SPEC.md)
 
 ## Scope
 
 - Create Project identity and model-focused collection with My Projects, Create and In Progress.
 - Expose current stage and navigation; feature-specific transitions and deletion are supplied by their owning stories.
+- Register the Project target resolver with the Story 1.12 gateway.
 
 ## Acceptance Criteria
 

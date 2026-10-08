@@ -19,6 +19,7 @@ So that conversion assets are available when disconnected.
 - Cache verified public app/model assets with Account-scoped IndexedDB metadata and OPFS private artifacts.
 - Host the verified bundle as public, versioned, digest-pinned assets with a long-cache policy on a public bucket (Backblaze B2 or a Supabase public bucket, chosen once Story 7.1 knows the weight size), never from a Vercel function. Show preparation, verification and missing-preparation states in the Create entry (C-01) and Settings.
 - Own the application service worker (registration, scope, public-asset allowlist and update flow): it caches the app shell and verified public model assets and never an authenticated response.
+- Serve a public, precached `/offline` route that boots from IndexedDB and OPFS with no server call, to which navigation falls back when the network is unavailable; `proxy.ts` leaves it public.
 
 ## Acceptance Criteria
 
@@ -45,6 +46,12 @@ So that conversion assets are available when disconnected.
 **Given** authenticated responses and a signed-out device
 **When** the service worker handles requests and the user signs out
 **Then** no authenticated response is ever cached and no private bytes remain in the cache after sign-out
+
+### AC-5
+
+**Given** a prepared device with no network
+**When** the user opens the application
+**Then** the service worker serves the offline route, which opens local drafts without any server call
 
 ## Engineering Gates
 

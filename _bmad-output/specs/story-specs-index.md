@@ -6,7 +6,7 @@ The specs were produced with parallel Codex agents running Luna, then checked fo
 
 [Epic breakdown and full requirement inventory](../planning-artifacts/epics.md) · [Project contract](spec-nova3D/SPEC.md) · [Validation report](../planning-artifacts/story-specs-validation.md)
 
-The order below respects declared dependencies and is the build order; it is not always numeric (for example 1.10 follows 1.1, 1.13 precedes 1.12, 2.12 precedes 2.4, 2.13 precedes 2.9, 6.10 precedes 6.2 and 8.9 precedes 8.3). Story boundaries are delegated fast-path planning choices; no implementation dispatch or per-story checkpoint defaults were assigned.
+The order below respects declared dependencies and is the build order; it is not always numeric (for example 1.10 follows 1.1, 1.12 precedes 1.13, 2.12 precedes 2.4, 2.13 precedes 2.9, 6.10 precedes 6.2 and 8.9 precedes 8.3). Story boundaries are delegated fast-path planning choices; no implementation dispatch or per-story checkpoint defaults were assigned.
 
 ## Epic 1: Enter and use a private workspace
 
@@ -23,10 +23,10 @@ Invited users can authenticate and use a responsive private workspace; Josh can 
 | 1.5 | [Disable and re-enable account access](spec-nova3D-story-1-5/SPEC.md) | 1.4, 1.11 | Inherited |
 | 1.6 | [Recover the sole Administrator securely](spec-nova3D-story-1-6/SPEC.md) | 1.4, 1.5, 1.10 | Inherited |
 | 1.8 | [Define tombstones and the hidden-state contract](spec-nova3D-story-1-8/SPEC.md) | 1.5, 1.6 | G-9 |
-| 1.9 | [Provision staging and run periodic jobs](spec-nova3D-story-1-9/SPEC.md) | 1.4, 1.10 | Inherited |
-| 1.13 | [Raise operational alarms](spec-nova3D-story-1-13/SPEC.md) | 1.6, 1.8, 1.9 | Inherited |
+| 1.9 | [Provision staging and run periodic jobs](spec-nova3D-story-1-9/SPEC.md) | 1.4, 1.10, 1.8 | Inherited |
 | 1.12 | [Transfer private files through the authorized gateway](spec-nova3D-story-1-12/SPEC.md) | 1.5, 1.8, 1.9, 1.10 | Inherited |
-| 1.7 | [Navigate My Projects and project state](spec-nova3D-story-1-7/SPEC.md) | 1.2, 1.4, 1.8 | Inherited |
+| 1.13 | [Raise operational alarms](spec-nova3D-story-1-13/SPEC.md) | 1.6, 1.8, 1.9, 1.12 | Inherited |
+| 1.7 | [Navigate My Projects and project state](spec-nova3D-story-1-7/SPEC.md) | 1.2, 1.4, 1.8, 1.12 | Inherited |
 
 ## Epic 2: Confirm requests and control background spending
 
@@ -41,7 +41,7 @@ Users can submit text or ordered pictures, authorize the exact work and costs, a
 | 2.4 | [Set accountable usage limits](spec-nova3D-story-2-4/SPEC.md) | 1.5 | Inherited |
 | 2.11 | [Create durable Job, attempt, step and operation identities](spec-nova3D-story-2-11/SPEC.md) | 1.5, 1.7, 1.8 | Inherited |
 | 2.6 | [Reserve bounded costs atomically](spec-nova3D-story-2-6/SPEC.md) | 2.4, 2.11, 1.9 | G-6 |
-| 2.5 | [Disclose and authorize provider categories](spec-nova3D-story-2-5/SPEC.md) | 2.1, 2.3, 2.4, 2.6 | G-6 |
+| 2.5 | [Disclose and authorize provider categories](spec-nova3D-story-2-5/SPEC.md) | 2.1, 2.3, 2.4, 2.6, 2.12 | G-6 |
 | 2.7 | [Accept and execute durable fenced jobs](spec-nova3D-story-2-7/SPEC.md) | 1.5, 2.6, 2.11, 1.9, 1.12, 1.13 | Inherited |
 | 2.8 | [Reconcile ambiguous charges without replacement calls](spec-nova3D-story-2-8/SPEC.md) | 2.6, 2.7, 2.4, 2.5 | G-6 |
 | 2.13 | [Identify the pictured subject for research-assisted mode](spec-nova3D-story-2-13/SPEC.md) | 2.3, 2.5, 2.7, 2.12, 2.1, 2.8 | G-6 |
@@ -118,7 +118,7 @@ Prepared supported devices can create honestly labeled image-derived models offl
 | 7.4 | [Synchronize offline drafts without overwriting history](spec-nova3D-story-7-4/SPEC.md) | 7.3, 1.4, 2.12 | G-8 |
 | 7.5 | [Enforce learned offline revocation before sync](spec-nova3D-story-7-5/SPEC.md) | 7.4, 1.5, 1.8 | G-8 |
 | 7.6 | [Qualify direct models through the shared lineage](spec-nova3D-story-7-6/SPEC.md) | 7.3, 7.5, 6.5, 6.9 | G-3, G-8 |
-| 7.8 | [Recover direct models with one pinned reconversion](spec-nova3D-story-7-8/SPEC.md) | 7.6, 6.5, 2.12, 7.4, 2.7 | G-3, G-8 |
+| 7.8 | [Recover direct models with one pinned reconversion](spec-nova3D-story-7-8/SPEC.md) | 7.6, 6.5, 2.12, 7.4, 2.7, 1.12 | G-3, G-8 |
 | 7.7 | [Deliver optional private phone push](spec-nova3D-story-7-7/SPEC.md) | 2.10, 6.9, 7.2 | Inherited |
 
 ## Epic 8: Delete private work and prove release readiness

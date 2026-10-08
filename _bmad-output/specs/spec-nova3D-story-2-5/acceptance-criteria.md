@@ -16,6 +16,7 @@ So that paid work uses only the data and maximum I permitted.
 - [2.3](../spec-nova3D-story-2-3/SPEC.md)
 - [2.4](../spec-nova3D-story-2-4/SPEC.md)
 - [2.6](../spec-nova3D-story-2-6/SPEC.md)
+- [2.12](../spec-nova3D-story-2-12/SPEC.md)
 
 ## Scope
 
@@ -23,6 +24,7 @@ So that paid work uses only the data and maximum I permitted.
 - Use no paid external 3D provider or billable free-credit fallback; instance hosting/local inference remains overhead.
 - Disclose each category's maximum using the computed bound of the Story 2.6 calculator.
 - Re-match the Project permission to category, provider, purpose, outbound-data categories and disclosed maximum inside the Story 2.6 admission transaction for every operation; a permission never carries over to another category, purpose or Project.
+- Provide the provider-bound picture derivative builder (all metadata removed, re-encoded as JPEG, long edge at most 1568 px, at most 5 MB each) that Story 2.13 and later vision operations use; it reads the retained pictures of Story 2.12. A permission covers one category, purpose and provider in one Project; its disclosed maximum is the calculator's bound for the exact payload; it lapses when the Job it was granted for reaches a terminal state or after 7 days, the user can revoke it at any time, and cumulative exposure stays bounded by the Job cap and the Account allowance.
 
 ## Acceptance Criteria
 
@@ -49,6 +51,12 @@ So that paid work uses only the data and maximum I permitted.
 **Given** a permission granted for one category, purpose, provider or Project
 **When** an operation for another category, purpose, provider, outbound-data category or Project is admitted, or the disclosed maximum would be exceeded
 **Then** admission is refused, because the permission is re-matched at every operation and never carries over
+
+### AC-5
+
+**Given** a granted permission
+**When** the user revokes it, its Job ends or 7 days pass
+**Then** no further operation is admitted under it
 
 ## Engineering Gates
 

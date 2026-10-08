@@ -33,6 +33,10 @@ An Account owner needs to prepare their device while online. Conversion assets a
   - **intent:** Never cache authenticated responses in the service worker.
   - **success:** Given authenticated responses and a signed-out device, when the service worker handles requests and the user signs out, then no authenticated response is ever cached and no private bytes remain in the cache after sign-out.
 
+- **CAP-5**
+  - **intent:** Serve the offline shell route without any server call.
+  - **success:** Given a prepared device with no network, when the user opens the application, then the service worker serves the offline route, which opens local drafts without any server call.
+
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Constraints

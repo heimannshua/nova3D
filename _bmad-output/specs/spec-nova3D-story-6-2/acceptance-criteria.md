@@ -17,6 +17,7 @@ So that structural defects cannot reach qualified export.
 ## Scope
 
 - Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on the canonical manufacturing mesh produced by Story 6.10, using the tessellation settings of Story 4.3 in the print frame.
+- Run as a `workers/cad` Job.
 
 ## Acceptance Criteria
 

@@ -22,6 +22,7 @@ So that inspection is fast without changing manufacturing geometry.
 - Derivatives are labeled preview and never manufacturing authority.
 - Subscribe to the ModelVersionCommitted event of Story 4.2 and enqueue one derivative Job through the Story 2.7 machinery for every new Model Version; a version without derivatives is shown as preview pending and never as inspectable. Large GLB files are served through the Story 1.12 gateway.
 - For an imported image-derived Model Version, derive the GLBs from its verified mesh snapshot; device-produced derivatives are never imported as manufacturing or inspection authority.
+- Run the derivative Job as a `workers/cad` Job. An image-derived model has one feature, the whole mesh, so its feature map has a single entry whose evidence is its input images.
 
 ## Acceptance Criteria
 
@@ -51,7 +52,7 @@ So that inspection is fast without changing manufacturing geometry.
 
 ### AC-5
 
-**Given** an imported image-derived Model Version with a mesh snapshot
+**Given** an imported image-derived Model Version with a mesh snapshot (a fixture until Story 7.4 imports real ones)
 **When** its derivative Job runs
 **Then** the GLBs derive from the verified snapshot and any device-produced GLB is ignored
 

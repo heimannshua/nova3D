@@ -43,7 +43,7 @@ An Account owner needs to continue using Projects while work runs. Accepted work
 
 - **CAP-7**
   - **intent:** Sweep and publish unpublished outbox rows exactly once.
-  - **success:** Given an unpublished outbox row older than 15 seconds, when the sweep runs, then it is published exactly once, an already published row is skipped, and an outbox age over 60 seconds raises the Story 1.13 alarm.
+  - **success:** Given an unpublished outbox row older than 15 seconds, when the sweep runs, then it is published exactly once, an already published row is skipped, an expired lease becomes an interrupted failure, and an outbox age over 120 seconds or a lease expired and unclaimed for 5 minutes raises the Story 1.13 alarm.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 

@@ -42,7 +42,7 @@ So that work starts from my confirmed intent.
 
 ### AC-4
 
-**Given** an image_direct request with a personalization wish
+**Given** an image_direct request (a fixture mode until Story 2.3 sets it) with a personalization wish
 **When** the request is confirmed
 **Then** the wish is declined with that explanation and recorded as not applied
 

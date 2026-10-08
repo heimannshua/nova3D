@@ -27,14 +27,16 @@
     "scope": [
       "Implement narrow idempotent registration: a user signs in with Google, then redeems an invitation code to activate an Account. No code, no Account. Invitations are issued and revoked through the audited seed command until Story 1.11 adds the Administrator surface.",
       "Named and current general codes are hashed, single-use and nonexpiring until used or revoked; partial Auth provisioning is unusable.",
-      "Provision the Administrator (the address in `ADMINISTRATOR_EMAIL`, heimannshua@gmail.com in staging and production; its Google subject is pinned at first sign-in) and the second address in `AUTH_ALLOWED_EMAILS` once through a documented, audited seed that calls the same provisioning function as registration, rather than code redemption. Registration calls the Projects module's exported provisioning command to create the Workspace in the same transaction.",
-      "Registration runs only in a server route using the service role: no registration or invitation database object is executable by `anon` or `authenticated`, attempts are limited to 5 failures per network origin per 15 minutes and 100 failures per hour across all origins, and codes carry at least 128 bits of entropy. Failures are counted in an Identity-owned Postgres table keyed by a keyed hash of the platform-reported client address and the time window, so the limiter works before Redis exists and fails closed. Registration locks the Auth identity row and persists its attempt time, which the dormant-identity purge of Story 1.9 shares. A Before User Created hook declared in `supabase/config.toml` rejects any non-Google or unverified-email creation, and the interim email allowlist stays in force until Story 1.4 replaces it."
+      "Provision accounts through an audited seed command that records pre-authorizations (email and role) from `ADMINISTRATOR_EMAIL` and `SEED_ACCOUNT_EMAILS` (in staging: heimannshua@gmail.com as Administrator and the second address Josh uses today). The registration function consumes a pre-authorization at that address's first verified Google sign-in: it creates the Account, pins the Administrator's Google subject and calls the same provisioning function as code redemption. This story also creates the Identity-owned append-only audit-event family (actor, action, opaque target, time, no content) that the seed and Stories 1.5, 1.6, 1.11 and 2.4 use, and the Projects-owned Workspace record with its exported provisioning command, which registration calls in the same transaction.",
+      "Registration runs only in a server route using the service role: no registration or invitation database object is executable by `anon` or `authenticated`, attempts are limited to 5 failures per network origin per 15 minutes and 100 failures per hour across all origins, and codes carry at least 128 bits of entropy. Failures are counted in an Identity-owned Postgres table keyed by a keyed hash of the platform-reported client address and the time window, so the limiter works before Redis exists and fails closed. Registration locks the Auth identity row and persists its attempt time, which the dormant-identity purge of Story 1.9 shares. A Before User Created hook declared in `supabase/config.toml` rejects any non-Google or unverified-email creation.",
+      "Replace the interim `AUTH_ALLOWED_EMAILS` gate with the live-Account check: any verified Google identity can finish sign-in but reaches only the registration route until it has an activated Account, and every private route requires one. Remove the variable from every place it is read or documented: `lib/auth-config.ts` and its callers (including the callback and `proxy.ts`), `scripts/check-env.mjs`, `scripts/test-env.mjs`, the `.env*.example` files, `docs/auth-setup.md` and `docs/deployment-setup.md`.",
+      "The registration screen tells users that the instance operator administers the hosting accounts that hold their data."
     ],
     "acceptance_criteria": [
       {
         "given": "one unused invitation and concurrent registrations",
         "when": "both attempt redemption",
-        "then": "at most one activated Account/Workspace is created; retries return the original outcome, the same command ID with a different payload is rejected, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path of the routes that exist (Story 1.4 extends the check to every path); the registration screen works on phone and desktop"
+        "then": "at most one activated Account/Workspace is created; retries return the original outcome, the same command ID with a different payload is rejected, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path; the registration screen works on phone and desktop and tells users that the instance operator administers the hosting accounts that hold their data"
       },
       {
         "given": "named codes and the current general code",
@@ -63,13 +65,18 @@
       },
       {
         "given": "the audited seed",
-        "when": "it runs twice",
-        "then": "the Administrator and the second allowlisted identity each have one activated Account, the Administrator's Google subject is pinned at first sign-in, and a later sign-in with the same email but another subject is refused"
+        "when": "it runs twice and each seeded address signs in with Google",
+        "then": "each address has one pre-authorization, its first verified sign-in activates exactly one Account, the Administrator's Google subject is pinned then, a later sign-in with the same email but another subject is refused, and an unlisted identity gets no Account without a code"
       },
       {
         "given": "the anon and authenticated database roles",
         "when": "they try to execute a registration, invitation or recovery function or read those tables",
         "then": "every attempt is denied"
+      },
+      {
+        "given": "the repository after this story",
+        "when": "it is searched and the environment checks run",
+        "then": "`AUTH_ALLOWED_EMAILS` is read or documented nowhere, and a Google identity without a live Account is blocked from every private route"
       }
     ],
     "gates": []

@@ -24,7 +24,8 @@
       "2-7"
     ],
     "scope": [
-      "Commit durable per-recipient event history and authorized deep links; realtime delivery is a hint."
+      "Commit durable per-recipient event history and authorized deep links; realtime delivery is a hint.",
+      "Register an event type for the Story 2.7 test workload so the bar and history can be exercised before research exists."
     ],
     "acceptance_criteria": [
       {
