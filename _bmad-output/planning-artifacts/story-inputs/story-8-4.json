@@ -20,7 +20,8 @@
       "NFR-12"
     ],
     "depends_on": [
-      "8-3"
+      "8-3",
+      "1-9"
     ],
     "scope": [
       "Run the dedicated backup service every 12 hours: stream an encrypted logical dump to the backup store without persisting it on Railway, then run an incremental deletion-mirroring Storage sync that records the dump's cutoff; abort without hiding anything on a failed listing or a sharp object-count drop; scope credentials to one bucket per environment.",

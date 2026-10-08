@@ -15,6 +15,7 @@ So that reuse saves work without exposing anyone’s private history.
 - [3.1](../spec-nova3D-story-3-1/SPEC.md)
 - [3.2](../spec-nova3D-story-3-2/SPEC.md)
 - [3.5](../spec-nova3D-story-3-5/SPEC.md)
+- [1.8](../spec-nova3D-story-1-8/SPEC.md)
 
 ## Scope
 
@@ -39,6 +40,12 @@ So that reuse saves work without exposing anyone’s private history.
 **Given** fresh research or Project/Account deletion
 **When** the cache/adoption paths execute
 **Then** fresh work does not substitute cached conclusions and private associations are deleted without promoting tombstoned private data
+
+### AC-4
+
+**Given** a correction or newer research for an already cached subject
+**When** it is admitted
+**Then** a new Cached Research Revision linked to its predecessor is created without changing the old one; an approved Project stays pinned to its revision, and adopting the successor creates a new Research Plan version that needs renewed Plan Approval before regeneration
 
 ## Engineering Gates
 

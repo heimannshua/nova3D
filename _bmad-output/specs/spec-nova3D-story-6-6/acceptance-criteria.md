@@ -19,6 +19,7 @@ So that model and evidence remain reciprocal across runtimes.
 ## Scope
 
 - Implement schema 1.0.0 / JSON Schema Draft 2020-12 and shared TypeScript/Python validation for the five required groups.
+- Carry each cited edition's license identifier and link, required attribution text and source URL in the Evidence group, so licence and attribution survive export.
 
 ## Acceptance Criteria
 
@@ -38,7 +39,7 @@ So that model and evidence remain reciprocal across runtimes.
 
 **Given** the complete evidence fixture
 **When** reciprocal navigation and records are checked
-**Then** exact editions/passages, choices, personalization, profile, every check and repair resolve from one immutable manifest
+**Then** exact editions/passages, choices, personalization, profile, every check and repair resolve from one immutable manifest, and each cited edition's license identifier, attribution and source URL resolve from the same manifest
 
 ## Engineering Gates
 

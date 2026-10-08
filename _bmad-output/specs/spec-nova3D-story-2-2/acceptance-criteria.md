@@ -17,7 +17,7 @@ So that the request preserves all useful views.
 
 ## Scope
 
-- Implement authenticated bounded image staging, checksum/content checks and ordered image editing.
+- Implement authenticated bounded image staging, checksum/content checks and ordered image editing. Accept 1 to 12 JPEG, PNG or WebP images (at most 12 MiB each and 60 MiB per request), a 250 MiB staging quota per Account and a 24-hour staging lease renewed by activity.
 
 ## Acceptance Criteria
 

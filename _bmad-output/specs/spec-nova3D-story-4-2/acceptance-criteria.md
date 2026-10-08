@@ -18,6 +18,7 @@ So that I can obtain canonical geometry without manual modeling.
 ## Scope
 
 - Implement trusted declarative subject recipe and pinned native CadQuery worker for the evidence-backed altar/ramp fixture.
+- Declare in the domain package the base face, the personalization surfaces and the pinned source registry; Josh approves the G-1 corpus before the qualification run is recorded.
 
 ## Acceptance Criteria
 

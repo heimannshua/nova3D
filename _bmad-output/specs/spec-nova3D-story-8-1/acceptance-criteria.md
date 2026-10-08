@@ -14,10 +14,11 @@ So that private content becomes inaccessible immediately.
 
 - [6.9](../spec-nova3D-story-6-9/SPEC.md)
 - [7.5](../spec-nova3D-story-7-5/SPEC.md)
+- [1.8](../spec-nova3D-story-1-8/SPEC.md)
 
 ## Scope
 
-- Implement fresh-authenticated explicit deletion intent and manifests across record owners before best-effort cancellation/purge.
+- Implement fresh-authenticated explicit deletion intent and manifests across record owners, using the tombstone contract of Story 1.8, before best-effort cancellation/purge.
 
 ## Acceptance Criteria
 

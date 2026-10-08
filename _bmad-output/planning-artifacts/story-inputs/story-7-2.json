@@ -24,7 +24,8 @@
       "7-1"
     ],
     "scope": [
-      "Cache verified public app/model assets with Account-scoped IndexedDB metadata and OPFS private artifacts."
+      "Cache verified public app/model assets with Account-scoped IndexedDB metadata and OPFS private artifacts.",
+      "Host the verified bundle as public, versioned, digest-pinned assets with a long-cache policy on a public bucket (Backblaze B2 or a Supabase public bucket, chosen once Story 7.1 knows the weight size), never from a Vercel function. Show preparation, verification and missing-preparation states in the Create entry (C-01) and Settings."
     ],
     "acceptance_criteria": [
       {

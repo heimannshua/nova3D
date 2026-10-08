@@ -1,0 +1,94 @@
+{
+  "epic": {
+    "id": "2",
+    "title": "Confirm requests and control background spending",
+    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state."
+  },
+  "story": {
+    "id": "2-11",
+    "epic_id": "2",
+    "title": "Create durable Job, attempt, step and operation identities",
+    "user": "Account owner",
+    "want": "to have every unit of background work recorded under a unique identity",
+    "benefit": "retries and charges can never be duplicated or lost",
+    "requirements": [
+      "FR-6",
+      "AR-3",
+      "AR-14",
+      "NFR-4",
+      "NFR-5"
+    ],
+    "depends_on": [
+      "1-5",
+      "2-4"
+    ],
+    "scope": [
+      "Create the Jobs-owned Job, JobAttempt, StepExecution and ExternalOperation record families with their uniqueness rules (attempt per Job, step per attempt and key, operation per step and ordinal) and immutable operation receipts.",
+      "A user retry creates a new attempt under the same Job and waits until the prior potentially chargeable operation is terminal or reconciled. Public states are waiting, running, completed, failed and cancelled, with stage and reason. Dispatch, signing and workers are Story 2.7; reservations are Story 2.6."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "the same logical step requested twice",
+        "when": "two commands create it",
+        "then": "one StepExecution and one ExternalOperation exist and the second command returns the original receipt"
+      },
+      {
+        "given": "a failed attempt with a potentially chargeable operation",
+        "when": "the user requests a retry",
+        "then": "a new attempt under the same Job waits until the prior operation is terminal or reconciled, and no attempt-number change bypasses that wait"
+      },
+      {
+        "given": "any Job",
+        "when": "its state is shown",
+        "then": "the public state, stage and reason agree with the records and a terminal failed or cancelled attempt can never be reclaimed"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-6": {
+      "text": "#### FR-6: Concurrent background jobs\n\nAn Account can use other Projects while multiple research or generation Jobs run independently.\n\n**Consequences:**\n- Each Job exposes waiting, running, completed, failed, and cancelled states.\n- Project data and results cannot leak between concurrent Jobs.\n- The user can cancel a Job without damaging previously approved data or Versions.\n- Failed Jobs do not retry automatically; they preserve the last approved state, explain the known cause in beginner-friendly language, and wait for a user retry decision.\n\nSource: PRD §4, FR-6.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 145
+    },
+    "AR-3": {
+      "text": "**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions. Cookie-authenticated mutations require origin and CSRF checks.\n\nSource: AD-2; Consistency Conventions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 583
+    },
+    "AR-14": {
+      "text": "**AR-14: Durable Jobs and bounded retries.** Accept Jobs only with committed dispatch outbox; persist Job → JobAttempt → StepExecution → ExternalOperation identities and receipts. Upstash orchestrates bounded HTTP steps and worker completions; Postgres owns state. Configure workflow, explicit queue publishes and provider SDKs for zero failed-work retries, verifying effective behavior with a deliberately failing research step. Duplicate transport returns existing receipts without repeated side effects; terminal failed/cancelled attempts cannot be reclaimed. Lease loss becomes interrupted failure; user retries create new linked attempts under the same Job and wait for prior potentially chargeable work to reconcile. Logical step keys are unique per attempt, and operation ordinals per step; Jobs owns receipts while Usage owns their ledger entries. Preserve last approved state and actionable failure details.\n\nSource: AD-9; work/billing identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 637
+    },
+    "NFR-4": {
+      "text": "**NFR-4: Durable job state.** Closing the browser, navigating to another Project, or a worker restart cannot lose an accepted Job, corrupt its Project, or misreport its final state.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 547
+    },
+    "NFR-5": {
+      "text": "**NFR-5: Safe concurrency.** Concurrent Jobs remain isolated and cannot overwrite newer approved Project state. Results generated from stale inputs cannot silently become current.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 549
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

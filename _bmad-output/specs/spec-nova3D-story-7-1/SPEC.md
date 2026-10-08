@@ -19,7 +19,7 @@ A maintainer needs to have a viable on-device conversion engine. Offline creatio
 
 - **CAP-1**
   - **intent:** A maintainer can have a viable on-device conversion engine.
-  - **success:** Exact weights/runtime/digests and evidence establish ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s local conversion on the adopted R-5 devices.
+  - **success:** Exact weights/runtime/digests and screening evidence on the hardware available indicate ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s local conversion, with qualifying proof on the adopted R-5 devices left to Story 8.6.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Exact weights/runtime/digests and evidence establish ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s local conversion on the adopted R-5 devices. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Exact weights/runtime/digests and screening evidence on the hardware available indicate ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s local conversion, with qualifying proof on the adopted R-5 devices left to Story 8.6. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

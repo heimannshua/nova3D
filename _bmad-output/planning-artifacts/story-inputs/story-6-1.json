@@ -30,7 +30,7 @@
       {
         "given": "the initial profile",
         "when": "it is selected",
-        "then": "A1 mini 0.4 mm, Bambu PLA Silk+ Gold, ≤90 mm cube, 0.20 mm layers and explicit three perimeters resolve from the pinned inheritance closure"
+        "then": "A1 mini 0.4 mm, Bambu PLA Silk+ Gold, ≤90 mm cube, 0.20 mm layers and explicit three perimeters resolve from the pinned inheritance closure; selection works on phone and desktop"
       },
       {
         "given": "profile, scale or orientation changes",

@@ -29,6 +29,10 @@ An Account owner needs to discover relevant authoritative sources. They need not
   - **intent:** Reject untrusted acquisition or ineligible evidence.
   - **success:** Given a low-authority page, restricted/ambiguous rights or hostile redirect/payload, when acquisition and eligibility run, then leads cannot become accepted evidence without inspectable authorized support; size/type/redirect/private-network restrictions and citation/schema checks reject unsafe input.
 
+- **CAP-4**
+  - **intent:** Handle an unverifiable edition rights check without storing a body or silently continuing.
+  - **success:** Given an edition whose license or rights cannot be verified, when acquisition runs, then no body is stored, the registry's next ordered alternate edition is tried, and if none remains the Job ends with a clear blocked outcome naming the unverified edition.
+
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Constraints

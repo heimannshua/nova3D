@@ -19,7 +19,7 @@ An Account owner needs to choose direct conversion or evidence research. They un
 
 - **CAP-1**
   - **intent:** Understand image clarity and missing-view problems.
-  - **success:** Given unclear or incomplete views, when quality review runs, then detected blur, obstruction or missing angles and useful remedies are explained.
+  - **success:** Given unclear or incomplete views, when quality review runs, then measured blur, resolution or exposure problems, unconfirmed obstruction and missing labelled views are explained with useful remedies.
 
 - **CAP-2**
   - **intent:** Proceed with incomplete direct inputs only after acknowledging uncertainty.
@@ -44,7 +44,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Detected blur, obstruction or missing angles and useful remedies are explained. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Measured blur, resolution or exposure problems, unconfirmed obstruction and missing labelled views are explained with useful remedies. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

@@ -15,11 +15,13 @@ So that paid work uses only the data and maximum I permitted.
 - [2.1](../spec-nova3D-story-2-1/SPEC.md)
 - [2.3](../spec-nova3D-story-2-3/SPEC.md)
 - [2.4](../spec-nova3D-story-2-4/SPEC.md)
+- [2.6](../spec-nova3D-story-2-6/SPEC.md)
 
 ## Scope
 
 - Implement provider-neutral Anthropic (claude-sonnet-5-5) and Brave adapters and permission snapshots; provider terms/rates must be verified before enablement, and the Brave adapter ships disabled until a terms review is recorded.
 - Use no paid external 3D provider or billable free-credit fallback; instance hosting/local inference remains overhead.
+- Disclose each category's maximum using the computed bound of the Story 2.6 calculator.
 
 ## Acceptance Criteria
 

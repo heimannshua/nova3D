@@ -24,7 +24,7 @@ So that the export meets the adopted profile checks.
 
 **Given** profile-specific feature fixtures
 **When** validation measures them
-**Then** wall ≥1.2 mm, isolated feature ≥0.8 mm, mating clearance ≥0.4 mm and raised/recessed relief ≥0.6 mm are enforced
+**Then** wall ≥1.2 mm, isolated feature ≥0.8 mm, mating clearance ≥0.4 mm and raised/recessed relief ≥0.6 mm are enforced; results are readable on phone and desktop
 
 ### AC-2
 

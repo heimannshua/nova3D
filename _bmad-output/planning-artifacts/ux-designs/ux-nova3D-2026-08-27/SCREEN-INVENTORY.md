@@ -26,7 +26,7 @@ Every first-version surface needs usable desktop/laptop and phone designs. Where
 | ID | Surface | Must enable or show | Required states or variants |
 |---|---|---|---|
 | H-01 | Home dashboard | Three primary actions: **My Projects**, **Create**, **In Progress** | New Account/empty, active Jobs, unread Notification, desktop, phone |
-| H-02 | My Projects | Model-focused collection of the Account's Projects | Empty, populated, search/filter if needed, locally saved, syncing, sync failed |
+| H-02 | My Projects | Model-focused collection of the Account's Projects | Empty, populated, search/filter if needed, locally saved, syncing, sync failed, conflict (select the current version), locked by disable |
 | H-03 | Project/model overview | Open a model, see current stage and Version, reach Sources and Project actions | Researching, awaiting Plan Approval, generating, awaiting Model Approval, validation failed, Export ready |
 | H-04 | Project actions | Rename if supported, delete Project/Export, inspect history, resume next required action | Safe actions, destructive confirmation, tombstoned/cleanup state |
 

@@ -17,6 +17,7 @@ So that restoration preserves both geometry and history.
 ## Scope
 
 - Restore verified immutable geometry and mode-appropriate provenance through a new history event.
+- Approval and validation records are restored and rechecked when they exist (fixture records until Stories 5.5 and 6.2 supply them).
 
 ## Acceptance Criteria
 

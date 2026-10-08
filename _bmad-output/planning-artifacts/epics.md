@@ -4,7 +4,7 @@ currentStep: complete
 status: complete
 reviewMode: fast-path-delegated
 storyBoundaries: inferred-from-ratified-requirements
-updated: 2026-09-14
+updated: 2026-10-08
 sourceSelectionConfirmed: true
 requirementsExtractionComplete: true
 requirementsReview: fast-path-delegated
@@ -39,7 +39,7 @@ requirementCounts:
 
 This document provides nova3D's epic and story breakdown from the confirmed PRD, architecture, canonical spec, UX contract and qualification evidence.
 
-**Current stage: 8 epics and 58 stories specified and validated.** Josh requested bmad-spec for each story using Codex agents running Luna. His fast-path direction is carried forward for decomposition and review. Story boundaries and dependency order are delegated planning choices, not newly claimed user approvals; all adopted product requirements remain binding. No source requirement, spec or local probe is treated as completed application functionality.
+**Current stage: 8 epics and 67 stories specified.** The original 58 were validated on 2026-09-14; the 9 added on 2026-10-08 were checked by scripted parity only. Josh requested bmad-spec for each story using Codex agents running Luna. His fast-path direction is carried forward for decomposition and review. Story boundaries and dependency order are delegated planning choices, not newly claimed user approvals; all adopted product requirements remain binding. No source requirement, spec or local probe is treated as completed application functionality.
 
 #### Inputs and authority
 
@@ -580,7 +580,7 @@ Source: Architecture Stack; R-1; qualification stack report.
 
 Source: AD-1, AD-2; Structural Seed.
 
-**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions.
+**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions. Cookie-authenticated mutations require origin and CSRF checks.
 
 Source: AD-2; Consistency Conventions.
 
@@ -900,7 +900,7 @@ Source: SCREEN-INVENTORY H-01; canonical ux-contract; applicable ratified decisi
 
 **UX-DR28: My Projects (H-02).** Model-focused collection of the Account's Projects.
 
-Required states/variants: Empty, populated, search/filter if needed, locally saved, syncing, sync failed.
+Required states/variants: Empty, populated, search/filter if needed, locally saved, syncing, sync failed, conflict (select the current version), locked by disable.
 
 Source: SCREEN-INVENTORY H-02; canonical ux-contract; applicable ratified decisions.
 
@@ -1181,9 +1181,9 @@ Source: SCREEN-INVENTORY AD-05; canonical ux-contract; applicable ratified decis
 | FR-1 | 1.3 |
 | FR-2 | 1.3, 1.4, 1.7, 6.9 |
 | FR-3 | 1.5, 1.6, 6.9, 7.5 |
-| FR-4 | 2.4, 2.5, 2.6, 2.8 |
-| FR-5 | 1.7, 2.1, 2.3 |
-| FR-6 | 2.7, 2.8, 3.7 |
+| FR-4 | 2.4, 2.5, 2.6, 2.7, 2.8 |
+| FR-5 | 1.7, 2.1, 2.3, 2.13 |
+| FR-6 | 2.7, 2.8, 2.11, 3.7 |
 | FR-7 | 2.10, 3.7, 7.7 |
 | FR-8 | 3.1, 3.6 |
 | FR-9 | 3.1, 3.2, 3.4, 3.6 |
@@ -1191,23 +1191,23 @@ Source: SCREEN-INVENTORY AD-05; canonical ux-contract; applicable ratified decis
 | FR-11 | 3.3, 3.4 |
 | FR-12 | 2.3, 3.3, 3.5 |
 | FR-13 | 2.3, 3.5 |
-| FR-14 | 2.5, 2.9, 3.2, 3.6, 3.7 |
+| FR-14 | 2.5, 2.9, 2.13, 3.2, 3.6, 3.7 |
 | FR-15 | 4.2 |
 | FR-16 | 4.2, 4.3, 7.3 |
 | FR-17 | 2.1, 4.4, 7.3 |
-| FR-18 | 4.6 |
+| FR-18 | 4.6, 4.7 |
 | FR-19 | 4.5, 6.6 |
 | FR-20 | 5.1 |
 | FR-21 | 4.3, 5.2 |
 | FR-22 | 5.3, 5.4, 8.4 |
 | FR-23 | 5.5, 7.6 |
 | FR-24 | 6.1, 7.6 |
-| FR-25 | 6.2, 6.3, 7.6 |
+| FR-25 | 6.2, 6.3, 6.10, 7.6 |
 | FR-26 | 4.3, 6.4, 7.6 |
 | FR-27 | 5.5, 6.4, 7.6 |
-| FR-28 | 6.5, 7.6 |
+| FR-28 | 6.5, 7.8 |
 | FR-29 | 6.6, 6.7, 6.8, 6.9, 7.6 |
-| FR-30 | 3.6, 7.5, 8.1, 8.2, 8.3, 8.4 |
+| FR-30 | 1.8, 3.6, 7.5, 8.1, 8.2, 8.3, 8.4 |
 
 ### Additional Requirement Coverage
 
@@ -1215,61 +1215,61 @@ Every mapped requirement retains its detailed inventory conditions. Shared const
 
 | Requirement | Stories |
 | --- | --- |
-| SC-1 | 2.1, 2.2, 2.3, 7.1, 7.3, 7.6 |
-| SC-2 | 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 8.6 |
-| SC-3 | 1.2, 1.7, 2.2, 4.6, 7.3, 8.5, 8.6 |
-| SC-4 | 1.2, 8.5 |
+| SC-1 | 2.1, 2.2, 2.3, 2.12, 2.13, 7.1, 7.3, 7.6, 7.8 |
+| SC-2 | 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.8, 8.6 |
+| SC-3 | 1.2, 1.7, 2.2, 4.6, 7.3, 8.5, 8.6, 8.8 |
+| SC-4 | 1.2, 8.5, 8.8 |
 | SC-5 | 2.10, 7.7 |
 | SC-6 | 3.2 |
-| SC-7 | 1.2, 4.6, 8.5 |
-| NFR-1 | 1.3, 1.4, 1.5, 1.6, 1.7, 2.2, 4.1, 6.9, 7.4, 7.5, 8.1, 8.2, 8.7 |
-| NFR-2 | 1.1, 1.3, 1.4, 1.5, 1.6, 2.2, 2.5, 3.1, 6.7, 6.9, 8.7 |
-| NFR-3 | 3.1, 3.3, 3.6, 4.1, 4.2, 4.4, 4.5, 5.2, 5.3, 5.5, 6.4, 6.5, 6.6, 6.7, 6.8, 8.7 |
-| NFR-4 | 2.7, 8.6, 8.7 |
-| NFR-5 | 2.6, 2.7, 4.1, 5.2, 7.4, 8.1, 8.6, 8.7 |
+| SC-7 | 1.2, 4.6, 8.5, 8.8 |
+| NFR-1 | 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 2.2, 2.12, 4.1, 6.9, 7.4, 7.5, 8.1, 8.2, 8.7 |
+| NFR-2 | 1.1, 1.3, 1.4, 1.5, 1.6, 1.9, 2.2, 2.5, 3.1, 6.7, 6.9, 8.7 |
+| NFR-3 | 2.12, 3.1, 3.3, 3.6, 4.1, 4.2, 4.4, 4.5, 5.2, 5.3, 5.5, 6.4, 6.5, 6.6, 6.7, 6.8, 8.7 |
+| NFR-4 | 1.9, 2.7, 2.11, 8.6, 8.7 |
+| NFR-5 | 2.6, 2.7, 2.11, 4.1, 5.2, 7.4, 8.1, 8.6, 8.7 |
 | NFR-6 | 4.2, 4.3, 5.2, 8.7 |
-| NFR-7 | 4.1, 5.3, 5.4, 7.4, 8.4, 8.7 |
+| NFR-7 | 2.12, 4.1, 5.3, 5.4, 7.4, 8.4, 8.7 |
 | NFR-8 | 2.7, 3.3, 3.7, 8.7 |
 | NFR-9 | 2.4, 2.5, 2.6, 2.8, 3.7, 6.5, 8.7 |
-| NFR-10 | 2.7, 3.7, 4.6, 7.1, 8.6, 8.7 |
-| NFR-11 | 6.1, 6.2, 6.3, 6.8, 8.7 |
-| NFR-12 | 3.1, 3.6, 7.5, 8.1, 8.2, 8.3, 8.4, 8.7 |
+| NFR-10 | 2.7, 3.7, 4.6, 4.7, 7.1, 8.6, 8.7 |
+| NFR-11 | 6.1, 6.2, 6.3, 6.8, 6.10, 8.7 |
+| NFR-12 | 1.8, 3.1, 3.6, 7.5, 8.1, 8.2, 8.3, 8.4, 8.7 |
 | AR-1 | 1.1 |
 | AR-2 | 1.1, 4.1, 4.2 |
-| AR-3 | 1.4, 1.7, 2.6, 2.7, 4.1, 7.4 |
+| AR-3 | 1.4, 1.7, 2.6, 2.7, 2.11, 2.12, 4.1, 7.4 |
 | AR-4 | 2.1, 2.3, 3.5, 5.5, 6.8, 7.3, 7.6 |
 | AR-5 | 3.4, 3.5, 4.1, 4.4, 4.5, 5.1, 5.3, 5.4, 5.5, 6.6, 6.8, 7.3, 7.4 |
 | AR-6 | 2.9, 3.1, 3.2, 3.3, 3.5, 3.6, 5.1 |
 | AR-7 | 2.2, 3.1 |
 | AR-8 | 4.2, 4.4, 5.2 |
-| AR-9 | 4.2, 4.5, 4.6, 5.2, 5.3, 5.4, 6.1 |
+| AR-9 | 4.2, 4.5, 4.6, 4.7, 5.2, 5.3, 5.4, 6.1, 6.10 |
 | AR-10 | 4.3, 5.2, 6.4 |
-| AR-11 | 6.1, 6.2, 6.3 |
-| AR-12 | 6.4, 6.5, 7.6 |
+| AR-11 | 6.1, 6.2, 6.3, 6.10 |
+| AR-12 | 6.4, 6.5, 7.8 |
 | AR-13 | 6.6, 6.7, 6.8, 7.6 |
-| AR-14 | 2.7, 2.8, 3.7, 6.5 |
-| AR-15 | 1.5, 2.7, 3.7, 5.2, 8.1 |
+| AR-14 | 2.7, 2.8, 2.11, 3.7, 6.5 |
+| AR-15 | 1.5, 1.8, 2.7, 3.7, 5.2, 8.1 |
 | AR-16 | 2.4, 2.6, 2.8, 6.5 |
-| AR-17 | 2.5, 2.8, 3.7 |
+| AR-17 | 2.5, 2.8, 2.13, 3.7 |
 | AR-18 | 1.3, 1.4, 1.5, 1.6, 8.2 |
-| AR-19 | 2.2, 4.1, 5.4, 6.9 |
+| AR-19 | 2.2, 2.12, 4.1, 5.4, 6.9 |
 | AR-20 | 2.9, 3.1, 3.2, 3.6, 8.3 |
-| AR-21 | 8.1, 8.2, 8.3, 8.4 |
-| AR-22 | 7.1, 7.2, 7.3, 7.4, 7.6, 8.6 |
+| AR-21 | 1.8, 8.1, 8.2, 8.3, 8.4 |
+| AR-22 | 7.1, 7.2, 7.3, 7.4, 7.6, 7.8, 8.6 |
 | AR-23 | 7.2, 7.5, 8.6 |
-| AR-24 | 4.6, 7.1, 8.5 |
+| AR-24 | 4.6, 4.7, 7.1, 8.5, 8.8 |
 | AR-25 | 2.10, 3.7, 7.7 |
-| AR-26 | 1.1, 2.7, 8.4, 8.7 |
-| AR-27 | 7.1, 8.5, 8.6, 8.7 |
-| AR-28 | 1.2, 8.5 |
+| AR-26 | 1.1, 1.9, 2.7, 8.4, 8.7 |
+| AR-27 | 7.1, 8.5, 8.6, 8.7, 8.8 |
+| AR-28 | 1.2, 8.5, 8.8 |
 | UX-DR1 | 1.2 |
-| UX-DR2 | 1.2, 4.6, 8.5 |
-| UX-DR3 | 1.2, 4.6, 8.5 |
-| UX-DR4 | 1.2, 4.6, 8.5 |
-| UX-DR5 | 1.2, 3.4, 6.7, 8.5 |
+| UX-DR2 | 1.2, 4.6, 8.5, 8.8 |
+| UX-DR3 | 1.2, 4.6, 8.5, 8.8 |
+| UX-DR4 | 1.2, 4.6, 8.5, 8.8 |
+| UX-DR5 | 1.2, 3.4, 6.7, 8.5, 8.8 |
 | UX-DR6 | 1.2, 3.4 |
 | UX-DR7 | 1.2, 4.4, 4.5, 7.3 |
-| UX-DR8 | 2.1, 2.3, 2.5, 2.9 |
+| UX-DR8 | 2.1, 2.3, 2.5, 2.9, 2.13 |
 | UX-DR9 | 2.2 |
 | UX-DR10 | 2.3 |
 | UX-DR11 | 3.4, 3.7 |
@@ -1278,10 +1278,10 @@ Every mapped requirement retains its detailed inventory conditions. Shared const
 | UX-DR14 | 7.2, 7.4, 7.5, 8.6 |
 | UX-DR15 | 4.6 |
 | UX-DR16 | 3.5, 5.1, 5.3, 5.4, 5.5 |
-| UX-DR17 | 6.1, 6.2, 6.3, 6.4, 6.5, 7.6 |
+| UX-DR17 | 6.1, 6.2, 6.3, 6.4, 6.5, 7.6, 7.8 |
 | UX-DR18 | 2.10, 7.7 |
 | UX-DR19 | 2.7, 8.1, 8.2 |
-| UX-DR20 | 1.2, 8.5 |
+| UX-DR20 | 1.2, 8.5, 8.8 |
 | UX-DR21 | 1.4 |
 | UX-DR22 | 1.3 |
 | UX-DR23 | 1.6 |
@@ -1295,7 +1295,7 @@ Every mapped requirement retains its detailed inventory conditions. Shared const
 | UX-DR31 | 2.1, 7.2 |
 | UX-DR32 | 2.1 |
 | UX-DR33 | 2.2 |
-| UX-DR34 | 2.3 |
+| UX-DR34 | 2.3, 2.13 |
 | UX-DR35 | 2.3, 7.3 |
 | UX-DR36 | 2.1, 2.3 |
 | UX-DR37 | 2.5, 2.9 |
@@ -1322,7 +1322,7 @@ Every mapped requirement retains its detailed inventory conditions. Shared const
 | UX-DR58 | 6.1 |
 | UX-DR59 | 6.2, 6.3 |
 | UX-DR60 | 6.4 |
-| UX-DR61 | 6.5, 7.6 |
+| UX-DR61 | 6.5, 7.8 |
 | UX-DR62 | 6.8, 7.6 |
 | UX-DR63 | 6.7, 6.8, 6.9, 7.6 |
 | UX-DR64 | 1.2 |
@@ -1342,7 +1342,7 @@ Every mapped requirement retains its detailed inventory conditions. Shared const
 
 Invited users can authenticate and use a responsive private workspace; Josh can control and recover access without inspecting private content.
 
-**FRs covered:** FR-1, FR-2, FR-3, FR-5
+**FRs covered:** FR-1, FR-2, FR-3, FR-5, FR-30
 
 ### Epic 2: Confirm requests and control background spending
 
@@ -1442,7 +1442,7 @@ So that I can use my workspace on phone or computer.
 **Scope:**
 
 - Implement semantic tokens and reusable focus, status, empty/error, confirmation and navigation patterns under R-10.
-- Provide configured-language, light/dark and explanation preferences; every later surface inherits these patterns.
+- Provide configured-language, light/dark and explanation preferences; every later surface inherits these patterns. Ship English and Hebrew catalogs (Hebrew right-to-left) with the device language as the default match.
 
 **Acceptance Criteria:**
 
@@ -1481,7 +1481,7 @@ So that my account starts in its own private workspace.
 - Implement fresh-authenticated Administrator invitation issuance/revocation and narrow idempotent registration: a user signs in with Google, then redeems an invitation code to activate an Account. No code, no Account.
 - Named and current general codes are hashed, single-use and nonexpiring until used or revoked; partial Auth provisioning is unusable.
 - Provision the Administrator (heimannshua@gmail.com, Google subject pinned at first sign-in) and the other currently allowlisted identity once through a documented, audited seed that calls the same provisioning function as registration, rather than code redemption.
-- Registration runs only in a server route using the service role: no registration or invitation database object is executable by `anon` or `authenticated`, attempts are limited by network origin plus a global budget, and codes carry at least 128 bits of entropy.
+- Registration runs only in a server route using the service role: no registration or invitation database object is executable by `anon` or `authenticated`, attempts are limited to 5 failures per network origin per 15 minutes and 100 failures per hour across all origins, and codes carry at least 128 bits of entropy.
 
 **Acceptance Criteria:**
 
@@ -1521,7 +1521,7 @@ So that my projects and files stay private.
 - Carry ownership-scoped IDs, foreign keys and denial behavior into every subsequent module.
 - Sign in uses Google OAuth through Supabase; only the Google provider is enabled while sign-ups stay on, and the live-Account check is the gate. Fresh authentication for sensitive actions is a server-controlled step-up: a Postgres nonce bound to the initiating browser and the OAuth state, `prompt=select_account` without `login_hint`, and acceptance only of a new session whose `amr` shows an `oauth` entry after the nonce start for the same verified email and Google subject. It writes a 5-minute marker (Postgres, never a JWT claim or Redis) for that new session only, revokes the initiating session's grant and records an action class; Account deletion and close-instance markers are consumed by use. It proves a deliberate new sign-in, not a Google credential re-check.
 - Replace the interim `AUTH_ALLOWED_EMAILS` gate with the live-Account check in the same change, and remove the variable from the proxy, callback, health route, environment checks and docs.
-- Delete Auth identities that have no Account, claim or registration attempt 30 days after their last sign-in or registration attempt, in one transaction that shares registration's row lock; Account foreign keys to the Auth identity restrict deletion.
+- Reject any cookie-authenticated mutation that lacks a valid origin and CSRF check before it changes state.
 
 **Acceptance Criteria:**
 
@@ -1551,9 +1551,9 @@ So that my projects and files stay private.
 
 **AC-5**
 
-**Given** an Auth identity with no Account older than 30 days and a registration in flight for another identity
-**When** the dormant-identity purge runs
-**Then** only the dormant identity is deleted and no in-flight or activated Account, Workspace or claim is removed or orphaned
+**Given** a cookie-authenticated mutation from a foreign origin or without its CSRF token
+**When** it is submitted
+**Then** it is rejected before any state change, while the same request from the application's own origin succeeds
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-4/SPEC.md).
 
@@ -1578,7 +1578,7 @@ So that I can revoke access without deleting its work.
 
 **Given** an enabled invited Account with live sessions
 **When** a freshly authenticated Administrator disables it
-**Then** session/download authority and commit epochs revoke atomically before cancellation signals, while its Workspace is retained
+**Then** session authority, commit epochs and (once Story 6.9 exists) download authority revoke atomically before cancellation signals, while its Workspace is retained
 
 **AC-2**
 
@@ -1631,6 +1631,96 @@ So that I can regain control without bypassing workspace privacy.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-6/SPEC.md).
 
+### Story 1.8: Define tombstones and the hidden-state contract
+
+As an Account owner,
+I want to have deleted or disabled private targets stop being reachable at once,
+So that later features cannot bypass deletion or revocation.
+
+**Requirements:** FR-30, AR-15, AR-21, NFR-1, NFR-12
+
+**Dependencies:** 1.5
+
+**Scope:**
+
+- Create the Lifecycle-owned tombstone record family, monotonic target revisions and the hide-before-revoke ordering that every module read, write, import, callback and cache-promotion path must honor; deleted Project and Account IDs are never reusable.
+- Expose the tombstone check as a reusable authority guard beside the Story 1.5 epoch guard. Deletion commands, manifests and cleanup are supplied by Stories 8.1 to 8.3.
+- Record the auditable deletion-verification procedure required by PRD D-3 before any purge code ships: which stores are checked (database, Storage, backups, notifications, logs), how absence is proven, and who runs it.
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** a target marked tombstoned
+**When** any read, write, import, callback or cache-promotion path touches it
+**Then** the guard rejects it before any other effect and returns an unavailable state without disclosing contents
+
+**AC-2**
+
+**Given** a stale status reply carrying an older revision
+**When** it is compared with a recorded tombstone or disable
+**Then** the higher monotonic revision wins and a tombstone is never downgraded
+
+**AC-3**
+
+**Given** a deleted Project or Account ID
+**When** a new record is created
+**Then** the ID cannot be reused and only its opaque identity is retained for anti-resurrection
+
+**AC-4**
+
+**Given** deletion work about to begin
+**When** the verification procedure is reviewed
+**Then** an auditable procedure naming each store, the proof of absence and its runner is recorded before purge code ships
+
+**Engineering gates:** G-9; planning completion does not change their qualification status.
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-8/SPEC.md).
+
+### Story 1.9: Provision staging and run periodic jobs
+
+As an Administrator,
+I want to have a staging environment and reliable scheduled jobs,
+So that housekeeping and recovery do not depend on someone remembering them.
+
+**Requirements:** AR-26, NFR-2, NFR-4
+
+**Dependencies:** 1.4
+
+**Scope:**
+
+- Create the staging Supabase project, push the `supabase/config.toml` auth settings with the CLI and make CI diff them against the live settings; provision Upstash Redis and QStash in us-east-1 and a Railway project, recording the actual plans and regions.
+- Run periodic work from a QStash schedule that invokes an idempotent route verified with the provider-native signature check and the stored environment identity; every run writes an immutable receipt. The first task is the dormant-identity purge: delete Auth identities that have no Account, claim or registration attempt 30 days after their last sign-in or registration attempt, in one transaction that shares registration's row lock, with Account foreign keys to the Auth identity restricting deletion.
+- Alarm when a task has not run within its interval. Production projects are created in Story 8.7 and receive no real private data before Story 8.4 passes its drill.
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** the staging project and the committed `supabase/config.toml`
+**When** CI compares them with the live settings
+**Then** drift in enabled providers, the sign-up setting, redirect URLs or OTP expiry fails the check
+
+**AC-2**
+
+**Given** a scheduled task
+**When** its schedule fires twice, or arrives with an invalid signature or the wrong environment
+**Then** only one run executes, foreign or invalid calls are rejected and every run writes an immutable receipt
+
+**AC-3**
+
+**Given** an Auth identity with no Account older than 30 days and a registration in flight for another identity
+**When** the dormant-identity purge runs
+**Then** only the dormant identity is deleted and no in-flight or activated Account, Workspace or claim is removed or orphaned
+
+**AC-4**
+
+**Given** a task that has not run within its interval
+**When** monitoring evaluates
+**Then** an alarm names the task and its last receipt
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-9/SPEC.md).
+
 ### Story 1.7: Navigate My Projects and project state
 
 As an Account owner,
@@ -1639,7 +1729,7 @@ So that I can resume the next required action.
 
 **Requirements:** FR-2, FR-5, AR-3, NFR-1, SC-3, UX-DR24, UX-DR27, UX-DR28, UX-DR29, UX-DR30
 
-**Dependencies:** 1.2, 1.4
+**Dependencies:** 1.2, 1.4, 1.8
 
 **Scope:**
 
@@ -1684,7 +1774,7 @@ So that work starts from my confirmed intent.
 
 **Scope:**
 
-- Persist immutable subject, scope, outcome, mode and optional user-added personalization; clarify ambiguity before research.
+- Persist immutable subject, scope, outcome, mode and optional user-added personalization; clarify ambiguity before research. Personalization is free-form wording mapped to the one supported kind, raised or recessed text on declared surfaces; any other request is explained as unsupported.
 
 **Acceptance Criteria:**
 
@@ -1720,7 +1810,7 @@ So that the request preserves all useful views.
 
 **Scope:**
 
-- Implement authenticated bounded image staging, checksum/content checks and ordered image editing.
+- Implement authenticated bounded image staging, checksum/content checks and ordered image editing. Accept 1 to 12 JPEG, PNG or WebP images (at most 12 MiB each and 60 MiB per request), a 250 MiB staging quota per Account and a 24-hour staging lease renewed by activity.
 
 **Acceptance Criteria:**
 
@@ -1756,7 +1846,7 @@ So that I understand what the resulting geometry can claim.
 
 **Scope:**
 
-- Check clarity/obstruction/angle coverage and recommend useful additional views before conversion.
+- Run deterministic client-side quality checks (short edge of at least 800 px, blur measured as the variance of the Laplacian on a 512-px grayscale copy of at least 100, and at most 35% clipped exposure) and have the user label each view and confirm that nothing blocks the subject. Compare the labelled views with the at least three distinct views direct conversion needs and recommend the missing ones. No model detects obstruction in this version.
 - Persist evidence_images versus image_direct with the appropriate confirmed-input gate.
 
 **Acceptance Criteria:**
@@ -1765,7 +1855,7 @@ So that I understand what the resulting geometry can claim.
 
 **Given** unclear or incomplete views
 **When** quality review runs
-**Then** detected blur, obstruction or missing angles and useful remedies are explained
+**Then** measured blur, resolution or exposure problems, unconfirmed obstruction and missing labelled views are explained with useful remedies
 
 **AC-2**
 
@@ -1781,6 +1871,43 @@ So that I understand what the resulting geometry can claim.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-3/SPEC.md).
 
+### Story 2.12: Retain confirmed pictures as immutable Project artifacts
+
+As an Account owner,
+I want to have my confirmed pictures kept with the request that used them,
+So that later research, conversion and recovery use the exact pictures I confirmed.
+
+**Requirements:** AR-3, AR-19, NFR-1, NFR-3, NFR-7, SC-1
+
+**Dependencies:** 2.2, 2.3
+
+**Scope:**
+
+- On confirmation of a request, attach its ordered staged pictures to the immutable request revision as Project-owned artifacts: create the Artifacts-owned manifest record family and the coordinated verified publication command (canonical JSON manifest root, ownership scope, digest and length), then let the staging copies expire.
+- Later consumers (subject identification, research, direct conversion and reconversion) read these retained roots, never lease-bounded staging. Story 4.1 extends the same family to worker outputs.
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** a confirmed request and its staged pictures
+**When** retention runs
+**Then** each picture has a verified manifest root, the request revision references the ordered roots and the staging copies expire
+
+**AC-2**
+
+**Given** changed bytes, a foreign owner or an expired lease before attachment
+**When** retention is attempted
+**Then** nothing is published and the request stays unconfirmed with an actionable state
+
+**AC-3**
+
+**Given** a later consumer needing the pictures
+**When** it resolves them
+**Then** it reads the retained roots and the original digests match the confirmed order
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-12/SPEC.md).
+
 ### Story 2.4: Set accountable usage limits
 
 As an Administrator,
@@ -1794,6 +1921,7 @@ So that spending stays within my allowance.
 **Scope:**
 
 - Create immutable USD usage periods and Administrator limit controls; show settled usage, outstanding reservations and available allowance.
+- Reservations begin with Story 2.6, so reservation figures are fixture-backed until then.
 
 **Acceptance Criteria:**
 
@@ -1811,50 +1939,48 @@ So that spending stays within my allowance.
 
 **AC-3**
 
-**Given** nearly reached or reached allowance
+**Given** an allowance at or above 80% of its period limit, or reached
 **When** usage is displayed
 **Then** settled, reserved and available amounts reconcile; new paid work is blocked when insufficient while disable still revokes active work
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-4/SPEC.md).
 
-### Story 2.5: Disclose and authorize provider categories
+### Story 2.11: Create durable Job, attempt, step and operation identities
 
 As an Account owner,
-I want to approve each billable purpose and data transfer,
-So that paid work uses only the data and maximum I permitted.
+I want to have every unit of background work recorded under a unique identity,
+So that retries and charges can never be duplicated or lost.
 
-**Requirements:** FR-4, FR-14, AR-17, NFR-2, NFR-9, UX-DR8, UX-DR37, UX-DR38
+**Requirements:** FR-6, AR-3, AR-14, NFR-4, NFR-5
 
-**Dependencies:** 2.1, 2.3, 2.4
+**Dependencies:** 1.5, 2.4
 
 **Scope:**
 
-- Implement provider-neutral Anthropic (claude-sonnet-5-5) and Brave adapters and permission snapshots; provider terms/rates must be verified before enablement, and the Brave adapter ships disabled until a terms review is recorded.
-- Use no paid external 3D provider or billable free-credit fallback; instance hosting/local inference remains overhead.
+- Create the Jobs-owned Job, JobAttempt, StepExecution and ExternalOperation record families with their uniqueness rules (attempt per Job, step per attempt and key, operation per step and ordinal) and immutable operation receipts.
+- A user retry creates a new attempt under the same Job and waits until the prior potentially chargeable operation is terminal or reconciled. Public states are waiting, running, completed, failed and cancelled, with stage and reason. Dispatch, signing and workers are Story 2.7; reservations are Story 2.6.
 
 **Acceptance Criteria:**
 
 **AC-1**
 
-**Given** a confirmed research request with default permissions off
-**When** a paid category is offered
-**Then** provider, purpose, outbound-data categories, retention limitations and maximum are disclosed before explicit permission
+**Given** the same logical step requested twice
+**When** two commands create it
+**Then** one StepExecution and one ExternalOperation exist and the second command returns the original receipt
 
 **AC-2**
 
-**Given** free-only mode or unverified/unenforceable provider terms
-**When** an adapter is asked to dispatch
-**Then** no billable request runs; search receives only normalized public subjects and no credentials/private raw prompts
+**Given** a failed attempt with a potentially chargeable operation
+**When** the user requests a retry
+**Then** a new attempt under the same Job waits until the prior operation is terminal or reconciled, and no attempt-number change bypasses that wait
 
 **AC-3**
 
-**Given** a permissioned vision/synthesis operation
-**When** its outbound payload is formed
-**Then** only purpose-required approved content is included, excluding unrelated Workspace data and unapproved personalization
+**Given** any Job
+**When** its state is shown
+**Then** the public state, stage and reason agree with the records and a terminal failed or cancelled attempt can never be reclaimed
 
-**Engineering gates:** G-6; planning completion does not change their qualification status.
-
-**Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-5/SPEC.md).
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-11/SPEC.md).
 
 ### Story 2.6: Reserve bounded costs atomically
 
@@ -1864,13 +1990,14 @@ So that concurrent requests cannot overspend.
 
 **Requirements:** FR-4, AR-3, AR-16, NFR-5, NFR-9
 
-**Dependencies:** 2.4, 2.5
+**Dependencies:** 2.4, 2.11
 
 **Scope:**
 
 - Use one Usage-owned checked integer/rational calculator and immutable request/options/rate snapshots.
 - Reserve against Account period, $5 parent research-Job lifetime across all attempts, and $1 external-operation ceilings in one transaction.
 - The reservation is input rate × a provider-independent input bound (serialized request length plus a documented per-image maximum, with a stated margin) plus output rate × the output limit actually sent; the 200,000-input-token, 16,000-output-token and 20-search-request ceilings are admission limits. An external operation is one provider request. Treat transport loss, timeout, 5xx and aborted streams as ambiguous (hold the reservation until usage evidence or a 24-hour deadline, then settle at the reservation) and definitive pre-processing rejections with a request ID as noncharge; evidence above a reservation settles at the evidence, counts against every limit and blocks the provider until reviewed.
+- Pin the provider API version, requested and returned model identity and rate schedule in each operation receipt; rate schedules are versioned records, so this story needs only fixture rates until Story 2.5 adds the provider adapters.
 
 **Acceptance Criteria:**
 
@@ -1896,20 +2023,62 @@ So that concurrent requests cannot overspend.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-6/SPEC.md).
 
+### Story 2.5: Disclose and authorize provider categories
+
+As an Account owner,
+I want to approve each billable purpose and data transfer,
+So that paid work uses only the data and maximum I permitted.
+
+**Requirements:** FR-4, FR-14, AR-17, NFR-2, NFR-9, UX-DR8, UX-DR37, UX-DR38
+
+**Dependencies:** 2.1, 2.3, 2.4, 2.6
+
+**Scope:**
+
+- Implement provider-neutral Anthropic (claude-sonnet-5-5) and Brave adapters and permission snapshots; provider terms/rates must be verified before enablement, and the Brave adapter ships disabled until a terms review is recorded.
+- Use no paid external 3D provider or billable free-credit fallback; instance hosting/local inference remains overhead.
+- Disclose each category's maximum using the computed bound of the Story 2.6 calculator.
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** a confirmed research request with default permissions off
+**When** a paid category is offered
+**Then** provider, purpose, outbound-data categories, retention limitations and maximum are disclosed before explicit permission
+
+**AC-2**
+
+**Given** free-only mode or unverified/unenforceable provider terms
+**When** an adapter is asked to dispatch
+**Then** no billable request runs; search receives only normalized public subjects and no credentials/private raw prompts
+
+**AC-3**
+
+**Given** a permissioned vision/synthesis operation
+**When** its outbound payload is formed
+**Then** only purpose-required approved content is included, excluding unrelated Workspace data and unapproved personalization
+
+**Engineering gates:** G-6; planning completion does not change their qualification status.
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-5/SPEC.md).
+
 ### Story 2.7: Accept and execute durable fenced jobs
 
 As an Account owner,
 I want to continue using Projects while work runs,
 So that accepted work survives navigation and failures stay controlled.
 
-**Requirements:** FR-6, AR-3, AR-14, AR-15, AR-26, NFR-4, NFR-5, NFR-8, NFR-10, UX-DR19, UX-DR39, UX-DR40
+**Requirements:** FR-6, AR-3, AR-14, AR-15, AR-26, NFR-4, NFR-5, NFR-8, NFR-10, UX-DR19, UX-DR39, UX-DR40, FR-4
 
-**Dependencies:** 1.5, 2.6
+**Dependencies:** 1.5, 2.6, 2.11, 1.9
 
 **Scope:**
 
-- Commit Job, attempt/step/operation identities, initial reservation and dispatch outbox together.
+- Commit the Job, its initial reservation and the dispatch outbox together, using the identities of Story 2.11.
 - Use signed environment-bound bounded steps, compatible worker registration and cancellation fencing; never automatically retry failed work.
+- Ship a deterministic test-workload step so durable-job behavior is testable before research exists.
+- A user cancel revokes commit authority first and starts no new external step; a completing Job settles actual usage against its reservation and releases only demonstrably unused allowance.
 
 **Acceptance Criteria:**
 
@@ -1921,7 +2090,7 @@ So that accepted work survives navigation and failures stay controlled.
 
 **AC-2**
 
-**Given** failed research, worker lease loss or a duplicate transport delivery
+**Given** a failed test-workload step, worker lease loss or a duplicate transport delivery
 **When** the configured workflow and queue are exercised
 **Then** failed work stays terminal until explicit user retry; duplicates return receipts and interrupted failure preserves approved state with cause/cost/next action
 
@@ -1930,6 +2099,18 @@ So that accepted work survives navigation and failures stay controlled.
 **Given** a signed callback with stale revision, revoked epoch, expired lease, invalid signature or wrong environment
 **When** publication is attempted
 **Then** it is rejected; valid requests bind nonce/digest/attempt with ≤5-minute expiry and ≤60-second skew; a missing compatible pinned worker leaves work waiting
+
+**AC-4**
+
+**Given** an authorized running Job
+**When** the user cancels it
+**Then** no new external step starts, the Job reaches cancelled with approved state preserved, and only demonstrably unused allowance is released
+
+**AC-5**
+
+**Given** a Job whose operations complete
+**When** completion is committed
+**Then** actual usage settles against the reservation and any unused remainder is released without rewriting history
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-7/SPEC.md).
 
@@ -1996,7 +2177,7 @@ So that scope, cost and freshness stay explicit.
 
 **AC-2**
 
-**Given** a reusable eligible revision
+**Given** a reusable eligible revision (a fixture until Story 3.6 admits real ones)
 **When** reuse is selected
 **Then** the original immutable revision/date is shown without a freshness or re-verification claim
 
@@ -2026,7 +2207,7 @@ So that background progress remains usable across sessions.
 
 **AC-1**
 
-**Given** research readiness, generation success/failure or export readiness
+**Given** an event type registered by an implemented producer (research readiness, generation, validation and export register theirs as their stories land)
 **When** the event is committed
 **Then** one durable notification per recipient/event appears in the app-wide bar and history
 
@@ -2043,6 +2224,45 @@ So that background progress remains usable across sessions.
 **Then** the exact live-authorized item opens or an unavailable state appears; Prints in Progress remains Coming later
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-10/SPEC.md).
+
+### Story 2.13: Identify the pictured subject for research-assisted mode
+
+As an Account owner,
+I want to confirm what my pictures show before research starts,
+So that research is aimed at the right subject and unsupported subjects stop early.
+
+**Requirements:** FR-5, FR-14, AR-17, SC-1, UX-DR8, UX-DR34
+
+**Dependencies:** 2.3, 2.5, 2.7, 2.12
+
+**Scope:**
+
+- In evidence_images mode, propose the pictured subject: with the paid synthesis/vision permission granted, one bounded Anthropic vision operation proposes a subject from the retained pictures for the user to confirm or edit; otherwise the user names the subject.
+- A confirmed subject maps to a registered domain package. A subject with no registered package ends with a clear no-generator outcome that offers direct mode, and no research starts.
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** evidence_images mode with the paid vision permission
+**When** identification runs
+**Then** one bounded operation proposes a subject, the user confirms or edits it, and the confirmed subject (not the model proposal) is recorded in the request revision
+
+**AC-2**
+
+**Given** free mode or no vision permission
+**When** the user continues
+**Then** they name the subject themselves and no billable call occurs
+
+**AC-3**
+
+**Given** a subject with no registered domain package
+**When** scope is confirmed
+**Then** no research or paid step starts and the user sees what is supported and the direct-mode alternative
+
+**Engineering gates:** G-6; planning completion does not change their qualification status.
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-13/SPEC.md).
 
 ## Epic 3: Research and approve a complete evidence plan
 
@@ -2061,7 +2281,7 @@ So that I need not locate or upload the texts myself.
 **Scope:**
 
 - In free mode, discover sources only from the domain package's pinned registry (initially Middot chapter 3 Hebrew Torat Emet 357 and English Mishnah Yomit via Sefaria; Sefaria-linked commentaries only if verified free and license-permitted) and keyless allowlisted public endpoints; there is no open-web search.
-- Open-web discovery exists only under the paid search category, and only passages nova3D itself fetches from a cited page are pinned. Pin exact Middot editions and permitted evidence retention.
+- The registry lists ordered alternate editions per source; none beyond the two initial editions is chosen yet. Open-web discovery exists only under the paid search category, and only passages nova3D itself fetches from a cited page are pinned. Pin exact Middot editions and permitted evidence retention.
 
 **Acceptance Criteria:**
 
@@ -2082,6 +2302,12 @@ So that I need not locate or upload the texts myself.
 **Given** a low-authority page, restricted/ambiguous rights or hostile redirect/payload
 **When** acquisition and eligibility run
 **Then** leads cannot become accepted evidence without inspectable authorized support; size/type/redirect/private-network restrictions and citation/schema checks reject unsafe input
+
+**AC-4**
+
+**Given** an edition whose license or rights cannot be verified
+**When** acquisition runs
+**Then** no body is stored, the registry's next ordered alternate edition is tried, and if none remains the Job ends with a clear blocked outcome naming the unverified edition
 
 **Engineering gates:** G-7; planning completion does not change their qualification status.
 
@@ -2111,7 +2337,7 @@ So that research follows my source choices without rewriting history.
 
 **AC-2**
 
-**Given** an attempt, cache adoption or Plan Revision
+**Given** an attempt, or a cache adoption or Plan Revision (fixture records until Stories 3.6 and 3.5 exist)
 **When** policy is pinned
 **Then** Account-policy revision, Project-exclusion revision and explicit source identity set determine eligibility and stale-epoch completion is rejected
 
@@ -2180,7 +2406,7 @@ So that I can select an interpretation with its geometry consequences.
 
 **Given** Hebrew and English source content
 **When** the reader opens during research
-**Then** original, translation, citation and explanation remain distinct and readable without pausing the Job
+**Then** original, translation, citation and explanation remain distinct and readable without pausing the Job; the reader works on phone and desktop
 
 **AC-2**
 
@@ -2216,7 +2442,7 @@ So that evidence-backed geometry follows my exact decisions.
 
 **Given** an incomplete plan or unsettled required choice
 **When** approval or partial-section generation is requested
-**Then** both are blocked even when some sections appear clear
+**Then** both are blocked even when some sections appear clear; the approval controls work on phone and desktop
 
 **AC-2**
 
@@ -2240,7 +2466,7 @@ So that reuse saves work without exposing anyone’s private history.
 
 **Requirements:** FR-8, FR-9, FR-14, FR-30, AR-6, AR-20, NFR-3, NFR-12
 
-**Dependencies:** 3.1, 3.2, 3.5
+**Dependencies:** 3.1, 3.2, 3.5, 1.8
 
 **Scope:**
 
@@ -2265,6 +2491,12 @@ So that reuse saves work without exposing anyone’s private history.
 **Given** fresh research or Project/Account deletion
 **When** the cache/adoption paths execute
 **Then** fresh work does not substitute cached conclusions and private associations are deleted without promoting tombstoned private data
+
+**AC-4**
+
+**Given** a correction or newer research for an already cached subject
+**When** it is admitted
+**Then** a new Cached Research Revision linked to its predecessor is created without changing the old one; an approved Project stays pinned to its revision, and adopting the successor creates a new Research Plan version that needs renewed Plan Approval before regeneration
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-3-6/SPEC.md).
 
@@ -2302,6 +2534,12 @@ So that background research stays understandable and controlled.
 **When** a step finishes
 **Then** fencing preserves approved state, actionable cost/failure status is visible, and retries wait for the user and any charge reconciliation
 
+**AC-4**
+
+**Given** free-mode gaps that block Plan Approval and a declined paid escalation
+**When** the user declines
+**Then** the Project stays unready for Plan Approval while blocking gaps remain, the gaps stay visible, and no paid operation or reservation is created
+
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-3-7/SPEC.md).
 
 ## Epic 4: Generate and inspect traceable canonical geometry
@@ -2316,11 +2554,11 @@ So that partial output cannot masquerade as a completed version.
 
 **Requirements:** AR-2, AR-3, AR-5, AR-19, NFR-1, NFR-3, NFR-5, NFR-7
 
-**Dependencies:** 2.2, 2.7
+**Dependencies:** 2.7, 2.12
 
 **Scope:**
 
-- Implement the Artifacts-owned manifest family and coordinated verified publication; mutable staging leases are separate.
+- Extend the Artifacts-owned manifest family created in Story 2.12 to worker-produced artifacts: attempt-scoped staging, coordinated verified publication and consumers that use the same roots; mutable staging leases are separate.
 
 **Acceptance Criteria:**
 
@@ -2357,6 +2595,7 @@ So that I can obtain canonical geometry without manual modeling.
 **Scope:**
 
 - Implement trusted declarative subject recipe and pinned native CadQuery worker for the evidence-backed altar/ramp fixture.
+- Declare in the domain package the base face, the personalization surfaces and the pinned source registry; Josh approves the G-1 corpus before the qualification run is recorded.
 
 **Acceptance Criteria:**
 
@@ -2433,7 +2672,7 @@ So that my additions remain distinct from historical reconstruction.
 
 **Scope:**
 
-- Generate a personalized altar/ramp variation through the trusted recipe with explicit user-added feature provenance.
+- Generate a personalized altar/ramp variation through the trusted recipe with explicit user-added feature provenance. The supported kind is raised or recessed text in the bundled Noto Sans and Noto Sans Hebrew fonts on surfaces the domain package declares, within the print profile's relief and clearance rules; free-form requests are mapped to it or declined with what is supported.
 
 **Acceptance Criteria:**
 
@@ -2453,7 +2692,7 @@ So that my additions remain distinct from historical reconstruction.
 
 **Given** changed visible personalization
 **When** the candidate is inspected
-**Then** prior exact-model approval and validation cannot authorize the changed candidate; unchanged recipe features satisfy the comparator
+**Then** any approval or validation recorded for a prior version is not applicable to the changed candidate (fixture records until Stories 5.5 and 6.2 exist); unchanged recipe features satisfy the comparator
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-4-4/SPEC.md).
 
@@ -2495,6 +2734,45 @@ So that I can inspect what justifies each consequential shape.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-4-5/SPEC.md).
 
+### Story 4.7: Produce coarse and full GLB viewing derivatives
+
+As an Account owner,
+I want to open a model quickly and see more detail as it loads,
+So that inspection is fast without changing manufacturing geometry.
+
+**Requirements:** FR-18, AR-9, AR-24, NFR-10
+
+**Dependencies:** 4.1, 4.5
+
+**Scope:**
+
+- Generate from the canonical geometry a coarse GLB (at most 5 MB) and a full-detail GLB set (at most 20 MB in total) with explicit millimetre-to-metre and Z-up-to-Y-up transforms, semantic feature maps that do not depend on vertex or triangle order, and version-compatible bindings so selection can switch atomically; publish them through the Story 4.1 manifests.
+- Derivatives are labeled preview and never manufacturing authority.
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** a Model Version
+**When** derivatives are produced
+**Then** the coarse GLB of at most 5 MB and the full GLB set of at most 20 MB are published as manifests with transform metadata and semantic feature maps
+
+**AC-2**
+
+**Given** a fixture of 100,000 preview triangles
+**When** the derivatives are generated
+**Then** every logical feature resolves through the feature map without triangle indices and the triangle budget holds
+
+**AC-3**
+
+**Given** a preview derivative
+**When** it is offered as manufacturing evidence
+**Then** it is rejected and only canonical content qualifies
+
+**Engineering gates:** G-5; planning completion does not change their qualification status.
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-4-7/SPEC.md).
+
 ### Story 4.6: Inspect progressive read-only models
 
 As an Account owner,
@@ -2503,12 +2781,13 @@ So that I can understand the model on phone or computer.
 
 **Requirements:** FR-18, AR-9, AR-24, NFR-10, SC-3, SC-7, UX-DR2, UX-DR3, UX-DR4, UX-DR15, UX-DR49
 
-**Dependencies:** 4.5
+**Dependencies:** 4.5, 4.7
 
 **Scope:**
 
 - Implement rotate/pan/zoom/fit/reset, standard and section views, hide/isolate, selection and canonical measurement.
-- Use semantic coarse/full GLB derivatives with explicit mm/Z-up to metres/Y-up transforms.
+- Load the coarse and then the full semantic GLB derivatives produced by Story 4.7.
+- Record an immutable inspection event when the Account owner has opened the exact Model Version in the viewer and selected at least one feature with its evidence; any change to the version makes it not inspected.
 
 **Acceptance Criteria:**
 
@@ -2516,7 +2795,7 @@ So that I can understand the model on phone or computer.
 
 **Given** a model with canonical dimensions
 **When** view and measurement controls are used by touch or keyboard
-**Then** all required inspection actions operate and dimensions use canonical geometry or labeled exact records rather than pixels
+**Then** all required inspection actions operate and dimensions use canonical geometry or labeled exact records rather than pixels; the controls work on phone and desktop
 
 **AC-2**
 
@@ -2529,6 +2808,12 @@ So that I can understand the model on phone or computer.
 **Given** GPU/WebGL loss or a degraded preview
 **When** inspection falls back
 **Then** static views and semantic feature/evidence/dimension lists remain usable without claiming a passed interactive 3D benchmark
+
+**AC-4**
+
+**Given** a user who has opened a Model Version and navigated a feature to its evidence
+**When** approval is requested
+**Then** an immutable inspection event for that exact version digest exists, and a later change to the version leaves it not inspected
 
 **Engineering gates:** G-5; planning completion does not change their qualification status.
 
@@ -2622,7 +2907,7 @@ So that I can see what changed and why.
 
 **Scope:**
 
-- Present immutable history and two-version comparison for geometry, parameters, evidence, choices, personalization, approval and validation.
+- Present immutable history and two-version comparison for geometry, parameters, evidence, choices and personalization, and for approval and validation records when they exist (fixture records until Stories 5.5 and 6.2 supply them).
 
 **Acceptance Criteria:**
 
@@ -2659,6 +2944,7 @@ So that restoration preserves both geometry and history.
 **Scope:**
 
 - Restore verified immutable geometry and mode-appropriate provenance through a new history event.
+- Approval and validation records are restored and rechecked when they exist (fixture records until Stories 5.5 and 6.2 supply them).
 
 **Acceptance Criteria:**
 
@@ -2708,7 +2994,7 @@ So that export cannot use a different candidate.
 
 **Given** an inspected unchanged candidate
 **When** the user approves or rejects
-**Then** the exact version/digest, actor, time and outcome are retained immutably
+**Then** the exact version/digest, actor, time and outcome are retained immutably; approve and reject work on phone and desktop
 
 **AC-3**
 
@@ -2743,7 +3029,7 @@ So that validation applies to the intended output.
 
 **Given** the initial profile
 **When** it is selected
-**Then** A1 mini 0.4 mm, Bambu PLA Silk+ Gold, ≤90 mm cube, 0.20 mm layers and explicit three perimeters resolve from the pinned inheritance closure
+**Then** A1 mini 0.4 mm, Bambu PLA Silk+ Gold, ≤90 mm cube, 0.20 mm layers and explicit three perimeters resolve from the pinned inheritance closure; selection works on phone and desktop
 
 **AC-2**
 
@@ -2761,6 +3047,45 @@ So that validation applies to the intended output.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-6-1/SPEC.md).
 
+### Story 6.10: Produce the canonical manufacturing mesh
+
+As an Account owner,
+I want to have the printable mesh made from the exact model I approved,
+So that validation and export always use the same authoritative geometry.
+
+**Requirements:** FR-25, AR-9, AR-11, NFR-11
+
+**Dependencies:** 6.1, 4.1
+
+**Scope:**
+
+- Produce the manufacturing mesh from the canonical solid: apply the pinned print scale and orientation, tessellate at 0.002 mm linear and 0.1 rad angular deflection in the print frame, and publish it as a manifest root with its settings and tool versions. It is the authority that Stories 6.2 to 6.4 validate and that Story 4.3 compares; preview LODs never substitute.
+- Repair children and regenerated successors reuse the lineage print scale; one that does not fit fails and is never rescaled.
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** a Model Version and a pinned profile
+**When** the mesh is produced
+**Then** it derives from the canonical solid at the pinned scale and orientation with recorded tessellation settings and tool identities, and is published as a manifest
+
+**AC-2**
+
+**Given** a repair child or regenerated successor
+**When** its mesh is produced
+**Then** it reuses the lineage print scale, and a model that no longer fits fails instead of being rescaled
+
+**AC-3**
+
+**Given** a preview derivative
+**When** it is offered as the manufacturing mesh
+**Then** it is rejected
+
+**Engineering gates:** G-3; planning completion does not change their qualification status.
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-6-10/SPEC.md).
+
 ### Story 6.2: Validate manufacturing mesh structure
 
 As an Account owner,
@@ -2769,11 +3094,11 @@ So that structural defects cannot reach qualified export.
 
 **Requirements:** FR-25, AR-11, NFR-11, UX-DR17, UX-DR59
 
-**Dependencies:** 6.1
+**Dependencies:** 6.10
 
 **Scope:**
 
-- Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on manufacturing authority, using the tessellation settings of Story 4.3 in the print frame.
+- Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on the canonical manufacturing mesh produced by Story 6.10, using the tessellation settings of Story 4.3 in the print frame.
 
 **Acceptance Criteria:**
 
@@ -2787,7 +3112,7 @@ So that structural defects cannot reach qualified export.
 
 **Given** an unsupported required check or open/nonmanifold/degenerate/out-of-bounds mesh
 **When** readiness is evaluated
-**Then** unknown or failure blocks qualified export with its reason
+**Then** unknown or failure blocks qualified export with its reason; the blocked state is readable on phone and desktop
 
 **AC-3**
 
@@ -2819,7 +3144,7 @@ So that the export meets the adopted profile checks.
 
 **Given** profile-specific feature fixtures
 **When** validation measures them
-**Then** wall ≥1.2 mm, isolated feature ≥0.8 mm, mating clearance ≥0.4 mm and raised/recessed relief ≥0.6 mm are enforced
+**Then** wall ≥1.2 mm, isolated feature ≥0.8 mm, mating clearance ≥0.4 mm and raised/recessed relief ≥0.6 mm are enforced; results are readable on phone and desktop
 
 **AC-2**
 
@@ -2869,7 +3194,7 @@ So that small repairs preserve approved shape and larger changes return for revi
 
 **Given** a repair succeeds or fails
 **When** its outcome is published
-**Then** the target, change and proof are retained; all checks rerun and bounded failure cannot loop indefinitely
+**Then** the target, change and proof are retained; all checks rerun and bounded failure cannot loop indefinitely; status is readable on phone and desktop
 
 **Engineering gates:** G-3; planning completion does not change their qualification status.
 
@@ -2907,7 +3232,7 @@ So that automatic recovery has a firm limit.
 
 **Given** the permitted regeneration succeeds or fails
 **When** its result is processed
-**Then** success preserves the original and creates a candidate needing inspection/approval/full validation; failure stops, and changed interpretations return to Plan Approval
+**Then** success preserves the original and creates a candidate needing inspection/approval/full validation; failure stops, and changed interpretations return to Plan Approval; the outcome is readable on phone and desktop
 
 **Engineering gates:** G-3; planning completion does not change their qualification status.
 
@@ -2926,6 +3251,7 @@ So that model and evidence remain reciprocal across runtimes.
 **Scope:**
 
 - Implement schema 1.0.0 / JSON Schema Draft 2020-12 and shared TypeScript/Python validation for the five required groups.
+- Carry each cited edition's license identifier and link, required attribution text and source URL in the Evidence group, so licence and attribution survive export.
 
 **Acceptance Criteria:**
 
@@ -2945,7 +3271,7 @@ So that model and evidence remain reciprocal across runtimes.
 
 **Given** the complete evidence fixture
 **When** reciprocal navigation and records are checked
-**Then** exact editions/passages, choices, personalization, profile, every check and repair resolve from one immutable manifest
+**Then** exact editions/passages, choices, personalization, profile, every check and repair resolve from one immutable manifest, and each cited edition's license identifier, attribution and source URL resolve from the same manifest
 
 **Engineering gates:** G-4; planning completion does not change their qualification status.
 
@@ -2964,6 +3290,7 @@ So that the exported explanation remains legible and linked.
 **Scope:**
 
 - Render the shared immutable provenance using pinned container Playwright/Chromium and licensed Noto fonts with no external resources.
+- Render the required attribution and license identifier beside each cited edition.
 
 **Acceptance Criteria:**
 
@@ -2971,7 +3298,7 @@ So that the exported explanation remains legible and linked.
 
 **Given** one validated immutable export envelope
 **When** the PDF is rendered
-**Then** Hebrew original and English translation/explanation have readable glyphs, correct order, pagination and reciprocal stable links
+**Then** Hebrew original and English translation/explanation have readable glyphs, correct order, pagination and reciprocal stable links; required attribution appears with each cited edition and the PDF opens on phone and desktop
 
 **AC-2**
 
@@ -3015,7 +3342,7 @@ So that the file package matches the model I accepted.
 
 **Given** valid exact approval and all required checks passing
 **When** export commits
-**Then** 3MF, optional STL, PDF and structured provenance share the approved version and manifest-root lineage
+**Then** 3MF, optional STL, PDF and structured provenance share the approved version and manifest-root lineage; package download works on phone and desktop
 
 **AC-3**
 
@@ -3035,7 +3362,7 @@ So that large files remain private and access stops when revoked.
 
 **Requirements:** FR-2, FR-3, FR-29, AR-19, NFR-1, NFR-2, UX-DR63
 
-**Dependencies:** 6.8, 4.1, 1.5
+**Dependencies:** 6.8, 4.1, 1.5, 1.8
 
 **Scope:**
 
@@ -3090,7 +3417,7 @@ So that offline creation can meet the adopted device limits.
 
 **Given** a candidate model and held-out multi-view corpus
 **When** license, shape/coverage and resource qualification runs
-**Then** exact weights/runtime/digests and evidence establish ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s local conversion on the adopted R-5 devices
+**Then** exact weights/runtime/digests and screening evidence on the hardware available indicate ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s local conversion, with qualifying proof on the adopted R-5 devices left to Story 8.6
 
 **AC-2**
 
@@ -3127,6 +3454,7 @@ So that conversion assets are available when disconnected.
 **Scope:**
 
 - Cache verified public app/model assets with Account-scoped IndexedDB metadata and OPFS private artifacts.
+- Host the verified bundle as public, versioned, digest-pinned assets with a long-cache policy on a public bucket (Backblaze B2 or a Supabase public bucket, chosen once Story 7.1 knows the weight size), never from a Vercel function. Show preparation, verification and missing-preparation states in the Create entry (C-01) and Settings.
 
 **Acceptance Criteria:**
 
@@ -3160,11 +3488,12 @@ So that my direct model remains usable on its device.
 
 **Requirements:** FR-16, FR-17, AR-4, AR-5, AR-22, SC-1, SC-2, SC-3, UX-DR7, UX-DR13, UX-DR35, UX-DR50
 
-**Dependencies:** 7.2, 2.3, 4.1, 4.6
+**Dependencies:** 7.2, 2.3, 4.1, 4.6, 2.12
 
 **Scope:**
 
 - Execute the qualified direct engine in a dedicated worker and retain exact immutable image/scope/engine/settings/output snapshots.
+- A converted model has no physical scale: the user confirms one real-world dimension of the confirmed scope before print scale, validation or export (see Story 6.1).
 
 **Acceptance Criteria:**
 
@@ -3203,6 +3532,7 @@ So that sync does not duplicate or discard versions.
 **Scope:**
 
 - Import stable UUIDs only into the original authorized Account with verified artifacts and expected parent revision.
+- Show the conflict state in My Projects (H-02) with an explicit current-version selection.
 
 **Acceptance Criteria:**
 
@@ -3236,11 +3566,11 @@ So that disabled or deleted work cannot be republished.
 
 **Requirements:** FR-3, FR-30, AR-23, NFR-1, NFR-12, SC-2, UX-DR14
 
-**Dependencies:** 7.4, 1.5
+**Dependencies:** 7.4, 1.5, 1.8
 
 **Scope:**
 
-- Implement permitted_local, locked_disabled and terminal tombstoned states with monotonic server revisions.
+- Implement permitted_local, locked_disabled and terminal tombstoned local states against the server tombstones and monotonic revisions of Story 1.8, and show the locked state in My Projects (H-02) and the shell.
 
 **Acceptance Criteria:**
 
@@ -3272,13 +3602,13 @@ As an Account owner,
 I want to validate and export an image-derived model,
 So that direct mode receives the same model and print gates.
 
-**Requirements:** FR-23, FR-24, FR-25, FR-26, FR-27, FR-28, FR-29, AR-4, AR-12, AR-13, AR-22, SC-1, SC-2, UX-DR17, UX-DR57, UX-DR61, UX-DR62, UX-DR63
+**Requirements:** FR-23, FR-24, FR-25, FR-26, FR-27, FR-29, AR-4, AR-13, AR-22, SC-1, SC-2, UX-DR17, UX-DR57, UX-DR62, UX-DR63
 
 **Dependencies:** 7.3, 7.5, 6.5, 6.9
 
 **Scope:**
 
-- Integrate direct snapshots with online exact-model approval, print validation and the existing full-regeneration slot.
+- Integrate direct snapshots with online exact-model approval and print validation, including the user-confirmed real-world dimension that sets the print scale.
 
 **Acceptance Criteria:**
 
@@ -3290,19 +3620,45 @@ So that direct mode receives the same model and print gates.
 
 **AC-2**
 
-**Given** failed local repair and an unused shared lineage slot
-**When** direct reconversion is dispatched
-**Then** the unique slot and successor Job/outbox commit atomically using pinned original images/scope/engine, failed print constraints and a new settings digest
-
-**AC-3**
-
-**Given** an incapable engine, consumed slot or completed reconversion
-**When** recovery finishes
-**Then** failure stops without resetting lineage; success preserves the original and returns a new version to inspection/approval/full validation with honest direct provenance
+**Given** a synchronized direct candidate with no confirmed real-world dimension
+**When** print scale or export is requested
+**Then** qualified export stays blocked until the user confirms a dimension, after which the lineage print scale and default orientation apply and the model keeps its honest image-derived provenance
 
 **Engineering gates:** G-3, G-8; planning completion does not change their qualification status.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-7-6/SPEC.md).
+
+### Story 7.8: Recover direct models with one pinned reconversion
+
+As an Account owner,
+I want to retry a failed direct model once from my original pictures,
+So that a repair failure does not force me to start over, and recovery cannot loop.
+
+**Requirements:** FR-28, AR-12, AR-22, SC-1, SC-2, UX-DR17, UX-DR61
+
+**Dependencies:** 7.6, 6.5, 2.12
+
+**Scope:**
+
+- Integrate direct snapshots with the existing full-regeneration slot: one reconversion in the validation lineage using the retained original pictures, confirmed scope, original engine and the failed print constraints, with a new settings digest.
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** failed local repair and an unused shared lineage slot
+**When** reconversion is requested
+**Then** the unique slot and the successor Job/outbox commit atomically using the pinned original pictures/scope/engine, failed print constraints and a new settings digest
+
+**AC-2**
+
+**Given** an incapable engine, a consumed slot or a completed reconversion
+**When** the outcome is recorded
+**Then** failure stops without resetting the lineage, and success preserves the original and returns a new version to inspection, approval and full validation with honest direct provenance
+
+**Engineering gates:** G-3, G-8; planning completion does not change their qualification status.
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-7-8/SPEC.md).
 
 ### Story 7.7: Deliver optional private phone push
 
@@ -3317,6 +3673,7 @@ So that I can return to completed work without losing in-app history.
 **Scope:**
 
 - Implement category preferences and contextual install/permission guidance for research/generation/validation/export; printing remains inactive.
+- Use the standard Web Push protocol with VAPID keys through each browser's push service and no third-party notification provider; iOS delivery requires the installed web app.
 
 **Acceptance Criteria:**
 
@@ -3352,11 +3709,11 @@ So that private content becomes inaccessible immediately.
 
 **Requirements:** FR-30, AR-15, AR-21, NFR-1, NFR-5, NFR-12, UX-DR19, UX-DR30
 
-**Dependencies:** 6.9, 7.5
+**Dependencies:** 6.9, 7.5, 1.8
 
 **Scope:**
 
-- Implement fresh-authenticated explicit deletion intent and manifests across record owners before best-effort cancellation/purge.
+- Implement fresh-authenticated explicit deletion intent and manifests across record owners, using the tombstone contract of Story 1.8, before best-effort cancellation/purge.
 
 **Acceptance Criteria:**
 
@@ -3415,7 +3772,13 @@ So that all authorized private targets enter the deletion process.
 
 **Given** a freshly authenticated Administrator
 **When** close-instance destructive confirmation succeeds
-**Then** all Accounts/Workspaces are tombstoned, invitations/secrets and jobs revoke globally, and cleanup proceeds without exposing private contents
+**Then** all Accounts/Workspaces are tombstoned, invitations, sessions and jobs revoke globally, and cleanup proceeds without exposing private contents
+
+**AC-4**
+
+**Given** the sole Administrator with no invitee Accounts
+**When** ordinary self-deletion is requested
+**Then** it is treated as close-instance with its fresh authentication, destructive confirmation and consequences
 
 **Engineering gates:** G-9; planning completion does not change their qualification status.
 
@@ -3468,7 +3831,7 @@ So that backups restore geometry and enforce every intervening deletion.
 
 **Requirements:** FR-22, FR-30, AR-21, AR-26, NFR-7, NFR-12
 
-**Dependencies:** 8.3
+**Dependencies:** 8.3, 1.9
 
 **Scope:**
 
@@ -3507,19 +3870,19 @@ So that phone, desktop and assistive access have measured evidence.
 
 **Requirements:** AR-24, AR-27, AR-28, SC-3, SC-4, SC-7, UX-DR2, UX-DR3, UX-DR4, UX-DR5, UX-DR20
 
-**Dependencies:** 7.6, 7.7, 8.2
+**Dependencies:** 7.6, 7.7, 8.2, 7.8
 
 **Scope:**
 
-- Validate all 53 already-implemented surfaces and required states with a screen-to-implementation map; this story is qualification, not a deferred UX implementation bucket.
+- Validate all 53 already-implemented surfaces and required states with a screen-to-implementation map on the devices available now (the Windows 11 laptop); this story is qualification, not a deferred UX implementation bucket. Story 8.8 repeats it on the remaining device classes.
 
 **Acceptance Criteria:**
 
 **AC-1**
 
-**Given** MacBook Air M2 16 GB, Windows 11 i5-1235U/Iris Xe 16 GB, iPhone 16 Pro and Pixel 9 Pro
+**Given** the Windows 11 i5-1235U/Iris Xe 16 GB laptop
 **When** current/previous stable desktop Chrome/Edge/Firefox, macOS/iOS Safari and Android Chrome are qualified
-**Then** actual OS/browser builds and complete phone/computer flows, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded
+**Then** actual OS/browser builds and complete computer flows in Chrome, Edge and Firefox, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded
 
 **AC-2**
 
@@ -3537,6 +3900,44 @@ So that phone, desktop and assistive access have measured evidence.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-8-5/SPEC.md).
 
+### Story 8.8: Qualify the workflow on the remaining device classes
+
+As an Account owner,
+I want to know the workflow works on Mac, iPhone and Android,
+So that phone and Safari users get the same capabilities.
+
+**Requirements:** AR-24, AR-27, AR-28, SC-3, SC-4, SC-7, UX-DR2, UX-DR3, UX-DR4, UX-DR5, UX-DR20
+
+**Dependencies:** 8.5
+
+**Scope:**
+
+- Repeat the Story 8.5 qualification on the MacBook Air M2 (Safari, Chrome and Firefox), the iPhone 16 Pro and the Pixel 9 Pro. Josh arranges borrowed devices or a real-device testing service; emulation cannot substitute. Until these are recorded G-5 stays BLOCKED or PARTIAL and full first-version release stays blocked.
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** a MacBook Air M2 16 GB, an iPhone 16 Pro and a Pixel 9 Pro
+**When** the complete phone and computer flows are exercised
+**Then** actual OS/browser builds, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded
+
+**AC-2**
+
+**Given** a cold model cache at shaped 20 Mbps and a fixture of at most 100,000 triangles
+**When** the viewer opens on each device
+**Then** viewer code, network, decode and working orbit/feature-evidence navigation fit 5 seconds with at most 5 MB coarse and 20 MB full initial GLB, and p95 frame time is at most 33 ms after load
+
+**AC-3**
+
+**Given** LOD switches, GPU loss, enlarged text, high contrast or reduced motion
+**When** they occur on these devices
+**Then** selection/provenance and all semantic controls survive; headless emulation cannot substitute for hardware/accessibility acceptance
+
+**Engineering gates:** G-5; planning completion does not change their qualification status.
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-8-8/SPEC.md).
+
 ### Story 8.6: Qualify offline execution and authoritative sync
 
 As an Account owner,
@@ -3545,7 +3946,7 @@ So that storage and inference evidence covers real failures and reconnects.
 
 **Requirements:** AR-22, AR-23, AR-27, NFR-4, NFR-5, NFR-10, SC-2, SC-3, UX-DR13, UX-DR14
 
-**Dependencies:** 7.6, 8.5
+**Dependencies:** 7.6, 8.5, 7.8, 8.8
 
 **Scope:**
 
@@ -3583,11 +3984,11 @@ So that release decisions reflect the complete application.
 
 **Requirements:** AR-26, AR-27, NFR-1, NFR-2, NFR-3, NFR-4, NFR-5, NFR-6, NFR-7, NFR-8, NFR-9, NFR-10, NFR-11, NFR-12
 
-**Dependencies:** 8.4, 8.5, 8.6
+**Dependencies:** 8.4, 8.5, 8.6, 8.8
 
 **Scope:**
 
-- Record actual US East provider topology, smallest suitable paid tiers/resources and pinned compatible deployment contracts.
+- Record actual US East provider topology, the tiers recorded in R-9 and pinned compatible deployment contracts; create the production projects only after the Story 8.4 drill passes, and give production no real private data before then.
 - Exercise all application seams and inherited PRD success/counter-metrics; retain historical probe boundaries.
 
 **Acceptance Criteria:**
@@ -3622,8 +4023,8 @@ So that release decisions reflect the complete application.
 - Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.
 - Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question.
 - G-8 product-decision checkpoint: when Epic 6 is complete, or Story 7.1 has evaluated every available candidate (whichever comes first), and G-8 is still BLOCKED, Josh records one of: keep waiting, defer offline direct conversion to a later release, or add an online worker path. Until that record exists, scope and limits are unchanged and full first-version release stays blocked.
-- Architecture update 2026-10-08: placements of newly required work are provisional until `bmad-create-epics-and-stories` runs. The periodic-job scheduler (dormant-identity purge, backup, orphan cleanup) and the Resend recovery mailer have no owning story before Stories 2.7 and 1.6; the backup service of Story 8.4 must exist before the first production private data (Story 2.2); the research-engine port sits in Story 3.3 only as the nearest story; staging and production project provisioning is owned only by Story 8.7 acceptance.
+- Architecture update 2026-10-08, placements settled by the 2026-10-08 epics update: the periodic-job scheduler, dormant-identity purge and staging provisioning are Story 1.9; the Resend recovery mailer is Story 1.6; the research-engine port and omission scan are Story 3.3; the backup service is Story 8.4, and production receives no real private data before its drill passes; production provisioning is Story 8.7. Build order is the order stories appear in each epic and in the story index, which is not always numeric (for example 2.12 precedes 2.4, 2.6 precedes 2.5 and 6.10 precedes 6.2). Phone parity: every user-facing story's acceptance criteria must hold on phone and desktop; Stories 8.5 and 8.8 qualify that on devices. Stories 1.2, 3.1, 3.7 and 6.3 are large but cohesive and were not split; revisit at build time if any exceeds one agent's context. UX-DR29 project-state variants stay owned by Story 1.7, with each later story supplying the transitions its own scope names.
 
 Per-story spec folders carry their own stable capability IDs and canonical append-only memory. The project-wide SPEC retains CAP-1–CAP-17. Implementation dispatch checkpoints are not assigned by this planning run.
 
-[Browse all 58 story specifications](../specs/story-specs-index.md). Each spec has its own acceptance criteria, implementation constraints and canonical memory. See [validation results](story-specs-validation.md) for coverage and preservation checks.
+[Browse all 67 story specifications](../specs/story-specs-index.md). Each spec has its own acceptance criteria, implementation constraints and canonical memory. See [validation results](story-specs-validation.md) for coverage and preservation checks.

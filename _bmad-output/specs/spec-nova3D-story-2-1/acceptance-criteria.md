@@ -16,7 +16,7 @@ So that work starts from my confirmed intent.
 
 ## Scope
 
-- Persist immutable subject, scope, outcome, mode and optional user-added personalization; clarify ambiguity before research.
+- Persist immutable subject, scope, outcome, mode and optional user-added personalization; clarify ambiguity before research. Personalization is free-form wording mapped to the one supported kind, raised or recessed text on declared surfaces; any other request is explained as unsupported.
 
 ## Acceptance Criteria
 

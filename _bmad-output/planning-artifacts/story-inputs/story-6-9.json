@@ -23,7 +23,8 @@
     "depends_on": [
       "6-8",
       "4-1",
-      "1-5"
+      "1-5",
+      "1-8"
     ],
     "scope": [
       "Use the container gateway for large authenticated downloads/ranges and existing staging uploads."

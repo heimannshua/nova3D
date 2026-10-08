@@ -29,10 +29,12 @@
       "7-2",
       "2-3",
       "4-1",
-      "4-6"
+      "4-6",
+      "2-12"
     ],
     "scope": [
-      "Execute the qualified direct engine in a dedicated worker and retain exact immutable image/scope/engine/settings/output snapshots."
+      "Execute the qualified direct engine in a dedicated worker and retain exact immutable image/scope/engine/settings/output snapshots.",
+      "A converted model has no physical scale: the user confirms one real-world dimension of the confirmed scope before print scale, validation or export (see Story 6.1)."
     ],
     "acceptance_criteria": [
       {

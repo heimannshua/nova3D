@@ -23,13 +23,14 @@
       "6-6"
     ],
     "scope": [
-      "Render the shared immutable provenance using pinned container Playwright/Chromium and licensed Noto fonts with no external resources."
+      "Render the shared immutable provenance using pinned container Playwright/Chromium and licensed Noto fonts with no external resources.",
+      "Render the required attribution and license identifier beside each cited edition."
     ],
     "acceptance_criteria": [
       {
         "given": "one validated immutable export envelope",
         "when": "the PDF is rendered",
-        "then": "Hebrew original and English translation/explanation have readable glyphs, correct order, pagination and reciprocal stable links"
+        "then": "Hebrew original and English translation/explanation have readable glyphs, correct order, pagination and reciprocal stable links; required attribution appears with each cited edition and the PDF opens on phone and desktop"
       },
       {
         "given": "untrusted source text or embedded script/remote-resource references",

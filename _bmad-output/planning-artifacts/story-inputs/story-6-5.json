@@ -43,7 +43,7 @@
       {
         "given": "the permitted regeneration succeeds or fails",
         "when": "its result is processed",
-        "then": "success preserves the original and creates a candidate needing inspection/approval/full validation; failure stops, and changed interpretations return to Plan Approval"
+        "then": "success preserves the original and creates a candidate needing inspection/approval/full validation; failure stops, and changed interpretations return to Plan Approval; the outcome is readable on phone and desktop"
       }
     ],
     "gates": [

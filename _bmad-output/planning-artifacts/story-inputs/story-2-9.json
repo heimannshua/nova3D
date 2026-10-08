@@ -34,7 +34,7 @@
         "then": "free/paid and reuse/fresh are separate controls following scope confirmation"
       },
       {
-        "given": "a reusable eligible revision",
+        "given": "a reusable eligible revision (a fixture until Story 3.6 admits real ones)",
         "when": "reuse is selected",
         "then": "the original immutable revision/date is shown without a freshness or re-verification claim"
       },

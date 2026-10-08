@@ -28,7 +28,7 @@ So that research follows my source choices without rewriting history.
 
 ### AC-2
 
-**Given** an attempt, cache adoption or Plan Revision
+**Given** an attempt, or a cache adoption or Plan Revision (fixture records until Stories 3.6 and 3.5 exist)
 **When** policy is pinned
 **Then** Account-policy revision, Project-exclusion revision and explicit source identity set determine eligibility and stale-epoch completion is rejected
 

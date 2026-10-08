@@ -15,18 +15,19 @@ So that phone, desktop and assistive access have measured evidence.
 - [7.6](../spec-nova3D-story-7-6/SPEC.md)
 - [7.7](../spec-nova3D-story-7-7/SPEC.md)
 - [8.2](../spec-nova3D-story-8-2/SPEC.md)
+- [7.8](../spec-nova3D-story-7-8/SPEC.md)
 
 ## Scope
 
-- Validate all 53 already-implemented surfaces and required states with a screen-to-implementation map; this story is qualification, not a deferred UX implementation bucket.
+- Validate all 53 already-implemented surfaces and required states with a screen-to-implementation map on the devices available now (the Windows 11 laptop); this story is qualification, not a deferred UX implementation bucket. Story 8.8 repeats it on the remaining device classes.
 
 ## Acceptance Criteria
 
 ### AC-1
 
-**Given** MacBook Air M2 16 GB, Windows 11 i5-1235U/Iris Xe 16 GB, iPhone 16 Pro and Pixel 9 Pro
+**Given** the Windows 11 i5-1235U/Iris Xe 16 GB laptop
 **When** current/previous stable desktop Chrome/Edge/Firefox, macOS/iOS Safari and Android Chrome are qualified
-**Then** actual OS/browser builds and complete phone/computer flows, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded
+**Then** actual OS/browser builds and complete computer flows in Chrome, Edge and Firefox, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded
 
 ### AC-2
 

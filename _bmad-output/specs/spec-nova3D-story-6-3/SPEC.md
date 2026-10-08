@@ -19,7 +19,7 @@ An Account owner needs to understand thin features, clearances and support needs
 
 - **CAP-1**
   - **intent:** Check profile-specific walls, features, clearances and relief.
-  - **success:** Given profile-specific feature fixtures, when validation measures them, then wall ≥1.2 mm, isolated feature ≥0.8 mm, mating clearance ≥0.4 mm and raised/recessed relief ≥0.6 mm are enforced.
+  - **success:** Given profile-specific feature fixtures, when validation measures them, then wall ≥1.2 mm, isolated feature ≥0.8 mm, mating clearance ≥0.4 mm and raised/recessed relief ≥0.6 mm are enforced; results are readable on phone and desktop.
 
 - **CAP-2**
   - **intent:** Require verified support analysis for unsupported overhangs and bridges.
@@ -44,7 +44,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Wall ≥1.2 mm, isolated feature ≥0.8 mm, mating clearance ≥0.4 mm and raised/recessed relief ≥0.6 mm are enforced. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Wall ≥1.2 mm, isolated feature ≥0.8 mm, mating clearance ≥0.4 mm and raised/recessed relief ≥0.6 mm are enforced; results are readable on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

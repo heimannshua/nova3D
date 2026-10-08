@@ -15,10 +15,11 @@ So that release decisions reflect the complete application.
 - [8.4](../spec-nova3D-story-8-4/SPEC.md)
 - [8.5](../spec-nova3D-story-8-5/SPEC.md)
 - [8.6](../spec-nova3D-story-8-6/SPEC.md)
+- [8.8](../spec-nova3D-story-8-8/SPEC.md)
 
 ## Scope
 
-- Record actual US East provider topology, smallest suitable paid tiers/resources and pinned compatible deployment contracts.
+- Record actual US East provider topology, the tiers recorded in R-9 and pinned compatible deployment contracts; create the production projects only after the Story 8.4 drill passes, and give production no real private data before then.
 - Exercise all application seams and inherited PRD success/counter-metrics; retain historical probe boundaries.
 
 ## Acceptance Criteria

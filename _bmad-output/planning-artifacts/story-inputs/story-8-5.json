@@ -27,16 +27,17 @@
     "depends_on": [
       "7-6",
       "7-7",
-      "8-2"
+      "8-2",
+      "7-8"
     ],
     "scope": [
-      "Validate all 53 already-implemented surfaces and required states with a screen-to-implementation map; this story is qualification, not a deferred UX implementation bucket."
+      "Validate all 53 already-implemented surfaces and required states with a screen-to-implementation map on the devices available now (the Windows 11 laptop); this story is qualification, not a deferred UX implementation bucket. Story 8.8 repeats it on the remaining device classes."
     ],
     "acceptance_criteria": [
       {
-        "given": "MacBook Air M2 16 GB, Windows 11 i5-1235U/Iris Xe 16 GB, iPhone 16 Pro and Pixel 9 Pro",
+        "given": "the Windows 11 i5-1235U/Iris Xe 16 GB laptop",
         "when": "current/previous stable desktop Chrome/Edge/Firefox, macOS/iOS Safari and Android Chrome are qualified",
-        "then": "actual OS/browser builds and complete phone/computer flows, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded"
+        "then": "actual OS/browser builds and complete computer flows in Chrome, Edge and Firefox, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded"
       },
       {
         "given": "a cold model cache at shaped 20 Mbps and a ≤100,000-triangle fixture",

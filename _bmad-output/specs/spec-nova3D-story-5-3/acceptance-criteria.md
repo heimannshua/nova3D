@@ -16,7 +16,7 @@ So that I can see what changed and why.
 
 ## Scope
 
-- Present immutable history and two-version comparison for geometry, parameters, evidence, choices, personalization, approval and validation.
+- Present immutable history and two-version comparison for geometry, parameters, evidence, choices and personalization, and for approval and validation records when they exist (fixture records until Stories 5.5 and 6.2 supply them).
 
 ## Acceptance Criteria
 

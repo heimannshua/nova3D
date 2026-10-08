@@ -14,6 +14,8 @@ So that storage and inference evidence covers real failures and reconnects.
 
 - [7.6](../spec-nova3D-story-7-6/SPEC.md)
 - [8.5](../spec-nova3D-story-8-5/SPEC.md)
+- [7.8](../spec-nova3D-story-7-8/SPEC.md)
+- [8.8](../spec-nova3D-story-8-8/SPEC.md)
 
 ## Scope
 

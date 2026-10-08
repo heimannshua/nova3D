@@ -31,7 +31,7 @@
       {
         "given": "an enabled invited Account with live sessions",
         "when": "a freshly authenticated Administrator disables it",
-        "then": "session/download authority and commit epochs revoke atomically before cancellation signals, while its Workspace is retained"
+        "then": "session authority, commit epochs and (once Story 6.9 exists) download authority revoke atomically before cancellation signals, while its Workspace is retained"
       },
       {
         "given": "a revoked epoch and a late registered operation",

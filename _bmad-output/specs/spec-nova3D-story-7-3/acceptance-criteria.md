@@ -16,10 +16,12 @@ So that my direct model remains usable on its device.
 - [2.3](../spec-nova3D-story-2-3/SPEC.md)
 - [4.1](../spec-nova3D-story-4-1/SPEC.md)
 - [4.6](../spec-nova3D-story-4-6/SPEC.md)
+- [2.12](../spec-nova3D-story-2-12/SPEC.md)
 
 ## Scope
 
 - Execute the qualified direct engine in a dedicated worker and retain exact immutable image/scope/engine/settings/output snapshots.
+- A converted model has no physical scale: the user confirms one real-world dimension of the confirmed scope before print scale, validation or export (see Story 6.1).
 
 ## Acceptance Criteria
 

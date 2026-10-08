@@ -32,7 +32,7 @@ So that the file package matches the model I accepted.
 
 **Given** valid exact approval and all required checks passing
 **When** export commits
-**Then** 3MF, optional STL, PDF and structured provenance share the approved version and manifest-root lineage
+**Then** 3MF, optional STL, PDF and structured provenance share the approved version and manifest-root lineage; package download works on phone and desktop
 
 ### AC-3
 

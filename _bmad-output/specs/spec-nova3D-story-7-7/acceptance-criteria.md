@@ -18,6 +18,7 @@ So that I can return to completed work without losing in-app history.
 ## Scope
 
 - Implement category preferences and contextual install/permission guidance for research/generation/validation/export; printing remains inactive.
+- Use the standard Web Push protocol with VAPID keys through each browser's push service and no third-party notification provider; iOS delivery requires the installed web app.
 
 ## Acceptance Criteria
 

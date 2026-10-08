@@ -8,7 +8,7 @@ As an Account owner,
 I want to validate and export an image-derived model,
 So that direct mode receives the same model and print gates.
 
-**Requirement IDs:** FR-23, FR-24, FR-25, FR-26, FR-27, FR-28, FR-29, AR-4, AR-12, AR-13, AR-22, SC-1, SC-2, UX-DR17, UX-DR57, UX-DR61, UX-DR62, UX-DR63
+**Requirement IDs:** FR-23, FR-24, FR-25, FR-26, FR-27, FR-29, AR-4, AR-13, AR-22, SC-1, SC-2, UX-DR17, UX-DR57, UX-DR62, UX-DR63
 
 ## Dependencies
 
@@ -19,7 +19,7 @@ So that direct mode receives the same model and print gates.
 
 ## Scope
 
-- Integrate direct snapshots with online exact-model approval, print validation and the existing full-regeneration slot.
+- Integrate direct snapshots with online exact-model approval and print validation, including the user-confirmed real-world dimension that sets the print scale.
 
 ## Acceptance Criteria
 
@@ -31,15 +31,9 @@ So that direct mode receives the same model and print gates.
 
 ### AC-2
 
-**Given** failed local repair and an unused shared lineage slot
-**When** direct reconversion is dispatched
-**Then** the unique slot and successor Job/outbox commit atomically using pinned original images/scope/engine, failed print constraints and a new settings digest
-
-### AC-3
-
-**Given** an incapable engine, consumed slot or completed reconversion
-**When** recovery finishes
-**Then** failure stops without resetting lineage; success preserves the original and returns a new version to inspection/approval/full validation with honest direct provenance
+**Given** a synchronized direct candidate with no confirmed real-world dimension
+**When** print scale or export is requested
+**Then** qualified export stays blocked until the user confirms a dimension, after which the lineage print scale and default orientation apply and the model keeps its honest image-derived provenance
 
 ## Engineering Gates
 

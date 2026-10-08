@@ -22,12 +22,8 @@ An Account owner needs to validate and export an image-derived model. Direct mod
   - **success:** Given a synchronized direct candidate, when qualified export is requested, then connection, trusted exact-model approval and all required profile checks are enforced; local labels or approvals do not establish server authority.
 
 - **CAP-2**
-  - **intent:** Use the single shared lineage slot for constrained direct reconversion.
-  - **success:** Given failed local repair and an unused shared lineage slot, when direct reconversion is dispatched, then the unique slot and successor Job/outbox commit atomically using pinned original images/scope/engine, failed print constraints and a new settings digest.
-
-- **CAP-3**
-  - **intent:** Preserve original versions and require renewed approval after successful recovery.
-  - **success:** Given an incapable engine, consumed slot or completed reconversion, when recovery finishes, then failure stops without resetting lineage; success preserves the original and returns a new version to inspection/approval/full validation with honest direct provenance.
+  - **intent:** Require a confirmed real-world dimension before print scale or qualified export of a direct model.
+  - **success:** Given a synchronized direct candidate with no confirmed real-world dimension, when print scale or export is requested, then qualified export stays blocked until the user confirms a dimension, after which the lineage print scale and default orientation apply and the model keeps its honest image-derived provenance.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 

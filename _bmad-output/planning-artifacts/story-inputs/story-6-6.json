@@ -24,7 +24,8 @@
       "6-5"
     ],
     "scope": [
-      "Implement schema 1.0.0 / JSON Schema Draft 2020-12 and shared TypeScript/Python validation for the five required groups."
+      "Implement schema 1.0.0 / JSON Schema Draft 2020-12 and shared TypeScript/Python validation for the five required groups.",
+      "Carry each cited edition's license identifier and link, required attribution text and source URL in the Evidence group, so licence and attribution survive export."
     ],
     "acceptance_criteria": [
       {
@@ -40,7 +41,7 @@
       {
         "given": "the complete evidence fixture",
         "when": "reciprocal navigation and records are checked",
-        "then": "exact editions/passages, choices, personalization, profile, every check and repair resolve from one immutable manifest"
+        "then": "exact editions/passages, choices, personalization, profile, every check and repair resolve from one immutable manifest, and each cited edition's license identifier, attribution and source URL resolve from the same manifest"
       }
     ],
     "gates": [

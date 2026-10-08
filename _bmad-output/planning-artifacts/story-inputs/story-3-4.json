@@ -32,7 +32,7 @@
       {
         "given": "Hebrew and English source content",
         "when": "the reader opens during research",
-        "then": "original, translation, citation and explanation remain distinct and readable without pausing the Job"
+        "then": "original, translation, citation and explanation remain distinct and readable without pausing the Job; the reader works on phone and desktop"
       },
       {
         "given": "competing defensible options",

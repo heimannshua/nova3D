@@ -23,11 +23,19 @@ An Account owner needs to continue using Projects while work runs. Accepted work
 
 - **CAP-2**
   - **intent:** Keep failed work terminal until an explicit permitted retry.
-  - **success:** Given failed research, worker lease loss or a duplicate transport delivery, when the configured workflow and queue are exercised, then failed work stays terminal until explicit user retry; duplicates return receipts and interrupted failure preserves approved state with cause/cost/next action.
+  - **success:** Given a failed test-workload step, worker lease loss or a duplicate transport delivery, when the configured workflow and queue are exercised, then failed work stays terminal until explicit user retry; duplicates return receipts and interrupted failure preserves approved state with cause/cost/next action.
 
 - **CAP-3**
   - **intent:** Reject results without current publication authority.
   - **success:** Given a signed callback with stale revision, revoked epoch, expired lease, invalid signature or wrong environment, when publication is attempted, then it is rejected; valid requests bind nonce/digest/attempt with ≤5-minute expiry and ≤60-second skew; a missing compatible pinned worker leaves work waiting.
+
+- **CAP-4**
+  - **intent:** Cancel an authorized Job without starting new external steps or losing approved state.
+  - **success:** Given an authorized running Job, when the user cancels it, then no new external step starts, the Job reaches cancelled with approved state preserved, and only demonstrably unused allowance is released.
+
+- **CAP-5**
+  - **intent:** Settle completed usage and release only demonstrably unused allowance.
+  - **success:** Given a Job whose operations complete, when completion is committed, then actual usage settles against the reservation and any unused remainder is released without rewriting history.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 

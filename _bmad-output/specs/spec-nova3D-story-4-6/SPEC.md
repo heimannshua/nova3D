@@ -19,7 +19,7 @@ An Account owner needs to inspect shape and exact dimensions. They can understan
 
 - **CAP-1**
   - **intent:** Inspect shape and measure canonical dimensions with touch or keyboard.
-  - **success:** Given a model with canonical dimensions, when view and measurement controls are used by touch or keyboard, then all required inspection actions operate and dimensions use canonical geometry or labeled exact records rather than pixels.
+  - **success:** Given a model with canonical dimensions, when view and measurement controls are used by touch or keyboard, then all required inspection actions operate and dimensions use canonical geometry or labeled exact records rather than pixels; the controls work on phone and desktop.
 
 - **CAP-2**
   - **intent:** Preserve feature and evidence selection across viewing-detail changes.
@@ -28,6 +28,10 @@ An Account owner needs to inspect shape and exact dimensions. They can understan
 - **CAP-3**
   - **intent:** Continue semantic inspection when the GPU preview fails.
   - **success:** Given GPU/WebGL loss or a degraded preview, when inspection falls back, then static views and semantic feature/evidence/dimension lists remain usable without claiming a passed interactive 3D benchmark.
+
+- **CAP-4**
+  - **intent:** Record an immutable inspection event for the exact Model Version.
+  - **success:** Given a user who has opened a Model Version and navigated a feature to its evidence, when approval is requested, then an immutable inspection event for that exact version digest exists, and a later change to the version leaves it not inspected.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -44,7 +48,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-All required inspection actions operate and dimensions use canonical geometry or labeled exact records rather than pixels. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+All required inspection actions operate and dimensions use canonical geometry or labeled exact records rather than pixels; the controls work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

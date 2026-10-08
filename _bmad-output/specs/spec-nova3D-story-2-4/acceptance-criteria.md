@@ -17,6 +17,7 @@ So that spending stays within my allowance.
 ## Scope
 
 - Create immutable USD usage periods and Administrator limit controls; show settled usage, outstanding reservations and available allowance.
+- Reservations begin with Story 2.6, so reservation figures are fixture-backed until then.
 
 ## Acceptance Criteria
 
@@ -34,7 +35,7 @@ So that spending stays within my allowance.
 
 ### AC-3
 
-**Given** nearly reached or reached allowance
+**Given** an allowance at or above 80% of its period limit, or reached
 **When** usage is displayed
 **Then** settled, reserved and available amounts reconcile; new paid work is blocked when insufficient while disable still revokes active work
 

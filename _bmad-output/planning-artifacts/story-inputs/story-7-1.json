@@ -31,7 +31,7 @@
       {
         "given": "a candidate model and held-out multi-view corpus",
         "when": "license, shape/coverage and resource qualification runs",
-        "then": "exact weights/runtime/digests and evidence establish ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s local conversion on the adopted R-5 devices"
+        "then": "exact weights/runtime/digests and screening evidence on the hardware available indicate ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s local conversion, with qualifying proof on the adopted R-5 devices left to Story 8.6"
       },
       {
         "given": "no compliant candidate or missing device evidence",

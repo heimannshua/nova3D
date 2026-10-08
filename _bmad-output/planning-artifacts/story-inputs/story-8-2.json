@@ -43,7 +43,12 @@
       {
         "given": "a freshly authenticated Administrator",
         "when": "close-instance destructive confirmation succeeds",
-        "then": "all Accounts/Workspaces are tombstoned, invitations/secrets and jobs revoke globally, and cleanup proceeds without exposing private contents"
+        "then": "all Accounts/Workspaces are tombstoned, invitations, sessions and jobs revoke globally, and cleanup proceeds without exposing private contents"
+      },
+      {
+        "given": "the sole Administrator with no invitee Accounts",
+        "when": "ordinary self-deletion is requested",
+        "then": "it is treated as close-instance with its fresh authentication, destructive confirmation and consequences"
       }
     ],
     "gates": [

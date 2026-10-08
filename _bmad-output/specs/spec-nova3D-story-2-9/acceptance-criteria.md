@@ -30,7 +30,7 @@ So that scope, cost and freshness stay explicit.
 
 ### AC-2
 
-**Given** a reusable eligible revision
+**Given** a reusable eligible revision (a fixture until Story 3.6 admits real ones)
 **When** reuse is selected
 **Then** the original immutable revision/date is shown without a freshness or re-verification claim
 

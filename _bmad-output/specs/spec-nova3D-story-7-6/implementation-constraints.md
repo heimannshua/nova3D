@@ -88,23 +88,6 @@ Source: PRD §4, FR-27.
 
 Source: `_bmad-output/planning-artifacts/epics.md`, line 407 in the captured input.
 
-### FR-28
-
-#### FR-28: Constrained full regeneration
-
-If local repair cannot resolve printability, nova3D performs at most one full regeneration from the approved Research Plan using the Target Print Profile and failed validation constraints.
-
-**Consequences:**
-- The original Model Version and evidence chain remain available.
-- The regenerated Model is a new Version requiring inspection, Model Approval, and validation.
-- If that Version still fails, nova3D stops, explains the remaining problems, preserves every Version, and waits for the user to decide; no further automatic loop occurs.
-
-Source: PRD §4, FR-28.
-
-**Ratified application:** R-11 also allows at most one constrained full direct-image reconversion from the original pinned images/scope/engine and failed print constraints. Both modes atomically share the unresettable lineage slot across retries/children; a new Model Version requires inspection, approval and validation. An incapable engine or failed allowed attempt stops.
-
-Source: `_bmad-output/planning-artifacts/epics.md`, line 417 in the captured input.
-
 ### FR-29
 
 #### FR-29: Model and provenance export
@@ -130,14 +113,6 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 430 in the captured inp
 Source: AD-3; R-8, R-11; scope-and-readiness.
 
 Source: `_bmad-output/planning-artifacts/epics.md`, line 587 in the captured input.
-
-### AR-12
-
-**AR-12: Repair authority and one regeneration slot.** Every repaired byte representation gets a new artifact identity. Normals/winding fixes, duplicate/zero-area face removal or welding retain a Model Version only after R-2 proves nonconsequential equivalence. Hole filling, remeshing, thickening and dimension changes are consequential and require successor Model Version, inspection, approval and validation. Atomically consume unique (lineage_id, full_regeneration) with successor Job/outbox and any reservation; retries, cancellation, failure and children cannot rearm it. Evidence mode uses the approved plan; direct mode uses pinned original images/scope/engine, failed constraints and new settings digest, stopping if the engine cannot satisfy them.
-
-Source: AD-8; R-3, R-11; G-3/G-8.
-
-Source: `_bmad-output/planning-artifacts/epics.md`, line 619 in the captured input.
 
 ### AR-13
 
@@ -209,16 +184,6 @@ Required states/variants: Not inspected, ready, approved, rejected, invalidated 
 Source: SCREEN-INVENTORY M-09; canonical ux-contract; applicable ratified decisions.
 
 Source: `_bmad-output/planning-artifacts/epics.md`, line 1075 in the captured input.
-
-### UX-DR61
-
-**UX-DR61: Full regeneration fallback (V-04).** At most one constrained attempt after local repair failure. R-11 applies the same one-attempt lineage rule to direct-image constrained reconversion.
-
-Required states/variants: Running, new Version awaiting inspection/approval, failed and stopped.
-
-Source: SCREEN-INVENTORY V-04; canonical ux-contract; applicable ratified decisions.
-
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1099 in the captured input.
 
 ### UX-DR62
 

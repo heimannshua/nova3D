@@ -17,7 +17,7 @@ So that my additions remain distinct from historical reconstruction.
 
 ## Scope
 
-- Generate a personalized altar/ramp variation through the trusted recipe with explicit user-added feature provenance.
+- Generate a personalized altar/ramp variation through the trusted recipe with explicit user-added feature provenance. The supported kind is raised or recessed text in the bundled Noto Sans and Noto Sans Hebrew fonts on surfaces the domain package declares, within the print profile's relief and clearance rules; free-form requests are mapped to it or declined with what is supported.
 
 ## Acceptance Criteria
 
@@ -37,7 +37,7 @@ So that my additions remain distinct from historical reconstruction.
 
 **Given** changed visible personalization
 **When** the candidate is inspected
-**Then** prior exact-model approval and validation cannot authorize the changed candidate; unchanged recipe features satisfy the comparator
+**Then** any approval or validation recorded for a prior version is not applicable to the changed candidate (fixture records until Stories 5.5 and 6.2 exist); unchanged recipe features satisfy the comparator
 
 ## Engineering Gates
 

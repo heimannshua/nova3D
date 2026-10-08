@@ -26,7 +26,7 @@ So that offline creation can meet the adopted device limits.
 
 **Given** a candidate model and held-out multi-view corpus
 **When** license, shape/coverage and resource qualification runs
-**Then** exact weights/runtime/digests and evidence establish ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s local conversion on the adopted R-5 devices
+**Then** exact weights/runtime/digests and screening evidence on the hardware available indicate ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s local conversion, with qualifying proof on the adopted R-5 devices left to Story 8.6
 
 ### AC-2
 

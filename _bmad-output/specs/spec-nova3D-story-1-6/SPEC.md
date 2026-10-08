@@ -23,11 +23,11 @@ The Administrator needs to recover Administrator access. They can regain control
 
 - **CAP-2**
   - **intent:** Reject expired, used or replayed recovery links without granting access.
-  - **success:** Given an expired, used or replayed link, when redemption is attempted, then access is denied without partial recovery.
+  - **success:** Given an expired, used or replayed link, when redemption is attempted, including a mail scanner's GET request, then access is denied without partial recovery.
 
 - **CAP-3**
   - **intent:** Recover control while revoking every previous Administrator session.
-  - **success:** Given a valid recovery link, when redemption succeeds, then all prior Administrator sessions are revoked and an immutable recovery audit event is recorded.
+  - **success:** Given a valid recovery link, when redemption succeeds, then all prior Administrator sessions are revoked, the new session holds a fresh-authentication marker and an immutable recovery audit event is recorded.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 

@@ -19,7 +19,7 @@ An Account owner needs to approve the complete plan once. Evidence-backed geomet
 
 - **CAP-1**
   - **intent:** Block incomplete plan approval and premature section generation.
-  - **success:** Given an incomplete plan or unsettled required choice, when approval or partial-section generation is requested, then both are blocked even when some sections appear clear.
+  - **success:** Given an incomplete plan or unsettled required choice, when approval or partial-section generation is requested, then both are blocked even when some sections appear clear; the approval controls work on phone and desktop.
 
 - **CAP-2**
   - **intent:** Approve the exact complete whole-Project plan.
@@ -44,7 +44,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Both are blocked even when some sections appear clear. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Both are blocked even when some sections appear clear; the approval controls work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

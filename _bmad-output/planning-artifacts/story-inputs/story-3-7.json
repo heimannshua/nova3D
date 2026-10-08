@@ -52,6 +52,11 @@
         "given": "failure, cancellation, policy change or stale inputs",
         "when": "a step finishes",
         "then": "fencing preserves approved state, actionable cost/failure status is visible, and retries wait for the user and any charge reconciliation"
+      },
+      {
+        "given": "free-mode gaps that block Plan Approval and a declined paid escalation",
+        "when": "the user declines",
+        "then": "the Project stays unready for Plan Approval while blocking gaps remain, the gaps stay visible, and no paid operation or reservation is created"
       }
     ],
     "gates": []

@@ -42,6 +42,12 @@ So that background research stays understandable and controlled.
 **When** a step finishes
 **Then** fencing preserves approved state, actionable cost/failure status is visible, and retries wait for the user and any charge reconciliation
 
+### AC-4
+
+**Given** free-mode gaps that block Plan Approval and a declined paid escalation
+**When** the user declines
+**Then** the Project stays unready for Plan Approval while blocking gaps remain, the gaps stay visible, and no paid operation or reservation is created
+
 ## Engineering Gates
 
 This story has no separate gate ID; applicable project-wide gates still govern acceptance.

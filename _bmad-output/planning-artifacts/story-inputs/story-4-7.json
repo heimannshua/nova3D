@@ -1,0 +1,90 @@
+{
+  "epic": {
+    "id": "4",
+    "title": "Generate and inspect traceable canonical geometry",
+    "goal": "Approved evidence recipes produce immutable models whose features remain linked to evidence and inspectable without changing manufacturing authority."
+  },
+  "story": {
+    "id": "4-7",
+    "epic_id": "4",
+    "title": "Produce coarse and full GLB viewing derivatives",
+    "user": "Account owner",
+    "want": "to open a model quickly and see more detail as it loads",
+    "benefit": "inspection is fast without changing manufacturing geometry",
+    "requirements": [
+      "FR-18",
+      "AR-9",
+      "AR-24",
+      "NFR-10"
+    ],
+    "depends_on": [
+      "4-1",
+      "4-5"
+    ],
+    "scope": [
+      "Generate from the canonical geometry a coarse GLB (at most 5 MB) and a full-detail GLB set (at most 20 MB in total) with explicit millimetre-to-metre and Z-up-to-Y-up transforms, semantic feature maps that do not depend on vertex or triangle order, and version-compatible bindings so selection can switch atomically; publish them through the Story 4.1 manifests.",
+      "Derivatives are labeled preview and never manufacturing authority."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "a Model Version",
+        "when": "derivatives are produced",
+        "then": "the coarse GLB of at most 5 MB and the full GLB set of at most 20 MB are published as manifests with transform metadata and semantic feature maps"
+      },
+      {
+        "given": "a fixture of 100,000 preview triangles",
+        "when": "the derivatives are generated",
+        "then": "every logical feature resolves through the feature map without triangle indices and the triangle budget holds"
+      },
+      {
+        "given": "a preview derivative",
+        "when": "it is offered as manufacturing evidence",
+        "then": "it is rejected and only canonical content qualifies"
+      }
+    ],
+    "gates": [
+      "G-5"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-18": {
+      "text": "#### FR-18: Read-only model inspection\n\nThe user can inspect a Model Version without manual geometry editing.\n\n**Consequences:**\n- Inspection supports rotating, panning, zooming, fitting or resetting the view, selecting standard or section views, hiding or isolating features, and measuring dimensions.\n- Preview geometry is identified as a viewing representation and is not presented as proof of printability.\n\nSource: PRD §4, FR-18.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 297
+    },
+    "AR-9": {
+      "text": "**AR-9: Coordinate frames, measurement and versions.** Canonical content uses millimetres, right-handed coordinates and Z-up, retaining approved historical unit conversions. GLB explicitly converts to metres/Y-up; final-print scale/orientation is separately versioned. Every LOD preserves semantic feature IDs independently of triangles. Measurements use canonical geometry or labelled exact dimensions. Corrections rebuild dependency closure; restoration appends history and rechecks approval/profile validity without erasing successors.\n\nSource: AD-7; FR-18–FR-22.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 607
+    },
+    "AR-24": {
+      "text": "**AR-24: Viewer and device acceptance.** Qualify current/previous stable Chrome/Edge/Firefox, macOS/iOS Safari and Android Chrome on MacBook Air M2 16 GB, Windows 11 i5-1235U/Iris Xe 16 GB, iPhone 16 Pro and Pixel 9 Pro; freeze actual OS/browser builds. Maximum preview fixture 100,000 triangles; ≤5 MB coarse first view and ≤20 MB full initial GLB. Cold model open-to-interactive ≤5 s at shaped 20 Mbps includes code, network, decode and working orbit/feature-evidence navigation; p95 frame time ≤33 ms after load. LOD swaps retain semantic selection/provenance. GPU loss keeps canonical data and semantic/static fallbacks without claiming a passed 3D benchmark.\n\nSource: AD-7, AD-17; R-5; G-5.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 677
+    },
+    "NFR-10": {
+      "text": "**NFR-10: Responsive workspace.** Research, generation, validation, repair, and export run without blocking navigation or ordinary Project inspection. Browser preview degradation or failure cannot damage manufacturing geometry.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 561
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

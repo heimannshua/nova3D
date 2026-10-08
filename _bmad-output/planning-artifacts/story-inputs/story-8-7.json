@@ -30,10 +30,11 @@
     "depends_on": [
       "8-4",
       "8-5",
-      "8-6"
+      "8-6",
+      "8-8"
     ],
     "scope": [
-      "Record actual US East provider topology, smallest suitable paid tiers/resources and pinned compatible deployment contracts.",
+      "Record actual US East provider topology, the tiers recorded in R-9 and pinned compatible deployment contracts; create the production projects only after the Story 8.4 drill passes, and give production no real private data before then.",
       "Exercise all application seams and inherited PRD success/counter-metrics; retain historical probe boundaries."
     ],
     "acceptance_criteria": [

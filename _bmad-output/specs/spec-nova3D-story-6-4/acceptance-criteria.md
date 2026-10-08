@@ -37,7 +37,7 @@ So that small repairs preserve approved shape and larger changes return for revi
 
 **Given** a repair succeeds or fails
 **When** its outcome is published
-**Then** the target, change and proof are retained; all checks rerun and bounded failure cannot loop indefinitely
+**Then** the target, change and proof are retained; all checks rerun and bounded failure cannot loop indefinitely; status is readable on phone and desktop
 
 ## Engineering Gates
 

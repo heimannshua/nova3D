@@ -14,10 +14,11 @@ So that disabled or deleted work cannot be republished.
 
 - [7.4](../spec-nova3D-story-7-4/SPEC.md)
 - [1.5](../spec-nova3D-story-1-5/SPEC.md)
+- [1.8](../spec-nova3D-story-1-8/SPEC.md)
 
 ## Scope
 
-- Implement permitted_local, locked_disabled and terminal tombstoned states with monotonic server revisions.
+- Implement permitted_local, locked_disabled and terminal tombstoned local states against the server tombstones and monotonic revisions of Story 1.8, and show the locked state in My Projects (H-02) and the shell.
 
 ## Acceptance Criteria
 

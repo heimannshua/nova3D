@@ -12,11 +12,11 @@ So that structural defects cannot reach qualified export.
 
 ## Dependencies
 
-- [6.1](../spec-nova3D-story-6-1/SPEC.md)
+- [6.10](../spec-nova3D-story-6-10/SPEC.md)
 
 ## Scope
 
-- Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on manufacturing authority, using the tessellation settings of Story 4.3 in the print frame.
+- Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on the canonical manufacturing mesh produced by Story 6.10, using the tessellation settings of Story 4.3 in the print frame.
 
 ## Acceptance Criteria
 
@@ -30,7 +30,7 @@ So that structural defects cannot reach qualified export.
 
 **Given** an unsupported required check or open/nonmanifold/degenerate/out-of-bounds mesh
 **When** readiness is evaluated
-**Then** unknown or failure blocks qualified export with its reason
+**Then** unknown or failure blocks qualified export with its reason; the blocked state is readable on phone and desktop
 
 ### AC-3
 

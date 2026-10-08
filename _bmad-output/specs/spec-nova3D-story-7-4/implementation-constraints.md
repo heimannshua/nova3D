@@ -12,7 +12,7 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 ### AR-3
 
-**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions.
+**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions. Cookie-authenticated mutations require origin and CSRF checks.
 
 Source: AD-2; Consistency Conventions.
 
@@ -76,7 +76,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 831 in the captured inp
 
 **UX-DR28: My Projects (H-02).** Model-focused collection of the Account's Projects.
 
-Required states/variants: Empty, populated, search/filter if needed, locally saved, syncing, sync failed.
+Required states/variants: Empty, populated, search/filter if needed, locally saved, syncing, sync failed, conflict (select the current version), locked by disable.
 
 Source: SCREEN-INVENTORY H-02; canonical ux-contract; applicable ratified decisions.
 

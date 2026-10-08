@@ -31,7 +31,7 @@ So that export cannot use a different candidate.
 
 **Given** an inspected unchanged candidate
 **When** the user approves or rejects
-**Then** the exact version/digest, actor, time and outcome are retained immutably
+**Then** the exact version/digest, actor, time and outcome are retained immutably; approve and reject work on phone and desktop
 
 ### AC-3
 

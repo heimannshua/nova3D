@@ -17,6 +17,7 @@ So that the exported explanation remains legible and linked.
 ## Scope
 
 - Render the shared immutable provenance using pinned container Playwright/Chromium and licensed Noto fonts with no external resources.
+- Render the required attribution and license identifier beside each cited edition.
 
 ## Acceptance Criteria
 
@@ -24,7 +25,7 @@ So that the exported explanation remains legible and linked.
 
 **Given** one validated immutable export envelope
 **When** the PDF is rendered
-**Then** Hebrew original and English translation/explanation have readable glyphs, correct order, pagination and reciprocal stable links
+**Then** Hebrew original and English translation/explanation have readable glyphs, correct order, pagination and reciprocal stable links; required attribution appears with each cited edition and the PDF opens on phone and desktop
 
 ### AC-2
 

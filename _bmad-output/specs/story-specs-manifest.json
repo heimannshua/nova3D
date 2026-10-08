@@ -1,7 +1,7 @@
 {
   "date": "2026-09-14",
   "algorithm": "SHA-256",
-  "generated_artifacts": 294,
+  "generated_artifacts": 339,
   "adopted_inputs": 13,
   "files": {
     "_bmad-output/implementation-artifacts/qualification-2026-09-14/REPORT.md": {
@@ -10,18 +10,18 @@
       "role": "adopted input"
     },
     "_bmad-output/planning-artifacts/architecture/architecture-nova3D-2026-09-14/ARCHITECTURE-SPINE.md": {
-      "sha256": "186ac4925abeafbaef4d85982c26602821646e2d5da808dc4dc0b9e91982c412",
-      "bytes": 64000,
+      "sha256": "8752747357092736f044fdc8d6837c8eec622e3d5ed8d3a0c5eb24c3c394838d",
+      "bytes": 64607,
       "role": "adopted input"
     },
     "_bmad-output/planning-artifacts/architecture/architecture-nova3D-2026-09-14/RATIFIED-DECISIONS.md": {
-      "sha256": "ea0d5745307daa561bd1ecd236ccc2f25c00074f8d8ee3501bbc3bf3f5500ac0",
-      "bytes": 26537,
+      "sha256": "623a914286a4a268266cc4e3b13d85c1a1a59ac9b0c777157cdfa54f16918797",
+      "bytes": 26608,
       "role": "adopted input"
     },
     "_bmad-output/planning-artifacts/epics.md": {
-      "sha256": "531006ba16db1e1a48e542c78557bdbf7f9c2189e74c61283e3a11249adf27ef",
-      "bytes": 192462,
+      "sha256": "5717da917b08ca837dc46e01b7cbea014ad0a8d8a50e9b2340544d6318ed70b5",
+      "bytes": 215389,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/prds/prd-nova3D-2026-08-27/addendum.md": {
@@ -40,23 +40,23 @@
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-1-2.json": {
-      "sha256": "237ed02953982fd49f416deb1ec6973994715a7283a2595b4b9dd373d863b002",
-      "bytes": 11686,
+      "sha256": "62dc3815d8203afdce00f37f1195f07f2e17426c94003d6b6193c2b6abc7c437",
+      "bytes": 11789,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-1-3.json": {
-      "sha256": "9bbd9e53a400d32ff710d669627057ccd6d3825927bbd4a4abb2a309bb71fec0",
-      "bytes": 8749,
+      "sha256": "de887bcffcd91ac528f0a7478ae045e6df15260fa6a4a33ed03efe6041900f27",
+      "bytes": 8803,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-1-4.json": {
-      "sha256": "ea7b8a7566fbe3bb2d686d801467661a4bca0a43c7bcfc06c845421070c94f93",
-      "bytes": 9275,
+      "sha256": "f324f337b00c5b4c07a6ca1a6031d1fef1e336d136e0d0ef775b16b728c62275",
+      "bytes": 9145,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-1-5.json": {
-      "sha256": "8c49dff1f3c93abd399c73f37eec89d4ce29f36b36d60c9d1ab17acb54e09a29",
-      "bytes": 8894,
+      "sha256": "be29cae493596d216f3f7ff565182d0cc00f9197cf3ce7c72c719071fa3d3db2",
+      "bytes": 8929,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-1-6.json": {
@@ -65,48 +65,73 @@
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-1-7.json": {
-      "sha256": "b249d8cc323a854c4167feee838924832759297e704b3a4df1bf9e8f51c44ae4",
-      "bytes": 7873,
+      "sha256": "297a62a06044244ea5f9fc4826308ce9d7dc6caad72b1ee4aa10dc982ac37133",
+      "bytes": 8007,
+      "role": "generated artifact"
+    },
+    "_bmad-output/planning-artifacts/story-inputs/story-1-8.json": {
+      "sha256": "65fd900282eb5687b8cba30d1e8eb59a9a44664b1b19bf1a12b63a5bdc5ce5d4",
+      "bytes": 10437,
+      "role": "generated artifact"
+    },
+    "_bmad-output/planning-artifacts/story-inputs/story-1-9.json": {
+      "sha256": "0630440cc57890f953011db2c01e031676a9175368e6d6c4395adc369fe79659",
+      "bytes": 6523,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-2-1.json": {
-      "sha256": "29de00e153f58a514ddaade81ddf441e9a09f209e3a96fcb338c16ac46c7f2ee",
-      "bytes": 7582,
+      "sha256": "e7d6adfe200244323f457ec7d6d7393a691c5d8817cc958a1f11b2aa2e9e563d",
+      "bytes": 7746,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-2-10.json": {
-      "sha256": "6278061a7fbf8d9975b86a7e05262c5ac20f7a511dc415905ccd05f531c584d4",
-      "bytes": 6637,
+      "sha256": "e9b2db079fc59e921f98ffdb34cfa16fb5bdae4a0f44ec47134b5a11ea62b0c7",
+      "bytes": 6716,
+      "role": "generated artifact"
+    },
+    "_bmad-output/planning-artifacts/story-inputs/story-2-11.json": {
+      "sha256": "f4c489ffc03efa37324044cedc1ad235da75e460ee38e7ead3a710e9f4168e47",
+      "bytes": 6567,
+      "role": "generated artifact"
+    },
+    "_bmad-output/planning-artifacts/story-inputs/story-2-12.json": {
+      "sha256": "c6e10f6b13ab44eab39ee489869c9bb5748c1ef3a3a7ed7fe50310630f2483cc",
+      "bytes": 7042,
+      "role": "generated artifact"
+    },
+    "_bmad-output/planning-artifacts/story-inputs/story-2-13.json": {
+      "sha256": "c3d7aad22ce39eae970003e0c34ca4922d516a93ea23d909d82eced017f9aed0",
+      "bytes": 9171,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-2-2.json": {
-      "sha256": "d8b84906fbd6c229c7708bf43a3da19e804678e1ab7cf858fba315f162110be1",
-      "bytes": 7332,
+      "sha256": "0de59ed672f523a0ed4ac7182a0ce6c95d75f233cf268d8db1c223fb0a819202",
+      "bytes": 7503,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-2-3.json": {
-      "sha256": "60f30b0600c1f61c0006eee844abde9c6124da34e40c6aedd548ec000a8bda9c",
-      "bytes": 10012,
+      "sha256": "329ef700b4fb506fe5133e005b83be72e877294b6e36d408ad7d2ffdb5ef93db",
+      "bytes": 10418,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-2-4.json": {
-      "sha256": "4e61432d2ba3922ddda208069bc6d79973adec1121ecb8bc87636b1b4cb305a0",
-      "bytes": 6444,
+      "sha256": "698f34859d6cc42feab53af93f054cb403e740b83fd5ff4f130f8e74df64a7d2",
+      "bytes": 6567,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-2-5.json": {
-      "sha256": "30637b1a00b8648af387a92c80dc7bb5fcbd9f7a50ccdcbe485dd56b930e1e3f",
-      "bytes": 10573,
+      "sha256": "5f92e7d64e8a45478203d1a0c0bc4851b4af5272045dd21431d1f9af339dac95",
+      "bytes": 10682,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-2-6.json": {
-      "sha256": "bbeb304bf9508dd68ecdc2c0e26cbab76b88d17552ccc32f59bb5a50e155fa61",
-      "bytes": 7876,
+      "sha256": "fb03c0baf9a69d8955a35aef679b99e989aa98c156d7ad3317ec90ebfc3173bb",
+      "bytes": 8183,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-2-7.json": {
-      "sha256": "a56df0f2c71e27f530c62dc3d0d0d6e33d1bb94cd366ae82c32842f8b6e31bff",
-      "bytes": 11249,
+      "sha256": "fed3a0de8b6375671f494dd081b21fe97d76b313cb50c264ee32a2b70e6b5ef4",
+      "bytes": 13810,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-2-8.json": {
@@ -115,18 +140,18 @@
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-2-9.json": {
-      "sha256": "6977605604438981c7d799e3b3353a03d1a22593be7ee13502ada320dfa47247",
-      "bytes": 8034,
+      "sha256": "8d583ef590d638590e200fb04fbfd9fc90072640598f15e6259d20c070113e56",
+      "bytes": 8079,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-3-1.json": {
-      "sha256": "cab5a9de5a216a032ace7373afc1aa150836826e722ba4263fb7d8d185e18005",
-      "bytes": 9567,
+      "sha256": "8723c31dcd36785ebddd1a3ec17533885e6c45d1d356e5b484b8484c4c1de9e7",
+      "bytes": 9989,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-3-2.json": {
-      "sha256": "488348b7fd290e16ad8970795c50533b9598a827bffd925a374d17d4b6fc6bd9",
-      "bytes": 10025,
+      "sha256": "2cbbe19f3dbad69b2a817d7e47017051d103aa3909339dca16167753242e3cd5",
+      "bytes": 10080,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-3-3.json": {
@@ -135,33 +160,33 @@
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-3-4.json": {
-      "sha256": "c6f4cec7572bd188125a1f2d40957397e17b7fce9f9fbfea7de92b333212270c",
-      "bytes": 8242,
+      "sha256": "07906d81eac103cdae2062523a57d3edf3349930fbf8c49056f325cd6d8c2133",
+      "bytes": 8281,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-3-5.json": {
-      "sha256": "68aaca98f624167d823fcc50709f0a0c93c732a314176fc214386fb7a2f47e0a",
-      "bytes": 8656,
+      "sha256": "bde893153102665cef1ce9d16567467bda9c0f5b4ab3e0c5e3426aa4139d34c4",
+      "bytes": 8705,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-3-6.json": {
-      "sha256": "89a764761ea615536c0458848e122fb953bb6a92bb0adb359f660bc355afdaad",
-      "bytes": 12919,
+      "sha256": "f2f362bdb9997a4d10f519f8f9c57afd40b912cad91067987375badf6a7b66f2",
+      "bytes": 13346,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-3-7.json": {
-      "sha256": "36effa9ed7397ffb17073dd035ed112250698ffcb7ba15ceffb9d2d816143db0",
-      "bytes": 13492,
+      "sha256": "1fb6abf7e4082107add7618ad44fc1d9d12a722b02be3127ab97042f3aabc2f6",
+      "bytes": 13798,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-4-1.json": {
-      "sha256": "db422bc9087bb33ac17c9d74cc66768a0653ffe3a06e1f2a7aaba64a47a393ea",
-      "bytes": 7552,
+      "sha256": "7a86d5a07e965efe1e7357af3b49b986193ad8b8c1eda5b8d08a65fafc43ed38",
+      "bytes": 7723,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-4-2.json": {
-      "sha256": "a499e9f4bfca768fc9cae04fecb688d9753a7f26b287294027809fa0484bb680",
-      "bytes": 8331,
+      "sha256": "9fb0493c51a865ba33486c5b1cf420c402262839b6819c9d02463eb890f09bba",
+      "bytes": 8517,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-4-3.json": {
@@ -170,8 +195,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-4-4.json": {
-      "sha256": "2b2644ae19d0f17cbf2f403eca565e22515196b82b1da235669707aba85468cf",
-      "bytes": 7480,
+      "sha256": "9df474df71704bd2acb2c0267c03e491367cbc13d9dabe7712c9217c30f485b3",
+      "bytes": 7814,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-4-5.json": {
@@ -180,8 +205,13 @@
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-4-6.json": {
-      "sha256": "6dc527db859e35ebd9c43e0e6d21ec046c38c6b48630d10412b119d6c21f6e4d",
-      "bytes": 9366,
+      "sha256": "c0737d2d7a24a79f3253cb3a5c4929a639fbb8153e0d8f5ed594b730eeced113",
+      "bytes": 9932,
+      "role": "generated artifact"
+    },
+    "_bmad-output/planning-artifacts/story-inputs/story-4-7.json": {
+      "sha256": "64fc36cd26ba89cdaffcd2535c96a2ad67a77ccd2bbac258c3e778b72f5175ce",
+      "bytes": 5716,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-5-1.json": {
@@ -195,108 +225,118 @@
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-5-3.json": {
-      "sha256": "9b0527e41eead7fc7a60f579bd19a82cb8aa9531d535a5a236c986040c873d4f",
-      "bytes": 7821,
+      "sha256": "7f8531144a358b7bd55391efdcfb8094cfe587aa97276202d37d4e240435f648",
+      "bytes": 7912,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-5-4.json": {
-      "sha256": "37181181522255e46dba61208bc9cfe5960e5338b09e5dda054a6c038f7dba46",
-      "bytes": 7520,
+      "sha256": "2f1ffcb5f3eb262ea7527462ad865a21e5658bdd815d3c47e7e845fa89bc0dc6",
+      "bytes": 7661,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-5-5.json": {
-      "sha256": "6f1dc45df947508ff3e859f897797a984603548491595170d17dd670ac1f69ee",
-      "bytes": 7065,
+      "sha256": "0104dfaddc727fc31be66a9f2b41974a37632c3731efdb1f7f1ea563b4d6746f",
+      "bytes": 7111,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-6-1.json": {
-      "sha256": "9bb7bbaa2c2548bde518e57692a0034916db10e8a3f1f3abe45beb8e9d7ac48e",
-      "bytes": 7189,
+      "sha256": "19771ca65d19a25c6d6ab1b5c36e41c279af2196e5321d3c13487fa775432392",
+      "bytes": 7227,
+      "role": "generated artifact"
+    },
+    "_bmad-output/planning-artifacts/story-inputs/story-6-10.json": {
+      "sha256": "8732a176687ac71e9b4a3d6964c7d6c249e8cffd8fbe2ea5349482b497a3729f",
+      "bytes": 6120,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-6-2.json": {
-      "sha256": "e50ddc779ea00b3912febf178ddf5931c90cd79ea3a11fc8c9ad7e6e0f829cd6",
-      "bytes": 6209,
+      "sha256": "0df1b6a5d5127822d70857d6037bf4390bf2a726d58be1ef4139eb5664f4f208",
+      "bytes": 6294,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-6-3.json": {
-      "sha256": "a99638120f6d3bc80346ed6d5288d2f459cd29bc4994e4bb078f3cbbb6a1303b",
-      "bytes": 6171,
+      "sha256": "40aa03b4e3d756acec7ccff86e4603856eee946d406951f3e4a56416c7ec4f9a",
+      "bytes": 6214,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-6-4.json": {
-      "sha256": "c7ff23309af33b713abe01df551c9f0af419495585a3683f0695590c76a1a10b",
-      "bytes": 7800,
+      "sha256": "05764bf2448f20d4523587a5efaf68ac3bb75ab203851867ffdd81ff7cd32acd",
+      "bytes": 7841,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-6-5.json": {
-      "sha256": "06c0aacd77016369ecd96a703df7f9dd8e8d0eca13aa3f79fb4e0f4cf35f0688",
-      "bytes": 9468,
+      "sha256": "4a20348f2c4cc0bfc2abadc8f7c1938d2236fe2ad7fb4197e6a4a06521a85c43",
+      "bytes": 9514,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-6-6.json": {
-      "sha256": "609f8aeeceadaf123fea44ebf82a9ca823f3a694513c2eb52dcbdf7776dcd5fa",
-      "bytes": 8396,
+      "sha256": "89295cfa3e6ca45ba34cff19e6b7a72f2f2429c56abec8d91efcd3827e54af6d",
+      "bytes": 8672,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-6-7.json": {
-      "sha256": "f0d78f3969721ec56991300a66f7dcbe90d25b45ed2b64530c3b04800fa469d3",
-      "bytes": 7994,
+      "sha256": "b6854927459ade1d6e371ef84794131e390264a4876b29c9c0a082c8aef9872d",
+      "bytes": 8178,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-6-8.json": {
-      "sha256": "f00906495e8ee22e687bc9681749949fc5dacaed7e87b7fcd11dc0aa86104530",
-      "bytes": 9275,
+      "sha256": "684d61c4391958dd66943e8f704080883798a0326e7115811cf19309448957cc",
+      "bytes": 9320,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-6-9.json": {
-      "sha256": "d3b4e42c2f694d51b894a26e1039eb825ec3cf700a89ff016cf82b5d812dcb47",
-      "bytes": 8445,
+      "sha256": "7c1a099f0cf3dedde1c62d14bd5d483a3154e849e167a5165a725ce2d6fa7a17",
+      "bytes": 8458,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-7-1.json": {
-      "sha256": "491af204771c68bd00e8c170d71b84fd7e4b0eca9a8d61ddbe4da312690c71e1",
-      "bytes": 8554,
+      "sha256": "c85d162c49734ea0f644138033745c9cf7e3764320b17179f0009cec85257d48",
+      "bytes": 8630,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-7-2.json": {
-      "sha256": "bd1ae1e9dec65279f8d6b94f39306230398c6ca83eba89ff11a1f9591b3208b8",
-      "bytes": 7670,
+      "sha256": "0d707cbbd16075ca8b44aed26fdfb2a447983f2b35b8802f5a24b846e02003e8",
+      "bytes": 8013,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-7-3.json": {
-      "sha256": "6519bfbf87c381ae7baf3001b74cda0ed0acd8b7adcc11477e2e9c4c04f70ae9",
-      "bytes": 11554,
+      "sha256": "8b336bcfbac6c5837ae2c6fc9e5c4b01e93c15013756bda6f0777fbaa80249ae",
+      "bytes": 11742,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-7-4.json": {
-      "sha256": "222df2c8a30cf336a1c304e004587c4efbcd05715b2876a2c30b6e3532f9440c",
-      "bytes": 8382,
+      "sha256": "81ceb0758194ee7e7e19125ec2c462acf25dcee35e33afd9a7c86cf147ddafad",
+      "bytes": 8602,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-7-5.json": {
-      "sha256": "b8199b8a02525c9cc6474d15501d00bf7ea42e198efb6a82f7d52a0272ac67a9",
-      "bytes": 11460,
+      "sha256": "f1c81150b1269f60f512f43a1ec87ecef0186b59aeb779784c75eeb509e3d664",
+      "bytes": 11577,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-7-6.json": {
-      "sha256": "1969716dface31dec409cebb799e76e14f54e0872070f78335d77e251ac9825a",
-      "bytes": 17407,
+      "sha256": "a79608fd6f76e4c85b2273d55a062f9fc804eff748ecbe7b2a93a36c82dac87d",
+      "bytes": 14612,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-7-7.json": {
-      "sha256": "f880a0ecce68f19c11cac7e6b518b0a8105e4aa5c0846ea443feb5565928176a",
-      "bytes": 5780,
+      "sha256": "c922544fbc29573e34fb0727828ffde607406236561a06bb00c9f611c834ef38",
+      "bytes": 5963,
+      "role": "generated artifact"
+    },
+    "_bmad-output/planning-artifacts/story-inputs/story-7-8.json": {
+      "sha256": "f14d494ca412a6ed43650cd138bac0626fa43253e5b4610bfb9a4c3f6a276b39",
+      "bytes": 9021,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-8-1.json": {
-      "sha256": "df8079151ce5c3b76a0f5845c5e2812a88aa51500280824611152290770f8030",
-      "bytes": 10975,
+      "sha256": "398d9c67bdf19aec385d8321f15b4fa3d92f95dabf4f853b01cc4353471f7ede",
+      "bytes": 11032,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-8-2.json": {
-      "sha256": "4773eac1bd7f080b78f8363e627760241ac6ecb692bc116d5874b9064b2445e8",
-      "bytes": 11978,
+      "sha256": "3516dcb417c681e3c3f2a552bb7f4638ebb5e4b4b18190fffe6ae63b385112b0",
+      "bytes": 12243,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-8-3.json": {
@@ -305,33 +345,38 @@
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-8-4.json": {
-      "sha256": "2b406cd8468b31e734b5ab7967dfda8908a02f6fa6c7dd454efeb480b3d66853",
-      "bytes": 11991,
+      "sha256": "5bed7e4c83491749fd598de3b77e98416d383cb22609158da60e75c9a882516b",
+      "bytes": 12004,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-8-5.json": {
-      "sha256": "79b9dfed9540677a6e2c12cebdaf466c823cc7400118a29a6a2aeca82aa84ada",
-      "bytes": 10447,
+      "sha256": "58e102c1b2155752dd3666e578e241981b92d35e538f449b9f54fc6a23937a22",
+      "bytes": 10547,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-8-6.json": {
-      "sha256": "ae3cf2e4f7838a546a653526b173339e954165c2089eb5570ed51b30a18aea9a",
-      "bytes": 9296,
+      "sha256": "38a78d64294d77eb4b15ac6b87f68b9af52240ed2873eac11b58d7737d77670a",
+      "bytes": 9322,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-inputs/story-8-7.json": {
-      "sha256": "0f91e67ca05b1feae11115c1aec57b54c383b82692517c13707d60496a2f7e62",
-      "bytes": 11463,
+      "sha256": "e3942d9b49ff20c6afbaf4a2ff03cc4e3f3411f031a76822d3f0ed9d800a9de2",
+      "bytes": 11587,
+      "role": "generated artifact"
+    },
+    "_bmad-output/planning-artifacts/story-inputs/story-8-8.json": {
+      "sha256": "5d1527d6090254fbbdf996b9797118a4dca13c01c44599f9e999776322038be1",
+      "bytes": 10467,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-specs-validation.json": {
-      "sha256": "8b558ee1bd339b0affc94748c18da1149828a5796cf93fea4c090680be87cf51",
-      "bytes": 14649,
+      "sha256": "a08b6bdced2a384c18370dda3e0227fef81c4c97b59f273456c67c99bd60a321",
+      "bytes": 17271,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/story-specs-validation.md": {
-      "sha256": "6b246b75c6edb7ad956ff3eefbe53ecbec7c52f98cdda315003f9416f00943e3",
-      "bytes": 8325,
+      "sha256": "4056242b22d1dd69692ad756709b4f1886c919a999af668785e39aa5c9e5e99f",
+      "bytes": 10709,
       "role": "generated artifact"
     },
     "_bmad-output/planning-artifacts/ux-designs/ux-nova3D-2026-08-27/CLAUDE-DESIGN-HANDOFF.md": {
@@ -350,28 +395,13 @@
       "role": "adopted input"
     },
     "_bmad-output/planning-artifacts/ux-designs/ux-nova3D-2026-08-27/SCREEN-INVENTORY.md": {
-      "sha256": "b4b678a6407b87306f8e96ad3c317ff68d90dcf7a65e58e6e88532f7a8244bb2",
-      "bytes": 12697,
+      "sha256": "7fe5dd1b0840ddf691c32cdee76a725e313650d48134518d22fcb819a3f94435",
+      "bytes": 12755,
       "role": "adopted input"
     },
     "_bmad-output/planning-artifacts/ux-designs/ux-nova3D-2026-08-27/UX-SCOPE-CHANGES.md": {
       "sha256": "1a379df6e03e1dcaee2b6320a4de5a6af70f90ad986f35485ed9b9be0d88d4a2",
       "bytes": 4485,
-      "role": "adopted input"
-    },
-    "_bmad-output/specs/spec-nova3D/SPEC.md": {
-      "sha256": "c48a41fff009f51da13f8af0d929f8af68da23a5f3fbfac89b5b1c7ecf1a6f10",
-      "bytes": 12566,
-      "role": "adopted input"
-    },
-    "_bmad-output/specs/spec-nova3D/scope-and-readiness.md": {
-      "sha256": "c1e739f255958185e100c3c13a023694c0d57040f950318e4edfea40c9dcc886",
-      "bytes": 12670,
-      "role": "adopted input"
-    },
-    "_bmad-output/specs/spec-nova3D/ux-contract.md": {
-      "sha256": "a5c777127c64e6d9fdd1521ac6400bc3c816cb735faaa158526f43d1552cf6b6",
-      "bytes": 7219,
       "role": "adopted input"
     },
     "_bmad-output/specs/spec-nova3D-story-1-1/.memlog.md": {
@@ -395,8 +425,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-2/.memlog.md": {
-      "sha256": "a70d0b25b59805ee5f827f6daff41c87674c34d69eab46f0f2015f88fe232ca9",
-      "bytes": 6704,
+      "sha256": "525351428510a0a75d24dbd5b93b652f5a865206f3f0a6f2b362530c5f4cf9db",
+      "bytes": 6999,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-2/SPEC.md": {
@@ -405,8 +435,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-2/acceptance-criteria.md": {
-      "sha256": "ba61a8c651a2f761a38aca8b8776e22a72ae9fd4fbb88269329c6e70a8bfa4ca",
-      "bytes": 1853,
+      "sha256": "4ca1fa7c2ad6cd427ba21b57cc13bd8f750f2331d0c8fe5e46530b89a8fa2669",
+      "bytes": 1956,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-2/implementation-constraints.md": {
@@ -415,8 +445,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-3/.memlog.md": {
-      "sha256": "24c1c87f03a52589389811a6d55eecdb7fe6221ca4ead1fb445f7b77f71b6d1d",
-      "bytes": 7187,
+      "sha256": "07a7094f7c67355635e9d1faefdafc2f5f8a9c0f8bb9579186d3348d1514e739",
+      "bytes": 7511,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-3/SPEC.md": {
@@ -425,8 +455,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-3/acceptance-criteria.md": {
-      "sha256": "ec5c6b774360fc340182faef16db0e928f5a117d4c10e58f5800762c03520289",
-      "bytes": 2608,
+      "sha256": "076e82e63f1800b4ec014df64b23977a160b918d44915fb064b12f8d3cc13b5f",
+      "bytes": 2662,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-3/implementation-constraints.md": {
@@ -435,8 +465,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-4/.memlog.md": {
-      "sha256": "563d0058a60a2cd2d83f6dc6d24dc2342239f33e0d8b1fbd0e6b4a41bdb4cb91",
-      "bytes": 8859,
+      "sha256": "732a1f532dbfcd37feee0383f71e0c36a41a25f2163863ca17d654311ebc212f",
+      "bytes": 9232,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-4/SPEC.md": {
@@ -445,28 +475,28 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-4/acceptance-criteria.md": {
-      "sha256": "eb2620636957aed14751ce32ae38f20d56312c78a5694d99cda6f6200357a46f",
-      "bytes": 3614,
+      "sha256": "ee88060aa89fa0e96c7b095aa4b47352c7ac475fcb8c4d91ed6291c0bff4bb7b",
+      "bytes": 3421,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-4/implementation-constraints.md": {
-      "sha256": "182159b38829bd2fb3b287287d5499176dccdd4e2e2f356870b3ebaefee7337e",
-      "bytes": 6670,
+      "sha256": "df2d0b8a981cd1c21058a3dab359ff8668b326d98edeb15fd4b2b685ca2dfb72",
+      "bytes": 6733,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-5/.memlog.md": {
-      "sha256": "11d2f5197350a524d3083afef7555b00b1696d521bbada4a1ec61f4a865b5696",
-      "bytes": 11784,
+      "sha256": "fed145976632ef96734d95f9a204318188aaae3af21b12ec93c422c66e8cdd98",
+      "bytes": 12102,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-5/SPEC.md": {
-      "sha256": "b8a1d7c56fe4f470e3665dfd50d6e9ba4ac543a35de276f9f1fd357d9f944c3a",
-      "bytes": 1855,
+      "sha256": "e49ec73fa37dd246e7f0b8301ad3ea3bcaef50278d06c582f6efc4db9358ad12",
+      "bytes": 1925,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-5/acceptance-criteria.md": {
-      "sha256": "da19ea633d62778c2271080346f4bcf8d694c20128c43a47f333037d1b715237",
-      "bytes": 1654,
+      "sha256": "735c0450de2e2c4c177af28c86b3ddb134ba771d0751173fe99118e7f8c61fe7",
+      "bytes": 1689,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-5/implementation-constraints.md": {
@@ -480,8 +510,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-6/SPEC.md": {
-      "sha256": "a9cd7a464adb00a4eb5eba6c8ccb56bb8c7016f8f8169f53905def5fa3e1b9fd",
-      "bytes": 2428,
+      "sha256": "d2c88fb19b9bc1669874074fedb7e681cc3d1d2a5123c978ca9d02ee086df9d1",
+      "bytes": 2521,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-6/acceptance-criteria.md": {
@@ -495,8 +525,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-7/.memlog.md": {
-      "sha256": "be3ae53d8ce69ab5d40e9f3e6df663853ba6864ebd69f0aa2a4c75c218e58b1e",
-      "bytes": 5733,
+      "sha256": "e6044e75dcecfcebd1dd2b1f2b04121b666974ad149d5bb4a6198ac7478c2fcd",
+      "bytes": 6047,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-7/SPEC.md": {
@@ -505,18 +535,58 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-7/acceptance-criteria.md": {
-      "sha256": "8ca21c5ee410612042265b1d317090c73ba3fa04e46ad3f3c01f569d5196fd05",
-      "bytes": 1574,
+      "sha256": "fd5299f9ae6e6ea5fbc0102075d2c077e34858adc2822b0be4a81c146e04224d",
+      "bytes": 1616,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-1-7/implementation-constraints.md": {
-      "sha256": "3abb95315fd6ba1a8421861bda884c57d7d56993ae8a09421c511a32fe39b84b",
-      "bytes": 7296,
+      "sha256": "415ada39f51d58cac9993d0b698563f165bf080ab369b9c0fdb005efa1b76af9",
+      "bytes": 7417,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-1-8/.memlog.md": {
+      "sha256": "38e15df7a08fd436a0deeaa3c5f33d3b53f2c52c2b01f05f616d14a01e655d04",
+      "bytes": 3233,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-1-8/SPEC.md": {
+      "sha256": "ae7a62610e3643cd7839596a03dd8dde04cc48c65ae2a9197e0ebb3569946b9c",
+      "bytes": 1917,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-1-8/acceptance-criteria.md": {
+      "sha256": "a957220a4c7c2ab81673c95e870edf735fe5bff4c192bdb0eb18a2feafabc3a1",
+      "bytes": 2218,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-1-8/implementation-constraints.md": {
+      "sha256": "5131761111f27d5c158302161a13ed17080d76d66d2a1c74e6927044d01a5ad7",
+      "bytes": 9178,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-1-9/.memlog.md": {
+      "sha256": "0b10bac2976a4dfc1e2b058cb514291a6b204cdd0de923965d857f5d37f6ad2b",
+      "bytes": 2653,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-1-9/SPEC.md": {
+      "sha256": "f58e14c6b593f61a399028f1128c2e1c31129188638b5d9e1c36d258d1c8f47c",
+      "bytes": 1869,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-1-9/acceptance-criteria.md": {
+      "sha256": "a57eee46d9ffdc86aaa3602a36fbf803916f188b7187be7248c723aee4aa5b26",
+      "bytes": 2634,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-1-9/implementation-constraints.md": {
+      "sha256": "79ec52b1c1b15e225100aacafb84f332a74cfd62d71c8c0e0d674dfabb8f61d3",
+      "bytes": 5040,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-1/.memlog.md": {
-      "sha256": "c54bc194273975de3b3002adc0a1df229a0947233ea320c4d4f8f6ffff048339",
-      "bytes": 7719,
+      "sha256": "22451248b65b83e5bc4f879bf82da0e2551a0048e46466c41e5edf2181956451",
+      "bytes": 8121,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-1/SPEC.md": {
@@ -525,8 +595,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-1/acceptance-criteria.md": {
-      "sha256": "3c25c436de0b299f2e5d06e2ae6f736c293d50491082afe9ea75f2db4bd03844",
-      "bytes": 1450,
+      "sha256": "45c716139e09b8dd9d7a1cf533ae1f44e74713aa60213d749f351b18807ecfa7",
+      "bytes": 1614,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-1/implementation-constraints.md": {
@@ -535,8 +605,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-10/.memlog.md": {
-      "sha256": "ccf3693c542edab959d5b7a66d6daf088e0ebd3e9ed4d850e98a0aad4184d4e2",
-      "bytes": 9502,
+      "sha256": "3aaf7a66829f5333890dba18220b4fb0589235cc65db89c8e2adda1d0dafcb6e",
+      "bytes": 9812,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-10/SPEC.md": {
@@ -545,8 +615,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-10/acceptance-criteria.md": {
-      "sha256": "6d767fd1d1ef564df4329965df7015c995cc9e0a8375099d0089ebadccaf88b6",
-      "bytes": 1497,
+      "sha256": "2a635d8e181244e437b88e968274594f3ceb644812763bb47f1eb7f0643dc4ad",
+      "bytes": 1576,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-10/implementation-constraints.md": {
@@ -554,9 +624,69 @@
       "bytes": 6206,
       "role": "generated artifact"
     },
+    "_bmad-output/specs/spec-nova3D-story-2-11/.memlog.md": {
+      "sha256": "ca788954af6d5067fe46083c149ca4a183587f416d5dcec730b33536fadf7d7a",
+      "bytes": 3163,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-2-11/SPEC.md": {
+      "sha256": "8e4de0463cfcbbb1c4a051c624b39455aead0b11ecf4fe3495babb6f8de9ce1f",
+      "bytes": 1919,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-2-11/acceptance-criteria.md": {
+      "sha256": "a18d1c6561287669500c961060ffc6923d78f631f174c04a0043194e6595160e",
+      "bytes": 2053,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-2-11/implementation-constraints.md": {
+      "sha256": "bf88bba4e55b6055d93d919aa96c3110051af56d6a815a501feb3ca5be859650",
+      "bytes": 5672,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-2-12/.memlog.md": {
+      "sha256": "5757df539ffead3a25436c950884853ca2234b98abb5fce89ee9e88d7afdabd5",
+      "bytes": 3450,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-2-12/SPEC.md": {
+      "sha256": "ca7d358e78c1c418f4d53ad5cf89ec92a8fe4e5a7680f3319c0f50d39f5d656d",
+      "bytes": 1983,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-2-12/acceptance-criteria.md": {
+      "sha256": "796c43e7d65a0b781e2b2cd546059b109e7aa71bce1b9e528cc24aa490d3ea58",
+      "bytes": 2020,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-2-12/implementation-constraints.md": {
+      "sha256": "bc1c9919263415fd4b51903e189dc115c52343537d3c6a821023371bae959d28",
+      "bytes": 6155,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-2-13/.memlog.md": {
+      "sha256": "babde73ccb982283a725327ee84c3bb8f67ded204a4a53f1893806ea854415b7",
+      "bytes": 3589,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-2-13/SPEC.md": {
+      "sha256": "8a3ae5d712b9b82f70074ff61291ec16ba636b707fa6c4ef5518c62053fc2d8a",
+      "bytes": 2032,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-2-13/acceptance-criteria.md": {
+      "sha256": "90cc7bcffac9c00e6e25842d47dba7ffe6f89c69d4f74aed1fe11d58338ecdea",
+      "bytes": 1952,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-2-13/implementation-constraints.md": {
+      "sha256": "4d4077262803d5e5e8d90b4c0e8d88cfc03ccddcc10d911ad76df98ee88092db",
+      "bytes": 8279,
+      "role": "generated artifact"
+    },
     "_bmad-output/specs/spec-nova3D-story-2-2/.memlog.md": {
-      "sha256": "a8ff1488dad44a1ce82017c87fa9775aa531565a6dd8eece0ed77afdcaff65cd",
-      "bytes": 10115,
+      "sha256": "bccdbb1d407ab19919792acfc00ae6628689365530dcc86ec2b399fa8f14054c",
+      "bytes": 10417,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-2/SPEC.md": {
@@ -565,8 +695,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-2/acceptance-criteria.md": {
-      "sha256": "501ba8427e0b085a908231c679d831382c80f867173de1d199711d8b414837dc",
-      "bytes": 1535,
+      "sha256": "8e5efed109fe0080b1c6594786ff83df61abd6cd666ad6c9d340b0b6d4cb6dad",
+      "bytes": 1706,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-2/implementation-constraints.md": {
@@ -575,18 +705,18 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-3/.memlog.md": {
-      "sha256": "2b1940fcd1f02c6455ca3459c0c7920b991b55035d51e8007e0e70c50872e349",
-      "bytes": 6477,
+      "sha256": "8b8573a0a6bfb7f8e32841a93cda09d7ed6b016c4ce5a62e732d5e8456700877",
+      "bytes": 6879,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-3/SPEC.md": {
-      "sha256": "002d9b84732242f64e945b8137b91b6227492a764a752d7307b25404f9ad8090",
-      "bytes": 2515,
+      "sha256": "7374de9dd0597a229a32111439cb5e7b4bd184c7d066c9650bd7e56e8277a11b",
+      "bytes": 2625,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-3/acceptance-criteria.md": {
-      "sha256": "29d915b5dcdd3024939fcb4846bc62a0dfd985dfd3613d1e487bd109ad8c91b5",
-      "bytes": 1683,
+      "sha256": "4e7ac3ae9c55b0521ce15cf4d388e9b015164f3b92e651550c936773d535ec22",
+      "bytes": 2089,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-3/implementation-constraints.md": {
@@ -595,8 +725,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-4/.memlog.md": {
-      "sha256": "60dff4cb1f3a3cfbc03c60aa869900e82f73d63ecc9e19bd837a1a6f0a8791f7",
-      "bytes": 5668,
+      "sha256": "560128ab14873e895724de71972eb0fb6a504fdd3a186bee0399e9cc0351b249",
+      "bytes": 5999,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-4/SPEC.md": {
@@ -605,8 +735,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-4/acceptance-criteria.md": {
-      "sha256": "863b5f541cabb1a263cd6d65156ba46845b5ef98882050098162cb3f1492b5f5",
-      "bytes": 1551,
+      "sha256": "54914d6de30de2ae731507b285dc8fbf1563e21c28d16cc5ecf993825dcade4d",
+      "bytes": 1667,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-4/implementation-constraints.md": {
@@ -615,8 +745,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-5/.memlog.md": {
-      "sha256": "761f579a03dd00b89d054e5f2d2a6970535d7325a2b87b1eb7042105d3e7359e",
-      "bytes": 8378,
+      "sha256": "2d137645605d1fcbc90fdf42a920689d47a38d941a8204ae0bc1fb6806a40603",
+      "bytes": 8685,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-5/SPEC.md": {
@@ -625,8 +755,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-5/acceptance-criteria.md": {
-      "sha256": "81997164e70ecca3289cf440faa4d6582fcbb4bb244f1cbf85c4a75ed1dab1ff",
-      "bytes": 1876,
+      "sha256": "ada208e8d7407a7c0948e8c63e13007490425b5d2f4638c0bf995e9203df90ad",
+      "bytes": 2007,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-5/implementation-constraints.md": {
@@ -635,8 +765,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-6/.memlog.md": {
-      "sha256": "2c1a600da732abd0870b8b632b935677e8dc3663ee30fcde32bac20201e15a14",
-      "bytes": 10462,
+      "sha256": "6274b9e30068f05b1ddcf780288dfca3769580296d8274feb5a0c89d91eb3786",
+      "bytes": 10895,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-6/SPEC.md": {
@@ -645,33 +775,33 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-6/acceptance-criteria.md": {
-      "sha256": "1c080a47bf8c4730a728fbd010e68ceb67c50785568464866f27e9d23e423776",
-      "bytes": 2370,
+      "sha256": "8ca93720eea3151594c186f34dece6484d5cb2412edf4341d387f4936873f11a",
+      "bytes": 2608,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-6/implementation-constraints.md": {
-      "sha256": "445a802a750e00edc90f28f5731362ef06404f828ce70db16c466987e0cb2b6f",
-      "bytes": 6547,
+      "sha256": "4216b07d591f3d4c0f8603f969dc078d7f48752a1bcd72125a466635e87bb9f8",
+      "bytes": 6610,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-7/.memlog.md": {
-      "sha256": "725a6f4254568f82a7447444e73be1bbe20a7561256630904c8cbc0761babb61",
-      "bytes": 7102,
+      "sha256": "18c5df689738b390c08cba0e5da51c1852ee0efcc5f756c0975bd0039a436c76",
+      "bytes": 7733,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-7/SPEC.md": {
-      "sha256": "4d480f08ff14a2c351cf54ad26a47d938ac1341d17b35359c3f8e277a8ec381e",
-      "bytes": 2808,
+      "sha256": "93f9eb57d528c66be8b3bb0186a5e98cc0cad9d1dee11c7d8c155c61bfe323ab",
+      "bytes": 3455,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-7/acceptance-criteria.md": {
-      "sha256": "a3e4935520737b7c6a308e1995db0212f1961b9a991fb693b34b164df6d37062",
-      "bytes": 2009,
+      "sha256": "9f40de1760104a543e1438d1d0193340977539ddb9f87030a32213c42deb88f7",
+      "bytes": 2844,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-7/implementation-constraints.md": {
-      "sha256": "8eb6aee80742797692093a15fb1f2f7390ebdc76228b6edfc067fd019e733b32",
-      "bytes": 10202,
+      "sha256": "10afc68d319b3e3f29644d0328e10ea7bf78d8be5d9a1ee5f15c8a899ce828ca",
+      "bytes": 11860,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-8/.memlog.md": {
@@ -695,8 +825,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-9/.memlog.md": {
-      "sha256": "1b06a4400bb08cf360c214b3fc50846f9f94fa3ee33548f7c5904cf2d51eb781",
-      "bytes": 7900,
+      "sha256": "0cb18a4208e48d634b37f322c4d804f32f67bc39915b850fcab136b8c8fd55aa",
+      "bytes": 8234,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-9/SPEC.md": {
@@ -705,8 +835,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-9/acceptance-criteria.md": {
-      "sha256": "fc329b4778c2200f4fa0333216d3d1d0cb66ec33fc4224a7f1878d0e6db97268",
-      "bytes": 1859,
+      "sha256": "baf1cb6e2490df743b6fa45890909712f49b2b5908d8b94a49cd90e9a07af120",
+      "bytes": 1904,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-2-9/implementation-constraints.md": {
@@ -715,18 +845,18 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-1/.memlog.md": {
-      "sha256": "16456846ea1503c951688f5cdaa00437376c631c6721109dcc8b72f309dcca4d",
-      "bytes": 7148,
+      "sha256": "8a8a4b923f451a9e3c2d125f59874cd0cf4c0a426eb1d244e71bb71a44f2d1c7",
+      "bytes": 7594,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-1/SPEC.md": {
-      "sha256": "1ae9acba1e7ca789e8dce23d6863854ac771db062b2d116f290f14442708e91b",
-      "bytes": 2783,
+      "sha256": "9201b6e214e71fcfda7e195956c41b223bf1143690563d9d671c1b788ab93a65",
+      "bytes": 3177,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-1/acceptance-criteria.md": {
-      "sha256": "3e7bf476fa3fb56c550970bbe36d90f299b8e6f2ea528c37d0d82a49d1afa1cd",
-      "bytes": 2088,
+      "sha256": "cf7e6e8be031f081fc7d4effe2a6306fdd859b1093d56efe28b86ae98aa682aa",
+      "bytes": 2475,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-1/implementation-constraints.md": {
@@ -735,8 +865,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-2/.memlog.md": {
-      "sha256": "f94e3fc8d77b5fff83ca062facf12a6153a30d4fde4e9d9a9b1d816cd0cf7c35",
-      "bytes": 5907,
+      "sha256": "50d6cb000b186acb45d92a9d5e9ce230301bf1242c29c3b4dbbb9e5da194cc66",
+      "bytes": 6218,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-2/SPEC.md": {
@@ -745,8 +875,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-2/acceptance-criteria.md": {
-      "sha256": "3aa873dd9e4d504a142b34faf3674c15d9208a68de1e2a98a3d79711d6ee3f05",
-      "bytes": 1735,
+      "sha256": "0997d5afae85925e35569f4f7c5bbd9500b684c6833ad87f173e45e2ea04e52e",
+      "bytes": 1790,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-2/implementation-constraints.md": {
@@ -775,18 +905,18 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-4/.memlog.md": {
-      "sha256": "8d612f30557208ff28d7eade6767c9fc449657d3de0ea8980e206527eeab0455",
-      "bytes": 11102,
+      "sha256": "13616b1d2d540ceb2414345d2559a8ab400a34404ac84a4f2b0487acd3f61d3f",
+      "bytes": 11374,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-4/SPEC.md": {
-      "sha256": "52bae2cb8d9d11a57e020caa065975471a8bbb97a146b56c59af9d361e109e08",
-      "bytes": 1862,
+      "sha256": "b6fd80919b84d4473942bbda60d941100fba0aa821e6c0cda97edd6babb186b9",
+      "bytes": 1940,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-4/acceptance-criteria.md": {
-      "sha256": "1b5f236c7d684da36baf3b0d7c60d1cbbd051937bd32db5aa456f1250a373f91",
-      "bytes": 1520,
+      "sha256": "fc58793cd8ebf76e54d04a9133f977172823cf8eb5d501cc64f7b1a57f6beea9",
+      "bytes": 1559,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-4/implementation-constraints.md": {
@@ -795,18 +925,18 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-5/.memlog.md": {
-      "sha256": "4a0032f61807609dc6f67646cd112d587b3ae91176b1c7d48c85f51ddd6d31e6",
-      "bytes": 6366,
+      "sha256": "32830ad7341b0b1da2d4a4c529d327174fc7aced4e3b5096e62944aa5779fcc6",
+      "bytes": 6638,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-5/SPEC.md": {
-      "sha256": "d530684e5a8d56f84184c74bf3754618da01e362fbaf576d9c54a3c4684b28d4",
-      "bytes": 2457,
+      "sha256": "8e6776a2fed14308d7b244db4b8709c238e61a2f360e6564aa457a4bf8477bbf",
+      "bytes": 2555,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-5/acceptance-criteria.md": {
-      "sha256": "5da19bd610fd96d14d26e8df91d7c7c35225926926176ed9a4ca117c76901526",
-      "bytes": 1558,
+      "sha256": "acb090b04aa650ae8e0a0ef9891bb243c492f661a6ad402198b2e24bf881483a",
+      "bytes": 1607,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-5/implementation-constraints.md": {
@@ -815,8 +945,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-6/.memlog.md": {
-      "sha256": "f06c7ed9218bed3dfdcb2d103e2e68eee09d6c7122790f1b71c1506922b2c1a0",
-      "bytes": 5869,
+      "sha256": "571874f3e7c550cefadd58e76f9b00981b99354b136fd17e994c7fc39902c1b7",
+      "bytes": 6191,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-6/SPEC.md": {
@@ -825,8 +955,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-6/acceptance-criteria.md": {
-      "sha256": "9026d6d4fee5f73e5dbc602f7c22f926bef1807e0a31bd01849316571e6d0fe8",
-      "bytes": 1707,
+      "sha256": "64dd1f09d8bcc3c55182346c1a44c697203eed6017ccb84331a6da11bb656736",
+      "bytes": 2128,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-6/implementation-constraints.md": {
@@ -835,8 +965,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-7/.memlog.md": {
-      "sha256": "4eda693b5dcb582bc0b879ef0b5f298746d23db18fb76aa3218573d0c4c94051",
-      "bytes": 9170,
+      "sha256": "779e4f9a77730e4e934cc7f62d5612d59d7113f8c1593297bd214bf9d52dea15",
+      "bytes": 9519,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-7/SPEC.md": {
@@ -845,8 +975,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-7/acceptance-criteria.md": {
-      "sha256": "2e2d61ccc79ac70e6246b6a1acfb8a86772b2aa52744d08b17365e88a6dc1327",
-      "bytes": 1882,
+      "sha256": "62ba9d9b3ff4da4e4e2fad3663c9f813dcb20e0a967d9c2a1c5bf13753e6864d",
+      "bytes": 2153,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-3-7/implementation-constraints.md": {
@@ -855,8 +985,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-1/.memlog.md": {
-      "sha256": "34583541620a0e10edad1a8baf9614719c33069323f751dc4794a0a79f02186e",
-      "bytes": 10444,
+      "sha256": "fcd3a2101b3ea22a42d04c965e701c29266780b76f153802100e4b51589713c3",
+      "bytes": 10790,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-1/SPEC.md": {
@@ -865,18 +995,18 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-1/acceptance-criteria.md": {
-      "sha256": "4d6adae98800c3ba942c7971d3cdb05e1ca90f885e6e55ba1f6efae574b84a59",
-      "bytes": 1610,
+      "sha256": "e88ac9961e672011cd9686500327d3fc73858d46ae47766c1ff5914dbf185fb9",
+      "bytes": 1719,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-1/implementation-constraints.md": {
-      "sha256": "c72731d6b0c686d8fcb8fc9cd2e2c5099a8a02a31506e75980d87983b601d091",
-      "bytes": 7035,
+      "sha256": "7155f74befa213b8d8beafa716e05bb0b0121ff5088d25944828543782cec059",
+      "bytes": 7098,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-2/.memlog.md": {
-      "sha256": "311a0af5b6a8fb81cab764886b08f4c2f3ac13d17c46d208a3d7b372325a8ef9",
-      "bytes": 6638,
+      "sha256": "4c7aade586695547ccef84e0732485c491d2e1ea942ac34720aa9e878d26b8e7",
+      "bytes": 6949,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-2/SPEC.md": {
@@ -885,8 +1015,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-2/acceptance-criteria.md": {
-      "sha256": "7a2e8772cd01f3d7bb94b9bf74eeb20f6f9c111fe4d3991d4865403af0641029",
-      "bytes": 1688,
+      "sha256": "7c27bfa64cc19489e616e037424db59a6301694ca9487610762b7d73f47add07",
+      "bytes": 1867,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-2/implementation-constraints.md": {
@@ -915,8 +1045,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-4/.memlog.md": {
-      "sha256": "9da6cc4de2cfe936ecd00ed667b7c326ccb3dcd5550952b99298bc28094724ba",
-      "bytes": 7701,
+      "sha256": "428b401ce50a5c47ceb25422fec9abfaecf190e91d4d3c8c718b908b0a4b596c",
+      "bytes": 8060,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-4/SPEC.md": {
@@ -925,8 +1055,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-4/acceptance-criteria.md": {
-      "sha256": "6be4fe32c7dbb902e6a5153ebb2e89ffa9d6cea11e68be8bfda0b58b6a508235",
-      "bytes": 1621,
+      "sha256": "9cd897db78b83469b986585897721664004ff17fe73cded38dc2754075db816f",
+      "bytes": 1955,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-4/implementation-constraints.md": {
@@ -955,23 +1085,43 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-6/.memlog.md": {
-      "sha256": "97ba6ca14c58e097ca936daed24c373d432de66664157a1e038a2b8254b63e2f",
-      "bytes": 6558,
+      "sha256": "0e0b1098ede280b60563f9011c5d3a7ff4faf19b3b5dd4582e4601a74f03c5e6",
+      "bytes": 6999,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-6/SPEC.md": {
-      "sha256": "8d660d6105292f84b739999899dbcaadc11cc4c645ddb08d9095bc74dfad2e01",
-      "bytes": 2599,
+      "sha256": "a034db2ea5cd72a0a09a9b113b3cc655c01d47f0d2ce699bb7f2bbfdbd9ce220",
+      "bytes": 3036,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-6/acceptance-criteria.md": {
-      "sha256": "54f7ae6a49ad41ebd9d6627d1cd2431933692be253a799623bf4336cda4528db",
-      "bytes": 1630,
+      "sha256": "893dd8507ac4692112567f552f1da16efbcc462ebfb28dc0ca2201c0b71d605b",
+      "bytes": 2183,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-4-6/implementation-constraints.md": {
       "sha256": "22ba0fec4e43a2d4fc873a47ff4d4d2286d8ef53a131fa0855c9f408b9e2849e",
       "bytes": 8586,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-4-7/.memlog.md": {
+      "sha256": "0d668d2477387329f5e5df6c72d811d5f2d7a506b2ebcf6a9923efa6cca2e168",
+      "bytes": 2905,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-4-7/SPEC.md": {
+      "sha256": "4fddf9575821b83a02ef9ca3a04650d9f1645879c02e64a3d58bb2d6cfa34775",
+      "bytes": 1970,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-4-7/acceptance-criteria.md": {
+      "sha256": "acbc8a6378bbc5b38a6ae41e57f02ea6b08a543f279fb4ec87c7377ec1fb693a",
+      "bytes": 1797,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-4-7/implementation-constraints.md": {
+      "sha256": "a9a0d39c271c50e4b1a5ec5965c2aefcff44b59293514d709280fe934b52b44e",
+      "bytes": 5002,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-5-1/.memlog.md": {
@@ -1015,8 +1165,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-5-3/.memlog.md": {
-      "sha256": "6be64cbbe0c27b0c330d507c398b1a499f0c2b82bb47cccb5237a3e7e0bcdc79",
-      "bytes": 10752,
+      "sha256": "8fd274be1a69f98516cd4f8c3012937512f278886138e6f3f737d519028b8c8a",
+      "bytes": 11067,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-5-3/SPEC.md": {
@@ -1025,8 +1175,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-5-3/acceptance-criteria.md": {
-      "sha256": "3fcf8d4a827f2c30849fa2f88b47ea2f089f75d380cd6adcac24dbf4645bed12",
-      "bytes": 1455,
+      "sha256": "858b2b555d2377f7a6441a0a87bd612430ccafe95d78cd74731e639585251d43",
+      "bytes": 1546,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-5-3/implementation-constraints.md": {
@@ -1035,8 +1185,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-5-4/.memlog.md": {
-      "sha256": "ea103e550cb759ec97af17d7a1a1f6f73224e15b3ef1781e541cee6c28279d1a",
-      "bytes": 6474,
+      "sha256": "3e542d63d3e035c5cc97f53beb2b48df488e9c52ede2ad72c128ceebafa8ab48",
+      "bytes": 6789,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-5-4/SPEC.md": {
@@ -1045,8 +1195,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-5-4/acceptance-criteria.md": {
-      "sha256": "a3779bdf6eba258c6b0f192e704d0e07407543715925a815a92d86731feb8ccc",
-      "bytes": 1543,
+      "sha256": "e489ea3160143206095b71bf3e0f1926e0a9a5ba32d8f2bbf361cc89ebeb75b9",
+      "bytes": 1677,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-5-4/implementation-constraints.md": {
@@ -1055,8 +1205,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-5-5/.memlog.md": {
-      "sha256": "29f3092e48281804bb6c44cf93118ba7ffc2d35b8d4ecbbd1374a3dea0ff4d85",
-      "bytes": 5683,
+      "sha256": "0e0e577be89d4cf722cb18f5df7084b3e735bb5beca26e4124a02d209d9a2c08",
+      "bytes": 6002,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-5-5/SPEC.md": {
@@ -1065,8 +1215,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-5-5/acceptance-criteria.md": {
-      "sha256": "8824b8068a84ef902b9c94a9a896d55cb47fd1812e5d3fdfb8d6e3d796bb17c1",
-      "bytes": 1495,
+      "sha256": "a9ac1a1219922b0492ad2386c4f39b1aa4724aa5e7291e11e917f1c86aff3639",
+      "bytes": 1541,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-5-5/implementation-constraints.md": {
@@ -1075,18 +1225,18 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-1/.memlog.md": {
-      "sha256": "253356e8f5819a21ebda731c60970359b1b1d0b66aa655d26f6d44c13329ea82",
-      "bytes": 8027,
+      "sha256": "1eb4559f59aba1feca74590b9fd469452a76d6c83a50ec99e6f4d4ed7f86a544",
+      "bytes": 8392,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-1/SPEC.md": {
-      "sha256": "5b2598226337b0504986844e01293848646f69dcc5b599b295bfefec05df0977",
-      "bytes": 1924,
+      "sha256": "84b52425c09281d5046d068dd51727e4734ac412d70275186013b773a5fa3cc7",
+      "bytes": 2000,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-1/acceptance-criteria.md": {
-      "sha256": "db7ab3043540a5b36bcfb48965481fe384cf888b0c6baf84bceee60d60e7e5f8",
-      "bytes": 2110,
+      "sha256": "228bb7a8d40e60d4503b86fa91bfa640347f8f584aa275aa2d32d274284d0e0f",
+      "bytes": 2148,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-1/implementation-constraints.md": {
@@ -1094,9 +1244,29 @@
       "bytes": 6074,
       "role": "generated artifact"
     },
+    "_bmad-output/specs/spec-nova3D-story-6-10/.memlog.md": {
+      "sha256": "f3a62626be249666f008cc60295a72fdc80255f1026770b770e8577b4cbba9f1",
+      "bytes": 3036,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-6-10/SPEC.md": {
+      "sha256": "26e437f277e41dd35d61d26619476f2b39056b3d44a175c0cee29173297dcdc4",
+      "bytes": 2022,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-6-10/acceptance-criteria.md": {
+      "sha256": "d80df92428448248fd90db3c8274397d31b5b04513b62b302b7c275ef8ea8abf",
+      "bytes": 1832,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-6-10/implementation-constraints.md": {
+      "sha256": "f9adf5c570d54edb547c34166c351bfb34066b2d3e4a586e43b450ab37e712cc",
+      "bytes": 5367,
+      "role": "generated artifact"
+    },
     "_bmad-output/specs/spec-nova3D-story-6-2/.memlog.md": {
-      "sha256": "da5ff1cb68488e8981d3c4a37abb8e8627628f49d513b6fb755a6c23bc1217bd",
-      "bytes": 9460,
+      "sha256": "086ec7974333ec73d23db61683f719b439099a8f7b15f714f2825e6255bdc2a4",
+      "bytes": 9785,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-2/SPEC.md": {
@@ -1105,8 +1275,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-2/acceptance-criteria.md": {
-      "sha256": "20d18b561e60ae97c3c11b8a7dd5926d5185b8f803940f53dc5b0dfa0f1ec2aa",
-      "bytes": 1538,
+      "sha256": "6aa865823bf741381b388a1aede5baaec8d32ee4a0051161e3c711019103f0da",
+      "bytes": 1624,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-2/implementation-constraints.md": {
@@ -1115,18 +1285,18 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-3/.memlog.md": {
-      "sha256": "bcbbc39125a74b150541327364c8292ea03278098701cd0d0274ac93f5d37104",
-      "bytes": 6481,
+      "sha256": "f12c8daa4be56c2c35e1f2e543bca210dc933f97667026d05c97816c9098f69e",
+      "bytes": 6753,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-3/SPEC.md": {
-      "sha256": "7e07270d8cd63f77b5c65ba439aa35bd0b83222586969f5ac6aa872e7322acff",
-      "bytes": 2599,
+      "sha256": "c9cbfcc78bce821eda4b209567ba0816a8b9c4ee29828d03e115745ceeecee75",
+      "bytes": 2685,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-3/acceptance-criteria.md": {
-      "sha256": "600ae8bc7cffed13f85f2dc2a153aed651231ec9f335ef3ad363393253291312",
-      "bytes": 1500,
+      "sha256": "b35c7a1f9531caaa39ff2214943f271cfae92f47c48553f8ae334ef1bc2a7206",
+      "bytes": 1543,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-3/implementation-constraints.md": {
@@ -1135,8 +1305,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-4/.memlog.md": {
-      "sha256": "69c08a65a448f51e74136143cc7e210820a454866fd60b4a0900c5fdededc541",
-      "bytes": 5875,
+      "sha256": "7e9f857d8b2625e134e771f867fa71b99efeaaa78415d8ac8d472b248acc4295",
+      "bytes": 6147,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-4/SPEC.md": {
@@ -1145,8 +1315,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-4/acceptance-criteria.md": {
-      "sha256": "625dac62db6b49ea435aac52012617c68cacf9b67421b145afdab7857191e9ae",
-      "bytes": 1607,
+      "sha256": "0a04bd4f7175bb52a509e30f5f99c8049ff9d1505f0a7c24d3511166d7e1adda",
+      "bytes": 1648,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-4/implementation-constraints.md": {
@@ -1155,8 +1325,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-5/.memlog.md": {
-      "sha256": "e3cf85ea09dcb56abb372dfdc6ccb8bffff57a89585a57332eabf958258d17ea",
-      "bytes": 8070,
+      "sha256": "cd2a3b7bdd6863d44ebfeb60c04af874071a19c2f0aa05a6ad9d2d58b6eceec7",
+      "bytes": 8342,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-5/SPEC.md": {
@@ -1165,8 +1335,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-5/acceptance-criteria.md": {
-      "sha256": "54b1a01af181b93e97c64493955f56fa3e08aeba6fcb6ab661af3ea4ba07efb2",
-      "bytes": 1757,
+      "sha256": "cada77d55d8ab9b872c1a5071fa1a7615e4c7f832f3cd1e1978815ee58ed4d7a",
+      "bytes": 1803,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-5/implementation-constraints.md": {
@@ -1175,8 +1345,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-6/.memlog.md": {
-      "sha256": "1d7068960af4988ad84389c82ee627c089a6be51ea694af54080df6961646688",
-      "bytes": 11356,
+      "sha256": "89e3a1f8b477739b2a4f4c0ca7d455f639f62b1f56d52e195bf79ef609100e1b",
+      "bytes": 11668,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-6/SPEC.md": {
@@ -1185,8 +1355,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-6/acceptance-criteria.md": {
-      "sha256": "088f88e92ce0ec66767ef47181a4d43a1d4e7e7f0948c677a7ddfe4f03853c59",
-      "bytes": 1582,
+      "sha256": "66c451f5d76ec06237216a6ecd9f8c87fd19e6d99c5c21e5eec19e5650aff4e4",
+      "bytes": 1851,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-6/implementation-constraints.md": {
@@ -1195,18 +1365,18 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-7/.memlog.md": {
-      "sha256": "1f9e406e00fe44ced5b3e59bae536de1c2fa8e4db9dae3aa15a2153d79e6c0cb",
-      "bytes": 6457,
+      "sha256": "29c91de991743802493aa9e5ddfa09fec0fad2f1bd1c84aa783e795a24478a32",
+      "bytes": 6757,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-7/SPEC.md": {
-      "sha256": "12611d774c19e980877d780a2d4dbcac1d7ab5cf6c3b3c2bd87b3c4bed86db20",
-      "bytes": 2573,
+      "sha256": "d0efe5e0effb42dca0d76230f606dd8f6e4d12261990e79ac8a6df3b1c5f36db",
+      "bytes": 2759,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-7/acceptance-criteria.md": {
-      "sha256": "01ecc5ec4717e8b42f4f31a1720635ba7280c6b9d8930eff57c2493029c341f6",
-      "bytes": 1482,
+      "sha256": "09e08385e854fd91c096cc6a0d850152228759c24f587445c51dff9092f6b950",
+      "bytes": 1659,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-7/implementation-constraints.md": {
@@ -1215,8 +1385,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-8/.memlog.md": {
-      "sha256": "84e8fb7959c1dd877521ed524a3a8ca36161a9734a45c12c895fd68a66b0b1b2",
-      "bytes": 5743,
+      "sha256": "c3996bc38d05acc82b3edfb39062bf874af9dd934908f94ad0c80dd3ac27ac2f",
+      "bytes": 6015,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-8/SPEC.md": {
@@ -1225,8 +1395,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-8/acceptance-criteria.md": {
-      "sha256": "b9c15759cf7be00497ec78395e1f4e8218eaa12cc61725023c5ca5994202f208",
-      "bytes": 1586,
+      "sha256": "8418d9cbf0097361852c0e334285b1b3060fde4c5613aafab09efe4fdcaeea28",
+      "bytes": 1631,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-8/implementation-constraints.md": {
@@ -1235,8 +1405,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-9/.memlog.md": {
-      "sha256": "c1212bb55a2907e8e82bfea17563faa56161f55119df9e5ffdff60c464843ad7",
-      "bytes": 7863,
+      "sha256": "384281b835b02366bb4a241409a1861f4f6e3cee812a705360e802dd642f7f76",
+      "bytes": 8180,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-9/SPEC.md": {
@@ -1245,8 +1415,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-9/acceptance-criteria.md": {
-      "sha256": "dfa750733101fee33b44ac98a10beb1077652b8e481bd05d6cc2ccb6b18c3cc1",
-      "bytes": 1707,
+      "sha256": "7a65331b5a798dd470d8c0fa3003b6f6feb641611c1efb91049ae943b0ddf38c",
+      "bytes": 1749,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-6-9/implementation-constraints.md": {
@@ -1255,18 +1425,18 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-1/.memlog.md": {
-      "sha256": "d9b347a25b152de45f82b12ab37ec53ddfed13aeef31c0759d611295fc12c268",
-      "bytes": 11783,
+      "sha256": "bd3277d6c518994348990ac8e981cac143f352a30145b2c32dd5d65d46899b53",
+      "bytes": 12158,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-1/SPEC.md": {
-      "sha256": "5482992cc88250e4d67b6ad1c68126d7ec25aea68c747cacd3fdfb9e75e40ed3",
-      "bytes": 1978,
+      "sha256": "c9cecc340a6347242d1ab76bb2d60f40ab6c055338d5c9b643e8c75dc29a64cf",
+      "bytes": 2130,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-1/acceptance-criteria.md": {
-      "sha256": "95ffe4e80a335f05300fd1a1026396bc754d8f6cddae62eca48472621a348991",
-      "bytes": 2250,
+      "sha256": "bc017d657f48a242a4bd72c65c56fcd440f7aa5f08c72f9b7cb2e38e56bb810c",
+      "bytes": 2326,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-1/implementation-constraints.md": {
@@ -1275,8 +1445,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-2/.memlog.md": {
-      "sha256": "2ad330b67bdfbdb841c5661071a1d9569a2aac283837f91dd5eddcce1c68ec8b",
-      "bytes": 6478,
+      "sha256": "7b7d510707a795d334d14e64bfc885551898ccb7f7c9ce0f240d6de38208b78a",
+      "bytes": 6809,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-2/SPEC.md": {
@@ -1285,8 +1455,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-2/acceptance-criteria.md": {
-      "sha256": "3bc16d17542ff02c734220563037d9756c1bc55fa34dd8a179679d87b8823be0",
-      "bytes": 1515,
+      "sha256": "2d0b5d0d406501ad6a06388980c45166b7eeb594f6f68bf0086e788324a43760",
+      "bytes": 1851,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-2/implementation-constraints.md": {
@@ -1295,8 +1465,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-3/.memlog.md": {
-      "sha256": "f708a1f06abb47232340268dd44ce05daa1248034dd3138e6f44b1ec656efb8d",
-      "bytes": 5879,
+      "sha256": "fd87c1aeda6e206d17438321febd2ef5868cce96b4458231deae3b07d9ccaa54",
+      "bytes": 6206,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-3/SPEC.md": {
@@ -1305,8 +1475,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-3/acceptance-criteria.md": {
-      "sha256": "e114fd9be52b9e2c47a08e43f88e3754c13b700f1f1ba5cce52830adf5e449a7",
-      "bytes": 1753,
+      "sha256": "fa015ce6852f990e5742b1686d2a159e69198380fa58eac879bbd52d5fff9b2f",
+      "bytes": 1964,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-3/implementation-constraints.md": {
@@ -1315,8 +1485,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-4/.memlog.md": {
-      "sha256": "faa0f708e7111a8195d5103629eabd76cf4a2e83e1c8f7f195b368c4af93abaa",
-      "bytes": 8011,
+      "sha256": "f8b97646e3810a97544a23a7ad4be866e70e31c99b56911b6169a8328485d5ed",
+      "bytes": 8294,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-4/SPEC.md": {
@@ -1325,18 +1495,18 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-4/acceptance-criteria.md": {
-      "sha256": "4c1e2ce281349a36ed3c2c064ee5087aa0811238b2f29234f7743931b6a3192b",
-      "bytes": 1548,
+      "sha256": "391d2d2a4f0eb6401cdf532ae7bc1583f41e2b5d82e328b1d8727a7890fc7430",
+      "bytes": 1640,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-4/implementation-constraints.md": {
-      "sha256": "fa52cb0c159048d392bdbc14f20957f5737ab004d6a0714f0b00df1c5d9fd0fd",
-      "bytes": 7788,
+      "sha256": "4ae721991806401963f569bfb6c985dce8bd2f2f7f348adc0aee0666c3c81d76",
+      "bytes": 7909,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-5/.memlog.md": {
-      "sha256": "d67789164c270ed08f7a71d07652ff7bd45722eee03fb69c82c9bb41a8e48db1",
-      "bytes": 14225,
+      "sha256": "d607e5d84121b935cc9fc7e4b1e03200b35a9813729458d62959c9fe741b24de",
+      "bytes": 14588,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-5/SPEC.md": {
@@ -1345,8 +1515,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-5/acceptance-criteria.md": {
-      "sha256": "6a3105fcf920bd52a665739f22438f96e2917686755126c7cb6232a9f1f3abba",
-      "bytes": 1608,
+      "sha256": "1202d0674cbaf728a7b5729fc13a6bd16a7fb24417b1b0b69b08a6c2cbd3a66a",
+      "bytes": 1754,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-5/implementation-constraints.md": {
@@ -1355,28 +1525,28 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-6/.memlog.md": {
-      "sha256": "82539c3be790f7d050570e34850dd6b5e2f1d04bd58c2001148e25d55c9f0097",
-      "bytes": 6879,
+      "sha256": "007088445ff6115ede4020b716be372abc8166962c8c682423088008bd21f04e",
+      "bytes": 7503,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-6/SPEC.md": {
-      "sha256": "fc9f25bd41ceb2bb60fa5820da679b68eca773643079c8a74516512bdfb62668",
-      "bytes": 2819,
+      "sha256": "9ac99ca3354f0185a36624160e4112b010b6164955fc08de51dbb5c128115967",
+      "bytes": 2507,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-6/acceptance-criteria.md": {
-      "sha256": "e68fbb242474bdc15ac1e3159050d54ad36869710b4840c693340b6d1283e2a5",
-      "bytes": 1899,
+      "sha256": "2f0608ca35f5b68d91bfee877ee5fb48a7b3337eae53d68bee8a791f75178bee",
+      "bytes": 1686,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-6/implementation-constraints.md": {
-      "sha256": "47b746d07d8de08b9fa4d0108007992df257cf06da669ab56c3ad42ab0fd56f8",
-      "bytes": 16174,
+      "sha256": "dd6cb019abeae407cc3a612efe676067116502a4ad2666da9786dbb511029fb2",
+      "bytes": 13722,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-7/.memlog.md": {
-      "sha256": "eb085e4e826c407f11e5ab40b40eb3dea6e64ed50c6320cab64a4badc9bd8c04",
-      "bytes": 5709,
+      "sha256": "e27e585697ae3083d9c52b62929a37ba36f7e32d31db3b64495977787480ff85",
+      "bytes": 6018,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-7/SPEC.md": {
@@ -1385,8 +1555,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-7/acceptance-criteria.md": {
-      "sha256": "44ffc2f9ad6b7a867d53818169d34f65b0597057395fbe13b13107e224dcef2e",
-      "bytes": 1561,
+      "sha256": "ef66fb68745978a0268244a8961b99cac80295a3f0c6f6b73497c0aed2605327",
+      "bytes": 1737,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-7-7/implementation-constraints.md": {
@@ -1394,9 +1564,29 @@
       "bytes": 5375,
       "role": "generated artifact"
     },
+    "_bmad-output/specs/spec-nova3D-story-7-8/.memlog.md": {
+      "sha256": "26f096d8922e69e5fe048a6d21f90bff4a49adfc5879ff79907d7a78cbcb58a0",
+      "bytes": 3940,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-7-8/SPEC.md": {
+      "sha256": "09b803127a981d86812ff808906caf11aa5eb6c04da56640cefe31d0c56fe7ed",
+      "bytes": 2546,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-7-8/acceptance-criteria.md": {
+      "sha256": "2adbf8ee6e1ad02cfd7a393ba5e760faa2b733558d3d7a3099aed90de41f774a",
+      "bytes": 1709,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-7-8/implementation-constraints.md": {
+      "sha256": "58b75ee16192efb163677ce6b234dbc3abedc11469307ba7f98e72621c73a769",
+      "bytes": 8357,
+      "role": "generated artifact"
+    },
     "_bmad-output/specs/spec-nova3D-story-8-1/.memlog.md": {
-      "sha256": "dcb1585b1340a0c5b77491f78915c6e703d82f654288798fee570f16bb3824c3",
-      "bytes": 7819,
+      "sha256": "faae69356d45371cb2e7c730e81e721295a6ca3741d622b9945cf81f06f8a0a6",
+      "bytes": 8139,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-1/SPEC.md": {
@@ -1405,8 +1595,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-1/acceptance-criteria.md": {
-      "sha256": "766afec0ddb567b829cc242e9addf2676bbc63b590136dd41b0b75738d0d6a88",
-      "bytes": 1532,
+      "sha256": "c9031b831547187cbb74cdc0d685fb82bcc473591724d5abd2c61b2866744e1c",
+      "bytes": 1618,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-1/implementation-constraints.md": {
@@ -1415,8 +1605,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-2/.memlog.md": {
-      "sha256": "d9eabb560f1901fda38dddf5895097ec7d146708f6fea558010dc806e0819069",
-      "bytes": 14698,
+      "sha256": "7c309be58d4dc676222add38d199e643ca380e8491669a34150c99babe097f08",
+      "bytes": 15032,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-2/SPEC.md": {
@@ -1425,8 +1615,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-2/acceptance-criteria.md": {
-      "sha256": "f3f384a8b24a172767a09ef0036715b4c892973e6e0de67bcd90db1fd4b77173",
-      "bytes": 1864,
+      "sha256": "d03b52623b8183ca57742253ef6c0baac6a52c8834efd8e9f4f6562d8dfc4a4d",
+      "bytes": 2094,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-2/implementation-constraints.md": {
@@ -1455,8 +1645,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-4/.memlog.md": {
-      "sha256": "8dd2b0d7363221ffcb614fa7097d9465258367d9d87528a015c170c752e6fcd9",
-      "bytes": 6386,
+      "sha256": "b6cb51498b5c7d3ff660a94167871ea70b1a0449e6aab5ec99b1c3ff0ac61607",
+      "bytes": 6661,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-4/SPEC.md": {
@@ -1465,8 +1655,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-4/acceptance-criteria.md": {
-      "sha256": "44f6d869c79641575a05cae78db1d49eac35902710e2e0a00e1854afac13026d",
-      "bytes": 2285,
+      "sha256": "0b31852945fc28ba5d166ec34db76b0fa21a9f1702cfa027c7e4e4eb8d97f534",
+      "bytes": 2327,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-4/implementation-constraints.md": {
@@ -1475,18 +1665,18 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-5/.memlog.md": {
-      "sha256": "8fcd978cbbdcb9d686fa46a499e09ac237bad6c2f9e558004f4ca2168d571b1f",
-      "bytes": 8787,
+      "sha256": "a1f93417946f48863f4f2130e6de24d0c7ea57b4d1fdf63f1588ac9d1045690c",
+      "bytes": 9152,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-5/SPEC.md": {
-      "sha256": "3091e8298ddaf65d2ad6723775033f7d9858086121e248a18c2a8598d3617bd6",
-      "bytes": 1990,
+      "sha256": "3d68bfc11710a9460ba1736151d67bed79dbf81034ecb6b4c79ec3e977099ab6",
+      "bytes": 2034,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-5/acceptance-criteria.md": {
-      "sha256": "2d15b2b8e4bbced9ce8051251fd45cc68cd40b8b7dfd64087eb6ea432ddc78ad",
-      "bytes": 2012,
+      "sha256": "26e13b43b04fe8ce1ca4a711378ab46ddc81a8b84fbcef1ea9fe4a4d45064c40",
+      "bytes": 2141,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-5/implementation-constraints.md": {
@@ -1495,8 +1685,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-6/.memlog.md": {
-      "sha256": "f9d061c04c3e864cfcfdf00c147e664f8746430556fc9c17d0e89bb6a849200f",
-      "bytes": 11997,
+      "sha256": "17788f17df987210f17109c6ce3cc480a1f2a0adb8cf9e5af3cd96e3cc2c6226",
+      "bytes": 12253,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-6/SPEC.md": {
@@ -1505,8 +1695,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-6/acceptance-criteria.md": {
-      "sha256": "5b3c3ed9ce1370352736c585edb3ac6b5fb6e98e8d846b8b155a413018690524",
-      "bytes": 1744,
+      "sha256": "fd37159fa5d8f3213104eac25e84ef12122611949e5682a5c882765b07d574db",
+      "bytes": 1828,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-6/implementation-constraints.md": {
@@ -1515,8 +1705,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-7/.memlog.md": {
-      "sha256": "4aebd8c23a6aa5960e67c047cf5aab172b39c4d05831ec12afa41618d8dcdaad",
-      "bytes": 7249,
+      "sha256": "ac36bcf859bad7149c172ca626d64406cd4bf00792a5cfa527b0969b43d8991e",
+      "bytes": 7574,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-7/SPEC.md": {
@@ -1525,8 +1715,8 @@
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-7/acceptance-criteria.md": {
-      "sha256": "b95ca5b8b83a2c5be92e9ebbcaaedf9d265744dc4422fb4f335b42abb9edb1a6",
-      "bytes": 2135,
+      "sha256": "9c35879aef3c52d7c302718c61bd5902ad7279cb1164b7ac237c98ae9c250486",
+      "bytes": 2288,
       "role": "generated artifact"
     },
     "_bmad-output/specs/spec-nova3D-story-8-7/implementation-constraints.md": {
@@ -1534,9 +1724,44 @@
       "bytes": 10119,
       "role": "generated artifact"
     },
+    "_bmad-output/specs/spec-nova3D-story-8-8/.memlog.md": {
+      "sha256": "5bf20eab778519287c9ffaec84945cf792ba95179cc288401ba652f3b2a051dd",
+      "bytes": 4860,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-8-8/SPEC.md": {
+      "sha256": "8ac826b5c723373e261162bebabf1456c27b92818c0b755f0971b4355bcd4fb4",
+      "bytes": 1915,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-8-8/acceptance-criteria.md": {
+      "sha256": "1fac6e46bf3dac7f4ad079fd08bafc9554e59bb2b2e7e8268dcbd9917258e447",
+      "bytes": 1974,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D-story-8-8/implementation-constraints.md": {
+      "sha256": "d78b5a51e26f890d61cb1a20322a38604490b4cbdef1377ddd868ace1968573d",
+      "bytes": 9354,
+      "role": "generated artifact"
+    },
+    "_bmad-output/specs/spec-nova3D/SPEC.md": {
+      "sha256": "c48a41fff009f51da13f8af0d929f8af68da23a5f3fbfac89b5b1c7ecf1a6f10",
+      "bytes": 12566,
+      "role": "adopted input"
+    },
+    "_bmad-output/specs/spec-nova3D/scope-and-readiness.md": {
+      "sha256": "c1e739f255958185e100c3c13a023694c0d57040f950318e4edfea40c9dcc886",
+      "bytes": 12670,
+      "role": "adopted input"
+    },
+    "_bmad-output/specs/spec-nova3D/ux-contract.md": {
+      "sha256": "a5c777127c64e6d9fdd1521ac6400bc3c816cb735faaa158526f43d1552cf6b6",
+      "bytes": 7219,
+      "role": "adopted input"
+    },
     "_bmad-output/specs/story-specs-index.md": {
-      "sha256": "0597abcb674af748da0ebd388c885a2d519a2b0ea97f12dff19492463e6afad4",
-      "bytes": 9419,
+      "sha256": "3f244d043e1b2276b42cbce75f0303a2c737a8920e54bdc23d821a2bca4beac2",
+      "bytes": 10647,
       "role": "generated artifact"
     }
   }

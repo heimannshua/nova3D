@@ -20,7 +20,7 @@ So that my projects and files stay private.
 - Carry ownership-scoped IDs, foreign keys and denial behavior into every subsequent module.
 - Sign in uses Google OAuth through Supabase; only the Google provider is enabled while sign-ups stay on, and the live-Account check is the gate. Fresh authentication for sensitive actions is a server-controlled step-up: a Postgres nonce bound to the initiating browser and the OAuth state, `prompt=select_account` without `login_hint`, and acceptance only of a new session whose `amr` shows an `oauth` entry after the nonce start for the same verified email and Google subject. It writes a 5-minute marker (Postgres, never a JWT claim or Redis) for that new session only, revokes the initiating session's grant and records an action class; Account deletion and close-instance markers are consumed by use. It proves a deliberate new sign-in, not a Google credential re-check.
 - Replace the interim `AUTH_ALLOWED_EMAILS` gate with the live-Account check in the same change, and remove the variable from the proxy, callback, health route, environment checks and docs.
-- Delete Auth identities that have no Account, claim or registration attempt 30 days after their last sign-in or registration attempt, in one transaction that shares registration's row lock; Account foreign keys to the Auth identity restrict deletion.
+- Reject any cookie-authenticated mutation that lacks a valid origin and CSRF check before it changes state.
 
 ## Acceptance Criteria
 
@@ -50,9 +50,9 @@ So that my projects and files stay private.
 
 ### AC-5
 
-**Given** an Auth identity with no Account older than 30 days and a registration in flight for another identity
-**When** the dormant-identity purge runs
-**Then** only the dormant identity is deleted and no in-flight or activated Account, Workspace or claim is removed or orphaned
+**Given** a cookie-authenticated mutation from a foreign origin or without its CSRF token
+**When** it is submitted
+**Then** it is rejected before any state change, while the same request from the application's own origin succeeds
 
 ## Engineering Gates
 

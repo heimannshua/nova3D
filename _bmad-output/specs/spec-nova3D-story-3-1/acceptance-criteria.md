@@ -18,7 +18,7 @@ So that I need not locate or upload the texts myself.
 ## Scope
 
 - In free mode, discover sources only from the domain package's pinned registry (initially Middot chapter 3 Hebrew Torat Emet 357 and English Mishnah Yomit via Sefaria; Sefaria-linked commentaries only if verified free and license-permitted) and keyless allowlisted public endpoints; there is no open-web search.
-- Open-web discovery exists only under the paid search category, and only passages nova3D itself fetches from a cited page are pinned. Pin exact Middot editions and permitted evidence retention.
+- The registry lists ordered alternate editions per source; none beyond the two initial editions is chosen yet. Open-web discovery exists only under the paid search category, and only passages nova3D itself fetches from a cited page are pinned. Pin exact Middot editions and permitted evidence retention.
 
 ## Acceptance Criteria
 
@@ -39,6 +39,12 @@ So that I need not locate or upload the texts myself.
 **Given** a low-authority page, restricted/ambiguous rights or hostile redirect/payload
 **When** acquisition and eligibility run
 **Then** leads cannot become accepted evidence without inspectable authorized support; size/type/redirect/private-network restrictions and citation/schema checks reject unsafe input
+
+### AC-4
+
+**Given** an edition whose license or rights cannot be verified
+**When** acquisition runs
+**Then** no body is stored, the registry's next ordered alternate edition is tried, and if none remains the Job ends with a clear blocked outcome naming the unverified edition
 
 ## Engineering Gates
 

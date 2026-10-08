@@ -22,11 +22,11 @@
       "NFR-7"
     ],
     "depends_on": [
-      "2-2",
-      "2-7"
+      "2-7",
+      "2-12"
     ],
     "scope": [
-      "Implement the Artifacts-owned manifest family and coordinated verified publication; mutable staging leases are separate."
+      "Extend the Artifacts-owned manifest family created in Story 2.12 to worker-produced artifacts: attempt-scoped staging, coordinated verified publication and consumers that use the same roots; mutable staging leases are separate."
     ],
     "acceptance_criteria": [
       {
@@ -61,7 +61,7 @@
       "line": 579
     },
     "AR-3": {
-      "text": "**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions.\n\nSource: AD-2; Consistency Conventions.",
+      "text": "**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions. Cookie-authenticated mutations require origin and CSRF checks.\n\nSource: AD-2; Consistency Conventions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 583
     },

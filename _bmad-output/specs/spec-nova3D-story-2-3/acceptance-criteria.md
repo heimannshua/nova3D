@@ -17,7 +17,7 @@ So that I understand what the resulting geometry can claim.
 
 ## Scope
 
-- Check clarity/obstruction/angle coverage and recommend useful additional views before conversion.
+- Run deterministic client-side quality checks (short edge of at least 800 px, blur measured as the variance of the Laplacian on a 512-px grayscale copy of at least 100, and at most 35% clipped exposure) and have the user label each view and confirm that nothing blocks the subject. Compare the labelled views with the at least three distinct views direct conversion needs and recommend the missing ones. No model detects obstruction in this version.
 - Persist evidence_images versus image_direct with the appropriate confirmed-input gate.
 
 ## Acceptance Criteria
@@ -26,7 +26,7 @@ So that I understand what the resulting geometry can claim.
 
 **Given** unclear or incomplete views
 **When** quality review runs
-**Then** detected blur, obstruction or missing angles and useful remedies are explained
+**Then** measured blur, resolution or exposure problems, unconfirmed obstruction and missing labelled views are explained with useful remedies
 
 ### AC-2
 

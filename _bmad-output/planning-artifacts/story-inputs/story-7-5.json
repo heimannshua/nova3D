@@ -22,10 +22,11 @@
     ],
     "depends_on": [
       "7-4",
-      "1-5"
+      "1-5",
+      "1-8"
     ],
     "scope": [
-      "Implement permitted_local, locked_disabled and terminal tombstoned states with monotonic server revisions."
+      "Implement permitted_local, locked_disabled and terminal tombstoned local states against the server tombstones and monotonic revisions of Story 1.8, and show the locked state in My Projects (H-02) and the shell."
     ],
     "acceptance_criteria": [
       {

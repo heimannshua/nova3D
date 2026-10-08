@@ -28,7 +28,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 145 in the captured inp
 
 ### AR-3
 
-**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions.
+**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions. Cookie-authenticated mutations require origin and CSRF checks.
 
 Source: AD-2; Consistency Conventions.
 
@@ -109,6 +109,29 @@ Required states/variants: Waiting, running, completed, failed, cancelled, stale 
 Source: SCREEN-INVENTORY J-02; canonical ux-contract; applicable ratified decisions.
 
 Source: `_bmad-output/planning-artifacts/epics.md`, line 973 in the captured input.
+
+### FR-4
+
+#### FR-4: Usage visibility and limits
+
+The Administrator can view per-Account paid usage or spending and configure a Usage Limit.
+
+**Consequences:**
+- Reaching a Usage Limit blocks new paid Jobs with an explanation.
+- Already-running Jobs are allowed to finish.
+- The Administrator can raise or reset the Usage Limit.
+- Before a paid Job starts, nova3D atomically reserves its maximum estimated cost against settled usage and all outstanding reservations.
+- A Job cannot start when the available allowance cannot cover its reservation.
+- Duplicate submissions cannot create duplicate reservations, Jobs, or charges.
+- Completion or cancellation settles actual usage and releases unused reserved allowance.
+- Paid permission applies by category across all Paid Work. Before the first paid operation in a category, nova3D identifies the category, provider, purpose, and declared maximum charge and obtains permission for that Project.
+- Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.
+- Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.
+- Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.
+
+Source: PRD §4, FR-4.
+
+Source: `_bmad-output/planning-artifacts/epics.md`, line 114 in the captured input.
 
 ## Planning Assumptions
 

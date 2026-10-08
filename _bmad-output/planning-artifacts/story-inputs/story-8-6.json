@@ -25,7 +25,9 @@
     ],
     "depends_on": [
       "7-6",
-      "8-5"
+      "8-5",
+      "7-8",
+      "8-8"
     ],
     "scope": [
       "Run the G-8 held-out multi-view, offline asset, local persistence, eviction/interruption and conflict/revocation matrix on real devices."

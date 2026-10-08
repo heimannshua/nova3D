@@ -13,11 +13,13 @@ So that I can understand the model on phone or computer.
 ## Dependencies
 
 - [4.5](../spec-nova3D-story-4-5/SPEC.md)
+- [4.7](../spec-nova3D-story-4-7/SPEC.md)
 
 ## Scope
 
 - Implement rotate/pan/zoom/fit/reset, standard and section views, hide/isolate, selection and canonical measurement.
-- Use semantic coarse/full GLB derivatives with explicit mm/Z-up to metres/Y-up transforms.
+- Load the coarse and then the full semantic GLB derivatives produced by Story 4.7.
+- Record an immutable inspection event when the Account owner has opened the exact Model Version in the viewer and selected at least one feature with its evidence; any change to the version makes it not inspected.
 
 ## Acceptance Criteria
 
@@ -25,7 +27,7 @@ So that I can understand the model on phone or computer.
 
 **Given** a model with canonical dimensions
 **When** view and measurement controls are used by touch or keyboard
-**Then** all required inspection actions operate and dimensions use canonical geometry or labeled exact records rather than pixels
+**Then** all required inspection actions operate and dimensions use canonical geometry or labeled exact records rather than pixels; the controls work on phone and desktop
 
 ### AC-2
 
@@ -38,6 +40,12 @@ So that I can understand the model on phone or computer.
 **Given** GPU/WebGL loss or a degraded preview
 **When** inspection falls back
 **Then** static views and semantic feature/evidence/dimension lists remain usable without claiming a passed interactive 3D benchmark
+
+### AC-4
+
+**Given** a user who has opened a Model Version and navigated a feature to its evidence
+**When** approval is requested
+**Then** an immutable inspection event for that exact version digest exists, and a later change to the version leaves it not inspected
 
 ## Engineering Gates
 

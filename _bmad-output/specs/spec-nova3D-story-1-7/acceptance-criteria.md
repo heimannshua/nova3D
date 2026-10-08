@@ -14,6 +14,7 @@ So that I can resume the next required action.
 
 - [1.2](../spec-nova3D-story-1-2/SPEC.md)
 - [1.4](../spec-nova3D-story-1-4/SPEC.md)
+- [1.8](../spec-nova3D-story-1-8/SPEC.md)
 
 ## Scope
 

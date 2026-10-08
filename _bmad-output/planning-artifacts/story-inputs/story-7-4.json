@@ -27,7 +27,8 @@
       "1-4"
     ],
     "scope": [
-      "Import stable UUIDs only into the original authorized Account with verified artifacts and expected parent revision."
+      "Import stable UUIDs only into the original authorized Account with verified artifacts and expected parent revision.",
+      "Show the conflict state in My Projects (H-02) with an explicit current-version selection."
     ],
     "acceptance_criteria": [
       {
@@ -59,7 +60,7 @@
   ],
   "source_requirements": {
     "AR-3": {
-      "text": "**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions.\n\nSource: AD-2; Consistency Conventions.",
+      "text": "**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions. Cookie-authenticated mutations require origin and CSRF checks.\n\nSource: AD-2; Consistency Conventions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 583
     },
@@ -99,7 +100,7 @@
       "line": 831
     },
     "UX-DR28": {
-      "text": "**UX-DR28: My Projects (H-02).** Model-focused collection of the Account's Projects.\n\nRequired states/variants: Empty, populated, search/filter if needed, locally saved, syncing, sync failed.\n\nSource: SCREEN-INVENTORY H-02; canonical ux-contract; applicable ratified decisions.",
+      "text": "**UX-DR28: My Projects (H-02).** Model-focused collection of the Account's Projects.\n\nRequired states/variants: Empty, populated, search/filter if needed, locally saved, syncing, sync failed, conflict (select the current version), locked by disable.\n\nSource: SCREEN-INVENTORY H-02; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 901
     }

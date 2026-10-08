@@ -18,6 +18,7 @@ So that sync does not duplicate or discard versions.
 ## Scope
 
 - Import stable UUIDs only into the original authorized Account with verified artifacts and expected parent revision.
+- Show the conflict state in My Projects (H-02) with an explicit current-version selection.
 
 ## Acceptance Criteria
 

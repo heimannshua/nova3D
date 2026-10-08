@@ -13,13 +13,14 @@ So that concurrent requests cannot overspend.
 ## Dependencies
 
 - [2.4](../spec-nova3D-story-2-4/SPEC.md)
-- [2.5](../spec-nova3D-story-2-5/SPEC.md)
+- [2.11](../spec-nova3D-story-2-11/SPEC.md)
 
 ## Scope
 
 - Use one Usage-owned checked integer/rational calculator and immutable request/options/rate snapshots.
 - Reserve against Account period, $5 parent research-Job lifetime across all attempts, and $1 external-operation ceilings in one transaction.
 - The reservation is input rate × a provider-independent input bound (serialized request length plus a documented per-image maximum, with a stated margin) plus output rate × the output limit actually sent; the 200,000-input-token, 16,000-output-token and 20-search-request ceilings are admission limits. An external operation is one provider request. Treat transport loss, timeout, 5xx and aborted streams as ambiguous (hold the reservation until usage evidence or a 24-hour deadline, then settle at the reservation) and definitive pre-processing rejections with a request ID as noncharge; evidence above a reservation settles at the evidence, counts against every limit and blocks the provider until reviewed.
+- Pin the provider API version, requested and returned model identity and rate schedule in each operation receipt; rate schedules are versioned records, so this story needs only fixture rates until Story 2.5 adds the provider adapters.
 
 ## Acceptance Criteria
 

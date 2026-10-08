@@ -25,7 +25,7 @@ So that I can revoke access without deleting its work.
 
 **Given** an enabled invited Account with live sessions
 **When** a freshly authenticated Administrator disables it
-**Then** session/download authority and commit epochs revoke atomically before cancellation signals, while its Workspace is retained
+**Then** session authority, commit epochs and (once Story 6.9 exists) download authority revoke atomically before cancellation signals, while its Workspace is retained
 
 ### AC-2
 

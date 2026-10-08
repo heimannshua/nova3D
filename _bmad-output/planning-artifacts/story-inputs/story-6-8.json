@@ -38,7 +38,7 @@
       {
         "given": "valid exact approval and all required checks passing",
         "when": "export commits",
-        "then": "3MF, optional STL, PDF and structured provenance share the approved version and manifest-root lineage"
+        "then": "3MF, optional STL, PDF and structured provenance share the approved version and manifest-root lineage; package download works on phone and desktop"
       },
       {
         "given": "repair history or personalization",

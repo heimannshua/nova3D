@@ -18,7 +18,7 @@ This record supersedes conflicting earlier proposed/awaiting-ratification wordin
 
 Resolves Q-1 / A-1 / G-1 / PRD:AD-1.
 
-Adopt AD-1–AD-19, the modular monolith, current stack seed and CadQuery recipe/solid authority on Railway. Bootstrap locks the maintained Python 3.12 patch, OCP dependency closure and container digest and proves the altar/ramp plus personalization, cancellation and restore. Engineering may select compatible patches without another product approval; version existence is not installation or feasibility evidence.
+Adopt AD-1–AD-19, the modular monolith, current stack seed and CadQuery recipe/solid authority on Railway. Bootstrap locks the maintained Python 3.12 patch, OCP dependency closure and container digest and proves the altar/ramp plus personalization, cancellation and restore. Engineering may select compatible patches without another product approval; version existence is not installation or feasibility evidence. Josh approves the G-1 corpus before the qualification run is recorded.
 
 [Existing verified stack baseline](ARCHITECTURE-SPINE.md#stack).
 

@@ -25,7 +25,7 @@ So that evidence-backed geometry follows my exact decisions.
 
 **Given** an incomplete plan or unsettled required choice
 **When** approval or partial-section generation is requested
-**Then** both are blocked even when some sections appear clear
+**Then** both are blocked even when some sections appear clear; the approval controls work on phone and desktop
 
 ### AC-2
 

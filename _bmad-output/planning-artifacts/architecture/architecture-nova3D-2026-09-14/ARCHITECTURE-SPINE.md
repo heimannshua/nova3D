@@ -79,7 +79,7 @@ flowchart TD
 
 - **Binds:** FR-15–FR-17, FR-21, FR-22; NFR-6; PRD:AD-1, PRD:AD-2.
 - **Prevents:** Probabilistic meshes becoming authoritative historical geometry and CAD snapshots losing regeneration history.
-- **Rule:** Evidence-backed canonical input is a versioned declarative geometry recipe: approved typed parameters, source-unit conversions, operation/dependency graph, stable feature IDs and trusted generator identity. A pinned CadQuery worker produces solids. Each Model Version retains this recipe, generator and dependency-lock digests, execution settings, BREP/STEP snapshot and artifact manifest. STEP alone is not the parametric source. Models may propose data only within the trusted generator's validated schema; unsupported geometry requires extending that generator through code review. Fixed recipes must pass the ratified geometric-equivalence suite before generation is production-ready. Direct-image inference instead retains immutable mesh snapshots, exact model-bundle/input digests and settings; rerunning inference is a new candidate, with no deterministic reconstruction claim.
+- **Rule:** Evidence-backed canonical input is a versioned declarative geometry recipe: approved typed parameters, source-unit conversions, operation/dependency graph, stable feature IDs and trusted generator identity. A pinned CadQuery worker produces solids. Each Model Version retains this recipe, generator and dependency-lock digests, execution settings, BREP/STEP snapshot and artifact manifest. STEP alone is not the parametric source. Models may propose data only within the trusted generator's validated schema; unsupported geometry requires extending that generator through code review. Personalization is limited to the generator's validated personalization schema, initially raised or recessed text in the bundled Noto Sans and Noto Sans Hebrew fonts on surfaces the domain package declares; free-form requests are mapped to that schema or declined with an explanation of what is supported. Fixed recipes must pass the ratified geometric-equivalence suite before generation is production-ready. Direct-image inference instead retains immutable mesh snapshots, exact model-bundle/input digests and settings; rerunning inference is a new candidate, with no deterministic reconstruction claim.
 
 ### AD-7 — Geometry identity, scale and viewing representations [ADOPTED]
 
@@ -145,13 +145,13 @@ flowchart TD
 
 - **Binds:** SC-3, SC-4, SC-7; FR-18, FR-19.
 - **Prevents:** Phone or screen-reader users losing the approval/evidence workflow and translations replacing source text.
-- **Rule:** Phone, laptop and desktop expose the same workflow capabilities. Store original source, translation and explanation separately with language/direction metadata. Configured locale catalogs govern UI text; choose a supported device-language match initially, with persistent Account override. Layout uses logical directions and isolated bidirectional source spans. Light is the default; dark is an explicit preference. Technical-detail preference changes explanation depth only. All inspection/evidence actions have labelled keyboard and screen-reader controls, a semantic feature list, visible focus, non-colour statuses, text enlargement and reduced-motion behavior; target WCAG 2.2 AA. Canvas visuals supplement these controls. Guidance is dismissible and reopenable. R-10 fixes the visual direction; UX completes and verifies responsive layouts under that baseline.
+- **Rule:** Phone, laptop and desktop expose the same workflow capabilities. Store original source, translation and explanation separately with language/direction metadata. Configured locale catalogs govern UI text; choose a supported device-language match initially, with persistent Account override. The first version ships English and Hebrew catalogs. Layout uses logical directions and isolated bidirectional source spans. Light is the default; dark is an explicit preference. Technical-detail preference changes explanation depth only. All inspection/evidence actions have labelled keyboard and screen-reader controls, a semantic feature list, visible focus, non-colour statuses, text enlargement and reduced-motion behavior; target WCAG 2.2 AA. Canvas visuals supplement these controls. Guidance is dismissible and reopenable. R-10 fixes the visual direction; UX completes and verifies responsive layouts under that baseline.
 
 ### AD-18 — Notifications are durable history plus optional delivery [ADOPTED]
 
 - **Binds:** FR-7; SC-5, SC-7.
 - **Prevents:** Push failure erasing completion history or notification payloads leaking Project content.
-- **Rule:** A committed domain event creates one durable in-app notification per recipient/event. Realtime/push delivery may duplicate or fail; clients deduplicate and refresh canonical state. The event carries an exact authorized target, and resolving its link rechecks current access. Push payloads contain opaque event references and generic category text, never private source excerpts, model names or images. Account preferences independently control research, generation, validation and export push; printing is inactive until implemented. Ask notification permission contextually and support required phone app-install steps. In-app history survives denied push. Research activity displays recorded sources and acquisition/acceptance stages, not invented hidden reasoning; reading a source does not pause its Job. Realtime hints use private channels authorized against the live Account and session grant.
+- **Rule:** A committed domain event creates one durable in-app notification per recipient/event. Realtime/push delivery may duplicate or fail; clients deduplicate and refresh canonical state. The event carries an exact authorized target, and resolving its link rechecks current access. Push payloads contain opaque event references and generic category text, never private source excerpts, model names or images. Account preferences independently control research, generation, validation and export push; printing is inactive until implemented. Ask notification permission contextually and support required phone app-install steps. Push uses the standard Web Push protocol with VAPID keys through each browser's push service and no third-party notification provider. In-app history survives denied push. Research activity displays recorded sources and acquisition/acceptance stages, not invented hidden reasoning; reading a source does not pause its Job. Realtime hints use private channels authorized against the live Account and session grant.
 
 ### AD-19 — Environment and operational boundaries [ADOPTED]
 
@@ -192,7 +192,7 @@ The versioned structured provenance envelope has these required semantic groups.
 | Group | Required identity and relationships |
 | --- | --- |
 | Header | Schema version, request mode, Project/Model Version, export identity and creation activity. |
-| Evidence | Source revisions with passage/content pins; claims; classifications; competing options; explanations; original/translated text distinction. |
+| Evidence | Source revisions with passage/content pins; each cited edition's license identifier and link, required attribution and source URL; claims; classifications; competing options; explanations; original/translated text distinction. |
 | Approvals | Exact plan/model digests, approver/time, choices and affected details; direct-mode scope/uncertainty acknowledgment where applicable. |
 | Geometry | Canonical recipe or image-derived snapshot kind, units/conversions, feature/parameter/dependency links and artifact digests. |
 | Manufacturing | Target profile, scale/orientation, validator/tool versions, each check result, repairs, regenerated versions and qualified export manifest. |
@@ -295,7 +295,7 @@ packages/contracts/      Cross-runtime schemas, generated types and fixtures
 packages/domain/         Business rules and provider-neutral ports
 packages/application/    Commands and orchestration policies
 packages/adapters/       Supabase, Upstash, acquisition and provider integrations
-packages/domains/middot/  Evidence checklist, declared base face and trusted altar/ramp generator contract
+packages/domains/middot/  Evidence checklist, declared base face, personalization surfaces and trusted altar/ramp generator contract
 workers/cad/             Native generator, validation and export container
 workers/files/           Live-authorized artifact streaming gateway
 supabase/                Ordered migrations, policies and local seed fixtures

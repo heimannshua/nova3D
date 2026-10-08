@@ -1,8 +1,8 @@
 # nova3D Story Specification Validation — September 14, 2026
 
-**PASS for the planning artifact set: 8 epics, 58 story specs and 88 stable local capability IDs.** *(Verdict as of 2026-09-14; see [Amendment 2026-10-07](#amendment-2026-10-07) and [Amendment 2026-10-08](#amendment-2026-10-08).)* [Browse the specs](../specs/story-specs-index.md) or the [epic breakdown](epics.md).
+**PASS for the planning artifact set: 8 epics, 67 story specs and 101 stable local capability IDs.** *(Verdict as of 2026-09-14; see [Amendment 2026-10-07](#amendment-2026-10-07) and [Amendment 2026-10-08](#amendment-2026-10-08).)* [Browse the specs](../specs/story-specs-index.md) or the [epic breakdown](epics.md).
 
-The unchanged project-wide SPEC retains CAP-1–CAP-17. Local capability IDs are unique within each story folder; the 15 batch-B stories retain their original CAP-1–CAP-3 identities and AC correspondence. The other 43 stories use CAP-1. Spec completion does not mean implementation or release acceptance.
+The unchanged project-wide SPEC retains CAP-1–CAP-17. Local capability IDs are unique within each story folder; the 15 batch-B stories retain their original CAP-1–CAP-3 identities and AC correspondence. Stories 2.7, 3.1 and 4.6 gained CAP-4 (and 2.7 CAP-5) for their new criteria, Story 7.6 keeps CAP-1 and CAP-2 and passed its former CAP-2 and CAP-3 to Story 7.8 (which carries them as CAP-1 and CAP-2), and the other 51 stories use CAP-1. Spec completion does not mean implementation or release acceptance.
 
 ## Coverage and preservation
 
@@ -14,12 +14,12 @@ The unchanged project-wide SPEC retains CAP-1–CAP-17. Local capability IDs are
 | Architecture requirements | 28/28 mapped by meaning |
 | UX requirements and screen/state coverage | 73/73 requirements; all 53 source surfaces retained |
 | Total extracted requirement identities | 150/150 mapped |
-| Full mapped requirement occurrences in story companions | 457/457 exact-text matches |
-| Story scope clauses | 88/88 preserved (75/75 after 2026-10-07; 70/70 on 2026-09-14) |
-| Given/When/Then acceptance criteria | 177/177 preserved (175/175 after 2026-10-07; 174/174 on 2026-09-14) |
-| Story dependency graph | 58 unique IDs; every dependency exists earlier in the proposed order |
-| Capability IDs and original meanings | 88/88 retained; no unrecorded retirement or reassignment |
-| Required story artifacts | 58 kernels, 116 local companions, 58 canonical memory logs |
+| Full mapped requirement occurrences in story companions | 506/506 exact-text matches (457/457 on 2026-09-14) |
+| Story scope clauses | 120/120 preserved (88/88 after the architecture propagation; 75/75 after 2026-10-07; 70/70 on 2026-09-14) |
+| Given/When/Then acceptance criteria | 211/211 preserved (177/177 after the architecture propagation; 175/175 after 2026-10-07; 174/174 on 2026-09-14) |
+| Story dependency graph | 67 unique IDs; every dependency exists earlier in the build order shown in the index |
+| Capability IDs and original meanings | 87/88 original retained; the former Story 7.6 CAP-3 moved to Story 7.8 and is recorded in both memlogs; 101 local IDs in total; no unrecorded retirement or reassignment |
+| Required story artifacts | 67 kernels, 134 local companions, 67 canonical memory logs |
 | Companion/source paths and recursive parent contract | Resolved |
 | Kernel structure | Five fields, intent/success per capability, explicit non-goals, concrete success signal |
 | Source requirement locations | All captured requirement text and current source lines match |
@@ -67,3 +67,17 @@ Applies the architecture update (Spine AD-5, AD-8, AD-11, AD-12, AD-15, AD-18, A
 - **Source parity:** for all 58 stories the scope and Given/When/Then text in the story input and in `acceptance-criteria.md` equal `epics.md`, and every captured AR text in the inputs and constraints matches its `epics.md` line. All 457 source lines in `epics.md` still match their recorded line numbers.
 - **Not re-run:** the full multi-agent validation, the link check (no links were added) and the SPEC kernels, whose capability text did not change. The 2026-09-14 PASS is still dated as of that day.
 - **Open:** findings 4, 5, 7, 9 and 10 of `implementation-readiness.md` are not addressed by this amendment; the placements flagged in `epics.md` Planning Assumptions need `bmad-create-epics-and-stories`.
+
+## Epics update 2026-10-08
+
+Applies `bmad-create-epics-and-stories` (update run) to resolve findings 4, 5, 6, 7 and 9 of `implementation-readiness.md`. `epics.md` was amended first and is the source of truth; the derived artifacts were regenerated from the story inputs.
+
+**New stories (9):** 1.8 tombstone contract, 1.9 staging and periodic jobs, 2.11 Job and operation identities (split from 2.7), 2.12 retained pictures, 2.13 pictured-subject identification, 4.7 GLB derivatives, 6.10 manufacturing mesh, 7.8 pinned reconversion (split from 7.6), 8.8 remaining device classes (split from 8.5). **Reordered:** the build order now puts 2.12 before 2.4, 2.6 before 2.5, 4.7 before 4.6, 6.10 before 6.2, 7.8 before 7.7 and 8.8 before 8.6. **Edited:** 49 existing stories (scope, acceptance criteria, dependencies or quoted AR-3/UX-DR28 text).
+
+**Re-verified mechanically on 2026-10-08 (scripted comparison, not a new review):**
+
+- **Counts:** 67 stories, 120 scope clauses, 211 acceptance criteria, 506 mapped requirement occurrences, 150 requirement identities (unchanged), 101 local capability IDs.
+- **Source parity:** for every story the scope, Given/When/Then text, dependencies and requirement list in the story input, `acceptance-criteria.md` and `epics.md` agree, and `implementation-constraints.md` was regenerated from the inputs. The generators were first proven to reproduce all 58 existing companions byte for byte.
+- **Dependencies:** every dependency precedes its story in the build order and no dependency is duplicated.
+- **Coverage maps:** the FR, SC, NFR, AR and UX-DR coverage rows and each epic's FR list were regenerated from the stories' Requirements lines; 45 rows changed.
+- **Not re-run:** the full multi-agent validation. The nine new stories carry only the scripted parity check, not the independent coherence and preservation review of 2026-09-14, and their SPEC kernels were generated from the story input.

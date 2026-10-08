@@ -28,7 +28,7 @@
       {
         "given": "profile-specific feature fixtures",
         "when": "validation measures them",
-        "then": "wall ≥1.2 mm, isolated feature ≥0.8 mm, mating clearance ≥0.4 mm and raised/recessed relief ≥0.6 mm are enforced"
+        "then": "wall ≥1.2 mm, isolated feature ≥0.8 mm, mating clearance ≥0.4 mm and raised/recessed relief ≥0.6 mm are enforced; results are readable on phone and desktop"
       },
       {
         "given": "an overhang >45° from vertical or a bridge >5 mm",

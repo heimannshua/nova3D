@@ -24,7 +24,8 @@
     "depends_on": [
       "3-1",
       "3-2",
-      "3-5"
+      "3-5",
+      "1-8"
     ],
     "scope": [
       "Create dedicated source-reproducible allowlisted shared records and private adoption associations."
@@ -44,6 +45,11 @@
         "given": "fresh research or Project/Account deletion",
         "when": "the cache/adoption paths execute",
         "then": "fresh work does not substitute cached conclusions and private associations are deleted without promoting tombstoned private data"
+      },
+      {
+        "given": "a correction or newer research for an already cached subject",
+        "when": "it is admitted",
+        "then": "a new Cached Research Revision linked to its predecessor is created without changing the old one; an approved Project stays pinned to its revision, and adopting the successor creates a new Research Plan version that needs renewed Plan Approval before regeneration"
       }
     ],
     "gates": []

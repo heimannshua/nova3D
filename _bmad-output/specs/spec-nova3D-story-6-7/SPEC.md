@@ -19,7 +19,7 @@ An Account owner needs to read the provenance outside the app. The exported expl
 
 - **CAP-1**
   - **intent:** Read bilingual provenance in a linked PDF.
-  - **success:** Given one validated immutable export envelope, when the PDF is rendered, then Hebrew original and English translation/explanation have readable glyphs, correct order, pagination and reciprocal stable links.
+  - **success:** Given one validated immutable export envelope, when the PDF is rendered, then Hebrew original and English translation/explanation have readable glyphs, correct order, pagination and reciprocal stable links; required attribution appears with each cited edition and the PDF opens on phone and desktop.
 
 - **CAP-2**
   - **intent:** Render untrusted source content without executing active or remote content.
@@ -44,7 +44,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Hebrew original and English translation/explanation have readable glyphs, correct order, pagination and reciprocal stable links. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Hebrew original and English translation/explanation have readable glyphs, correct order, pagination and reciprocal stable links; required attribution appears with each cited edition and the PDF opens on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

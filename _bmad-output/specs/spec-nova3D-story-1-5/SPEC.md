@@ -19,7 +19,7 @@ The Administrator needs to disable an invited Account. They can revoke access wi
 
 - **CAP-1**
   - **intent:** The Administrator can disable an invited Account.
-  - **success:** Session/download authority and commit epochs revoke atomically before cancellation signals, while its Workspace is retained.
+  - **success:** Session authority, commit epochs and (once Story 6.9 exists) download authority revoke atomically before cancellation signals, while its Workspace is retained.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Session/download authority and commit epochs revoke atomically before cancellation signals, while its Workspace is retained. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Session authority, commit epochs and (once Story 6.9 exists) download authority revoke atomically before cancellation signals, while its Workspace is retained. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

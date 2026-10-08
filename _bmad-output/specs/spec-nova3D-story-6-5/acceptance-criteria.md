@@ -38,7 +38,7 @@ So that automatic recovery has a firm limit.
 
 **Given** the permitted regeneration succeeds or fails
 **When** its result is processed
-**Then** success preserves the original and creates a candidate needing inspection/approval/full validation; failure stops, and changed interpretations return to Plan Approval
+**Then** success preserves the original and creates a candidate needing inspection/approval/full validation; failure stops, and changed interpretations return to Plan Approval; the outcome is readable on phone and desktop
 
 ## Engineering Gates
 

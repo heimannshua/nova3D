@@ -15,6 +15,7 @@ So that large files remain private and access stops when revoked.
 - [6.8](../spec-nova3D-story-6-8/SPEC.md)
 - [4.1](../spec-nova3D-story-4-1/SPEC.md)
 - [1.5](../spec-nova3D-story-1-5/SPEC.md)
+- [1.8](../spec-nova3D-story-1-8/SPEC.md)
 
 ## Scope
 

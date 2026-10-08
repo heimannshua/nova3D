@@ -12,12 +12,12 @@ So that partial output cannot masquerade as a completed version.
 
 ## Dependencies
 
-- [2.2](../spec-nova3D-story-2-2/SPEC.md)
 - [2.7](../spec-nova3D-story-2-7/SPEC.md)
+- [2.12](../spec-nova3D-story-2-12/SPEC.md)
 
 ## Scope
 
-- Implement the Artifacts-owned manifest family and coordinated verified publication; mutable staging leases are separate.
+- Extend the Artifacts-owned manifest family created in Story 2.12 to worker-produced artifacts: attempt-scoped staging, coordinated verified publication and consumers that use the same roots; mutable staging leases are separate.
 
 ## Acceptance Criteria
 

@@ -19,10 +19,10 @@
       "UX-DR59"
     ],
     "depends_on": [
-      "6-1"
+      "6-10"
     ],
     "scope": [
-      "Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on manufacturing authority, using the tessellation settings of Story 4.3 in the print frame."
+      "Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on the canonical manufacturing mesh produced by Story 6.10, using the tessellation settings of Story 4.3 in the print frame."
     ],
     "acceptance_criteria": [
       {
@@ -33,7 +33,7 @@
       {
         "given": "an unsupported required check or open/nonmanifold/degenerate/out-of-bounds mesh",
         "when": "readiness is evaluated",
-        "then": "unknown or failure blocks qualified export with its reason"
+        "then": "unknown or failure blocks qualified export with its reason; the blocked state is readable on phone and desktop"
       },
       {
         "given": "a preview derivative or stale validation record",

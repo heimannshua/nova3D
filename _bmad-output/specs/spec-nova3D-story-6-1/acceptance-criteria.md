@@ -25,7 +25,7 @@ So that validation applies to the intended output.
 
 **Given** the initial profile
 **When** it is selected
-**Then** A1 mini 0.4 mm, Bambu PLA Silk+ Gold, ≤90 mm cube, 0.20 mm layers and explicit three perimeters resolve from the pinned inheritance closure
+**Then** A1 mini 0.4 mm, Bambu PLA Silk+ Gold, ≤90 mm cube, 0.20 mm layers and explicit three perimeters resolve from the pinned inheritance closure; selection works on phone and desktop
 
 ### AC-2
 

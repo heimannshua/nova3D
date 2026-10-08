@@ -38,7 +38,13 @@ So that all authorized private targets enter the deletion process.
 
 **Given** a freshly authenticated Administrator
 **When** close-instance destructive confirmation succeeds
-**Then** all Accounts/Workspaces are tombstoned, invitations/secrets and jobs revoke globally, and cleanup proceeds without exposing private contents
+**Then** all Accounts/Workspaces are tombstoned, invitations, sessions and jobs revoke globally, and cleanup proceeds without exposing private contents
+
+### AC-4
+
+**Given** the sole Administrator with no invitee Accounts
+**When** ordinary self-deletion is requested
+**Then** it is treated as close-instance with its fresh authentication, destructive confirmation and consequences
 
 ## Engineering Gates
 

@@ -25,17 +25,19 @@
       "UX-DR49"
     ],
     "depends_on": [
-      "4-5"
+      "4-5",
+      "4-7"
     ],
     "scope": [
       "Implement rotate/pan/zoom/fit/reset, standard and section views, hide/isolate, selection and canonical measurement.",
-      "Use semantic coarse/full GLB derivatives with explicit mm/Z-up to metres/Y-up transforms."
+      "Load the coarse and then the full semantic GLB derivatives produced by Story 4.7.",
+      "Record an immutable inspection event when the Account owner has opened the exact Model Version in the viewer and selected at least one feature with its evidence; any change to the version makes it not inspected."
     ],
     "acceptance_criteria": [
       {
         "given": "a model with canonical dimensions",
         "when": "view and measurement controls are used by touch or keyboard",
-        "then": "all required inspection actions operate and dimensions use canonical geometry or labeled exact records rather than pixels"
+        "then": "all required inspection actions operate and dimensions use canonical geometry or labeled exact records rather than pixels; the controls work on phone and desktop"
       },
       {
         "given": "coarse and full derivatives",
@@ -46,6 +48,11 @@
         "given": "GPU/WebGL loss or a degraded preview",
         "when": "inspection falls back",
         "then": "static views and semantic feature/evidence/dimension lists remain usable without claiming a passed interactive 3D benchmark"
+      },
+      {
+        "given": "a user who has opened a Model Version and navigated a feature to its evidence",
+        "when": "approval is requested",
+        "then": "an immutable inspection event for that exact version digest exists, and a later change to the version leaves it not inspected"
       }
     ],
     "gates": [

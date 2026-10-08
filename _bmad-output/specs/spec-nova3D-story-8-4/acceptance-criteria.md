@@ -13,6 +13,7 @@ So that backups restore geometry and enforce every intervening deletion.
 ## Dependencies
 
 - [8.3](../spec-nova3D-story-8-3/SPEC.md)
+- [1.9](../spec-nova3D-story-1-9/SPEC.md)
 
 ## Scope
 
