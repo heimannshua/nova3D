@@ -27,7 +27,7 @@ So that the file package matches the model I accepted.
 
 **Given** missing exact-model approval, stale profile results or a required unknown/failure
 **When** export is requested
-**Then** no qualified package is emitted and the precise blocked state is shown
+**Then** no qualified package is emitted and the precise blocked state is shown; the blocked state is readable on phone and desktop
 
 ### AC-2
 

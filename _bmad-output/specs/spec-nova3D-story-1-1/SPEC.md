@@ -19,7 +19,7 @@ A maintainer needs a reproducible application startup. Implementation starts fro
 
 - **CAP-1**
   - **intent:** A maintainer can use a reproducible application startup.
-  - **success:** The lockfile records the adopted versions, `engines` allows Node 24 (Vercel supplies the patch release) and CI pins 24.21.0, build-only tooling is not a runtime dependency, the bundler choice is recorded with its qualification evidence, and a loopback production page responds successfully.
+  - **success:** The lockfile records the adopted versions, `engines` allows Node 24 (Vercel supplies the patch release) and CI pins 24.21.0, build-only tooling is not a runtime dependency, the bundler choice is recorded with its qualification evidence, and a loopback production page responds successfully; CI runs the unit, integration and browser suites against the local stack.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-The lockfile records the adopted versions, `engines` allows Node 24 (Vercel supplies the patch release) and CI pins 24.21.0, build-only tooling is not a runtime dependency, the bundler choice is recorded with its qualification evidence, and a loopback production page responds successfully. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+The lockfile records the adopted versions, `engines` allows Node 24 (Vercel supplies the patch release) and CI pins 24.21.0, build-only tooling is not a runtime dependency, the bundler choice is recorded with its qualification evidence, and a loopback production page responds successfully; CI runs the unit, integration and browser suites against the local stack. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

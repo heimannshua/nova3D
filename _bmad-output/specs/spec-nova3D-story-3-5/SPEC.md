@@ -23,7 +23,7 @@ An Account owner needs to approve the complete plan once. Evidence-backed geomet
 
 - **CAP-2**
   - **intent:** Approve the exact complete whole-Project plan.
-  - **success:** Given a complete checklist and independent gap pass, when the user approves the whole plan, then the immutable exact digest, approver/time, choices and affected details are recorded.
+  - **success:** Given a complete checklist and independent gap pass, when the user approves the whole plan, then the immutable exact digest, approver/time, choices and affected details are recorded; the digest includes the pinned evidence-policy snapshot.
 
 - **CAP-3**
   - **intent:** Require renewed approval for changed plan content.
@@ -32,6 +32,10 @@ An Account owner needs to approve the complete plan once. Evidence-backed geomet
 - **CAP-4**
   - **intent:** Record a rejected plan without granting generation authority.
   - **success:** Given a plan the user does not accept, when the user rejects it or asks for changes, then the rejection is recorded immutably with the user's reasons, no generation authority results, and the user can revise the unsettled choices to produce a successor plan.
+
+- **CAP-5**
+  - **intent:** Reject client-supplied or worker-initiated approvals.
+  - **success:** Given a client-supplied approval flag, or an approval attempted by a worker, when approval is submitted, then it is rejected, and only the authenticated approval command of the Account owner records an approval.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 

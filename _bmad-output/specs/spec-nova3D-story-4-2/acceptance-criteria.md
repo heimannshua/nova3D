@@ -21,6 +21,7 @@ So that I can obtain canonical geometry without manual modeling.
 - Implement trusted declarative subject recipe and pinned native CadQuery worker for the evidence-backed altar/ramp fixture.
 - Declare in the domain package the base face, the personalization surfaces and the pinned source registry; Josh approves the G-1 corpus before the qualification run is recorded.
 - Emit a ModelVersionCommitted outbox event from the shared Model Version commit that every producer uses (Stories 4.4, 5.2, 6.4 successors and 7.4 imports). The generator schema accepts optional failed print constraints (check, measured value, required value, feature references) for the constrained regeneration of Story 6.5.
+- Store with every Model Version the exact bounding box of the solid in the declared default print orientation (exact rationals in millimetres), which the print-frame function of Story 4.3 reads. Retain the generator image digest and dependency lock for every non-deleted Model Version. Define the regression corpus (the approved G-1 fixture set) in the repository before acceptance.
 
 ## Acceptance Criteria
 
@@ -47,6 +48,18 @@ So that I can obtain canonical geometry without manual modeling.
 **Given** generation that completes or fails
 **When** the Job commits the outcome
 **Then** one durable notification event is registered with Story 2.10 for the recipient, carrying an exact authorized target
+
+### AC-5
+
+**Given** a Model Version whose generator image and lock are retained
+**When** the toolchain is upgraded and a Job pinned to the old toolchain resumes
+**Then** the old image and lock remain available and the Job never resumes against the upgraded generator
+
+### AC-6
+
+**Given** identical approved inputs and a pinned toolchain
+**When** generation runs twice
+**Then** the two Model Versions are equivalent within the R-2 tolerance (a comparator fixture until Story 4.3)
 
 ## Engineering Gates
 

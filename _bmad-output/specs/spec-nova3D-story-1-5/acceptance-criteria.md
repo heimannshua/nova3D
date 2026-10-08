@@ -13,10 +13,11 @@ So that I can revoke access without deleting its work.
 ## Dependencies
 
 - [1.4](../spec-nova3D-story-1-4/SPEC.md)
+- [1.11](../spec-nova3D-story-1-11/SPEC.md)
 
 ## Scope
 
-- Implement fresh-authenticated account-status transitions, revocable session grants and authorization epochs.
+- Implement fresh-authenticated account-status transitions and authorization epochs on top of the session grants of Story 1.4, and append an immutable audit event (actor, action, opaque target, time) for each transition.
 - Expose a cancellation/fencing contract that every future Job and file path must use.
 
 ## Acceptance Criteria
@@ -37,7 +38,13 @@ So that I can revoke access without deleting its work.
 
 **Given** a disabled Account
 **When** the Administrator re-enables it
-**Then** new authentication can regain access under a newer epoch; previously revoked sessions remain revoked
+**Then** new authentication can regain access under a newer epoch; previously revoked sessions remain revoked; the Account list and its status controls work on phone and desktop
+
+### AC-4
+
+**Given** a disable or re-enable attempted without a fresh-authentication marker, or with a marker of another action class
+**When** it is submitted
+**Then** it is refused with the step-up offered, and with a valid administration marker it succeeds and appends an immutable audit event
 
 ## Engineering Gates
 

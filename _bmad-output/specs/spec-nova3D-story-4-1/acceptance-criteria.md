@@ -19,6 +19,7 @@ So that partial output cannot masquerade as a completed version.
 ## Scope
 
 - Extend the Artifacts-owned manifest family created in Story 2.12 to worker-produced artifacts: attempt-scoped staging, coordinated verified publication and consumers that use the same roots; mutable staging leases are separate.
+- Register the manifest resolver with the Story 1.12 gateway, and register the storage-integrity condition (a manifest whose bytes fail verification) with the Story 1.13 alarm channel.
 
 ## Acceptance Criteria
 

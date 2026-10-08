@@ -33,7 +33,7 @@
       {
         "given": "a normal Account with fresh authentication",
         "when": "whole-Account deletion is explicitly confirmed",
-        "then": "sessions revoke and all owned private targets, jobs and pending work enter the durable deletion manifest"
+        "then": "sessions revoke and all owned private targets, jobs and pending work enter the durable deletion manifest; the confirmation works on phone and desktop"
       },
       {
         "given": "the sole Administrator while invitees remain",
@@ -54,6 +54,11 @@
         "given": "Account deletion or close-instance with a step-up completed before the destructive confirmation was shown, or with a marker already used",
         "when": "the command is submitted",
         "then": "it is rejected and a new step-up is required, and a successful command consumes the marker"
+      },
+      {
+        "given": "Account deletion or close-instance",
+        "when": "it commits",
+        "then": "the audit record carries no identifiable deleted-user content beyond the minimum anti-resurrection ledger"
       }
     ],
     "gates": [

@@ -19,7 +19,7 @@ So that I can regain control without bypassing workspace privacy.
 ## Scope
 
 - Recovery serves a lost or failed Google sign-in for the sole Administrator. A no-input server route mints a single-use token (only its hash stored in Postgres, one outstanding, issuance rate-limited globally), and the application emails its own link to the configured Administrator address through Resend using the `resend.dev` sender, because no domain is owned and the Resend account must be registered with that address. The link is the only non-Google sign-in path and exists only for the sole Administrator.
-- The application enforces the 15-minute lifetime on its own clock. Redemption needs a POST confirmation, then mints the session through the Auth Admin API, revokes all prior Administrator sessions and writes a fresh-authentication marker for that session only. Staging must confirm the Admin link API and `verifyOtp` work with the Email provider disabled; if not, keep the provider on and restrict creation to the Administrator address in the Before User Created hook.
+- The application enforces the 15-minute lifetime on its own clock. Redemption needs a POST confirmation, then mints the session through the Auth Admin API, revokes all prior Administrator sessions and writes a fresh-authentication marker for that session only. Staging must confirm the Admin link API and `verifyOtp` work with the Email provider disabled; if they do not, stop and record a design change, because the Spine requires the Google provider only.
 
 ## Acceptance Criteria
 
@@ -27,7 +27,7 @@ So that I can regain control without bypassing workspace privacy.
 
 **Given** the configured sole Administrator
 **When** recovery is requested
-**Then** only the verified email receives the protected link and the response does not expose other Workspaces
+**Then** only the verified email receives the protected link and the response does not expose other Workspaces; the request and redemption pages work on phone and desktop
 
 ### AC-2
 
@@ -40,6 +40,12 @@ So that I can regain control without bypassing workspace privacy.
 **Given** a valid recovery link
 **When** redemption succeeds
 **Then** all prior Administrator sessions are revoked, the new session holds a fresh-authentication marker and an immutable recovery audit event is recorded
+
+### AC-4
+
+**Given** the staging project with the Email provider disabled
+**When** a recovery link is redeemed
+**Then** the Admin API mints a session that holds a fresh-authentication marker for that session only, or the story stops with a recorded design change
 
 ## Engineering Gates
 

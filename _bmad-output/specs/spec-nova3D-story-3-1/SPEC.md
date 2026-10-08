@@ -37,6 +37,14 @@ An Account owner needs to discover relevant authoritative sources. They need not
   - **intent:** Refuse research for an unconfirmed or unregistered subject.
   - **success:** Given a request whose subject is unconfirmed or has no registered package, when research is started, then the command is refused with the Story 2.13 outcome and no Job, reservation or source request is created.
 
+- **CAP-6**
+  - **intent:** Contact only registry and allowlisted destinations in free mode.
+  - **success:** Given free mode, when discovery runs, then only the domain package's pinned registry and keyless allowlisted endpoints are contacted, and any other destination is refused.
+
+- **CAP-7**
+  - **intent:** Never retry a deliberately failing research step.
+  - **success:** Given a deliberately failing research step, when the effective workflow and queue configuration run, then the step is not retried automatically and the Job ends failed with its cause.
+
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Constraints

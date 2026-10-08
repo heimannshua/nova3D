@@ -19,7 +19,8 @@
       "NFR-3",
       "NFR-9",
       "UX-DR17",
-      "UX-DR61"
+      "UX-DR61",
+      "FR-7"
     ],
     "depends_on": [
       "6-4",
@@ -44,6 +45,11 @@
         "given": "the permitted regeneration succeeds or fails",
         "when": "its result is processed",
         "then": "success preserves the original and creates a candidate needing inspection/approval/full validation; failure stops, and changed interpretations return to Plan Approval; the outcome is readable on phone and desktop"
+      },
+      {
+        "given": "the permitted regeneration finishes",
+        "when": "the outcome commits",
+        "then": "one durable notification event is registered for the recipient"
       }
     ],
     "gates": [
@@ -97,6 +103,11 @@
       "text": "**UX-DR61: Full regeneration fallback (V-04).** At most one constrained attempt after local repair failure. R-11 applies the same one-attempt lineage rule to direct-image constrained reconversion.\n\nRequired states/variants: Running, new Version awaiting inspection/approval, failed and stopped.\n\nSource: SCREEN-INVENTORY V-04; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 1099
+    },
+    "FR-7": {
+      "text": "#### FR-7: Actionable notifications\n\nThe app displays an app-wide Notification bar for Jobs and approval events.\n\n**Consequences:**\n- Notifications cover research readiness, generation completion or failure, Export readiness, and later printer events.\n- Selecting a Notification opens the exact Project, approval item, failed Job, Export, or later printer event requiring attention.\n\nSource: PRD §4, FR-7.\n\n**Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 157
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

@@ -18,7 +18,7 @@ So that scope, cost and freshness stay explicit.
 
 ## Scope
 
-- After scope confirmation present independent payment and cache/fresh choices; dispatch pins these choices.
+- After scope confirmation present independent payment and cache/fresh choices; the Story 3.1 start command pins these choices.
 - The payment choice has two states, Free (governing sources only) and Paid expansion. Choosing Paid expansion reveals the search and synthesis/vision permissions of Story 2.5 as separate, default-off disclosures; with neither granted the Project behaves as free mode. Free mode always runs first, and paid categories apply to its unresolved items.
 
 ## Acceptance Criteria
@@ -27,7 +27,7 @@ So that scope, cost and freshness stay explicit.
 
 **Given** a confirmed evidence request
 **When** research settings open
-**Then** free/paid and reuse/fresh are separate controls following scope confirmation; both controls work on phone and desktop
+**Then** free/paid and reuse/fresh are separate controls following scope confirmation; both controls work on phone and desktop; both controls work on phone and desktop
 
 ### AC-2
 
@@ -39,7 +39,13 @@ So that scope, cost and freshness stay explicit.
 
 **Given** fresh research, missing permission or insufficient allowance
 **When** start is attempted
-**Then** fresh work cannot silently substitute cached conclusions, and missing paid authority blocks dispatch
+**Then** fresh work cannot silently substitute cached conclusions, and missing paid authority blocks dispatch; starting shows a confirmation summary of mode, payment, freshness, permissions and maximum before dispatch
+
+### AC-4
+
+**Given** Paid expansion with neither the search nor the synthesis/vision permission granted
+**When** research starts
+**Then** the Project behaves as free mode, free mode runs first, and a disabled provider adapter removes only its own category from the offer
 
 ## Engineering Gates
 

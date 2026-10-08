@@ -33,6 +33,14 @@ An Account owner needs to generate the approved reconstruction automatically. Th
   - **intent:** Notify the recipient when generation completes or fails.
   - **success:** Given generation that completes or fails, when the Job commits the outcome, then one durable notification event is registered with Story 2.10 for the recipient, carrying an exact authorized target.
 
+- **CAP-5**
+  - **intent:** Keep the pinned generator image and lock available for existing Model Versions.
+  - **success:** Given a Model Version whose generator image and lock are retained, when the toolchain is upgraded and a Job pinned to the old toolchain resumes, then the old image and lock remain available and the Job never resumes against the upgraded generator.
+
+- **CAP-6**
+  - **intent:** Produce equivalent versions from identical approved inputs.
+  - **success:** Given identical approved inputs and a pinned toolchain, when generation runs twice, then the two Model Versions are equivalent within the R-2 tolerance (a comparator fixture until Story 4.3).
+
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Constraints

@@ -23,7 +23,7 @@ An Account owner needs to have deletion remove controlled copies. Retained data 
 
 - **CAP-2**
   - **intent:** Expire controlled backups without resetting their deletion deadline.
-  - **success:** Given private backups and subsequent restore/rebackup, when retention is applied, then controlled copies expire within 30 days measured from deletion, never extended by restoration or rebackup.
+  - **success:** Given private backups of dumps and mirrored objects, when retention is applied, then controlled copies expire within 30 days measured from deletion, never extended by a later backup run (restore and rebackup are tested in Story 8.4).
 
 - **CAP-3**
   - **intent:** Retain only permitted public data, aggregates and minimum deletion exclusions.
@@ -31,7 +31,7 @@ An Account owner needs to have deletion remove controlled copies. Retained data 
 
 - **CAP-4**
   - **intent:** Prove a deletion reaches backups within the canary window.
-  - **success:** Given the monthly canary, when it runs, then a synthetic Project's deletion is confirmed absent from the database, Storage and the backup copies within 15 days, and a miss raises an alarm.
+  - **success:** Given a synthetic Account and Project in the monthly canary, when an internal system-actor deletion runs, then the Project is absent from the database and Storage, its mirrored objects are gone within 7 days, every dump created before the purge has expired within 14 days (judged from manifests and bucket listings, with an injected clock in tests), and a miss raises an alarm.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 

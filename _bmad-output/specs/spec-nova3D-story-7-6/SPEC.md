@@ -19,7 +19,7 @@ An Account owner needs to validate and export an image-derived model. Direct mod
 
 - **CAP-1**
   - **intent:** Export direct models only through trusted online approval and validation.
-  - **success:** Given a synchronized direct candidate, when qualified export is requested, then connection, trusted exact-model approval and all required profile checks are enforced; local labels or approvals do not establish server authority.
+  - **success:** Given a synchronized direct candidate, when qualified export is requested, then connection, trusted exact-model approval and all required profile checks are enforced; local labels or approvals do not establish server authority; the export request and its blocked states work on phone and desktop.
 
 - **CAP-2**
   - **intent:** Require a confirmed real-world dimension before print scale or qualified export of a direct model.
@@ -48,7 +48,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Connection, trusted exact-model approval and all required profile checks are enforced; local labels or approvals do not establish server authority. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Connection, trusted exact-model approval and all required profile checks are enforced; local labels or approvals do not establish server authority; the export request and its blocked states work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

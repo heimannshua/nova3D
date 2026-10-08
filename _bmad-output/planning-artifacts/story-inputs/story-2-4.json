@@ -38,7 +38,12 @@
       {
         "given": "an allowance at or above 80% of its period limit, or reached",
         "when": "usage is displayed",
-        "then": "settled, reserved and available amounts reconcile; new paid work is blocked when insufficient while disable still revokes active work"
+        "then": "settled, reserved and available amounts reconcile; new paid work is blocked when insufficient while disable still revokes active work; usage is readable on phone and desktop"
+      },
+      {
+        "given": "a limit change without a fresh administration marker",
+        "when": "it is submitted",
+        "then": "it is refused with the step-up offered"
       }
     ],
     "gates": []

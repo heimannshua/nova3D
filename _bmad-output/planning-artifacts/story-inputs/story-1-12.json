@@ -28,7 +28,8 @@
     "scope": [
       "Build `workers/files` on Railway: authenticated large uploads into quota- and lease-bounded staging with checksum and content checks, and downloads and range requests streamed from private Storage in chunks of at most 1 MiB. No user file body crosses a Vercel function, because Vercel Hobby caps request and response bodies at 4.5 MB.",
       "Authorize with application-signed single-use transfer tickets obtained from a Vercel route: valid for at most five minutes, bound to Account, session grant, target and direction, and carrying no storage credential. The application and gateway share no cookies, so the gateway accepts cross-origin calls only from the application origin and checks live Account, session, Project and artifact state in Postgres before every chunk, never caching the decision; an unreachable database stops the stream.",
-      "Create the versioned service-signing key contract (one active key and one explicitly retiring key; suspected compromise revokes a key and its affected leases at once) that the gateway uses now and Story 2.7 reuses for workers and callbacks. Private responses use no-store and no reusable storage signed URL is ever issued. Staging cleanup runs on the Story 1.9 scheduler and respects active leases."
+      "Create the versioned service-signing key contract (one active key and one explicitly retiring key; suspected compromise revokes a key and its affected leases at once) that the gateway uses now and Story 2.7 reuses for workers and callbacks. Keys are versioned environment secrets (`SERVICE_SIGNING_KEY_<n>`) with one active id and at most one retiring id in configuration. Private responses use no-store and no reusable storage signed URL is ever issued. Staging cleanup runs on the Story 1.9 scheduler and respects active leases.",
+      "Resolve targets through a pluggable resolver: this story ships the staging-lease resolver and a fixture resolver, Story 2.12 registers retained pictures and Story 4.1 artifact manifests, and a target kind with no resolver is refused. A ticket authorizes opening one transfer; the gateway then holds a transfer handle for its chunk checks, resuming or reading a further range needs a new ticket, and every redemption is recorded (Artifacts-owned) so a ticket cannot be reused. Workers receive attempt-scoped, worker-audience tickets and never Storage credentials. The attach step accepts registered transforms (Story 2.12 registers the metadata strip). Pictures follow the Spine limits; other uploads may be up to 100 MiB per object."
     ],
     "acceptance_criteria": [
       {
@@ -39,7 +40,7 @@
       {
         "given": "a large owned file",
         "when": "a download or range transfer runs",
-        "then": "each range and each chunk of at most 1 MiB checks live session, Account, Project and artifact state, no reusable signed storage URL is exposed and responses are no-store"
+        "then": "each range and each chunk of at most 1 MiB checks live session and Account state and the state of its target through the resolver (Project and artifact state for the kinds that Stories 1.7, 2.12 and 4.1 register), no reusable signed storage URL is exposed and responses are no-store"
       },
       {
         "given": "disable, deletion, grant revocation or an unreachable database during a transfer",
@@ -47,7 +48,7 @@
         "then": "future chunks stop without cached authorization, and previously delivered or in-flight bytes are not claimed recalled"
       },
       {
-        "given": "a ticket that is expired, replayed, bound to another Account, session or target, or signed with a revoked key",
+        "given": "a ticket that is expired, replayed, bound to another Account, session, target or worker attempt, or signed with a revoked key",
         "when": "it is presented",
         "then": "the gateway rejects it; a ticket under the one retiring key is accepted only for its outstanding window, and a compromise revocation rejects it at once"
       },
@@ -83,7 +84,7 @@
       "line": 641
     },
     "AR-19": {
-      "text": "**AR-19: Revocable artifact transfer.** Keep user-data buckets private (the only public bucket holds public, digest-pinned assets) and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. The container gateway, which exists before the first feature that accepts a user file, streams all user uploads/downloads/ranges through application-signed single-use transfer tickets, and no user file crosses a Vercel function; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.\n\nSource: AD-13; file authorization.",
+      "text": "**AR-19: Revocable artifact transfer.** Keep user-data buckets private (the only public bucket holds public, digest-pinned assets) and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. The container gateway, which exists before the first feature that accepts a user file, streams all user uploads/downloads/ranges through application-signed single-use transfer tickets, and no user file crosses a Vercel function; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Workers receive no Storage credentials and use the gateway with attempt-scoped tickets. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.\n\nSource: AD-13; file authorization.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 657
     },

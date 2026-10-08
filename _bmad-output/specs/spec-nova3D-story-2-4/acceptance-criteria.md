@@ -37,7 +37,13 @@ So that spending stays within my allowance.
 
 **Given** an allowance at or above 80% of its period limit, or reached
 **When** usage is displayed
-**Then** settled, reserved and available amounts reconcile; new paid work is blocked when insufficient while disable still revokes active work
+**Then** settled, reserved and available amounts reconcile; new paid work is blocked when insufficient while disable still revokes active work; usage is readable on phone and desktop
+
+### AC-4
+
+**Given** a limit change without a fresh administration marker
+**When** it is submitted
+**Then** it is refused with the step-up offered
 
 ## Engineering Gates
 

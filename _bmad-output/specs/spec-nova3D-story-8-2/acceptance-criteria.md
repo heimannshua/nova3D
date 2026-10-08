@@ -26,7 +26,7 @@ So that all authorized private targets enter the deletion process.
 
 **Given** a normal Account with fresh authentication
 **When** whole-Account deletion is explicitly confirmed
-**Then** sessions revoke and all owned private targets, jobs and pending work enter the durable deletion manifest
+**Then** sessions revoke and all owned private targets, jobs and pending work enter the durable deletion manifest; the confirmation works on phone and desktop
 
 ### AC-2
 
@@ -51,6 +51,12 @@ So that all authorized private targets enter the deletion process.
 **Given** Account deletion or close-instance with a step-up completed before the destructive confirmation was shown, or with a marker already used
 **When** the command is submitted
 **Then** it is rejected and a new step-up is required, and a successful command consumes the marker
+
+### AC-6
+
+**Given** Account deletion or close-instance
+**When** it commits
+**Then** the audit record carries no identifiable deleted-user content beyond the minimum anti-resurrection ledger
 
 ## Engineering Gates
 

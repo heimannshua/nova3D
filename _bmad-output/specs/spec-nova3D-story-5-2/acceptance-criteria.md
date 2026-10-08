@@ -8,7 +8,7 @@ As an Account owner,
 I want to apply an approved correction,
 So that unrelated geometry stays within the agreed tolerance.
 
-**Requirement IDs:** FR-21, AR-8, AR-9, AR-10, AR-15, NFR-3, NFR-5, NFR-6
+**Requirement IDs:** FR-21, AR-8, AR-9, AR-10, AR-15, NFR-3, NFR-5, NFR-6, FR-7
 
 ## Dependencies
 
@@ -38,6 +38,12 @@ So that unrelated geometry stays within the agreed tolerance.
 **Given** stale, cancelled or superseded correction work
 **When** publication is attempted
 **Then** fencing rejects it and prior versions remain available; failed generation waits for explicit retry
+
+### AC-4
+
+**Given** regeneration that completes or fails
+**When** the Job commits the outcome
+**Then** one durable notification event is registered for the recipient with an exact authorized target
 
 ## Engineering Gates
 

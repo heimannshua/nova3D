@@ -36,7 +36,7 @@ So that background progress remains usable across sessions.
 
 **Given** an unread/read notification or deleted/foreign target
 **When** it is selected
-**Then** the exact live-authorized item opens or an unavailable state appears; Prints in Progress remains Coming later
+**Then** the exact live-authorized item opens or an unavailable state appears; Prints in Progress remains Coming later; empty, failure, permission-disabled and grouped states render
 
 ## Engineering Gates
 

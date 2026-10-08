@@ -19,7 +19,7 @@ An Account owner needs to download an approved printable model with its record. 
 
 - **CAP-1**
   - **intent:** An Account owner can download an approved printable model with its record.
-  - **success:** No qualified package is emitted and the precise blocked state is shown.
+  - **success:** No qualified package is emitted and the precise blocked state is shown; the blocked state is readable on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-No qualified package is emitted and the precise blocked state is shown. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+No qualified package is emitted and the precise blocked state is shown; the blocked state is readable on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

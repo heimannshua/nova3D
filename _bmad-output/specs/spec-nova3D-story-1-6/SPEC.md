@@ -19,7 +19,7 @@ The Administrator needs to recover Administrator access. They can regain control
 
 - **CAP-1**
   - **intent:** Request recovery through the sole Administrator’s verified email.
-  - **success:** Given the configured sole Administrator, when recovery is requested, then only the verified email receives the protected link and the response does not expose other Workspaces.
+  - **success:** Given the configured sole Administrator, when recovery is requested, then only the verified email receives the protected link and the response does not expose other Workspaces; the request and redemption pages work on phone and desktop.
 
 - **CAP-2**
   - **intent:** Reject expired, used or replayed recovery links without granting access.
@@ -28,6 +28,10 @@ The Administrator needs to recover Administrator access. They can regain control
 - **CAP-3**
   - **intent:** Recover control while revoking every previous Administrator session.
   - **success:** Given a valid recovery link, when redemption succeeds, then all prior Administrator sessions are revoked, the new session holds a fresh-authentication marker and an immutable recovery audit event is recorded.
+
+- **CAP-4**
+  - **intent:** Confirm hosted-Auth recovery works with the Email provider disabled, or stop for a design change.
+  - **success:** Given the staging project with the Email provider disabled, when a recovery link is redeemed, then the Admin API mints a session that holds a fresh-authentication marker for that session only, or the story stops with a recorded design change.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -44,7 +48,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Only the verified email receives the protected link and the response does not expose other Workspaces. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Only the verified email receives the protected link and the response does not expose other Workspaces; the request and redemption pages work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

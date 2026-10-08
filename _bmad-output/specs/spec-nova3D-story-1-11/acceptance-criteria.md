@@ -17,8 +17,8 @@ So that only the people I choose can register.
 
 ## Scope
 
-- Add the Administrator invitation page (AD-01): create named single-use codes, show the current general code, and revoke any unused code. A code's value is shown once, at creation, and afterwards only its identifier and status are listed.
-- Issuance and revocation require the fresh-authentication marker of Story 1.4 (action class administration), call the same issuance function the audited seed uses and append an immutable audit event holding the actor, action and code identifier but never the code value.
+- Add the Administrator invitation page (AD-01): create named single-use codes (a name is a label, not bound to an email), revoke any unused code, and mint the next general code on demand, which is the only way a general code appears after a registration retires its predecessor. A code's value is shown once, at creation, with a copy action; afterwards only its identifier, label and status are listed.
+- Issuance and revocation require the fresh-authentication marker of Story 1.4 (action class administration), call the same issuance function the audited seed uses and append an immutable audit event holding the actor, action and code identifier but never the code value. This story creates the Identity-owned append-only audit-event family (actor, action, opaque target, time, no content) that Stories 1.5, 1.6 and 2.4 also use.
 
 ## Acceptance Criteria
 
@@ -32,13 +32,19 @@ So that only the people I choose can register.
 
 **Given** a created code
 **When** it is displayed and later listed
-**Then** the value is shown once, only its identifier and status are listed afterwards, and logs never contain it
+**Then** the value is shown once with a copy action, only its identifier, label and status are listed afterwards, and logs never contain it
 
 ### AC-3
 
 **Given** issue, revoke and failed attempts
 **When** the audit trail is reviewed
 **Then** each has an immutable event with actor and time and no code value, and the page works on phone and desktop
+
+### AC-4
+
+**Given** the current general code was just used by a registration
+**When** the Administrator opens the page
+**Then** no general code is listed, and minting the next one needs a fresh-authentication marker and shows it once
 
 ## Engineering Gates
 

@@ -15,6 +15,7 @@ So that the request preserves all useful views.
 - [1.4](../spec-nova3D-story-1-4/SPEC.md)
 - [1.7](../spec-nova3D-story-1-7/SPEC.md)
 - [1.12](../spec-nova3D-story-1-12/SPEC.md)
+- [2.1](../spec-nova3D-story-2-1/SPEC.md)
 
 ## Scope
 

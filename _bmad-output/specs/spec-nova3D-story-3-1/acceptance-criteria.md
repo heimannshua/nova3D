@@ -21,6 +21,7 @@ So that I need not locate or upload the texts myself.
 - In free mode, discover sources only from the domain package's pinned registry (initially Middot chapter 3 Hebrew Torat Emet 357 and English Mishnah Yomit via Sefaria; Sefaria-linked commentaries only if verified free and license-permitted) and keyless allowlisted public endpoints; there is no open-web search.
 - The registry lists ordered alternate editions per source; none beyond the two initial editions is chosen yet. Open-web discovery exists only under the paid search category, and only passages nova3D itself fetches from a cited page are pinned. Pin exact Middot editions and permitted evidence retention.
 - Extend the Middot manifest with its pinned source registry. Research starts only for a confirmed subject that has a registered package.
+- Own the research start command: it validates the Story 2.9 choices and permission snapshot, dispatches the research Job through Story 2.7 and records each acquisition step (searching, opened, lead, accepted, rejected, replacement) as an Evidence-owned activity event that Story 3.7 renders.
 
 ## Acceptance Criteria
 
@@ -53,6 +54,18 @@ So that I need not locate or upload the texts myself.
 **Given** a request whose subject is unconfirmed or has no registered package
 **When** research is started
 **Then** the command is refused with the Story 2.13 outcome and no Job, reservation or source request is created
+
+### AC-6
+
+**Given** free mode
+**When** discovery runs
+**Then** only the domain package's pinned registry and keyless allowlisted endpoints are contacted, and any other destination is refused
+
+### AC-7
+
+**Given** a deliberately failing research step
+**When** the effective workflow and queue configuration run
+**Then** the step is not retried automatically and the Job ends failed with its cause
 
 ## Engineering Gates
 

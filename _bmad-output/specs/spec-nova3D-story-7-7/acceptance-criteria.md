@@ -34,7 +34,7 @@ So that I can return to completed work without losing in-app history.
 
 **Given** permission denied, alerts off or failed/duplicate delivery
 **When** the event is reviewed
-**Then** essential in-app history remains intact and deduplicated; delivery is not falsely guaranteed
+**Then** essential in-app history remains intact and deduplicated; delivery is not falsely guaranteed; preferences and install guidance work on phone and desktop
 
 ### AC-3
 

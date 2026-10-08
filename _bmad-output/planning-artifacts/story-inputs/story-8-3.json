@@ -23,7 +23,7 @@
     ],
     "scope": [
       "Purge database, files, models, exports, staging, notifications, private usage/adoption associations and operational traces under the deletion manifest.",
-      "Apply the Story 8.9 backup lifecycle to deletions: deleted targets leave dumps within 14 days and deleted-at-source objects within 7 days. Run a monthly canary that deletes a synthetic Project and proves the deletion reaches the database, Storage and backups within 15 days."
+      "Apply the Story 8.9 backup lifecycle to deletions: deleted targets leave dumps within 14 days and deleted-at-source objects within 7 days. Run a monthly canary on a synthetic Account with an internal system-actor deletion (the interactive step-up applies to humans only), proving the deletion reaches the database, Storage and backups within 15 days from manifests and bucket listings, since dumps are encrypted. Account purge also deletes the Auth identity. Register the missed-purge-deadline condition with the Story 1.13 alarm channel."
     ],
     "acceptance_criteria": [
       {
@@ -32,9 +32,9 @@
         "then": "all controlled active private copies purge within 24 hours; immutable audit/billing records are not exempt from deletion"
       },
       {
-        "given": "private backups and subsequent restore/rebackup",
+        "given": "private backups of dumps and mirrored objects",
         "when": "retention is applied",
-        "then": "controlled copies expire within 30 days measured from deletion, never extended by restoration or rebackup"
+        "then": "controlled copies expire within 30 days measured from deletion, never extended by a later backup run (restore and rebackup are tested in Story 8.4)"
       },
       {
         "given": "retained shared research, aggregates and deletion exclusions",
@@ -42,9 +42,9 @@
         "then": "only allowed public-source data, nonidentifying aggregates and the minimum restricted opaque-target anti-resurrection ledger remain; external/disconnected-copy limitations are disclosed accurately"
       },
       {
-        "given": "the monthly canary",
-        "when": "it runs",
-        "then": "a synthetic Project's deletion is confirmed absent from the database, Storage and the backup copies within 15 days, and a miss raises an alarm"
+        "given": "a synthetic Account and Project in the monthly canary",
+        "when": "an internal system-actor deletion runs",
+        "then": "the Project is absent from the database and Storage, its mirrored objects are gone within 7 days, every dump created before the purge has expired within 14 days (judged from manifests and bucket listings, with an injected clock in tests), and a miss raises an alarm"
       }
     ],
     "gates": [

@@ -19,7 +19,8 @@ So that backups restore geometry and enforce every intervening deletion.
 ## Scope
 
 - Drill restores from the Story 8.9 backups into a dedicated restore project: restore the dump, copy the Storage objects, verify every referenced artifact and treat a manifest without bytes as unusable.
-- Replay the restricted ledger of Story 1.8, held outside every restore set, before access opens: tombstones, Account disables, invitation consumption and rotation, recovery revocations and the highest authorization epoch. No backup runs during a restore; after any restore all session grants and Auth sessions are revoked, and a scrub removes ledgered targets from live and hidden backup copies.
+- Replay the restricted ledger of Story 1.8, held outside every restore set, before access opens: tombstones, Account disables, invitation consumption and rotation, recovery revocations and the highest authorization epoch. The restore state is a lock object in the ledger bucket, which a database restore cannot roll back; no backup runs while it is set, and access reopens only after the replay writes its completion event. After any restore all session grants and Auth sessions are revoked, and a scrub removes ledgered targets from live copies and deletes their mirrored objects, while remaining dumps expire within 14 days.
+- Each drill creates a dedicated Supabase restore project and deletes it afterwards. It uses a read-only ledger key that the application does not hold and the private age key that the Administrator supplies for that drill.
 
 ## Acceptance Criteria
 
@@ -51,7 +52,13 @@ So that backups restore geometry and enforce every intervening deletion.
 
 **Given** a restore in progress
 **When** a scheduled backup would start and the restore completes
-**Then** no backup runs during the restore, and afterwards the scrub removes ledgered targets from live and hidden backup copies
+**Then** no backup runs during the restore, and afterwards the scrub removes ledgered targets from live copies and deletes their mirrored objects while remaining dumps expire within 14 days
+
+### AC-6
+
+**Given** a restore and a later rebackup
+**When** retention is applied
+**Then** controlled copies still expire within 30 days measured from deletion
 
 ## Engineering Gates
 

@@ -24,7 +24,7 @@ So that I can select an interpretation with its geometry consequences.
 
 **Given** Hebrew and English source content
 **When** the reader opens during research
-**Then** original, translation, citation and explanation remain distinct and readable without pausing the Job; the reader works on phone and desktop
+**Then** original, translation, citation and explanation remain distinct and readable without pausing the Job; the reader works on phone and desktop; a source available only as a digest, or with its excerpt unavailable, shows that state
 
 ### AC-2
 

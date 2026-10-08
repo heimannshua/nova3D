@@ -41,7 +41,7 @@
       {
         "given": "owned Projects with current stage/version metadata",
         "when": "an item is opened",
-        "then": "the model/stage and Sources entry are selected with the next required action reachable"
+        "then": "the model/stage and Sources entry are selected with the next required action reachable; stage labels cover every Project stage, including awaiting Model Approval and Export ready, fed by fixtures until later stories supply them"
       },
       {
         "given": "a stale, deleted or foreign Project link",

@@ -30,9 +30,9 @@
     ],
     "acceptance_criteria": [
       {
-        "given": "a source used in active research",
+        "given": "a source used in active research (draft claims and choices are fixtures until Stories 3.3 and 3.4 create them)",
         "when": "Project exclusion or Account disable is applied",
-        "then": "the effective epoch changes immediately, affected draft claims/choices are reconsidered and replacement research continues with the proper scope"
+        "then": "the effective epoch changes immediately, affected draft claims/choices are reconsidered and replacement research continues with the proper scope; source controls work on phone and desktop"
       },
       {
         "given": "an attempt, or a cache adoption or Plan Revision (fixture records until Stories 3.6 and 3.5 exist)",
@@ -42,7 +42,7 @@
       {
         "given": "a completed approved Project or re-enabled source",
         "when": "a toggle or warning preference changes",
-        "then": "approved records and exports remain immutable; re-enable restores future eligibility and hiding warnings changes presentation only"
+        "then": "approved records and exports remain immutable; re-enable restores future eligibility and hiding warnings changes presentation only; a newly disabled Source shows its warning by default and an invalidated item is marked newly invalidated"
       }
     ],
     "gates": []

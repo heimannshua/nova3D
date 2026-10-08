@@ -25,14 +25,14 @@
       "2-13"
     ],
     "scope": [
-      "After scope confirmation present independent payment and cache/fresh choices; dispatch pins these choices.",
+      "After scope confirmation present independent payment and cache/fresh choices; the Story 3.1 start command pins these choices.",
       "The payment choice has two states, Free (governing sources only) and Paid expansion. Choosing Paid expansion reveals the search and synthesis/vision permissions of Story 2.5 as separate, default-off disclosures; with neither granted the Project behaves as free mode. Free mode always runs first, and paid categories apply to its unresolved items."
     ],
     "acceptance_criteria": [
       {
         "given": "a confirmed evidence request",
         "when": "research settings open",
-        "then": "free/paid and reuse/fresh are separate controls following scope confirmation; both controls work on phone and desktop"
+        "then": "free/paid and reuse/fresh are separate controls following scope confirmation; both controls work on phone and desktop; both controls work on phone and desktop"
       },
       {
         "given": "a reusable eligible revision (a fixture until Story 3.6 admits real ones)",
@@ -42,7 +42,12 @@
       {
         "given": "fresh research, missing permission or insufficient allowance",
         "when": "start is attempted",
-        "then": "fresh work cannot silently substitute cached conclusions, and missing paid authority blocks dispatch"
+        "then": "fresh work cannot silently substitute cached conclusions, and missing paid authority blocks dispatch; starting shows a confirmation summary of mode, payment, freshness, permissions and maximum before dispatch"
+      },
+      {
+        "given": "Paid expansion with neither the search nor the synthesis/vision permission granted",
+        "when": "research starts",
+        "then": "the Project behaves as free mode, free mode runs first, and a disabled provider adapter removes only its own category from the offer"
       }
     ],
     "gates": []

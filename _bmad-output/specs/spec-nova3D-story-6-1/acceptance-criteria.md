@@ -18,7 +18,7 @@ So that validation applies to the intended output.
 ## Scope
 
 - Pin the complete manufacturer profile inheritance plus explicit application overrides and print transform.
-- Compute the default print scale once per validation lineage at its first validation with the Story 4.3 print-frame function (largest uniform scale, never above 1:1, that fits the oriented canonical solid's exact kernel bounding box inside the profile cube minus 1 mm per side, stored as an exact rational), and create the Manufacturing validation lineage record: lineage ID, root Model Version, profile revision, scale, orientation and the single full_regeneration slot, which every repair and regeneration child inherits unchanged. Default the orientation to the domain package's declared base face on the plate, Z-up. An image-derived model has no print scale until the user confirms a real-world dimension, and its default orientation is the largest planar face, user-confirmed.
+- Compute the default print scale once per validation lineage when the user first pins a profile for a root Model Version (the command of this story, before any validation) with the Story 4.3 print-frame function applied to the box stored by Story 4.2 (largest uniform scale, never above 1:1, that fits the oriented canonical solid's exact kernel bounding box inside the profile cube minus 1 mm per side, stored as an exact rational), and create the Manufacturing validation lineage record: lineage ID, root Model Version, profile revision, scale, orientation and the single full_regeneration slot, which every repair and regeneration child inherits unchanged. Default the orientation to the domain package's declared base face on the plate, Z-up. An image-derived model has no print scale until the user confirms a real-world dimension, and its default orientation is the largest planar face, user-confirmed. This story owns the dimension-confirmation step (one real-world dimension of the confirmed scope, stored as an immutable Geometry-owned confirmation); the lineage inherits the confirmed dimension, and each snapshot's exact rational scale is computed from it once.
 
 ## Acceptance Criteria
 
@@ -42,9 +42,21 @@ So that validation applies to the intended output.
 
 ### AC-4
 
-**Given** a Model Version's first validation
+**Given** a Model Version's first profile pin
 **When** the lineage is created
 **Then** the record holds the root Model Version, profile revision, exact-rational scale, orientation and an unconsumed full_regeneration slot, and a repair child or regenerated successor inherits it unchanged
+
+### AC-5
+
+**Given** an image-derived model with no confirmed dimension
+**When** a profile pin is requested
+**Then** no scale or lineage is created and the dimension prompt is shown; after confirmation the scale follows the confirmed dimension and the orientation is the user-confirmed largest planar face
+
+### AC-6
+
+**Given** a domain-declared base face
+**When** the default orientation is set
+**Then** the base face lies on the plate, Z-up, with no rotation about Z, and an axis-aligned alternative is only proposed, never applied silently
 
 ## Engineering Gates
 

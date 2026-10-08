@@ -28,7 +28,8 @@
       "Sign in uses Google OAuth through Supabase; only the Google provider is enabled while sign-ups stay on, and the live-Account check is the gate. Fresh authentication for sensitive actions is a server-controlled step-up: a Postgres nonce bound to the initiating browser and the OAuth state, `prompt=select_account` without `login_hint`, and acceptance only of a new session whose `amr` shows an `oauth` entry after the nonce start for the same verified email and Google subject. It writes a 5-minute marker (Postgres, never a JWT claim or Redis) for that new session only, revokes the initiating session's grant and records an action class; Account deletion and close-instance markers are consumed by use. It proves a deliberate new sign-in, not a Google credential re-check.",
       "Replace the interim `AUTH_ALLOWED_EMAILS` gate with the live-Account check in the same change, and remove the variable from every place it is read or documented: `lib/auth-config.ts` and its callers, `scripts/check-env.mjs`, `scripts/test-env.mjs`, the `.env*.example` files, `docs/auth-setup.md` and `docs/deployment-setup.md`.",
       "Reject any cookie-authenticated mutation that lacks a valid origin and CSRF check before it changes state.",
-      "Authorization fails closed: when Postgres or the live-authorization lookup is unreachable, private requests are denied with a retryable state and no cached grant is honored. Create the Account-owned Preferences record and migrate the device-local choices of Story 1.2 on first sign-in."
+      "Authorization fails closed: when Postgres or the live-authorization lookup is unreachable, private requests are denied with a retryable state and no cached grant is honored. Create the Account-owned Preferences record and migrate the device-local choices of Story 1.2 on first sign-in.",
+      "Create the Identity-owned session-grant record: every sign-in, including step-up and recovery sessions, issues one grant tied to its Auth session_id; each private request verifies it; and revocation by session, by Account and by epoch is a single primitive that Stories 1.5 and 1.6 reuse."
     ],
     "acceptance_criteria": [
       {
@@ -44,7 +45,7 @@
       {
         "given": "a failed Google sign-in, a Google identity with no activated Account, or an Administrator session",
         "when": "sign-in or private browsing is attempted",
-        "then": "generic failure states are usable and the Administrator cannot impersonate, browse another Workspace or grant administrators"
+        "then": "generic failure states are usable and the Administrator cannot impersonate, browse another Workspace or grant administrators; a disabled Account sees the disabled state without private data, and sign-in and its failure states work on phone and desktop"
       },
       {
         "given": "a sensitive action and a step-up started from a stolen session",
@@ -65,6 +66,21 @@
         "given": "preferences chosen on a device before sign-in",
         "when": "an Account first signs in",
         "then": "they become the Account's stored preferences and follow it across devices"
+      },
+      {
+        "given": "a completed sign-in",
+        "when": "the callback finishes and the user later signs out",
+        "then": "one grant exists for the session_id, sign-out revokes it, and a request on the revoked session is refused"
+      },
+      {
+        "given": "the staging project with only the Google provider enabled",
+        "when": "a step-up completes",
+        "then": "a new session_id whose `amr` holds an `oauth` entry at or after the nonce start is accepted, the marker (action class, 5-minute expiry) belongs to that session only, and the initiating session's grant is revoked"
+      },
+      {
+        "given": "the repository after this story",
+        "when": "it is searched and the environment checks run",
+        "then": "`AUTH_ALLOWED_EMAILS` is read or documented nowhere, and a Google identity without a live Account is blocked"
       }
     ],
     "gates": []

@@ -30,7 +30,7 @@ So that paid work uses only the data and maximum I permitted.
 
 **Given** a confirmed research request with default permissions off
 **When** a paid category is offered
-**Then** provider, purpose, outbound-data categories, retention limitations and maximum are disclosed before explicit permission
+**Then** provider, purpose, outbound-data categories, retention limitations and maximum are disclosed before explicit permission; the disclosure and permission controls work on phone and desktop
 
 ### AC-2
 
@@ -42,7 +42,7 @@ So that paid work uses only the data and maximum I permitted.
 
 **Given** a permissioned vision/synthesis operation
 **When** its outbound payload is formed
-**Then** only purpose-required approved content is included, excluding unrelated Workspace data and unapproved personalization
+**Then** only purpose-required approved content is included, excluding unrelated Workspace data and unapproved personalization; images are the metadata-free provider-bound derivatives
 
 ### AC-4
 

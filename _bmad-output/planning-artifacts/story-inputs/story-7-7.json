@@ -37,7 +37,7 @@
       {
         "given": "permission denied, alerts off or failed/duplicate delivery",
         "when": "the event is reviewed",
-        "then": "essential in-app history remains intact and deduplicated; delivery is not falsely guaranteed"
+        "then": "essential in-app history remains intact and deduplicated; delivery is not falsely guaranteed; preferences and install guidance work on phone and desktop"
       },
       {
         "given": "a received alert",

@@ -37,7 +37,7 @@
       {
         "given": "a confirmed research request with default permissions off",
         "when": "a paid category is offered",
-        "then": "provider, purpose, outbound-data categories, retention limitations and maximum are disclosed before explicit permission"
+        "then": "provider, purpose, outbound-data categories, retention limitations and maximum are disclosed before explicit permission; the disclosure and permission controls work on phone and desktop"
       },
       {
         "given": "free-only mode or unverified/unenforceable provider terms",
@@ -47,7 +47,7 @@
       {
         "given": "a permissioned vision/synthesis operation",
         "when": "its outbound payload is formed",
-        "then": "only purpose-required approved content is included, excluding unrelated Workspace data and unapproved personalization"
+        "then": "only purpose-required approved content is included, excluding unrelated Workspace data and unapproved personalization; images are the metadata-free provider-bound derivatives"
       },
       {
         "given": "a permission granted for one category, purpose, provider or Project",

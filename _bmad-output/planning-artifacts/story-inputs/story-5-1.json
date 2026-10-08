@@ -40,7 +40,7 @@
       {
         "given": "research finds no change or fails",
         "when": "the result is shown",
-        "then": "original approved state remains intact with reasons, known cost and permitted next action"
+        "then": "original approved state remains intact with reasons, known cost and permitted next action; when a paid permission is needed the correction shows that state instead of starting"
       }
     ],
     "gates": []

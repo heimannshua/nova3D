@@ -18,6 +18,7 @@ So that work starts from my confirmed intent.
 
 - Persist immutable subject, scope, outcome, mode and optional user-added personalization; clarify ambiguity before research. Personalization is free-form wording mapped to the one supported kind, raised or recessed text on declared surfaces; any other request is explained as unsupported.
 - Create the domain-package manifest contract and the registry port, with the Middot manifest holding its registered subject (ID, display name and aliases); later stories add manifest fields as they land. Clarification is deterministic and free: the description is matched against registered subject names and aliases, no match explains the supported subjects and offers picture mode, several matches ask which one, and no billable call is made.
+- Personalization applies to evidence modes only; for an image_direct request it is declined with the reason that image-derived models carry no declared surfaces.
 
 ## Acceptance Criteria
 
@@ -38,6 +39,12 @@ So that work starts from my confirmed intent.
 **Given** no scope confirmation
 **When** start is requested
 **Then** no Job begins and scope confirmation is not mistaken for Plan Approval or paid permission
+
+### AC-4
+
+**Given** an image_direct request with a personalization wish
+**When** the request is confirmed
+**Then** the wish is declined with that explanation and recorded as not applied
 
 ## Engineering Gates
 

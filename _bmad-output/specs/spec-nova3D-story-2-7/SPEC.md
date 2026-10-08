@@ -19,7 +19,7 @@ An Account owner needs to continue using Projects while work runs. Accepted work
 
 - **CAP-1**
   - **intent:** Retain accepted work across navigation and dispatcher failures.
-  - **success:** Given an accepted Job followed by browser close or dispatcher restart, when dispatch resumes, then committed outbox and unique receipts retain waiting/running/completed/failed/cancelled state without duplicate side effects.
+  - **success:** Given an accepted Job followed by browser close or dispatcher restart, when dispatch resumes, then committed outbox and unique receipts retain waiting/running/completed/failed/cancelled state without duplicate side effects; job state is readable on phone and desktop.
 
 - **CAP-2**
   - **intent:** Keep failed work terminal until an explicit permitted retry.
@@ -41,6 +41,10 @@ An Account owner needs to continue using Projects while work runs. Accepted work
   - **intent:** Cancel running Jobs and hold their reservations when an Account is disabled.
   - **success:** Given an Account disabled while Jobs run, when the disable commits, then running Jobs lose commit authority at once, no new external step starts, cancellation signals follow, reservations are held until settled and an audit event records the cancellation.
 
+- **CAP-7**
+  - **intent:** Sweep and publish unpublished outbox rows exactly once.
+  - **success:** Given an unpublished outbox row older than 15 seconds, when the sweep runs, then it is published exactly once, an already published row is skipped, and an outbox age over 60 seconds raises the Story 1.13 alarm.
+
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Constraints
@@ -56,7 +60,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Committed outbox and unique receipts retain waiting/running/completed/failed/cancelled state without duplicate side effects. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Committed outbox and unique receipts retain waiting/running/completed/failed/cancelled state without duplicate side effects; job state is readable on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

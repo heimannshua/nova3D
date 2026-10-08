@@ -37,7 +37,7 @@
       {
         "given": "a complete checklist and independent gap pass",
         "when": "the user approves the whole plan",
-        "then": "the immutable exact digest, approver/time, choices and affected details are recorded"
+        "then": "the immutable exact digest, approver/time, choices and affected details are recorded; the digest includes the pinned evidence-policy snapshot"
       },
       {
         "given": "a successor interpretation or policy-driven draft",
@@ -48,6 +48,11 @@
         "given": "a plan the user does not accept",
         "when": "the user rejects it or asks for changes",
         "then": "the rejection is recorded immutably with the user's reasons, no generation authority results, and the user can revise the unsettled choices to produce a successor plan"
+      },
+      {
+        "given": "a client-supplied approval flag, or an approval attempted by a worker",
+        "when": "approval is submitted",
+        "then": "it is rejected, and only the authenticated approval command of the Account owner records an approval"
       }
     ],
     "gates": []

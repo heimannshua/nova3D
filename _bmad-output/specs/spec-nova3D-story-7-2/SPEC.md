@@ -19,7 +19,7 @@ An Account owner needs to prepare their device while online. Conversion assets a
 
 - **CAP-1**
   - **intent:** Prepare verified assets for offline conversion.
-  - **success:** Given an online supported device and pinned bundle, when preparation completes, then all required app/runtime/model bytes are verified and readiness records exact versions and storage state.
+  - **success:** Given an online supported device and pinned bundle, when preparation completes, then all required app/runtime/model bytes are verified and readiness records exact versions and storage state; preparation and its states work on phone and desktop.
 
 - **CAP-2**
   - **intent:** Identify incomplete preparation or unavailable local storage.
@@ -28,6 +28,10 @@ An Account owner needs to prepare their device while online. Conversion assets a
 - **CAP-3**
   - **intent:** Understand offline access and reconnect limitations before preparation.
   - **success:** Given offline preparation guidance, when the user prepares, then online preparation/qualified export and revocation-on-reconnect are explained, including no disconnected time lease and limits on remote erasure.
+
+- **CAP-4**
+  - **intent:** Never cache authenticated responses in the service worker.
+  - **success:** Given authenticated responses and a signed-out device, when the service worker handles requests and the user signs out, then no authenticated response is ever cached and no private bytes remain in the cache after sign-out.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -44,7 +48,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-All required app/runtime/model bytes are verified and readiness records exact versions and storage state. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+All required app/runtime/model bytes are verified and readiness records exact versions and storage state; preparation and its states work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

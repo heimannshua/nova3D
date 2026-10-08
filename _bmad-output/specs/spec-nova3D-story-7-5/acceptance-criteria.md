@@ -26,7 +26,7 @@ So that disabled or deleted work cannot be republished.
 
 **Given** a learned Account disable
 **When** contact occurs before sync/export
-**Then** local work and private stores lock until a newer authoritative re-enable for the original Account
+**Then** local work and private stores lock until a newer authoritative re-enable for the original Account; the locked state is shown on phone and desktop
 
 ### AC-2
 
@@ -38,7 +38,7 @@ So that disabled or deleted work cannot be republished.
 
 **Given** older status responses, JWT refresh, Account switching, connectivity changes or timeout
 **When** local state is reconsidered
-**Then** none bypass known disable/deletion; uncertainty alone is not deletion, disconnected permitted drafts have no time lease and explicit sign-out clears private stores
+**Then** none bypass known disable/deletion; uncertainty alone is not deletion, disconnected permitted drafts have no time lease and explicit sign-out clears private stores (as Story 7.9 implements it)
 
 ## Engineering Gates
 

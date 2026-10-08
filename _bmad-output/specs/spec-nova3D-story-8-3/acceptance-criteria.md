@@ -18,7 +18,7 @@ So that retained data does not outlive the adopted limits.
 ## Scope
 
 - Purge database, files, models, exports, staging, notifications, private usage/adoption associations and operational traces under the deletion manifest.
-- Apply the Story 8.9 backup lifecycle to deletions: deleted targets leave dumps within 14 days and deleted-at-source objects within 7 days. Run a monthly canary that deletes a synthetic Project and proves the deletion reaches the database, Storage and backups within 15 days.
+- Apply the Story 8.9 backup lifecycle to deletions: deleted targets leave dumps within 14 days and deleted-at-source objects within 7 days. Run a monthly canary on a synthetic Account with an internal system-actor deletion (the interactive step-up applies to humans only), proving the deletion reaches the database, Storage and backups within 15 days from manifests and bucket listings, since dumps are encrypted. Account purge also deletes the Auth identity. Register the missed-purge-deadline condition with the Story 1.13 alarm channel.
 
 ## Acceptance Criteria
 
@@ -30,9 +30,9 @@ So that retained data does not outlive the adopted limits.
 
 ### AC-2
 
-**Given** private backups and subsequent restore/rebackup
+**Given** private backups of dumps and mirrored objects
 **When** retention is applied
-**Then** controlled copies expire within 30 days measured from deletion, never extended by restoration or rebackup
+**Then** controlled copies expire within 30 days measured from deletion, never extended by a later backup run (restore and rebackup are tested in Story 8.4)
 
 ### AC-3
 
@@ -42,9 +42,9 @@ So that retained data does not outlive the adopted limits.
 
 ### AC-4
 
-**Given** the monthly canary
-**When** it runs
-**Then** a synthetic Project's deletion is confirmed absent from the database, Storage and the backup copies within 15 days, and a miss raises an alarm
+**Given** a synthetic Account and Project in the monthly canary
+**When** an internal system-actor deletion runs
+**Then** the Project is absent from the database and Storage, its mirrored objects are gone within 7 days, every dump created before the purge has expired within 14 days (judged from manifests and bucket listings, with an injected clock in tests), and a miss raises an alarm
 
 ## Engineering Gates
 

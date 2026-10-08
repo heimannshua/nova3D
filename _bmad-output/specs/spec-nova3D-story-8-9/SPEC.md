@@ -19,7 +19,7 @@ An Administrator needs to have encrypted backups of the database and every store
 
 - **CAP-1**
   - **intent:** An Administrator can have encrypted backups of the database and every stored file made on their own every 12 hours.
-  - **success:** An encrypted dump and a deletion-mirroring Storage copy reach the bucket, nothing is persisted on Railway, the manifest records cutoff, counts and digests, and the service cannot decrypt what it wrote.
+  - **success:** An encrypted dump and individually encrypted mirrored objects reach the bucket, nothing is persisted on Railway, the destination prefix matches the instance identity, the manifest records cutoff, counts and digests, and the service cannot decrypt what it wrote.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-An encrypted dump and a deletion-mirroring Storage copy reach the bucket, nothing is persisted on Railway, the manifest records cutoff, counts and digests, and the service cannot decrypt what it wrote. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+An encrypted dump and individually encrypted mirrored objects reach the bucket, nothing is persisted on Railway, the destination prefix matches the instance identity, the manifest records cutoff, counts and digests, and the service cannot decrypt what it wrote. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

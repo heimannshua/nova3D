@@ -8,7 +8,7 @@ As an Account owner,
 I want to recover once after local repair fails,
 So that automatic recovery has a firm limit.
 
-**Requirement IDs:** FR-28, AR-12, AR-14, AR-16, NFR-3, NFR-9, UX-DR17, UX-DR61
+**Requirement IDs:** FR-28, AR-12, AR-14, AR-16, NFR-3, NFR-9, UX-DR17, UX-DR61, FR-7
 
 ## Dependencies
 
@@ -39,6 +39,12 @@ So that automatic recovery has a firm limit.
 **Given** the permitted regeneration succeeds or fails
 **When** its result is processed
 **Then** success preserves the original and creates a candidate needing inspection/approval/full validation; failure stops, and changed interpretations return to Plan Approval; the outcome is readable on phone and desktop
+
+### AC-4
+
+**Given** the permitted regeneration finishes
+**When** the outcome commits
+**Then** one durable notification event is registered for the recipient
 
 ## Engineering Gates
 

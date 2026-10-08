@@ -19,7 +19,7 @@ An Account owner needs to approve each billable purpose and data transfer. Paid 
 
 - **CAP-1**
   - **intent:** An Account owner can approve each billable purpose and data transfer.
-  - **success:** Provider, purpose, outbound-data categories, retention limitations and maximum are disclosed before explicit permission.
+  - **success:** Provider, purpose, outbound-data categories, retention limitations and maximum are disclosed before explicit permission; the disclosure and permission controls work on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Provider, purpose, outbound-data categories, retention limitations and maximum are disclosed before explicit permission. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Provider, purpose, outbound-data categories, retention limitations and maximum are disclosed before explicit permission; the disclosure and permission controls work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

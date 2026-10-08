@@ -27,7 +27,7 @@ So that private content becomes inaccessible immediately.
 
 **Given** an owned Project or Export and fresh authentication
 **When** explicit deletion confirmation commits
-**Then** the target is hidden/tombstoned before cleanup and all dependent private paths reject access
+**Then** the target is hidden/tombstoned before cleanup and all dependent private paths reject access; the confirmation works on phone and desktop
 
 ### AC-2
 
@@ -45,7 +45,13 @@ So that private content becomes inaccessible immediately.
 
 **Given** an Account owner deleting a Project or Export
 **When** the explicit deletion confirmation is submitted
-**Then** it needs a fresh-authentication marker of the owner-deletion class and is refused with the step-up offered when none exists
+**Then** it needs a fresh-authentication marker of the owner-deletion class and is refused with the step-up offered when none exists; a marker of another action class is refused
+
+### AC-5
+
+**Given** a Project or Export deletion
+**When** it commits
+**Then** an audit event records the actor and an opaque target identity only, with no identifiable deleted-user history
 
 ## Engineering Gates
 

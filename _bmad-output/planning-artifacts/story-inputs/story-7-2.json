@@ -32,7 +32,7 @@
       {
         "given": "an online supported device and pinned bundle",
         "when": "preparation completes",
-        "then": "all required app/runtime/model bytes are verified and readiness records exact versions and storage state"
+        "then": "all required app/runtime/model bytes are verified and readiness records exact versions and storage state; preparation and its states work on phone and desktop"
       },
       {
         "given": "interrupted preparation, eviction, insufficient storage or missing bytes",
@@ -43,6 +43,11 @@
         "given": "offline preparation guidance",
         "when": "the user prepares",
         "then": "online preparation/qualified export and revocation-on-reconnect are explained, including no disconnected time lease and limits on remote erasure"
+      },
+      {
+        "given": "authenticated responses and a signed-out device",
+        "when": "the service worker handles requests and the user signs out",
+        "then": "no authenticated response is ever cached and no private bytes remain in the cache after sign-out"
       }
     ],
     "gates": [

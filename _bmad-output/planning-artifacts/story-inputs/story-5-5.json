@@ -42,6 +42,11 @@
         "given": "a successor, a personalization change or a consequential repair (a fixture repair until Story 6.4)",
         "when": "export authority is queried (a fixture query until Story 6.8)",
         "then": "old approval cannot authorize the changed candidate and renewed inspection/approval is required"
+      },
+      {
+        "given": "a client-supplied approval flag or a worker-initiated approval",
+        "when": "approval is submitted",
+        "then": "it is rejected, and only the authenticated approval command of the Account owner for the inspected version records an approval"
       }
     ],
     "gates": []

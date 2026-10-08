@@ -15,11 +15,13 @@ So that retries cannot double-charge me.
 - [2.6](../spec-nova3D-story-2-6/SPEC.md)
 - [2.7](../spec-nova3D-story-2-7/SPEC.md)
 - [2.4](../spec-nova3D-story-2-4/SPEC.md)
+- [2.5](../spec-nova3D-story-2-5/SPEC.md)
 
 ## Scope
 
 - Persist operation identity before dispatch and reconcile under that identity; user retries remain under the parent Job.
 - List each overrun incident on the Administrator usage page with provider, operation and amounts; only the freshly authenticated Administrator can review and clear it, which re-enables admissions for that provider.
+- Register the unknown-cost condition with the Story 1.13 alarm channel: an operation of unknown cost older than 24 hours.
 
 ## Acceptance Criteria
 
@@ -45,7 +47,7 @@ So that retries cannot double-charge me.
 
 **Given** provider usage above an operation's reservation
 **When** the incident is recorded
-**Then** it settles at the evidence, counts against every limit, blocks that provider's admissions, and only the freshly authenticated Administrator can review and clear it on the usage page
+**Then** it settles at the evidence, counts against every limit, blocks that provider's admissions, and only the freshly authenticated Administrator can review and clear it on the usage page; a clear attempt without a fresh administration marker is refused
 
 ## Engineering Gates
 

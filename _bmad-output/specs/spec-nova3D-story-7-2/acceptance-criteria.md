@@ -26,7 +26,7 @@ So that conversion assets are available when disconnected.
 
 **Given** an online supported device and pinned bundle
 **When** preparation completes
-**Then** all required app/runtime/model bytes are verified and readiness records exact versions and storage state
+**Then** all required app/runtime/model bytes are verified and readiness records exact versions and storage state; preparation and its states work on phone and desktop
 
 ### AC-2
 
@@ -39,6 +39,12 @@ So that conversion assets are available when disconnected.
 **Given** offline preparation guidance
 **When** the user prepares
 **Then** online preparation/qualified export and revocation-on-reconnect are explained, including no disconnected time lease and limits on remote erasure
+
+### AC-4
+
+**Given** authenticated responses and a signed-out device
+**When** the service worker handles requests and the user signs out
+**Then** no authenticated response is ever cached and no private bytes remain in the cache after sign-out
 
 ## Engineering Gates
 

@@ -19,7 +19,7 @@ An Account owner needs to exclude a source locally or across their Projects. Res
 
 - **CAP-1**
   - **intent:** An Account owner can exclude a source locally or across their Projects.
-  - **success:** The effective epoch changes immediately, affected draft claims/choices are reconsidered and replacement research continues with the proper scope.
+  - **success:** The effective epoch changes immediately, affected draft claims/choices are reconsidered and replacement research continues with the proper scope; source controls work on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-The effective epoch changes immediately, affected draft claims/choices are reconsidered and replacement research continues with the proper scope. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+The effective epoch changes immediately, affected draft claims/choices are reconsidered and replacement research continues with the proper scope; source controls work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

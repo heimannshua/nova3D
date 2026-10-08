@@ -107,6 +107,16 @@ Source: SCREEN-INVENTORY C-05; canonical ux-contract; applicable ratified decisi
 
 Source: `_bmad-output/planning-artifacts/epics.md`, line 943 in the captured input.
 
+### UX-DR36
+
+**UX-DR36: Understood request (C-06).** Show subject, scope, intended outcome, picture mode, and Personalization; wait for confirmation.
+
+Required states/variants: Clear, ambiguous with clarification questions, edit request, confirmed.
+
+Source: SCREEN-INVENTORY C-06; canonical ux-contract; applicable ratified decisions.
+
+Source: `_bmad-output/planning-artifacts/epics.md`, line 949 in the captured input.
+
 ## Planning Assumptions
 
 - Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.

@@ -27,7 +27,7 @@ So that direct mode receives the same model and print gates.
 
 **Given** a synchronized direct candidate
 **When** qualified export is requested
-**Then** connection, trusted exact-model approval and all required profile checks are enforced; local labels or approvals do not establish server authority
+**Then** connection, trusted exact-model approval and all required profile checks are enforced; local labels or approvals do not establish server authority; the export request and its blocked states work on phone and desktop
 
 ### AC-2
 

@@ -21,10 +21,11 @@
       "UX-DR72"
     ],
     "depends_on": [
-      "1-4"
+      "1-4",
+      "1-11"
     ],
     "scope": [
-      "Implement fresh-authenticated account-status transitions, revocable session grants and authorization epochs.",
+      "Implement fresh-authenticated account-status transitions and authorization epochs on top of the session grants of Story 1.4, and append an immutable audit event (actor, action, opaque target, time) for each transition.",
       "Expose a cancellation/fencing contract that every future Job and file path must use."
     ],
     "acceptance_criteria": [
@@ -41,7 +42,12 @@
       {
         "given": "a disabled Account",
         "when": "the Administrator re-enables it",
-        "then": "new authentication can regain access under a newer epoch; previously revoked sessions remain revoked"
+        "then": "new authentication can regain access under a newer epoch; previously revoked sessions remain revoked; the Account list and its status controls work on phone and desktop"
+      },
+      {
+        "given": "a disable or re-enable attempted without a fresh-authentication marker, or with a marker of another action class",
+        "when": "it is submitted",
+        "then": "it is refused with the step-up offered, and with a valid administration marker it succeeds and appends an immutable audit event"
       }
     ],
     "gates": []

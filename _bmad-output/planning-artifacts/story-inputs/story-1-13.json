@@ -1,0 +1,89 @@
+{
+  "epic": {
+    "id": "1",
+    "title": "Enter and use a private workspace",
+    "goal": "Invited users can authenticate and use a responsive private workspace; Josh can control and recover access without inspecting private content."
+  },
+  "story": {
+    "id": "1-13",
+    "epic_id": "1",
+    "title": "Raise operational alarms",
+    "user": "Administrator",
+    "want": "to be told when something stops working",
+    "benefit": "failures and silent stalls do not go unnoticed",
+    "requirements": [
+      "AR-26",
+      "NFR-4",
+      "UX-DR72"
+    ],
+    "depends_on": [
+      "1-6",
+      "1-8",
+      "1-9"
+    ],
+    "scope": [
+      "Create the Lifecycle-owned alarm record family and an Administrator operations page (phone and desktop) listing open alarms with condition, first and latest time and last receipt. Each alarm is emailed to the Administrator address through the application mailer of Story 1.6 once per condition per 24 hours.",
+      "Register the conditions this story can observe: a periodic task with no receipt within twice its interval, a ledger event pending over 15 minutes, and more than 25 Auth identities without an Account. Later stories register the others from the Spine's threshold list when their data exists: outbox age and expired leases (Story 2.7), unknown-cost operations (Story 2.8), storage integrity (Story 4.1), missed purge deadlines (Story 8.3) and backup snapshot age (Story 8.9).",
+      "Watch the schedulers against each other: a small Railway cron task posts a signed heartbeat every 30 minutes, the QStash schedule alarms when that heartbeat is more than two hours old, and the Railway task alarms when the latest QStash receipt is more than two hours old."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "a condition that crosses its threshold",
+        "when": "the monitor evaluates",
+        "then": "one alarm record is created, shown on the operations page on phone and desktop and emailed once per condition per 24 hours, and clearing the condition marks it resolved without deleting history"
+      },
+      {
+        "given": "a periodic task that stops, or a ledger event left pending",
+        "when": "twice its interval or 15 minutes passes",
+        "then": "the matching alarm names the task or event and its last receipt"
+      },
+      {
+        "given": "either scheduler stopped",
+        "when": "its peer finds the other's latest receipt more than two hours old",
+        "then": "the surviving scheduler raises an alarm"
+      },
+      {
+        "given": "a condition registered by a later story with its threshold (a fixture condition here)",
+        "when": "the monitor evaluates",
+        "then": "the same alarm path handles it with no new channel"
+      }
+    ],
+    "gates": []
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "AR-26": {
+      "text": "**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify the immutable environment ID (one Lifecycle `instance_identity` row mirrored by `APP_ENV` and `INSTANCE_ID`) at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects (staging is also its own Vercel project on the `staging` branch), with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis in its nearest available region and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge and the Auth identity count with redacted IDs; outages fail authorization closed.\n\nSource: AD-19; R-9; G-9.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 685
+    },
+    "NFR-4": {
+      "text": "**NFR-4: Durable job state.** Closing the browser, navigating to another Project, or a worker restart cannot lose an accepted Job, corrupt its Project, or misreport its final state.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 547
+    },
+    "UX-DR72": {
+      "text": "**UX-DR72: Administrator recovery/security (AD-04).** Sensitive actions require fresh authentication and create audit events.\n\nRequired states/variants: Reauthentication, success, failure, session revoked.\n\nSource: SCREEN-INVENTORY AD-04; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1165
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

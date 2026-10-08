@@ -22,9 +22,9 @@ So that research follows my source choices without rewriting history.
 
 ### AC-1
 
-**Given** a source used in active research
+**Given** a source used in active research (draft claims and choices are fixtures until Stories 3.3 and 3.4 create them)
 **When** Project exclusion or Account disable is applied
-**Then** the effective epoch changes immediately, affected draft claims/choices are reconsidered and replacement research continues with the proper scope
+**Then** the effective epoch changes immediately, affected draft claims/choices are reconsidered and replacement research continues with the proper scope; source controls work on phone and desktop
 
 ### AC-2
 
@@ -36,7 +36,7 @@ So that research follows my source choices without rewriting history.
 
 **Given** a completed approved Project or re-enabled source
 **When** a toggle or warning preference changes
-**Then** approved records and exports remain immutable; re-enable restores future eligibility and hiding warnings changes presentation only
+**Then** approved records and exports remain immutable; re-enable restores future eligibility and hiding warnings changes presentation only; a newly disabled Source shows its warning by default and an invalidated item is marked newly invalidated
 
 ## Engineering Gates
 

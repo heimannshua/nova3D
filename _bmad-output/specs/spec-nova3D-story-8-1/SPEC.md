@@ -19,7 +19,7 @@ An Account owner needs to delete selected Projects or Exports. Private content b
 
 - **CAP-1**
   - **intent:** An Account owner can delete selected Projects or Exports.
-  - **success:** The target is hidden/tombstoned before cleanup and all dependent private paths reject access.
+  - **success:** The target is hidden/tombstoned before cleanup and all dependent private paths reject access; the confirmation works on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-The target is hidden/tombstoned before cleanup and all dependent private paths reject access. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+The target is hidden/tombstoned before cleanup and all dependent private paths reject access; the confirmation works on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

@@ -42,6 +42,11 @@
         "given": "a disabled source or unavailable preview",
         "when": "existing provenance is opened",
         "then": "approved history stays immutable and evidence/feature lists remain accessible with the proper warning"
+      },
+      {
+        "given": "a regenerated or restored Model Version",
+        "when": "its features and evidence links are compared with the previous version",
+        "then": "logical feature IDs and evidence links stay stable and version-specific bindings resolve"
       }
     ],
     "gates": [

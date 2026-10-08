@@ -19,7 +19,7 @@ An Account owner needs to compare explanations and alternatives. They can select
 
 - **CAP-1**
   - **intent:** An Account owner can compare explanations and alternatives.
-  - **success:** Original, translation, citation and explanation remain distinct and readable without pausing the Job; the reader works on phone and desktop.
+  - **success:** Original, translation, citation and explanation remain distinct and readable without pausing the Job; the reader works on phone and desktop; a source available only as a digest, or with its excerpt unavailable, shows that state.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Original, translation, citation and explanation remain distinct and readable without pausing the Job; the reader works on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Original, translation, citation and explanation remain distinct and readable without pausing the Job; the reader works on phone and desktop; a source available only as a digest, or with its excerpt unavailable, shows that state. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

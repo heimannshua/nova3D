@@ -19,7 +19,8 @@
       "AR-15",
       "NFR-3",
       "NFR-5",
-      "NFR-6"
+      "NFR-6",
+      "FR-7"
     ],
     "depends_on": [
       "5-1",
@@ -43,6 +44,11 @@
         "given": "stale, cancelled or superseded correction work",
         "when": "publication is attempted",
         "then": "fencing rejects it and prior versions remain available; failed generation waits for explicit retry"
+      },
+      {
+        "given": "regeneration that completes or fails",
+        "when": "the Job commits the outcome",
+        "then": "one durable notification event is registered for the recipient with an exact authorized target"
       }
     ],
     "gates": []
@@ -94,6 +100,11 @@
       "text": "**NFR-6: Reproducibility.** Given fixed approved inputs, tool versions, and settings, nova3D reproduces geometrically equivalent Canonical Models within the tolerance ratified through AD-2.\n\nRatified application: this is evidence-recipe equivalence under R-2 / AR-10. The PRD's AD-2 means PRD:AD-2, not architecture AD-2. Direct inference preserves exact snapshots/provenance without an identical-reinference guarantee.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 551
+    },
+    "FR-7": {
+      "text": "#### FR-7: Actionable notifications\n\nThe app displays an app-wide Notification bar for Jobs and approval events.\n\n**Consequences:**\n- Notifications cover research readiness, generation completion or failure, Export readiness, and later printer events.\n- Selecting a Notification opens the exact Project, approval item, failed Job, Export, or later printer event requiring attention.\n\nSource: PRD §4, FR-7.\n\n**Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 157
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

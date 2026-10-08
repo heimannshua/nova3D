@@ -39,6 +39,12 @@ So that I can inspect what justifies each consequential shape.
 **When** existing provenance is opened
 **Then** approved history stays immutable and evidence/feature lists remain accessible with the proper warning
 
+### AC-4
+
+**Given** a regenerated or restored Model Version
+**When** its features and evidence links are compared with the previous version
+**Then** logical feature IDs and evidence links stay stable and version-specific bindings resolve
+
 ## Engineering Gates
 
 G-4.

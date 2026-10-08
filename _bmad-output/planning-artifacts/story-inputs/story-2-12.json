@@ -26,7 +26,7 @@
       "2-3"
     ],
     "scope": [
-      "When the user confirms the ordered pictures (the end of the Story 2.3 quality review), attach them to the Project as retained artifacts and pin their roots in a successor request revision: create the Artifacts-owned manifest record family and the coordinated verified publication command (canonical JSON manifest root, ownership scope, digest and length), strip location tags from the retained copy and record its digest, then let the staging copies expire. A retained-picture quota of 2 GiB per Account applies.",
+      "When the user confirms the ordered pictures (the end of the Story 2.3 quality review), attach them to the Project as retained artifacts and pin their roots in a successor request revision: create the Artifacts-owned manifest record family and the coordinated verified publication command (canonical JSON manifest root, ownership scope, digest and length), strip location tags from the retained copy and record its digest, then let the staging copies expire. A retained-picture quota of 2 GiB per Account applies, and a breach rejects the whole confirmation rather than part of it. The metadata strip runs inside the attach step of the Story 1.12 gateway; the retained digest is recorded together with the original staged digest it replaces, so acknowledgments pinned to originals stay verifiable; a repeated confirmation returns the same roots; and staging copies expire when the retained roots commit or at their lease end, whichever comes first.",
       "Later consumers (subject identification, research, direct conversion and reconversion) read these retained roots, never lease-bounded staging. Story 4.1 extends the same family to worker outputs."
     ],
     "acceptance_criteria": [
@@ -38,17 +38,22 @@
       {
         "given": "changed bytes, a foreign owner or an expired lease before attachment",
         "when": "retention is attempted",
-        "then": "nothing is published and the pictures stay unconfirmed with an actionable state"
+        "then": "nothing is published and the pictures stay unconfirmed with an actionable state; the states are readable on phone and desktop"
       },
       {
         "given": "a later consumer needing the pictures",
         "when": "it resolves them",
-        "then": "it reads the retained roots and the original digests match the confirmed order"
+        "then": "it reads the retained roots, and each retained digest maps to the original staged digest the user confirmed, in the confirmed order"
       },
       {
         "given": "the retained-picture quota is exceeded or an image carries location tags",
         "when": "retention runs",
         "then": "the quota rejects the excess with an actionable state, and the retained copy has no location tags while its digest and the confirmed order are recorded"
+      },
+      {
+        "given": "a confirmation submitted twice",
+        "when": "retention runs both times",
+        "then": "the second run returns the same roots and creates no duplicate artifacts"
       }
     ],
     "gates": []
@@ -67,7 +72,7 @@
       "line": 583
     },
     "AR-19": {
-      "text": "**AR-19: Revocable artifact transfer.** Keep user-data buckets private (the only public bucket holds public, digest-pinned assets) and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. The container gateway, which exists before the first feature that accepts a user file, streams all user uploads/downloads/ranges through application-signed single-use transfer tickets, and no user file crosses a Vercel function; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.\n\nSource: AD-13; file authorization.",
+      "text": "**AR-19: Revocable artifact transfer.** Keep user-data buckets private (the only public bucket holds public, digest-pinned assets) and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. The container gateway, which exists before the first feature that accepts a user file, streams all user uploads/downloads/ranges through application-signed single-use transfer tickets, and no user file crosses a Vercel function; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Workers receive no Storage credentials and use the gateway with attempt-scoped tickets. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.\n\nSource: AD-13; file authorization.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 657
     },

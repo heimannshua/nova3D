@@ -27,7 +27,7 @@ An Account owner needs to choose direct conversion or evidence research. They un
 
 - **CAP-3**
   - **intent:** Choose a picture mode with its correct approval and provenance rules.
-  - **success:** Given a picture-mode choice or later mode change, when the request is confirmed, then research-assisted mode requires whole-plan approval later; direct mode has no synthetic Research Plan, and mode changes create successor requests.
+  - **success:** Given a picture-mode choice or later mode change, when the request is confirmed, then research-assisted mode requires whole-plan approval later; direct mode has no synthetic Research Plan, and mode changes create successor requests; the accuracy explanation and offline availability of each mode are shown.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 

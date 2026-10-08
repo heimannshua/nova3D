@@ -33,7 +33,7 @@ So that I can resume the next required action.
 
 **Given** owned Projects with current stage/version metadata
 **When** an item is opened
-**Then** the model/stage and Sources entry are selected with the next required action reachable
+**Then** the model/stage and Sources entry are selected with the next required action reachable; stage labels cover every Project stage, including awaiting Model Approval and Export ready, fed by fixtures until later stories supply them
 
 ### AC-3
 

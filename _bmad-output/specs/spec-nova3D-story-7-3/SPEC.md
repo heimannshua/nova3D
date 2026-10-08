@@ -19,7 +19,7 @@ An Account owner needs to generate from confirmed images without internet. Their
 
 - **CAP-1**
   - **intent:** An Account owner can generate from confirmed images without internet.
-  - **success:** A local model and provenance persist and reopen offline without network inference or a synthetic Research Plan.
+  - **success:** A local model and provenance persist and reopen offline without network inference or a synthetic Research Plan; conversion and its states work on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-A local model and provenance persist and reopen offline without network inference or a synthetic Research Plan. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+A local model and provenance persist and reopen offline without network inference or a synthetic Research Plan; conversion and its states work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

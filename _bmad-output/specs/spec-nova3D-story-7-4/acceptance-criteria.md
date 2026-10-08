@@ -21,6 +21,7 @@ So that sync does not duplicate or discard versions.
 - Import stable UUIDs only into the original authorized Account with verified artifacts and expected parent revision.
 - Show the conflict state in My Projects (H-02) with an explicit current-version selection.
 - Import the model's confirmed pictures as retained Project artifacts of the Story 2.12 family with verified digests, so a reconversion can run on the server.
+- Refuse the import when the server finds a disabled or tombstoned Account or a tombstoned Project, rechecked before anything attaches. Import the mesh snapshot and pictures only; device-produced GLB derivatives are not imported (Story 4.7 derives from the verified snapshot).
 
 ## Acceptance Criteria
 
@@ -40,7 +41,13 @@ So that sync does not duplicate or discard versions.
 
 **Given** network/authentication uncertainty or a failed import
 **When** sync stops
-**Then** pending/failed/conflict state is visible and local work is not erased or attached to another Account
+**Then** pending/failed/conflict state is visible and local work is not erased or attached to another Account; sync states are readable on phone and desktop
+
+### AC-4
+
+**Given** a local draft from a disabled or tombstoned Account, or for a tombstoned Project
+**When** sync is attempted
+**Then** the import is refused before anything attaches and the client keeps its locked or purged state
 
 ## Engineering Gates
 

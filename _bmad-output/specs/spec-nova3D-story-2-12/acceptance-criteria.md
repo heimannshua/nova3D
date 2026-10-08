@@ -17,7 +17,7 @@ So that later research, conversion and recovery use the exact pictures I confirm
 
 ## Scope
 
-- When the user confirms the ordered pictures (the end of the Story 2.3 quality review), attach them to the Project as retained artifacts and pin their roots in a successor request revision: create the Artifacts-owned manifest record family and the coordinated verified publication command (canonical JSON manifest root, ownership scope, digest and length), strip location tags from the retained copy and record its digest, then let the staging copies expire. A retained-picture quota of 2 GiB per Account applies.
+- When the user confirms the ordered pictures (the end of the Story 2.3 quality review), attach them to the Project as retained artifacts and pin their roots in a successor request revision: create the Artifacts-owned manifest record family and the coordinated verified publication command (canonical JSON manifest root, ownership scope, digest and length), strip location tags from the retained copy and record its digest, then let the staging copies expire. A retained-picture quota of 2 GiB per Account applies, and a breach rejects the whole confirmation rather than part of it. The metadata strip runs inside the attach step of the Story 1.12 gateway; the retained digest is recorded together with the original staged digest it replaces, so acknowledgments pinned to originals stay verifiable; a repeated confirmation returns the same roots; and staging copies expire when the retained roots commit or at their lease end, whichever comes first.
 - Later consumers (subject identification, research, direct conversion and reconversion) read these retained roots, never lease-bounded staging. Story 4.1 extends the same family to worker outputs.
 
 ## Acceptance Criteria
@@ -32,19 +32,25 @@ So that later research, conversion and recovery use the exact pictures I confirm
 
 **Given** changed bytes, a foreign owner or an expired lease before attachment
 **When** retention is attempted
-**Then** nothing is published and the pictures stay unconfirmed with an actionable state
+**Then** nothing is published and the pictures stay unconfirmed with an actionable state; the states are readable on phone and desktop
 
 ### AC-3
 
 **Given** a later consumer needing the pictures
 **When** it resolves them
-**Then** it reads the retained roots and the original digests match the confirmed order
+**Then** it reads the retained roots, and each retained digest maps to the original staged digest the user confirmed, in the confirmed order
 
 ### AC-4
 
 **Given** the retained-picture quota is exceeded or an image carries location tags
 **When** retention runs
 **Then** the quota rejects the excess with an actionable state, and the retained copy has no location tags while its digest and the confirmed order are recorded
+
+### AC-5
+
+**Given** a confirmation submitted twice
+**When** retention runs both times
+**Then** the second run returns the same roots and creates no duplicate artifacts
 
 ## Engineering Gates
 

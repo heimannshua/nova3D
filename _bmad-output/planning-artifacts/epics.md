@@ -39,7 +39,7 @@ requirementCounts:
 
 This document provides nova3D's epic and story breakdown from the confirmed PRD, architecture, canonical spec, UX contract and qualification evidence.
 
-**Current stage: 8 epics and 72 stories specified.** The original 58 were validated on 2026-09-14; the 14 added on 2026-10-08 (nine in the first pass, five in the second) were checked by scripted parity only until the readiness audits recorded in implementation-readiness.md. Josh requested bmad-spec for each story using Codex agents running Luna. His fast-path direction is carried forward for decomposition and review. Story boundaries and dependency order are delegated planning choices, not newly claimed user approvals; all adopted product requirements remain binding. No source requirement, spec or local probe is treated as completed application functionality.
+**Current stage: 8 epics and 73 stories specified.** The original 58 were validated on 2026-09-14; the 15 added on 2026-10-08 (nine, five and one in three passes) were checked by scripted parity and then by the independent audits recorded in implementation-readiness.md. Josh requested bmad-spec for each story using Codex agents running Luna. His fast-path direction is carried forward for decomposition and review. Story boundaries and dependency order are delegated planning choices, not newly claimed user approvals; all adopted product requirements remain binding. No source requirement, spec or local probe is treated as completed application functionality.
 
 #### Inputs and authority
 
@@ -572,7 +572,7 @@ The adopted architecture is an implementation contract. These work items retain 
 
 **Starter requirement for Epic 1 Story 1:** AR-1 specifies the qualified greenfield seed. The first story below carries this bootstrap constraint.
 
-**AR-1: Starter and pinned runtime.** Epic 1 Story 1 adopts the existing Next 16.3.5 TypeScript/App Router/Tailwind application with its Supabase SSR integration. Preserve Node 24.21.0 (pinned in `engines` and CI), React/DOM 19.3.0, TypeScript 5.9.3, Tailwind 4.3.3, supabase-js 2.116.0, ssr 0.12.7, Upstash Workflow 1.3.3/Redis 1.38.4 as the qualified seed; Three 0.186.0 is added at this pin by the first story that uses it; compatible patches are delegated. Install, typecheck and production-build before accepting the application lockfile. The old with-supabase example's Tailwind 3/lint pins are not the seed. Local probes already pass; the application exists as a mock-first shell at the repository root.
+**AR-1: Starter and pinned runtime.** Epic 1 Story 1 adopts the existing Next 16.3.5 TypeScript/App Router/Tailwind application with its Supabase SSR integration. Preserve Node 24.21.0 (CI pins it; `engines` allows Node 24 because Vercel supplies the patch), React/DOM 19.3.0, TypeScript 5.9.3, Tailwind 4.3.3, supabase-js 2.116.0, ssr 0.12.7, Upstash Workflow 1.3.3/Redis 1.38.4 as the qualified seed; Three 0.186.0 is added at this pin by the first story that uses it; compatible patches are delegated. Install, typecheck and production-build before accepting the application lockfile. The old with-supabase example's Tailwind 3/lint pins are not the seed. Local probes already pass; the application exists as a mock-first shell at the repository root.
 
 Source: Architecture Stack; R-1; qualification stack report.
 
@@ -620,7 +620,7 @@ Source: AD-8; R-3; G-3.
 
 Source: AD-8; R-3, R-11; G-3/G-8.
 
-**AR-13: Shared export schema and PDF.** Implement provenance schema 1.0.0 in JSON Schema Draft 2020-12 with shared generated TypeScript/Python validation for header, evidence, approvals, geometry and manufacturing groups. Export primary 3MF, optional STL, PDF and structured provenance bound to one immutable manifest. Container PDF rendering uses Playwright 1.63.0 Chromium with pinned/licensed Noto Sans and Noto Sans Hebrew, escaped content and no remote resources/scripts. Verify bilingual glyphs/order, pagination, reciprocal links and zero orphans.
+**AR-13: Shared export schema and PDF.** Implement provenance schema 1.0.0 in JSON Schema Draft 2020-12 with shared generated TypeScript/Python validation for header, evidence, approvals, geometry and manufacturing groups. Export primary 3MF, optional STL, PDF and structured provenance bound to one immutable manifest; the evidence group carries each cited edition's license identifier and link, required attribution and source URL. Container PDF rendering uses Playwright 1.63.0 Chromium with pinned/licensed Noto Sans and Noto Sans Hebrew, escaped content and no remote resources/scripts. Verify bilingual glyphs/order, pagination, reciprocal links and zero orphans.
 
 Source: AD-4, AD-8; R-4; G-4.
 
@@ -654,7 +654,7 @@ Source: R-6; AD-11; G-6.
 
 Source: AD-12; FR-1–FR-4.
 
-**AR-19: Revocable artifact transfer.** Keep user-data buckets private (the only public bucket holds public, digest-pinned assets) and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. The container gateway, which exists before the first feature that accepts a user file, streams all user uploads/downloads/ranges through application-signed single-use transfer tickets, and no user file crosses a Vercel function; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.
+**AR-19: Revocable artifact transfer.** Keep user-data buckets private (the only public bucket holds public, digest-pinned assets) and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. The container gateway, which exists before the first feature that accepts a user file, streams all user uploads/downloads/ranges through application-signed single-use transfer tickets, and no user file crosses a Vercel function; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Workers receive no Storage credentials and use the gateway with attempt-scoped tickets. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.
 
 Source: AD-13; file authorization.
 
@@ -682,7 +682,7 @@ Source: AD-7, AD-17; R-5; G-5.
 
 Source: AD-18; SC-5.
 
-**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify the immutable environment ID (one Lifecycle `instance_identity` row mirrored by `APP_ENV` and `INSTANCE_ID`) at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects (staging is also its own Vercel project on the `staging` branch), with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge and the Auth identity count with redacted IDs; outages fail authorization closed.
+**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify the immutable environment ID (one Lifecycle `instance_identity` row mirrored by `APP_ENV` and `INSTANCE_ID`) at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects (staging is also its own Vercel project on the `staging` branch), with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis in its nearest available region and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge and the Auth identity count with redacted IDs; outages fail authorization closed.
 
 Source: AD-19; R-9; G-9.
 
@@ -1184,7 +1184,7 @@ Source: SCREEN-INVENTORY AD-05; canonical ux-contract; applicable ratified decis
 | FR-4 | 2.4, 2.5, 2.6, 2.7, 2.8, 2.13 |
 | FR-5 | 1.7, 2.1, 2.3, 2.13 |
 | FR-6 | 2.7, 2.8, 2.11, 3.7 |
-| FR-7 | 2.10, 3.7, 4.2, 6.3, 6.8, 7.7 |
+| FR-7 | 2.10, 3.7, 4.2, 5.2, 6.3, 6.5, 6.8, 7.7, 7.8 |
 | FR-8 | 3.1, 3.6 |
 | FR-9 | 3.1, 3.2, 3.4, 3.6 |
 | FR-10 | 3.3 |
@@ -1194,7 +1194,7 @@ Source: SCREEN-INVENTORY AD-05; canonical ux-contract; applicable ratified decis
 | FR-14 | 2.5, 2.9, 2.13, 3.2, 3.6, 3.7 |
 | FR-15 | 4.2 |
 | FR-16 | 4.2, 4.3, 7.3 |
-| FR-17 | 2.1, 4.4, 7.3 |
+| FR-17 | 2.1, 4.4 |
 | FR-18 | 4.6, 4.7, 7.3 |
 | FR-19 | 4.5, 6.6 |
 | FR-20 | 5.1 |
@@ -1225,7 +1225,7 @@ Every mapped requirement retains its detailed inventory conditions. Shared const
 | NFR-1 | 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.11, 1.12, 2.2, 2.12, 4.1, 6.9, 7.4, 7.5, 7.9, 8.1, 8.2, 8.7 |
 | NFR-2 | 1.1, 1.3, 1.4, 1.5, 1.6, 1.9, 1.10, 1.11, 1.12, 2.2, 2.5, 3.1, 6.7, 6.9, 8.7 |
 | NFR-3 | 2.12, 3.1, 3.3, 3.6, 4.1, 4.2, 4.4, 4.5, 5.2, 5.3, 5.5, 6.4, 6.5, 6.6, 6.7, 6.8, 8.7 |
-| NFR-4 | 1.9, 2.7, 2.11, 8.6, 8.7 |
+| NFR-4 | 1.9, 1.13, 2.7, 2.11, 8.6, 8.7 |
 | NFR-5 | 2.6, 2.7, 2.11, 4.1, 5.2, 7.4, 8.1, 8.6, 8.7 |
 | NFR-6 | 4.2, 4.3, 5.2, 8.7 |
 | NFR-7 | 2.12, 4.1, 5.3, 5.4, 7.4, 8.4, 8.7, 8.9 |
@@ -1259,7 +1259,7 @@ Every mapped requirement retains its detailed inventory conditions. Shared const
 | AR-23 | 7.2, 7.5, 8.6 |
 | AR-24 | 4.6, 4.7, 7.1, 8.5, 8.8 |
 | AR-25 | 2.10, 3.7, 7.7 |
-| AR-26 | 1.1, 1.9, 1.10, 2.7, 8.4, 8.7, 8.9 |
+| AR-26 | 1.1, 1.9, 1.10, 1.13, 2.7, 8.4, 8.7, 8.9 |
 | AR-27 | 7.1, 8.5, 8.6, 8.7, 8.8 |
 | AR-28 | 1.2, 8.5, 8.8 |
 | UX-DR1 | 1.2 |
@@ -1297,7 +1297,7 @@ Every mapped requirement retains its detailed inventory conditions. Shared const
 | UX-DR33 | 2.2, 7.9 |
 | UX-DR34 | 2.3, 7.9 |
 | UX-DR35 | 2.3, 7.3, 7.9 |
-| UX-DR36 | 2.1, 2.3, 2.13 |
+| UX-DR36 | 2.1, 2.3, 2.13, 7.9 |
 | UX-DR37 | 2.5, 2.9 |
 | UX-DR38 | 2.3, 2.5, 2.9, 7.2 |
 | UX-DR39 | 2.7, 2.10, 3.7 |
@@ -1333,7 +1333,7 @@ Every mapped requirement retains its detailed inventory conditions. Shared const
 | UX-DR69 | 1.11 |
 | UX-DR70 | 1.5 |
 | UX-DR71 | 2.4 |
-| UX-DR72 | 1.5, 1.6, 1.11 |
+| UX-DR72 | 1.5, 1.6, 1.11, 1.13 |
 | UX-DR73 | 8.2 |
 
 ## Epic List
@@ -1366,7 +1366,7 @@ Approved evidence recipes produce immutable models whose features remain linked 
 
 Users can request evidence corrections, regenerate only affected geometry, restore history and approve the exact model they inspected.
 
-**FRs covered:** FR-20, FR-21, FR-22, FR-23, FR-27
+**FRs covered:** FR-7, FR-20, FR-21, FR-22, FR-23, FR-27
 
 ### Epic 6: Qualify and export an evidence-backed printable model
 
@@ -1378,7 +1378,7 @@ An approved model can pass exact profile checks, receive bounded audited repair 
 
 Prepared supported devices can create honestly labeled image-derived models offline, preserve them locally and synchronize without privacy or history loss.
 
-**FRs covered:** FR-3, FR-7, FR-16, FR-17, FR-18, FR-23, FR-24, FR-25, FR-26, FR-27, FR-28, FR-29, FR-30
+**FRs covered:** FR-3, FR-7, FR-16, FR-18, FR-23, FR-24, FR-25, FR-26, FR-27, FR-28, FR-29, FR-30
 
 ### Epic 8: Delete private work and prove release readiness
 
@@ -1405,8 +1405,10 @@ So that implementation starts from the qualified runtime.
 - Adopt the existing root Next.js App Router application (Next 16.3.5, React 19.3.0, TypeScript 5.9.3, Tailwind 4.3.3, Supabase SSR, interim Google sign-in) as the qualified seed and bring it to the pinned contract.
 - Verify the environment at startup and in the deployment build, and exercise the check in CI. Label the mock dashboard a synthetic shell that later stories replace.
 - Define module ownership and environment boundaries; later stories introduce their own entities.
-- Run local development on the Supabase CLI stack, not the hosted project: add the `[auth]` block (Google only, sign-ups on, redirect URLs, OTP expiry) and `[auth.external.google]` to `supabase/config.toml`, re-point `.env.local`, and make `APP_ENV=local` valid only against a loopback Supabase URL. The existing hosted project becomes staging (Story 1.10 records its plan and region), Vercel Production deploys stay disabled until a production project exists, and the environment check requires an Administrator email setting. Create the Lifecycle `instance_identity` row (environment name and a random instance UUID) with its migration, the only table this story adds, and make `APP_ENV` and `INSTANCE_ID` mirror it.
+- Run local development on the Supabase CLI stack, not the hosted project: add the `[auth]` block (Google only, sign-ups on, redirect URLs, OTP expiry) and `[auth.external.google]` to `supabase/config.toml`, re-point `.env.local`, and make `APP_ENV=local` valid only against a loopback Supabase URL. The existing hosted project becomes staging (Story 1.10 records its plan and region), Vercel Production deploys stay disabled until a production project exists, and the environment check requires an Administrator email setting (`ADMINISTRATOR_EMAIL`). Create the Lifecycle `instance_identity` row (environment name and a random instance UUID) with its migration, the only table this story adds, and make `APP_ENV` and `INSTANCE_ID` mirror it.
 - Keep `scripts/restore-supabase.mjs` while `scripts/ci/check-repository.mjs` requires it, and change both together. Set `engines` to Node 24 with CI pinning 24.21.0 (Vercel supplies its own Node 24 patch). Replace the LAN-origin redirect instructions in `docs/auth-setup.md` with the local-stack callback of this story.
+- Replace the guard in `scripts/check-env.mjs` that rejects `VERCEL_ENV=production` unless `APP_ENV=production` with a comparison against the `instance_identity` row, so the staging Vercel project (whose production branch is `staging`) is valid. Change `vercel.json` so only the `staging` branch deploys to that project, with `main` promoted to `staging` by fast-forward, and give preview deployments no Supabase credentials.
+- Choose and pin the test runners: a unit and integration runner that runs Postgres tests against the Supabase CLI stack, and Playwright for browser flows, with local stand-ins for mail (Inbucket) and for QStash, Backblaze, Resend and the Railway workers that implement the same ports.
 
 **Acceptance Criteria:**
 
@@ -1414,13 +1416,13 @@ So that implementation starts from the qualified runtime.
 
 **Given** a clean checkout and the ratified package set
 **When** dependencies install, typechecking and production build run
-**Then** the lockfile records the adopted versions, `engines` allows Node 24 (Vercel supplies the patch release) and CI pins 24.21.0, build-only tooling is not a runtime dependency, the bundler choice is recorded with its qualification evidence, and a loopback production page responds successfully
+**Then** the lockfile records the adopted versions, `engines` allows Node 24 (Vercel supplies the patch release) and CI pins 24.21.0, build-only tooling is not a runtime dependency, the bundler choice is recorded with its qualification evidence, and a loopback production page responds successfully; CI runs the unit, integration and browser suites against the local stack
 
 **AC-2**
 
 **Given** a preview environment
 **When** configuration is loaded
-**Then** production credentials and paid adapters are unavailable, and a mixed or unverifiable environment identifier fails startup and the deployment build. The check compares the `instance_identity` row's environment name and UUID with `APP_ENV`, `INSTANCE_ID`, the configured queue prefix and the allowed callback origin, not only the label, and CI exercises it against fixture environments. A credential-free local build still succeeds
+**Then** production credentials and paid adapters are unavailable, and a mixed or unverifiable environment identifier fails startup and the deployment build. The check compares the `instance_identity` row's environment name and UUID with `APP_ENV`, `INSTANCE_ID`, the configured queue prefix and the allowed callback origin, not only the label, and CI exercises it against fixture environments. A credential-free local build still succeeds; preview builds hold no Supabase credentials
 
 **AC-3**
 
@@ -1442,9 +1444,10 @@ So that no later story stalls on an account only I can create.
 
 **Scope:**
 
-- Record, in a committed provisioning ledger (`docs/provisioning.md`, never a secret value), every external service the Spine names: owner, plan and tier, region, spend backstop, the story that needs it first, the secret names for each environment, and the free-tier limits the design relies on (Vercel 4.5 MB bodies and Hobby terms, Upstash and QStash quotas, Railway's monthly credit shared by the engine, gateway and backup services) with the trigger for upgrading.
-- Do the tasks only Josh can do: one Google OAuth client per environment (local, staging, production) with exact redirect URIs and the consent screen set to In production, because Testing mode silently allowlists and expires grants; the Supabase organization plan (Pro before Story 1.9, since a Free project pauses) and the existing project's status and region; an Anthropic workspace with a dedicated spend limit, its API key, and whether an organization Admin key exists; a Brave account with prepaid credit and no auto-recharge; a Resend account registered with the Administrator address and its API key; the Vercel plan (Hobby only for non-commercial use, otherwise Pro) and the staging project; Upstash, Railway and Backblaze accounts with the two US East buckets that Stories 1.8 and 8.9 use; and a VAPID key pair per environment.
-- Add `scripts/check-provisioning.mjs`, which reports for one environment which required secrets and settings are present, names the story that needs each missing one and never prints a value. Record the Brave terms review (section 3(b) bars storing or caching results) in the ledger before Story 2.5 may enable that adapter.
+- Record, in a committed provisioning ledger (`docs/provisioning.md`, never a secret value), every external service the Spine names: owner, plan and tier, region, spend backstop, the story that first needs it, the secret names for each environment, and the free-tier limits the design relies on (Vercel 4.5 MB bodies and Hobby terms, Upstash and QStash quotas including the periodic-message budget, Railway's monthly credit shared by the CAD worker, engine worker, gateway and backup service) with the trigger for upgrading.
+- Record an internal-secrets register in `docs/secrets.md` (names and purposes, never values): the rate-limiter keyed-hash secret, the invitation and recovery hashing keys, the service-signing and transfer-ticket keys and the age public key. For each: owner, how it is generated, where it lives in each environment, and its rotation procedure and cadence (yearly, and at once on suspected compromise).
+- Do the tasks only Josh can do, each tagged with the story that first needs it so none blocks earlier work than it must. Before Story 1.3: one Google OAuth client per environment with exact redirect URIs and the consent screen set to In production (Testing mode silently allowlists and expires grants). Before Story 1.6: a Resend account registered with the Administrator address, and its API key. Before Story 1.9: the Supabase organization plan (Pro, since a Free project pauses) with the existing project's status and region, the Vercel plan (Hobby only for non-commercial use) and the staging Vercel project, and the Upstash and Railway accounts. Before Story 2.5: an Anthropic workspace with a dedicated spend limit and its API key (noting whether an organization Admin key exists), and a Brave account with prepaid credit and no auto-recharge. Before Story 7.2: the choice and creation of the public model-asset bucket. Before Story 7.7: a VAPID key pair per environment. Before Story 8.9: a Backblaze account with a backup bucket per environment in US East, a separate ledger bucket, a read-only manifest key, and the age key pair (the private key only in the Administrator's password manager). Before the first Story 8.4 drill: permission to create and delete a restore project.
+- Add `scripts/check-provisioning.mjs --story <id>`, which reports for one environment which items due by that story are present, names each missing one and the story that needs it, and never prints a value. Record the Brave terms review (section 3(b) bars storing or caching results) in the ledger before Story 2.5 may enable that adapter.
 
 **Acceptance Criteria:**
 
@@ -1456,15 +1459,21 @@ So that no later story stalls on an account only I can create.
 
 **AC-2**
 
-**Given** an environment and a story that needs a credential
-**When** `check-provisioning` runs
-**Then** it fails naming the missing item and the story that needs it, passes when everything is present and never prints a secret value
+**Given** an environment and a story ID
+**When** `check-provisioning --story <id>` runs
+**Then** it fails naming each missing item due by that story, passes when they are all present, ignores items due later, and never prints a secret value
 
 **AC-3**
 
 **Given** the Google consent screen, the Anthropic and Brave spend limits and the Supabase plan
 **When** the Administrator records them
 **Then** the ledger holds a dated evidence entry for each (console exports kept outside the repository and referenced by name), and the Brave adapter stays disabled until the terms-review entry exists
+
+**AC-4**
+
+**Given** the internal-secrets register
+**When** it is reviewed
+**Then** every internal secret has an owner, generation method, per-environment location, rotation procedure and cadence, and none appears in the repository
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-10/SPEC.md).
 
@@ -1519,7 +1528,7 @@ So that my account starts in its own private workspace.
 
 - Implement narrow idempotent registration: a user signs in with Google, then redeems an invitation code to activate an Account. No code, no Account. Invitations are issued and revoked through the audited seed command until Story 1.11 adds the Administrator surface.
 - Named and current general codes are hashed, single-use and nonexpiring until used or revoked; partial Auth provisioning is unusable.
-- Provision the Administrator (heimannshua@gmail.com, Google subject pinned at first sign-in) and the other currently allowlisted identity once through a documented, audited seed that calls the same provisioning function as registration, rather than code redemption.
+- Provision the Administrator (the address in `ADMINISTRATOR_EMAIL`, heimannshua@gmail.com in staging and production; its Google subject is pinned at first sign-in) and the second address in `AUTH_ALLOWED_EMAILS` once through a documented, audited seed that calls the same provisioning function as registration, rather than code redemption. Registration calls the Projects module's exported provisioning command to create the Workspace in the same transaction.
 - Registration runs only in a server route using the service role: no registration or invitation database object is executable by `anon` or `authenticated`, attempts are limited to 5 failures per network origin per 15 minutes and 100 failures per hour across all origins, and codes carry at least 128 bits of entropy. Failures are counted in an Identity-owned Postgres table keyed by a keyed hash of the platform-reported client address and the time window, so the limiter works before Redis exists and fails closed. Registration locks the Auth identity row and persists its attempt time, which the dormant-identity purge of Story 1.9 shares. A Before User Created hook declared in `supabase/config.toml` rejects any non-Google or unverified-email creation, and the interim email allowlist stays in force until Story 1.4 replaces it.
 
 **Acceptance Criteria:**
@@ -1528,19 +1537,19 @@ So that my account starts in its own private workspace.
 
 **Given** one unused invitation and concurrent registrations
 **When** both attempt redemption
-**Then** at most one activated Account/Workspace is created; retries return the original outcome, the same command ID with a different payload is rejected, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path
+**Then** at most one activated Account/Workspace is created; retries return the original outcome, the same command ID with a different payload is rejected, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path of the routes that exist (Story 1.4 extends the check to every path); the registration screen works on phone and desktop
 
 **AC-2**
 
 **Given** named codes and the current general code
 **When** a code is revoked or successfully redeemed
-**Then** only successful general-code redemption rotates that code; unused codes do not time-expire and existing Accounts remain valid
+**Then** only successful general-code redemption retires that code, whose replacement the Administrator mints on demand in Story 1.11; unused codes do not time-expire and existing Accounts remain valid
 
 **AC-3**
 
 **Given** invalid, used, revoked or guessed codes
 **When** registration is attempted repeatedly
-**Then** generic failures and rate limits (keyed on network origin plus a global budget, including direct calls to the database API) prevent guessing, code values are not logged, and exceeding a limit fails closed even when Redis is absent
+**Then** generic failures and rate limits (keyed on network origin plus a global budget, including direct calls to the database API) prevent guessing, code values are not logged, and an unreachable database fails registration closed and the limiter keeps no raw address
 
 **AC-4**
 
@@ -1553,6 +1562,24 @@ So that my account starts in its own private workspace.
 **Given** a registration holding the Auth identity row lock
 **When** a second transaction tries to delete that identity (standing in for the Story 1.9 purge)
 **Then** the delete waits or sees the registration attempt and deletes nothing, and the attempt time is persisted
+
+**AC-6**
+
+**Given** issued codes
+**When** their generation and storage are inspected
+**Then** each code has at least 128 bits of entropy, only its hash is stored, and no code appears in logs or responses after issuance
+
+**AC-7**
+
+**Given** the audited seed
+**When** it runs twice
+**Then** the Administrator and the second allowlisted identity each have one activated Account, the Administrator's Google subject is pinned at first sign-in, and a later sign-in with the same email but another subject is refused
+
+**AC-8**
+
+**Given** the anon and authenticated database roles
+**When** they try to execute a registration, invitation or recovery function or read those tables
+**Then** every attempt is denied
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-3/SPEC.md).
 
@@ -1574,6 +1601,7 @@ So that my projects and files stay private.
 - Replace the interim `AUTH_ALLOWED_EMAILS` gate with the live-Account check in the same change, and remove the variable from every place it is read or documented: `lib/auth-config.ts` and its callers, `scripts/check-env.mjs`, `scripts/test-env.mjs`, the `.env*.example` files, `docs/auth-setup.md` and `docs/deployment-setup.md`.
 - Reject any cookie-authenticated mutation that lacks a valid origin and CSRF check before it changes state.
 - Authorization fails closed: when Postgres or the live-authorization lookup is unreachable, private requests are denied with a retryable state and no cached grant is honored. Create the Account-owned Preferences record and migrate the device-local choices of Story 1.2 on first sign-in.
+- Create the Identity-owned session-grant record: every sign-in, including step-up and recovery sessions, issues one grant tied to its Auth session_id; each private request verifies it; and revocation by session, by Account and by epoch is a single primitive that Stories 1.5 and 1.6 reuse.
 
 **Acceptance Criteria:**
 
@@ -1593,7 +1621,7 @@ So that my projects and files stay private.
 
 **Given** a failed Google sign-in, a Google identity with no activated Account, or an Administrator session
 **When** sign-in or private browsing is attempted
-**Then** generic failure states are usable and the Administrator cannot impersonate, browse another Workspace or grant administrators
+**Then** generic failure states are usable and the Administrator cannot impersonate, browse another Workspace or grant administrators; a disabled Account sees the disabled state without private data, and sign-in and its failure states work on phone and desktop
 
 **AC-4**
 
@@ -1619,6 +1647,24 @@ So that my projects and files stay private.
 **When** an Account first signs in
 **Then** they become the Account's stored preferences and follow it across devices
 
+**AC-8**
+
+**Given** a completed sign-in
+**When** the callback finishes and the user later signs out
+**Then** one grant exists for the session_id, sign-out revokes it, and a request on the revoked session is refused
+
+**AC-9**
+
+**Given** the staging project with only the Google provider enabled
+**When** a step-up completes
+**Then** a new session_id whose `amr` holds an `oauth` entry at or after the nonce start is accepted, the marker (action class, 5-minute expiry) belongs to that session only, and the initiating session's grant is revoked
+
+**AC-10**
+
+**Given** the repository after this story
+**When** it is searched and the environment checks run
+**Then** `AUTH_ALLOWED_EMAILS` is read or documented nowhere, and a Google identity without a live Account is blocked
+
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-4/SPEC.md).
 
 ### Story 1.11: Manage invitations with fresh authentication
@@ -1633,8 +1679,8 @@ So that only the people I choose can register.
 
 **Scope:**
 
-- Add the Administrator invitation page (AD-01): create named single-use codes, show the current general code, and revoke any unused code. A code's value is shown once, at creation, and afterwards only its identifier and status are listed.
-- Issuance and revocation require the fresh-authentication marker of Story 1.4 (action class administration), call the same issuance function the audited seed uses and append an immutable audit event holding the actor, action and code identifier but never the code value.
+- Add the Administrator invitation page (AD-01): create named single-use codes (a name is a label, not bound to an email), revoke any unused code, and mint the next general code on demand, which is the only way a general code appears after a registration retires its predecessor. A code's value is shown once, at creation, with a copy action; afterwards only its identifier, label and status are listed.
+- Issuance and revocation require the fresh-authentication marker of Story 1.4 (action class administration), call the same issuance function the audited seed uses and append an immutable audit event holding the actor, action and code identifier but never the code value. This story creates the Identity-owned append-only audit-event family (actor, action, opaque target, time, no content) that Stories 1.5, 1.6 and 2.4 also use.
 
 **Acceptance Criteria:**
 
@@ -1648,13 +1694,19 @@ So that only the people I choose can register.
 
 **Given** a created code
 **When** it is displayed and later listed
-**Then** the value is shown once, only its identifier and status are listed afterwards, and logs never contain it
+**Then** the value is shown once with a copy action, only its identifier, label and status are listed afterwards, and logs never contain it
 
 **AC-3**
 
 **Given** issue, revoke and failed attempts
 **When** the audit trail is reviewed
 **Then** each has an immutable event with actor and time and no code value, and the page works on phone and desktop
+
+**AC-4**
+
+**Given** the current general code was just used by a registration
+**When** the Administrator opens the page
+**Then** no general code is listed, and minting the next one needs a fresh-authentication marker and shows it once
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-11/SPEC.md).
 
@@ -1666,11 +1718,11 @@ So that I can revoke access without deleting its work.
 
 **Requirements:** FR-3, AR-15, AR-18, NFR-1, NFR-2, UX-DR70, UX-DR72
 
-**Dependencies:** 1.4
+**Dependencies:** 1.4, 1.11
 
 **Scope:**
 
-- Implement fresh-authenticated account-status transitions, revocable session grants and authorization epochs.
+- Implement fresh-authenticated account-status transitions and authorization epochs on top of the session grants of Story 1.4, and append an immutable audit event (actor, action, opaque target, time) for each transition.
 - Expose a cancellation/fencing contract that every future Job and file path must use.
 
 **Acceptance Criteria:**
@@ -1691,7 +1743,13 @@ So that I can revoke access without deleting its work.
 
 **Given** a disabled Account
 **When** the Administrator re-enables it
-**Then** new authentication can regain access under a newer epoch; previously revoked sessions remain revoked
+**Then** new authentication can regain access under a newer epoch; previously revoked sessions remain revoked; the Account list and its status controls work on phone and desktop
+
+**AC-4**
+
+**Given** a disable or re-enable attempted without a fresh-authentication marker, or with a marker of another action class
+**When** it is submitted
+**Then** it is refused with the step-up offered, and with a valid administration marker it succeeds and appends an immutable audit event
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-5/SPEC.md).
 
@@ -1708,7 +1766,7 @@ So that I can regain control without bypassing workspace privacy.
 **Scope:**
 
 - Recovery serves a lost or failed Google sign-in for the sole Administrator. A no-input server route mints a single-use token (only its hash stored in Postgres, one outstanding, issuance rate-limited globally), and the application emails its own link to the configured Administrator address through Resend using the `resend.dev` sender, because no domain is owned and the Resend account must be registered with that address. The link is the only non-Google sign-in path and exists only for the sole Administrator.
-- The application enforces the 15-minute lifetime on its own clock. Redemption needs a POST confirmation, then mints the session through the Auth Admin API, revokes all prior Administrator sessions and writes a fresh-authentication marker for that session only. Staging must confirm the Admin link API and `verifyOtp` work with the Email provider disabled; if not, keep the provider on and restrict creation to the Administrator address in the Before User Created hook.
+- The application enforces the 15-minute lifetime on its own clock. Redemption needs a POST confirmation, then mints the session through the Auth Admin API, revokes all prior Administrator sessions and writes a fresh-authentication marker for that session only. Staging must confirm the Admin link API and `verifyOtp` work with the Email provider disabled; if they do not, stop and record a design change, because the Spine requires the Google provider only.
 
 **Acceptance Criteria:**
 
@@ -1716,7 +1774,7 @@ So that I can regain control without bypassing workspace privacy.
 
 **Given** the configured sole Administrator
 **When** recovery is requested
-**Then** only the verified email receives the protected link and the response does not expose other Workspaces
+**Then** only the verified email receives the protected link and the response does not expose other Workspaces; the request and redemption pages work on phone and desktop
 
 **AC-2**
 
@@ -1729,6 +1787,12 @@ So that I can regain control without bypassing workspace privacy.
 **Given** a valid recovery link
 **When** redemption succeeds
 **Then** all prior Administrator sessions are revoked, the new session holds a fresh-authentication marker and an immutable recovery audit event is recorded
+
+**AC-4**
+
+**Given** the staging project with the Email provider disabled
+**When** a recovery link is redeemed
+**Then** the Admin API mints a session that holds a fresh-authentication marker for that session only, or the story stops with a recorded design change
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-6/SPEC.md).
 
@@ -1747,7 +1811,7 @@ So that later features cannot bypass deletion or revocation.
 - Create the Lifecycle-owned tombstone record family, monotonic target revisions and the hide-before-revoke ordering that every module read, write, import, callback and cache-promotion path must honor; deleted Project and Account IDs are never reusable.
 - Expose the tombstone check as a reusable authority guard beside the Story 1.5 epoch guard. Deletion commands, manifests and cleanup are supplied by Stories 8.1 to 8.3.
 - Record the auditable deletion-verification procedure required by PRD D-3 before any purge code ships: which stores are checked (database, Storage, backups, notifications, logs), how absence is proven, and who runs it.
-- Create the Lifecycle-owned restore ledger port and its outbox relay for tombstones, Account disables and re-enables, invitation consumption and rotation, recovery revocations and the highest authorization epoch. Stories 1.3, 1.5 and 1.6 append their events through it from this story on. The local change always takes effect first; the relay retries until the ledger store accepts the event and exposes how many are pending for monitoring. Story 8.9 supplies the Backblaze adapter; until then the relay writes to a fixture store.
+- Create the Lifecycle-owned restore ledger port and its outbox relay for tombstones, Account disables and re-enables, invitation consumption and rotation, recovery revocations and the highest authorization epoch. Stories 1.3, 1.5 and 1.6 append their events through it from this story on. The local change always takes effect first; the relay retries until the ledger store accepts the event and exposes how many are pending for monitoring. Story 8.9 supplies the Backblaze adapter; until then the relay writes to a fixture store and is tested as a function until Story 1.9 schedules it.
 
 **Acceptance Criteria:**
 
@@ -1793,13 +1857,13 @@ So that housekeeping and recovery do not depend on someone remembering them.
 
 **Requirements:** AR-26, NFR-2, NFR-4, AR-18
 
-**Dependencies:** 1.4, 1.6, 1.8, 1.10
+**Dependencies:** 1.4, 1.10
 
 **Scope:**
 
 - Treat the existing hosted Supabase project as staging (Story 1.1 relabels it, Story 1.10 records its plan and region), push the `supabase/config.toml` auth settings with the CLI and make CI diff them against the live settings. Provision Upstash Redis and QStash in us-east-1 and the Railway project, and deploy the staging application as its own Vercel project whose production branch is `staging`, so QStash has a signed staging endpoint to call; Vercel previews stay synthetic.
-- Run periodic work from QStash schedules that invoke idempotent routes verified with the provider-native signature check and the stored instance identity; every run writes an immutable receipt. Intervals: orphan cleanup and purge-deadline checks hourly, ledger relay retry every 5 minutes, dormant-identity purge daily. The first task is the dormant-identity purge: delete Auth identities that have no Account, claim or registration attempt 30 days after their last sign-in or registration attempt, in one transaction that locks the identity row as registration does (Story 1.3), with Account foreign keys to the Auth identity restricting deletion.
-- Raise the operational alarm channel: a task with no receipt within twice its interval, or a ledger event pending beyond its retry window, creates a Lifecycle alarm record shown on the Administrator page and emailed to the Administrator address through the application mailer of Story 1.6, once per condition per 24 hours. Production projects are created in Story 8.7 and receive no real private data before Story 8.4 passes its drill.
+- Run periodic work from QStash schedules that invoke idempotent routes verified with the provider-native signature check and the stored instance identity; every run writes an immutable receipt. Intervals: outbox sweep every minute, orphan cleanup and purge-deadline checks hourly, ledger relay retry every 5 minutes while an event is pending, dormant-identity purge daily; each firing carries its schedule ID and scheduled time as an idempotency key. The first task is the dormant-identity purge: delete Auth identities that have no Account, claim or registration attempt 30 days after their last sign-in or registration attempt, in one transaction that locks the identity row as registration does (Story 1.3), with Account foreign keys to the Auth identity restricting deletion. The purge is a Postgres function that deletes from `auth.users` inside that transaction, since the Auth Admin API cannot join it.
+- Register the "task late" condition with the alarm channel of Story 1.13. Apply migrations from CI with the Supabase CLI to staging when the `staging` branch deploys, and to production only on Josh's manual approval. Production projects are created in Story 8.7 and receive no real private data before Story 8.4 passes its drill.
 
 **Acceptance Criteria:**
 
@@ -1823,17 +1887,55 @@ So that housekeeping and recovery do not depend on someone remembering them.
 
 **AC-4**
 
-**Given** a task that has not run within twice its interval
-**When** monitoring evaluates
-**Then** an alarm names the task and its last receipt, appears on the Administrator page and is emailed once per condition per 24 hours
-
-**AC-5**
-
 **Given** an Auth identity with no Account older than 30 days and a registration in flight for a different identity
 **When** the dormant-identity purge runs
 **Then** only the dormant identity is deleted and no in-flight or activated Account, Workspace or claim is removed or orphaned
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-9/SPEC.md).
+
+### Story 1.13: Raise operational alarms
+
+As an Administrator,
+I want to be told when something stops working,
+So that failures and silent stalls do not go unnoticed.
+
+**Requirements:** AR-26, NFR-4, UX-DR72
+
+**Dependencies:** 1.6, 1.8, 1.9
+
+**Scope:**
+
+- Create the Lifecycle-owned alarm record family and an Administrator operations page (phone and desktop) listing open alarms with condition, first and latest time and last receipt. Each alarm is emailed to the Administrator address through the application mailer of Story 1.6 once per condition per 24 hours.
+- Register the conditions this story can observe: a periodic task with no receipt within twice its interval, a ledger event pending over 15 minutes, and more than 25 Auth identities without an Account. Later stories register the others from the Spine's threshold list when their data exists: outbox age and expired leases (Story 2.7), unknown-cost operations (Story 2.8), storage integrity (Story 4.1), missed purge deadlines (Story 8.3) and backup snapshot age (Story 8.9).
+- Watch the schedulers against each other: a small Railway cron task posts a signed heartbeat every 30 minutes, the QStash schedule alarms when that heartbeat is more than two hours old, and the Railway task alarms when the latest QStash receipt is more than two hours old.
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** a condition that crosses its threshold
+**When** the monitor evaluates
+**Then** one alarm record is created, shown on the operations page on phone and desktop and emailed once per condition per 24 hours, and clearing the condition marks it resolved without deleting history
+
+**AC-2**
+
+**Given** a periodic task that stops, or a ledger event left pending
+**When** twice its interval or 15 minutes passes
+**Then** the matching alarm names the task or event and its last receipt
+
+**AC-3**
+
+**Given** either scheduler stopped
+**When** its peer finds the other's latest receipt more than two hours old
+**Then** the surviving scheduler raises an alarm
+
+**AC-4**
+
+**Given** a condition registered by a later story with its threshold (a fixture condition here)
+**When** the monitor evaluates
+**Then** the same alarm path handles it with no new channel
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-13/SPEC.md).
 
 ### Story 1.12: Transfer private files through the authorized gateway
 
@@ -1849,7 +1951,8 @@ So that files stay private and access stops when it is revoked.
 
 - Build `workers/files` on Railway: authenticated large uploads into quota- and lease-bounded staging with checksum and content checks, and downloads and range requests streamed from private Storage in chunks of at most 1 MiB. No user file body crosses a Vercel function, because Vercel Hobby caps request and response bodies at 4.5 MB.
 - Authorize with application-signed single-use transfer tickets obtained from a Vercel route: valid for at most five minutes, bound to Account, session grant, target and direction, and carrying no storage credential. The application and gateway share no cookies, so the gateway accepts cross-origin calls only from the application origin and checks live Account, session, Project and artifact state in Postgres before every chunk, never caching the decision; an unreachable database stops the stream.
-- Create the versioned service-signing key contract (one active key and one explicitly retiring key; suspected compromise revokes a key and its affected leases at once) that the gateway uses now and Story 2.7 reuses for workers and callbacks. Private responses use no-store and no reusable storage signed URL is ever issued. Staging cleanup runs on the Story 1.9 scheduler and respects active leases.
+- Create the versioned service-signing key contract (one active key and one explicitly retiring key; suspected compromise revokes a key and its affected leases at once) that the gateway uses now and Story 2.7 reuses for workers and callbacks. Keys are versioned environment secrets (`SERVICE_SIGNING_KEY_<n>`) with one active id and at most one retiring id in configuration. Private responses use no-store and no reusable storage signed URL is ever issued. Staging cleanup runs on the Story 1.9 scheduler and respects active leases.
+- Resolve targets through a pluggable resolver: this story ships the staging-lease resolver and a fixture resolver, Story 2.12 registers retained pictures and Story 4.1 artifact manifests, and a target kind with no resolver is refused. A ticket authorizes opening one transfer; the gateway then holds a transfer handle for its chunk checks, resuming or reading a further range needs a new ticket, and every redemption is recorded (Artifacts-owned) so a ticket cannot be reused. Workers receive attempt-scoped, worker-audience tickets and never Storage credentials. The attach step accepts registered transforms (Story 2.12 registers the metadata strip). Pictures follow the Spine limits; other uploads may be up to 100 MiB per object.
 
 **Acceptance Criteria:**
 
@@ -1863,7 +1966,7 @@ So that files stay private and access stops when it is revoked.
 
 **Given** a large owned file
 **When** a download or range transfer runs
-**Then** each range and each chunk of at most 1 MiB checks live session, Account, Project and artifact state, no reusable signed storage URL is exposed and responses are no-store
+**Then** each range and each chunk of at most 1 MiB checks live session and Account state and the state of its target through the resolver (Project and artifact state for the kinds that Stories 1.7, 2.12 and 4.1 register), no reusable signed storage URL is exposed and responses are no-store
 
 **AC-3**
 
@@ -1873,7 +1976,7 @@ So that files stay private and access stops when it is revoked.
 
 **AC-4**
 
-**Given** a ticket that is expired, replayed, bound to another Account, session or target, or signed with a revoked key
+**Given** a ticket that is expired, replayed, bound to another Account, session, target or worker attempt, or signed with a revoked key
 **When** it is presented
 **Then** the gateway rejects it; a ticket under the one retiring key is accepted only for its outstanding window, and a compromise revocation rejects it at once
 
@@ -1912,7 +2015,7 @@ So that I can resume the next required action.
 
 **Given** owned Projects with current stage/version metadata
 **When** an item is opened
-**Then** the model/stage and Sources entry are selected with the next required action reachable
+**Then** the model/stage and Sources entry are selected with the next required action reachable; stage labels cover every Project stage, including awaiting Model Approval and Export ready, fed by fixtures until later stories supply them
 
 **AC-3**
 
@@ -1940,6 +2043,7 @@ So that work starts from my confirmed intent.
 
 - Persist immutable subject, scope, outcome, mode and optional user-added personalization; clarify ambiguity before research. Personalization is free-form wording mapped to the one supported kind, raised or recessed text on declared surfaces; any other request is explained as unsupported.
 - Create the domain-package manifest contract and the registry port, with the Middot manifest holding its registered subject (ID, display name and aliases); later stories add manifest fields as they land. Clarification is deterministic and free: the description is matched against registered subject names and aliases, no match explains the supported subjects and offers picture mode, several matches ask which one, and no billable call is made.
+- Personalization applies to evidence modes only; for an image_direct request it is declined with the reason that image-derived models carry no declared surfaces.
 
 **Acceptance Criteria:**
 
@@ -1961,6 +2065,12 @@ So that work starts from my confirmed intent.
 **When** start is requested
 **Then** no Job begins and scope confirmation is not mistaken for Plan Approval or paid permission
 
+**AC-4**
+
+**Given** an image_direct request with a personalization wish
+**When** the request is confirmed
+**Then** the wish is declined with that explanation and recorded as not applied
+
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-1/SPEC.md).
 
 ### Story 2.2: Stage ordered multi-view images privately
@@ -1971,7 +2081,7 @@ So that the request preserves all useful views.
 
 **Requirements:** AR-7, AR-19, NFR-1, NFR-2, SC-1, SC-3, UX-DR9, UX-DR33
 
-**Dependencies:** 1.4, 1.7, 1.12
+**Dependencies:** 1.4, 1.7, 1.12, 2.1
 
 **Scope:**
 
@@ -2013,6 +2123,7 @@ So that I understand what the resulting geometry can claim.
 
 - Run deterministic client-side quality checks (short edge of at least 800 px, blur measured as the variance of the Laplacian on a 512-px grayscale copy of at least 100, and at most 35% clipped exposure) and have the user label each view and confirm that nothing blocks the subject. Compare the labelled views with the at least three distinct views direct conversion needs and recommend the missing ones. No model detects obstruction in this version.
 - Persist evidence_images versus image_direct with the appropriate confirmed-input gate.
+- Implement the quality checks as a shared module that Story 7.9 reuses on the device, with fixture images and the exact definitions of the Spine defaults (3 x 3 Laplacian on a grayscale copy whose long edge is 512 px; clipped means luminance 0 or 255; view labels front, back, left, right, top, bottom and detail).
 
 **Acceptance Criteria:**
 
@@ -2032,7 +2143,7 @@ So that I understand what the resulting geometry can claim.
 
 **Given** a picture-mode choice or later mode change
 **When** the request is confirmed
-**Then** research-assisted mode requires whole-plan approval later; direct mode has no synthetic Research Plan, and mode changes create successor requests
+**Then** research-assisted mode requires whole-plan approval later; direct mode has no synthetic Research Plan, and mode changes create successor requests; the accuracy explanation and offline availability of each mode are shown
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-3/SPEC.md).
 
@@ -2048,7 +2159,7 @@ So that later research, conversion and recovery use the exact pictures I confirm
 
 **Scope:**
 
-- When the user confirms the ordered pictures (the end of the Story 2.3 quality review), attach them to the Project as retained artifacts and pin their roots in a successor request revision: create the Artifacts-owned manifest record family and the coordinated verified publication command (canonical JSON manifest root, ownership scope, digest and length), strip location tags from the retained copy and record its digest, then let the staging copies expire. A retained-picture quota of 2 GiB per Account applies.
+- When the user confirms the ordered pictures (the end of the Story 2.3 quality review), attach them to the Project as retained artifacts and pin their roots in a successor request revision: create the Artifacts-owned manifest record family and the coordinated verified publication command (canonical JSON manifest root, ownership scope, digest and length), strip location tags from the retained copy and record its digest, then let the staging copies expire. A retained-picture quota of 2 GiB per Account applies, and a breach rejects the whole confirmation rather than part of it. The metadata strip runs inside the attach step of the Story 1.12 gateway; the retained digest is recorded together with the original staged digest it replaces, so acknowledgments pinned to originals stay verifiable; a repeated confirmation returns the same roots; and staging copies expire when the retained roots commit or at their lease end, whichever comes first.
 - Later consumers (subject identification, research, direct conversion and reconversion) read these retained roots, never lease-bounded staging. Story 4.1 extends the same family to worker outputs.
 
 **Acceptance Criteria:**
@@ -2063,19 +2174,25 @@ So that later research, conversion and recovery use the exact pictures I confirm
 
 **Given** changed bytes, a foreign owner or an expired lease before attachment
 **When** retention is attempted
-**Then** nothing is published and the pictures stay unconfirmed with an actionable state
+**Then** nothing is published and the pictures stay unconfirmed with an actionable state; the states are readable on phone and desktop
 
 **AC-3**
 
 **Given** a later consumer needing the pictures
 **When** it resolves them
-**Then** it reads the retained roots and the original digests match the confirmed order
+**Then** it reads the retained roots, and each retained digest maps to the original staged digest the user confirmed, in the confirmed order
 
 **AC-4**
 
 **Given** the retained-picture quota is exceeded or an image carries location tags
 **When** retention runs
 **Then** the quota rejects the excess with an actionable state, and the retained copy has no location tags while its digest and the confirmed order are recorded
+
+**AC-5**
+
+**Given** a confirmation submitted twice
+**When** retention runs both times
+**Then** the second run returns the same roots and creates no duplicate artifacts
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-12/SPEC.md).
 
@@ -2112,7 +2229,13 @@ So that spending stays within my allowance.
 
 **Given** an allowance at or above 80% of its period limit, or reached
 **When** usage is displayed
-**Then** settled, reserved and available amounts reconcile; new paid work is blocked when insufficient while disable still revokes active work
+**Then** settled, reserved and available amounts reconcile; new paid work is blocked when insufficient while disable still revokes active work; usage is readable on phone and desktop
+
+**AC-4**
+
+**Given** a limit change without a fresh administration marker
+**When** it is submitted
+**Then** it is refused with the step-up offered
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-4/SPEC.md).
 
@@ -2224,7 +2347,7 @@ So that paid work uses only the data and maximum I permitted.
 
 **Given** a confirmed research request with default permissions off
 **When** a paid category is offered
-**Then** provider, purpose, outbound-data categories, retention limitations and maximum are disclosed before explicit permission
+**Then** provider, purpose, outbound-data categories, retention limitations and maximum are disclosed before explicit permission; the disclosure and permission controls work on phone and desktop
 
 **AC-2**
 
@@ -2236,7 +2359,7 @@ So that paid work uses only the data and maximum I permitted.
 
 **Given** a permissioned vision/synthesis operation
 **When** its outbound payload is formed
-**Then** only purpose-required approved content is included, excluding unrelated Workspace data and unapproved personalization
+**Then** only purpose-required approved content is included, excluding unrelated Workspace data and unapproved personalization; images are the metadata-free provider-bound derivatives
 
 **AC-4**
 
@@ -2256,12 +2379,12 @@ So that accepted work survives navigation and failures stay controlled.
 
 **Requirements:** FR-6, AR-3, AR-14, AR-15, AR-26, NFR-4, NFR-5, NFR-8, NFR-10, UX-DR19, UX-DR39, UX-DR40, FR-4
 
-**Dependencies:** 1.5, 2.6, 2.11, 1.9, 1.12
+**Dependencies:** 1.5, 2.6, 2.11, 1.9, 1.12, 1.13
 
 **Scope:**
 
 - Commit the Job, its initial reservation and the dispatch outbox together, using the identities of Story 2.11.
-- Use signed environment-bound bounded steps (under the Story 1.12 signing-key contract), compatible worker registration and cancellation fencing; never automatically retry failed work. Use a 120-second worker lease renewed every 30 seconds and a 15-second outbox relay, as the Spine fixes.
+- Use signed environment-bound bounded steps (under the Story 1.12 signing-key contract), compatible worker registration and cancellation fencing; never automatically retry failed work. Use a 120-second worker lease renewed every 30 seconds. The committing request publishes the dispatch at once and a QStash schedule sweeps unpublished outbox rows older than 15 seconds every minute, as the Spine fixes. Run the deterministic test-workload step as a Vercel step that a test worker registered through the signed worker-registration endpoint can also take, so lease loss is testable. Workers read inputs and write staged outputs only through the Story 1.12 gateway with attempt-scoped tickets, and report completion with fenced signed commands. The test workload registers a test event type with Story 2.10. Register the outbox-age and expired-lease conditions with the Story 1.13 alarm channel.
 - Ship a deterministic test-workload step so durable-job behavior is testable before research exists.
 - A user cancel revokes commit authority first and starts no new external step; a completing Job settles actual usage against its reservation and releases only demonstrably unused allowance.
 
@@ -2271,7 +2394,7 @@ So that accepted work survives navigation and failures stay controlled.
 
 **Given** an accepted Job followed by browser close or dispatcher restart
 **When** dispatch resumes
-**Then** committed outbox and unique receipts retain waiting/running/completed/failed/cancelled state without duplicate side effects
+**Then** committed outbox and unique receipts retain waiting/running/completed/failed/cancelled state without duplicate side effects; job state is readable on phone and desktop
 
 **AC-2**
 
@@ -2303,6 +2426,12 @@ So that accepted work survives navigation and failures stay controlled.
 **When** the disable commits
 **Then** running Jobs lose commit authority at once, no new external step starts, cancellation signals follow, reservations are held until settled and an audit event records the cancellation
 
+**AC-7**
+
+**Given** an unpublished outbox row older than 15 seconds
+**When** the sweep runs
+**Then** it is published exactly once, an already published row is skipped, and an outbox age over 60 seconds raises the Story 1.13 alarm
+
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-7/SPEC.md).
 
 ### Story 2.8: Reconcile ambiguous charges without replacement calls
@@ -2313,12 +2442,13 @@ So that retries cannot double-charge me.
 
 **Requirements:** FR-4, FR-6, AR-14, AR-16, AR-17, NFR-9
 
-**Dependencies:** 2.6, 2.7, 2.4
+**Dependencies:** 2.6, 2.7, 2.4, 2.5
 
 **Scope:**
 
 - Persist operation identity before dispatch and reconcile under that identity; user retries remain under the parent Job.
 - List each overrun incident on the Administrator usage page with provider, operation and amounts; only the freshly authenticated Administrator can review and clear it, which re-enables admissions for that provider.
+- Register the unknown-cost condition with the Story 1.13 alarm channel: an operation of unknown cost older than 24 hours.
 
 **Acceptance Criteria:**
 
@@ -2344,7 +2474,7 @@ So that retries cannot double-charge me.
 
 **Given** provider usage above an operation's reservation
 **When** the incident is recorded
-**Then** it settles at the evidence, counts against every limit, blocks that provider's admissions, and only the freshly authenticated Administrator can review and clear it on the usage page
+**Then** it settles at the evidence, counts against every limit, blocks that provider's admissions, and only the freshly authenticated Administrator can review and clear it on the usage page; a clear attempt without a fresh administration marker is refused
 
 **Engineering gates:** G-6; planning completion does not change their qualification status.
 
@@ -2362,8 +2492,8 @@ So that research is aimed at the right subject and unsupported subjects stop ear
 
 **Scope:**
 
-- In evidence_images mode, after the pictures are confirmed and retained (Story 2.12) and before scope confirmation, the user either names the pictured subject or grants an identification permission. That permission is its own category-and-purpose disclosure (purpose: identify the pictured subject; data: the retained pictures; maximum from the Story 2.6 calculator) and never authorizes a later research operation.
-- With that permission, one bounded Anthropic vision operation runs as its own Job (its own parent-Job cap, the $1 operation ceiling and the Account allowance) and returns a schema-validated, untrusted proposal for the user to confirm or edit; a successor request revision records the confirmed subject, not the proposal.
+- In evidence_images mode, after the pictures are confirmed and retained (Story 2.12) and before scope confirmation, the user either names the pictured subject or grants an identification permission. That permission is its own category-and-purpose disclosure (purpose: identify the pictured subject; data: the retained pictures; maximum from the Story 2.6 calculator) and never authorizes a later research operation. Identification is a purpose of the synthesis/vision category, not a new category, and its Job has the ordinary $5 parent-Job cap.
+- With that permission, one bounded Anthropic vision operation runs as its own Job (its own parent-Job cap, the $1 operation ceiling and the Account allowance) and returns a schema-validated (subject name, confidence, alternatives), untrusted proposal for the user to confirm or edit, built from transient provider-bound derivatives of the pictures (all metadata removed, re-encoded, long edge at most 1568 px, at most 5 MB each) that are never stored; a provider outage or ambiguous outcome follows Story 2.8 and the user can always name the subject instead; a successor request revision records the confirmed subject, not the proposal.
 - A confirmed subject is matched by name or alias against the domain-package registry created in Story 2.1. No match ends with a no-generator outcome that lists the supported subjects and offers direct mode, and no research starts.
 
 **Acceptance Criteria:**
@@ -2383,8 +2513,14 @@ So that research is aimed at the right subject and unsupported subjects stop ear
 **AC-3**
 
 **Given** a confirmed subject with no registered domain package
-**When** scope is confirmed
+**When** the subject is confirmed
 **Then** no research or paid step starts and the user sees what is supported and the direct-mode alternative
+
+**AC-4**
+
+**Given** pictures sent for identification
+**When** the outbound payload is built
+**Then** every image is a metadata-free derivative within the size limits, and nothing derived is stored
 
 **Engineering gates:** G-6; planning completion does not change their qualification status.
 
@@ -2402,7 +2538,7 @@ So that scope, cost and freshness stay explicit.
 
 **Scope:**
 
-- After scope confirmation present independent payment and cache/fresh choices; dispatch pins these choices.
+- After scope confirmation present independent payment and cache/fresh choices; the Story 3.1 start command pins these choices.
 - The payment choice has two states, Free (governing sources only) and Paid expansion. Choosing Paid expansion reveals the search and synthesis/vision permissions of Story 2.5 as separate, default-off disclosures; with neither granted the Project behaves as free mode. Free mode always runs first, and paid categories apply to its unresolved items.
 
 **Acceptance Criteria:**
@@ -2411,7 +2547,7 @@ So that scope, cost and freshness stay explicit.
 
 **Given** a confirmed evidence request
 **When** research settings open
-**Then** free/paid and reuse/fresh are separate controls following scope confirmation; both controls work on phone and desktop
+**Then** free/paid and reuse/fresh are separate controls following scope confirmation; both controls work on phone and desktop; both controls work on phone and desktop
 
 **AC-2**
 
@@ -2423,7 +2559,13 @@ So that scope, cost and freshness stay explicit.
 
 **Given** fresh research, missing permission or insufficient allowance
 **When** start is attempted
-**Then** fresh work cannot silently substitute cached conclusions, and missing paid authority blocks dispatch
+**Then** fresh work cannot silently substitute cached conclusions, and missing paid authority blocks dispatch; starting shows a confirmation summary of mode, payment, freshness, permissions and maximum before dispatch
+
+**AC-4**
+
+**Given** Paid expansion with neither the search nor the synthesis/vision permission granted
+**When** research starts
+**Then** the Project behaves as free mode, free mode runs first, and a disabled provider adapter removes only its own category from the offer
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-9/SPEC.md).
 
@@ -2459,7 +2601,7 @@ So that background progress remains usable across sessions.
 
 **Given** an unread/read notification or deleted/foreign target
 **When** it is selected
-**Then** the exact live-authorized item opens or an unavailable state appears; Prints in Progress remains Coming later
+**Then** the exact live-authorized item opens or an unavailable state appears; Prints in Progress remains Coming later; empty, failure, permission-disabled and grouped states render
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-10/SPEC.md).
 
@@ -2482,6 +2624,7 @@ So that I need not locate or upload the texts myself.
 - In free mode, discover sources only from the domain package's pinned registry (initially Middot chapter 3 Hebrew Torat Emet 357 and English Mishnah Yomit via Sefaria; Sefaria-linked commentaries only if verified free and license-permitted) and keyless allowlisted public endpoints; there is no open-web search.
 - The registry lists ordered alternate editions per source; none beyond the two initial editions is chosen yet. Open-web discovery exists only under the paid search category, and only passages nova3D itself fetches from a cited page are pinned. Pin exact Middot editions and permitted evidence retention.
 - Extend the Middot manifest with its pinned source registry. Research starts only for a confirmed subject that has a registered package.
+- Own the research start command: it validates the Story 2.9 choices and permission snapshot, dispatches the research Job through Story 2.7 and records each acquisition step (searching, opened, lead, accepted, rejected, replacement) as an Evidence-owned activity event that Story 3.7 renders.
 
 **Acceptance Criteria:**
 
@@ -2515,6 +2658,18 @@ So that I need not locate or upload the texts myself.
 **When** research is started
 **Then** the command is refused with the Story 2.13 outcome and no Job, reservation or source request is created
 
+**AC-6**
+
+**Given** free mode
+**When** discovery runs
+**Then** only the domain package's pinned registry and keyless allowlisted endpoints are contacted, and any other destination is refused
+
+**AC-7**
+
+**Given** a deliberately failing research step
+**When** the effective workflow and queue configuration run
+**Then** the step is not retried automatically and the Job ends failed with its cause
+
 **Engineering gates:** G-7; planning completion does not change their qualification status.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-3-1/SPEC.md).
@@ -2537,9 +2692,9 @@ So that research follows my source choices without rewriting history.
 
 **AC-1**
 
-**Given** a source used in active research
+**Given** a source used in active research (draft claims and choices are fixtures until Stories 3.3 and 3.4 create them)
 **When** Project exclusion or Account disable is applied
-**Then** the effective epoch changes immediately, affected draft claims/choices are reconsidered and replacement research continues with the proper scope
+**Then** the effective epoch changes immediately, affected draft claims/choices are reconsidered and replacement research continues with the proper scope; source controls work on phone and desktop
 
 **AC-2**
 
@@ -2551,7 +2706,7 @@ So that research follows my source choices without rewriting history.
 
 **Given** a completed approved Project or re-enabled source
 **When** a toggle or warning preference changes
-**Then** approved records and exports remain immutable; re-enable restores future eligibility and hiding warnings changes presentation only
+**Then** approved records and exports remain immutable; re-enable restores future eligibility and hiding warnings changes presentation only; a newly disabled Source shows its warning by default and an invalidated item is marked newly invalidated
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-3-2/SPEC.md).
 
@@ -2570,6 +2725,8 @@ So that I do not approve a reconstruction with hidden omissions.
 - Build the finite subject-specific detail checklist, statuses and independent omission review; product FRs are not physical detail records.
 - Implement the research-engine port with deterministic domain-package extractors that map governing text to checklist items, and the separate omission scan driven by a versioned grammar of quantity, relational, material and placement phrases. Free mode counts as complete only for domain-registered subjects, only after the scan finds omissions seeded into a fixture and an independent human or other-engine pass covers the first registry subject.
 - Extend the Middot manifest with its detail checklist.
+- Implement the paid mode of the port for items free mode left unresolved: a search step (normalized public subject only), a fetch of the cited page by nova3D, Anthropic claim extraction with schema validation and a citation check, each as its own reserved operation under Story 2.6.
+- Checklist details carry typed finite values with original units where the subject has dimensions, and the unit conversion (AD-7) is part of the plan. The independent omission pass is an Evidence-owned review record (reviewer, method, time, subject, findings).
 
 **Acceptance Criteria:**
 
@@ -2577,7 +2734,7 @@ So that I do not approve a reconstruction with hidden omissions.
 
 **Given** a requested reconstruction scope
 **When** completeness is assessed
-**Then** shape, dimensions, materials, placement, printability and historical interpretation are accounted for with evidence or explicit sourced/inferred/disputed/unknown/user-added status; the same actions work on phone and desktop
+**Then** shape, dimensions, materials, placement, printability and historical interpretation are accounted for with evidence or explicit sourced/inferred/disputed/unknown/user-added status; the same actions work on phone and desktop; dimensional details carry typed values with their original units
 
 **AC-2**
 
@@ -2596,6 +2753,12 @@ So that I do not approve a reconstruction with hidden omissions.
 **Given** a fixture whose governing text contains seeded omissions
 **When** the omission scan runs
 **Then** every seeded omission surfaces as a gap, and free mode cannot report complete for the first registry subject until an independent human or other-engine pass is recorded
+
+**AC-5**
+
+**Given** paid expansion with the search and synthesis permissions and unresolved items
+**When** the paid steps run
+**Then** search, fetch, extraction and citation check run as separate reserved operations, output that fails schema or citation validation is rejected, and resolved items keep their source status
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-3-3/SPEC.md).
 
@@ -2619,7 +2782,7 @@ So that I can select an interpretation with its geometry consequences.
 
 **Given** Hebrew and English source content
 **When** the reader opens during research
-**Then** original, translation, citation and explanation remain distinct and readable without pausing the Job; the reader works on phone and desktop
+**Then** original, translation, citation and explanation remain distinct and readable without pausing the Job; the reader works on phone and desktop; a source available only as a digest, or with its excerpt unavailable, shows that state
 
 **AC-2**
 
@@ -2661,7 +2824,7 @@ So that evidence-backed geometry follows my exact decisions.
 
 **Given** a complete checklist and independent gap pass
 **When** the user approves the whole plan
-**Then** the immutable exact digest, approver/time, choices and affected details are recorded
+**Then** the immutable exact digest, approver/time, choices and affected details are recorded; the digest includes the pinned evidence-policy snapshot
 
 **AC-3**
 
@@ -2674,6 +2837,12 @@ So that evidence-backed geometry follows my exact decisions.
 **Given** a plan the user does not accept
 **When** the user rejects it or asks for changes
 **Then** the rejection is recorded immutably with the user's reasons, no generation authority results, and the user can revise the unsettled choices to produce a successor plan
+
+**AC-5**
+
+**Given** a client-supplied approval flag, or an approval attempted by a worker
+**When** approval is submitted
+**Then** it is rejected, and only the authenticated approval command of the Account owner records an approval
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-3-5/SPEC.md).
 
@@ -2784,6 +2953,7 @@ So that partial output cannot masquerade as a completed version.
 **Scope:**
 
 - Extend the Artifacts-owned manifest family created in Story 2.12 to worker-produced artifacts: attempt-scoped staging, coordinated verified publication and consumers that use the same roots; mutable staging leases are separate.
+- Register the manifest resolver with the Story 1.12 gateway, and register the storage-integrity condition (a manifest whose bytes fail verification) with the Story 1.13 alarm channel.
 
 **Acceptance Criteria:**
 
@@ -2822,6 +2992,7 @@ So that I can obtain canonical geometry without manual modeling.
 - Implement trusted declarative subject recipe and pinned native CadQuery worker for the evidence-backed altar/ramp fixture.
 - Declare in the domain package the base face, the personalization surfaces and the pinned source registry; Josh approves the G-1 corpus before the qualification run is recorded.
 - Emit a ModelVersionCommitted outbox event from the shared Model Version commit that every producer uses (Stories 4.4, 5.2, 6.4 successors and 7.4 imports). The generator schema accepts optional failed print constraints (check, measured value, required value, feature references) for the constrained regeneration of Story 6.5.
+- Store with every Model Version the exact bounding box of the solid in the declared default print orientation (exact rationals in millimetres), which the print-frame function of Story 4.3 reads. Retain the generator image digest and dependency lock for every non-deleted Model Version. Define the regression corpus (the approved G-1 fixture set) in the repository before acceptance.
 
 **Acceptance Criteria:**
 
@@ -2849,6 +3020,18 @@ So that I can obtain canonical geometry without manual modeling.
 **When** the Job commits the outcome
 **Then** one durable notification event is registered with Story 2.10 for the recipient, carrying an exact authorized target
 
+**AC-5**
+
+**Given** a Model Version whose generator image and lock are retained
+**When** the toolchain is upgraded and a Job pinned to the old toolchain resumes
+**Then** the old image and lock remain available and the Job never resumes against the upgraded generator
+
+**AC-6**
+
+**Given** identical approved inputs and a pinned toolchain
+**When** generation runs twice
+**Then** the two Model Versions are equivalent within the R-2 tolerance (a comparator fixture until Story 4.3)
+
 **Engineering gates:** G-1; planning completion does not change their qualification status.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-4-2/SPEC.md).
@@ -2867,7 +3050,7 @@ So that regeneration and minor repair cannot silently alter the model.
 
 - Implement a certified comparator and deliberate negative corpus independently of preview meshes.
 - Tessellate the oriented, scaled solid at the print-frame deflection (0.002 mm linear, 0.1 rad angular) on both sides. The approximation bound is twice the deflection plus comparator and floating-point error; until G-2 verifies achieved deviation, use the larger of nominal and measured maximum deviation.
-- Provide the pure print-frame function the comparator uses: the default orientation from the domain package's declared base face, and the largest uniform scale, never above 1:1, that fits the oriented solid's exact kernel bounding box inside the profile cube minus 1 mm per side, as an exact rational. Use the R-3 profile constants as a pinned fixture until Story 6.1 pins profiles; Story 6.1 stores the result on the validation lineage, and Stories 4.4 and 5.2 reuse it.
+- Provide the pure print-frame function the comparator uses: the default orientation from the domain package's declared base face, and the largest uniform scale, never above 1:1, that fits the oriented solid's exact kernel bounding box (stored with the Model Version by Story 4.2) inside the profile cube minus 1 mm per side, as an exact rational. Use the R-3 profile constants as a pinned fixture until Story 6.1 pins profiles; Story 6.1 stores the result on the validation lineage, and Stories 4.4 and 5.2 reuse it.
 
 **Acceptance Criteria:**
 
@@ -2888,6 +3071,12 @@ So that regeneration and minor repair cannot silently alter the model.
 **Given** dimensional, thin-feature, hole, rotation, unit, scale or tiny/zero/ill-conditioned fixtures, or a uniform 0.1% shrink repair of a metre-scale source
 **When** the regression corpus runs
 **Then** inconclusive or violating results fail closed; coarse bounds/volume alone and preview LOD cannot certify equivalence
+
+**AC-4**
+
+**Given** fixture solids
+**When** the print-frame function runs
+**Then** the scale never exceeds 1:1, keeps the oriented box inside the profile cube minus 1 mm per side, is an exact rational and is identical for identical inputs, a solid that cannot fit is rejected, and an axis-aligned alternative orientation is only proposed, never applied silently
 
 **Engineering gates:** G-2; planning completion does not change their qualification status.
 
@@ -2963,6 +3152,12 @@ So that I can inspect what justifies each consequential shape.
 **When** existing provenance is opened
 **Then** approved history stays immutable and evidence/feature lists remain accessible with the proper warning
 
+**AC-4**
+
+**Given** a regenerated or restored Model Version
+**When** its features and evidence links are compared with the previous version
+**Then** logical feature IDs and evidence links stay stable and version-specific bindings resolve
+
 **Engineering gates:** G-4; planning completion does not change their qualification status.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-4-5/SPEC.md).
@@ -2982,6 +3177,7 @@ So that inspection is fast without changing manufacturing geometry.
 - Generate from the canonical geometry a coarse GLB (at most 5 MB) and a full-detail GLB set (at most 20 MB in total) with explicit millimetre-to-metre and Z-up-to-Y-up transforms, semantic feature maps that do not depend on vertex or triangle order, and version-compatible bindings so selection can switch atomically; publish them through the Story 4.1 manifests.
 - Derivatives are labeled preview and never manufacturing authority.
 - Subscribe to the ModelVersionCommitted event of Story 4.2 and enqueue one derivative Job through the Story 2.7 machinery for every new Model Version; a version without derivatives is shown as preview pending and never as inspectable. Large GLB files are served through the Story 1.12 gateway.
+- For an imported image-derived Model Version, derive the GLBs from its verified mesh snapshot; device-produced derivatives are never imported as manufacturing or inspection authority.
 
 **Acceptance Criteria:**
 
@@ -3008,6 +3204,12 @@ So that inspection is fast without changing manufacturing geometry.
 **Given** a Model Version committed by any producer
 **When** its commit event is handled
 **Then** one derivative Job is enqueued, and the version is not inspectable until both derivative manifests exist
+
+**AC-5**
+
+**Given** an imported image-derived Model Version with a mesh snapshot
+**When** its derivative Job runs
+**Then** the GLBs derive from the verified snapshot and any device-produced GLB is ignored
 
 **Engineering gates:** G-5; planning completion does not change their qualification status.
 
@@ -3095,7 +3297,7 @@ So that the evidence can be reconsidered without manual mesh editing.
 
 **Given** research finds no change or fails
 **When** the result is shown
-**Then** original approved state remains intact with reasons, known cost and permitted next action
+**Then** original approved state remains intact with reasons, known cost and permitted next action; when a paid permission is needed the correction shows that state instead of starting
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-5-1/SPEC.md).
 
@@ -3105,7 +3307,7 @@ As an Account owner,
 I want to apply an approved correction,
 So that unrelated geometry stays within the agreed tolerance.
 
-**Requirements:** FR-21, AR-8, AR-9, AR-10, AR-15, NFR-3, NFR-5, NFR-6
+**Requirements:** FR-21, AR-8, AR-9, AR-10, AR-15, NFR-3, NFR-5, NFR-6, FR-7
 
 **Dependencies:** 5.1, 4.3
 
@@ -3132,6 +3334,12 @@ So that unrelated geometry stays within the agreed tolerance.
 **Given** stale, cancelled or superseded correction work
 **When** publication is attempted
 **Then** fencing rejects it and prior versions remain available; failed generation waits for explicit retry
+
+**AC-4**
+
+**Given** regeneration that completes or fails
+**When** the Job commits the outcome
+**Then** one durable notification event is registered for the recipient with an exact authorized target
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-5-2/SPEC.md).
 
@@ -3242,6 +3450,12 @@ So that export cannot use a different candidate.
 **When** export authority is queried (a fixture query until Story 6.8)
 **Then** old approval cannot authorize the changed candidate and renewed inspection/approval is required
 
+**AC-4**
+
+**Given** a client-supplied approval flag or a worker-initiated approval
+**When** approval is submitted
+**Then** it is rejected, and only the authenticated approval command of the Account owner for the inspected version records an approval
+
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-5-5/SPEC.md).
 
 ## Epic 6: Qualify and export an evidence-backed printable model
@@ -3261,7 +3475,7 @@ So that validation applies to the intended output.
 **Scope:**
 
 - Pin the complete manufacturer profile inheritance plus explicit application overrides and print transform.
-- Compute the default print scale once per validation lineage at its first validation with the Story 4.3 print-frame function (largest uniform scale, never above 1:1, that fits the oriented canonical solid's exact kernel bounding box inside the profile cube minus 1 mm per side, stored as an exact rational), and create the Manufacturing validation lineage record: lineage ID, root Model Version, profile revision, scale, orientation and the single full_regeneration slot, which every repair and regeneration child inherits unchanged. Default the orientation to the domain package's declared base face on the plate, Z-up. An image-derived model has no print scale until the user confirms a real-world dimension, and its default orientation is the largest planar face, user-confirmed.
+- Compute the default print scale once per validation lineage when the user first pins a profile for a root Model Version (the command of this story, before any validation) with the Story 4.3 print-frame function applied to the box stored by Story 4.2 (largest uniform scale, never above 1:1, that fits the oriented canonical solid's exact kernel bounding box inside the profile cube minus 1 mm per side, stored as an exact rational), and create the Manufacturing validation lineage record: lineage ID, root Model Version, profile revision, scale, orientation and the single full_regeneration slot, which every repair and regeneration child inherits unchanged. Default the orientation to the domain package's declared base face on the plate, Z-up. An image-derived model has no print scale until the user confirms a real-world dimension, and its default orientation is the largest planar face, user-confirmed. This story owns the dimension-confirmation step (one real-world dimension of the confirmed scope, stored as an immutable Geometry-owned confirmation); the lineage inherits the confirmed dimension, and each snapshot's exact rational scale is computed from it once.
 
 **Acceptance Criteria:**
 
@@ -3285,9 +3499,21 @@ So that validation applies to the intended output.
 
 **AC-4**
 
-**Given** a Model Version's first validation
+**Given** a Model Version's first profile pin
 **When** the lineage is created
 **Then** the record holds the root Model Version, profile revision, exact-rational scale, orientation and an unconsumed full_regeneration slot, and a repair child or regenerated successor inherits it unchanged
+
+**AC-5**
+
+**Given** an image-derived model with no confirmed dimension
+**When** a profile pin is requested
+**Then** no scale or lineage is created and the dimension prompt is shown; after confirmation the scale follows the confirmed dimension and the orientation is the user-confirmed largest planar face
+
+**AC-6**
+
+**Given** a domain-declared base face
+**When** the default orientation is set
+**Then** the base face lies on the plate, Z-up, with no rotation about Z, and an axis-aligned alternative is only proposed, never applied silently
 
 **Engineering gates:** G-3; planning completion does not change their qualification status.
 
@@ -3458,7 +3684,7 @@ As an Account owner,
 I want to recover once after local repair fails,
 So that automatic recovery has a firm limit.
 
-**Requirements:** FR-28, AR-12, AR-14, AR-16, NFR-3, NFR-9, UX-DR17, UX-DR61
+**Requirements:** FR-28, AR-12, AR-14, AR-16, NFR-3, NFR-9, UX-DR17, UX-DR61, FR-7
 
 **Dependencies:** 6.4, 5.2, 2.8
 
@@ -3485,6 +3711,12 @@ So that automatic recovery has a firm limit.
 **Given** the permitted regeneration succeeds or fails
 **When** its result is processed
 **Then** success preserves the original and creates a candidate needing inspection/approval/full validation; failure stops, and changed interpretations return to Plan Approval; the outcome is readable on phone and desktop
+
+**AC-4**
+
+**Given** the permitted regeneration finishes
+**When** the outcome commits
+**Then** one durable notification event is registered for the recipient
 
 **Engineering gates:** G-3; planning completion does not change their qualification status.
 
@@ -3588,7 +3820,7 @@ So that the file package matches the model I accepted.
 
 **Given** missing exact-model approval, stale profile results or a required unknown/failure
 **When** export is requested
-**Then** no qualified package is emitted and the precise blocked state is shown
+**Then** no qualified package is emitted and the precise blocked state is shown; the blocked state is readable on phone and desktop
 
 **AC-2**
 
@@ -3624,7 +3856,7 @@ So that large files remain private and access stops when revoked.
 
 **Scope:**
 
-- Deliver qualified export packages through the Story 1.12 gateway: individual files and the whole package, with preparing, ready and failed states, resumable range downloads and phone file handling.
+- Deliver qualified export packages through the Story 1.12 gateway: each file with its content type and file name, and the whole package as one ZIP assembled on the fly by the gateway from the manifest's files in the order listed there (stored, not recompressed). A package is preparing while its manifest roots are verified, ready when every root verifies, and failed otherwise; resuming a download needs a new ticket; a foreign or tombstoned export returns the unavailable state.
 
 **Acceptance Criteria:**
 
@@ -3642,9 +3874,9 @@ So that large files remain private and access stops when revoked.
 
 **AC-3**
 
-**Given** phone file handling, interrupted download or a foreign object
+**Given** a phone, an interrupted download or a foreign object
 **When** the user requests files
-**Then** usable preparing/ready/failed states and individual/package downloads remain private with no-store responses and lease-aware cleanup
+**Then** files and the ZIP download with correct names and content types, an interrupted download resumes with a new ticket from the last verified byte, a foreign or tombstoned export shows the unavailable state, preparing, ready and failed states are shown, and responses are no-store
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-6-9/SPEC.md).
 
@@ -3669,6 +3901,7 @@ So that offline creation can meet the adopted device limits.
 - Select/adapt licensed pinned weights with ONNX Runtime Web 1.29.0 as the first browser backend; no engine is currently qualified.
 - Expose the engine through a versioned engine port with a conformance test suite and a deterministic test engine, so Stories 7.2 to 7.5 can be built and accepted without qualified weights.
 - The engine port also accepts optional explicit print constraints (failed check, measured value, required value, feature references) and stops with an actionable failure when it cannot satisfy them. The same pinned bundle runs in the browser worker and, for reconversion only, in the Railway engine worker (`workers/engine`); the conformance suite and the deterministic test engine run on both targets.
+- Record the reference corpus, the shape and coverage metrics with their pass thresholds and the reviewer in the qualification report before any candidate run.
 
 **Acceptance Criteria:**
 
@@ -3722,7 +3955,7 @@ So that conversion assets are available when disconnected.
 
 **Given** an online supported device and pinned bundle
 **When** preparation completes
-**Then** all required app/runtime/model bytes are verified and readiness records exact versions and storage state
+**Then** all required app/runtime/model bytes are verified and readiness records exact versions and storage state; preparation and its states work on phone and desktop
 
 **AC-2**
 
@@ -3736,6 +3969,12 @@ So that conversion assets are available when disconnected.
 **When** the user prepares
 **Then** online preparation/qualified export and revocation-on-reconnect are explained, including no disconnected time lease and limits on remote erasure
 
+**AC-4**
+
+**Given** authenticated responses and a signed-out device
+**When** the service worker handles requests and the user signs out
+**Then** no authenticated response is ever cached and no private bytes remain in the cache after sign-out
+
 **Engineering gates:** G-8; planning completion does not change their qualification status.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-7-2/SPEC.md).
@@ -3746,15 +3985,16 @@ As an Account owner,
 I want to choose or photograph images and confirm them without a network,
 So that direct conversion can start offline.
 
-**Requirements:** AR-22, NFR-1, SC-1, SC-2, SC-3, UX-DR9, UX-DR13, UX-DR33, UX-DR34, UX-DR35
+**Requirements:** AR-22, NFR-1, SC-1, SC-2, SC-3, UX-DR9, UX-DR13, UX-DR33, UX-DR34, UX-DR35, UX-DR36
 
-**Dependencies:** 7.2, 2.3
+**Dependencies:** 7.2, 2.3, 2.12, 1.12
 
 **Scope:**
 
 - Implement local intake in the prepared client: choose images or take photos, order them, and keep them in Account-scoped IndexedDB metadata and OPFS binaries under stable UUIDs for each request, image and later sync command (device timestamps never decide a winner).
 - Run the same deterministic quality and coverage checks as Story 2.3 from a shared client module with the Spine's operational-default thresholds; label views, confirm nothing blocks the subject and acknowledge incomplete-coverage uncertainty, all without a network.
 - Handle camera permission, unavailable or evicted storage and interrupted capture with recoverable states; explicit sign-out clears the private local stores and account switching never attaches another Account's drafts.
+- Confirm subject, scope and outcome on the device (Understood request C-06) before conversion. Opening Account-scoped local data offline requires the Account identity cached on the device by its last sign-in, with no network check and no time lease. Account switching and explicit sign-out are owned here: sign-out purges the private local stores. An image_direct request whose pictures were staged and retained online (Stories 2.2 and 2.12) downloads them into OPFS through the gateway while online, as part of preparing for conversion.
 
 **Acceptance Criteria:**
 
@@ -3776,6 +4016,18 @@ So that direct conversion can start offline.
 **When** intake is used
 **Then** recoverable states preserve what remains, sign-out clears the private local stores and another Account's drafts are never attached
 
+**AC-4**
+
+**Given** a device whose session expired but whose Account identity was cached by its last sign-in
+**When** local drafts are opened offline
+**Then** they open with no network check, and after explicit sign-out they do not
+
+**AC-5**
+
+**Given** images confirmed on the device
+**When** subject, scope and outcome are confirmed
+**Then** the request records them locally with the uncertainty acknowledgment and is ready for conversion
+
 **Engineering gates:** G-8; planning completion does not change their qualification status.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-7-9/SPEC.md).
@@ -3786,15 +4038,15 @@ As an Account owner,
 I want to generate from confirmed images without internet,
 So that my direct model remains usable on its device.
 
-**Requirements:** FR-16, FR-17, AR-4, AR-5, AR-22, SC-1, SC-2, SC-3, UX-DR7, UX-DR13, UX-DR35, UX-DR50, FR-18, AR-9
+**Requirements:** FR-16, AR-4, AR-5, AR-22, SC-1, SC-2, SC-3, UX-DR7, UX-DR13, UX-DR35, UX-DR50, FR-18, AR-9
 
-**Dependencies:** 7.2, 4.1, 4.6, 7.9, 4.7
+**Dependencies:** 7.2, 4.1, 4.6, 7.9, 4.7, 6.1
 
 **Scope:**
 
 - Execute the qualified direct engine in a dedicated worker and retain exact immutable image/scope/engine/settings/output snapshots.
-- A converted model has no physical scale: the user confirms one real-world dimension of the confirmed scope before print scale, validation or export (see Story 6.1).
-- The model's canonical content is its mesh snapshot (no B-rep). The confirmed real-world dimension is stored as an immutable capture record: which measurement of the confirmed scope, value and unit, and the confirming actor and time.
+- A converted model has no physical scale; the user confirms one real-world dimension of the confirmed scope after sync, in the profile pin of Story 6.1.
+- The model's canonical content is its mesh snapshot (no B-rep), stored with its vertex bounding box computed on the device.
 - Produce coarse and full GLB derivatives on the device from the local mesh, with the same transform and feature-map contract as Story 4.7, so the Story 4.6 viewer opens the model offline.
 
 **Acceptance Criteria:**
@@ -3803,13 +4055,13 @@ So that my direct model remains usable on its device.
 
 **Given** verified preparation, ordered confirmed images/scope and uncertainty acknowledgment with no network
 **When** direct conversion runs
-**Then** a local model and provenance persist and reopen offline without network inference or a synthetic Research Plan
+**Then** a local model and provenance persist and reopen offline without network inference or a synthetic Research Plan; conversion and its states work on phone and desktop
 
 **AC-2**
 
-**Given** direct features or personal additions
+**Given** direct features
 **When** the model is inspected
-**Then** image/inference uncertainty and user-added provenance remain distinct from historically evidenced claims; identical re-inference is not promised
+**Then** image/inference uncertainty remains distinct from historically evidenced claims; identical re-inference is not promised
 
 **AC-3**
 
@@ -3842,6 +4094,7 @@ So that sync does not duplicate or discard versions.
 - Import stable UUIDs only into the original authorized Account with verified artifacts and expected parent revision.
 - Show the conflict state in My Projects (H-02) with an explicit current-version selection.
 - Import the model's confirmed pictures as retained Project artifacts of the Story 2.12 family with verified digests, so a reconversion can run on the server.
+- Refuse the import when the server finds a disabled or tombstoned Account or a tombstoned Project, rechecked before anything attaches. Import the mesh snapshot and pictures only; device-produced GLB derivatives are not imported (Story 4.7 derives from the verified snapshot).
 
 **Acceptance Criteria:**
 
@@ -3861,7 +4114,13 @@ So that sync does not duplicate or discard versions.
 
 **Given** network/authentication uncertainty or a failed import
 **When** sync stops
-**Then** pending/failed/conflict state is visible and local work is not erased or attached to another Account
+**Then** pending/failed/conflict state is visible and local work is not erased or attached to another Account; sync states are readable on phone and desktop
+
+**AC-4**
+
+**Given** a local draft from a disabled or tombstoned Account, or for a tombstoned Project
+**When** sync is attempted
+**Then** the import is refused before anything attaches and the client keeps its locked or purged state
 
 **Engineering gates:** G-8; planning completion does not change their qualification status.
 
@@ -3887,7 +4146,7 @@ So that disabled or deleted work cannot be republished.
 
 **Given** a learned Account disable
 **When** contact occurs before sync/export
-**Then** local work and private stores lock until a newer authoritative re-enable for the original Account
+**Then** local work and private stores lock until a newer authoritative re-enable for the original Account; the locked state is shown on phone and desktop
 
 **AC-2**
 
@@ -3899,7 +4158,7 @@ So that disabled or deleted work cannot be republished.
 
 **Given** older status responses, JWT refresh, Account switching, connectivity changes or timeout
 **When** local state is reconsidered
-**Then** none bypass known disable/deletion; uncertainty alone is not deletion, disconnected permitted drafts have no time lease and explicit sign-out clears private stores
+**Then** none bypass known disable/deletion; uncertainty alone is not deletion, disconnected permitted drafts have no time lease and explicit sign-out clears private stores (as Story 7.9 implements it)
 
 **Engineering gates:** G-8; planning completion does not change their qualification status.
 
@@ -3925,7 +4184,7 @@ So that direct mode receives the same model and print gates.
 
 **Given** a synchronized direct candidate
 **When** qualified export is requested
-**Then** connection, trusted exact-model approval and all required profile checks are enforced; local labels or approvals do not establish server authority
+**Then** connection, trusted exact-model approval and all required profile checks are enforced; local labels or approvals do not establish server authority; the export request and its blocked states work on phone and desktop
 
 **AC-2**
 
@@ -3955,7 +4214,7 @@ As an Account owner,
 I want to retry a failed direct model once from my original pictures,
 So that a repair failure does not force me to start over, and recovery cannot loop.
 
-**Requirements:** FR-28, AR-12, AR-22, SC-1, SC-2, UX-DR17, UX-DR61, AR-14, AR-15
+**Requirements:** FR-28, AR-12, AR-22, SC-1, SC-2, UX-DR17, UX-DR61, AR-14, AR-15, FR-7
 
 **Dependencies:** 7.6, 6.5, 2.12, 7.4, 2.7
 
@@ -3963,6 +4222,7 @@ So that a repair failure does not force me to start over, and recovery cannot lo
 
 - Integrate direct snapshots with the existing full-regeneration slot: one reconversion in the validation lineage, run as a fenced Job on the Railway engine worker (`workers/engine`) through the Story 2.7 machinery, from the Project's retained pictures (Story 2.12, synced by Story 7.4), the confirmed scope, the original pinned engine bundle and the failed print constraints, with a new settings digest.
 - The request screen states that the retained pictures are processed on the server. No provider is called, so no paid permission or reservation applies; admission checks that the Account is active, the lineage slot is unused and no other reconversion is running for the Account. A model whose pictures never synced cannot start it and says why. Reconversion is never a fallback for failed local inference.
+- For an image-derived lineage the successor's exact scale is recomputed from the inherited confirmed dimension and the engine port's declared reference measurement on the new mesh; a mesh that does not fit fails and is never rescaled afterwards. If no compatible engine worker is registered the Job waits with a visible reason, and the consumed slot is not rearmed.
 
 **Acceptance Criteria:**
 
@@ -3970,19 +4230,25 @@ So that a repair failure does not force me to start over, and recovery cannot lo
 
 **Given** failed local repair, an unused shared lineage slot and retained pictures
 **When** reconversion is requested
-**Then** the unique slot and the successor Job/outbox commit atomically with the pinned pictures, scope, engine bundle, failed print constraints and a new settings digest, and the screen states that the pictures are processed on the server
+**Then** the unique slot and the successor Job/outbox commit atomically with the pinned pictures, scope, engine bundle, failed print constraints and a new settings digest, and the screen states that the pictures are processed on the server; the request screen works on phone and desktop
 
 **AC-2**
 
 **Given** an incapable engine, a consumed slot, a second concurrent request or pictures that never synced
 **When** the outcome is recorded
-**Then** failure stops without resetting the lineage or starting work and gives an actionable reason, and success preserves the original and returns a new version to inspection, approval and full validation with honest direct provenance
+**Then** failure stops without resetting the lineage or starting work and gives an actionable reason, and success preserves the original and returns a new version to inspection, approval and full validation with honest direct provenance; with no compatible engine worker registered the Job waits with a visible reason and the consumed slot stays consumed
 
 **AC-3**
 
 **Given** a running reconversion Job
 **When** the Account is disabled, the Project deleted or the attempt superseded
 **Then** the attempt's output stays in attempt-scoped staging and is discarded, nothing publishes, and the worker holds no authoritative data after the Job ends
+
+**AC-4**
+
+**Given** a reconversion outcome
+**When** the Job commits it
+**Then** one durable notification event is registered for the recipient
 
 **Engineering gates:** G-3, G-8; planning completion does not change their qualification status.
 
@@ -4016,7 +4282,7 @@ So that I can return to completed work without losing in-app history.
 
 **Given** permission denied, alerts off or failed/duplicate delivery
 **When** the event is reviewed
-**Then** essential in-app history remains intact and deduplicated; delivery is not falsely guaranteed
+**Then** essential in-app history remains intact and deduplicated; delivery is not falsely guaranteed; preferences and install guidance work on phone and desktop
 
 **AC-3**
 
@@ -4051,7 +4317,7 @@ So that private content becomes inaccessible immediately.
 
 **Given** an owned Project or Export and fresh authentication
 **When** explicit deletion confirmation commits
-**Then** the target is hidden/tombstoned before cleanup and all dependent private paths reject access
+**Then** the target is hidden/tombstoned before cleanup and all dependent private paths reject access; the confirmation works on phone and desktop
 
 **AC-2**
 
@@ -4069,7 +4335,13 @@ So that private content becomes inaccessible immediately.
 
 **Given** an Account owner deleting a Project or Export
 **When** the explicit deletion confirmation is submitted
-**Then** it needs a fresh-authentication marker of the owner-deletion class and is refused with the step-up offered when none exists
+**Then** it needs a fresh-authentication marker of the owner-deletion class and is refused with the step-up offered when none exists; a marker of another action class is refused
+
+**AC-5**
+
+**Given** a Project or Export deletion
+**When** it commits
+**Then** an audit event records the actor and an opaque target identity only, with no identifiable deleted-user history
 
 **Engineering gates:** G-9; planning completion does not change their qualification status.
 
@@ -4096,7 +4368,7 @@ So that all authorized private targets enter the deletion process.
 
 **Given** a normal Account with fresh authentication
 **When** whole-Account deletion is explicitly confirmed
-**Then** sessions revoke and all owned private targets, jobs and pending work enter the durable deletion manifest
+**Then** sessions revoke and all owned private targets, jobs and pending work enter the durable deletion manifest; the confirmation works on phone and desktop
 
 **AC-2**
 
@@ -4122,6 +4394,12 @@ So that all authorized private targets enter the deletion process.
 **When** the command is submitted
 **Then** it is rejected and a new step-up is required, and a successful command consumes the marker
 
+**AC-6**
+
+**Given** Account deletion or close-instance
+**When** it commits
+**Then** the audit record carries no identifiable deleted-user content beyond the minimum anti-resurrection ledger
+
 **Engineering gates:** G-9; planning completion does not change their qualification status.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-8-2/SPEC.md).
@@ -4134,13 +4412,13 @@ So that a lost provider or a bad change cannot take my users' work.
 
 **Requirements:** AR-21, AR-26, NFR-7, NFR-12
 
-**Dependencies:** 1.8, 1.9, 1.10, 4.1
+**Dependencies:** 1.8, 1.9, 1.10, 4.1, 1.13
 
 **Scope:**
 
-- Build `workers/backup` on Railway, run every 12 hours: stream an age-encrypted logical dump (application schemas plus Auth and Storage metadata) straight to the private Backblaze bucket without persisting it on Railway, then run an incremental, deletion-mirroring Storage sync that records the dump's cutoff, and write a dated manifest of counts and digests. Credentials are scoped to one bucket per environment in Backblaze's US East region, and the service holds only the public encryption key.
-- Abort the sync without hiding or deleting anything when a listing page fails or the object count falls sharply against Postgres metadata. Apply the lifecycle (dumps removed after 14 days, deleted-at-source objects after 7 days, object lock of at most 7 days). The Administrator holds the private key in a password manager; losing it makes dumps unreadable, which the application discloses.
-- Supply the Backblaze adapter for the restore ledger of Story 1.8: a separate bucket, a create-only application key and no lifecycle rule. A scheduled route on the application platform, independent of the backup service, raises the Story 1.9 alarm when the newest completed snapshot is older than 18 hours.
+- Build `workers/backup` on Railway, run every 12 hours: stream an age-encrypted logical dump (application schemas plus Auth and Storage metadata) straight to the private Backblaze bucket without persisting it on Railway, then run an incremental, deletion-mirroring Storage sync in which every mirrored object is individually age-encrypted under the same public key and keyed by its manifest-root digest (source digests are compared with the backup manifest, never with ciphertext), and write a dated manifest of counts and digests that records the dump's cutoff. A run is complete only when its manifest is written. The service checks the destination key prefix against its `instance_identity`, uses a database role that can only read, holds only the public encryption key and bucket-scoped credentials in Backblaze's US East region, and reaches only the database and the object store.
+- Abort the sync without hiding or deleting anything when a listing page fails, the object count falls more than 10% against the previous run, or it differs from Postgres metadata by more than 1%; a failed or aborted run reports through a signed failure callback to an application route, which creates the Story 1.13 alarm. Apply the lifecycle (dumps removed after 14 days, deleted-at-source objects after 7 days, object lock of at most 7 days). The Administrator holds the private key in a password manager, and the Administrator page states that losing it makes the dumps unreadable.
+- Supply the Backblaze adapter for the restore ledger of Story 1.8: a separate bucket, an application key without delete capabilities, unique hash-chained keys and no lifecycle rule; the reader treats a duplicated, hidden or missing link as tampering and alarms. A scheduled application route, independent of the backup service and run every 30 minutes, reads the newest manifest with a read-only key and registers the snapshot-age condition (older than 18 hours) with the Story 1.13 alarm channel.
 
 **Acceptance Criteria:**
 
@@ -4148,31 +4426,37 @@ So that a lost provider or a bad change cannot take my users' work.
 
 **Given** a staging project with database rows and Storage objects
 **When** a scheduled backup run executes
-**Then** an encrypted dump and a deletion-mirroring Storage copy reach the bucket, nothing is persisted on Railway, the manifest records cutoff, counts and digests, and the service cannot decrypt what it wrote
+**Then** an encrypted dump and individually encrypted mirrored objects reach the bucket, nothing is persisted on Railway, the destination prefix matches the instance identity, the manifest records cutoff, counts and digests, and the service cannot decrypt what it wrote
 
 **AC-2**
 
-**Given** a failed listing page or an object count that drops sharply against Postgres
+**Given** a failed listing page, an object count that falls more than 10% against the previous run, or a difference above 1% from Postgres metadata
 **When** the Storage sync runs
-**Then** it aborts, hides and deletes nothing, and raises an alarm
+**Then** it aborts, hides and deletes nothing, and the failure callback creates an alarm
 
 **AC-3**
 
-**Given** the real bucket
-**When** lifecycle and object lock are exercised
-**Then** dumps expire within 14 days and deleted-at-source objects within 7 days, and locks last no longer than 7 days
+**Given** the bucket configuration and an injected clock
+**When** lifecycle and object-lock settings are inspected and the clock advances
+**Then** dumps expire within 14 days, deleted-at-source objects within 7 days, and locks last no longer than 7 days
 
 **AC-4**
 
 **Given** the backup service stopped or failing
-**When** 18 hours pass without a completed snapshot
+**When** 18 hours pass without a completed manifest
 **Then** the independent monitor emails the Administrator and shows the alarm, once per condition per 24 hours
 
 **AC-5**
 
-**Given** a restore-ledger event
-**When** the adapter writes it
-**Then** the key can create but never overwrite or delete ledger objects, and a dump decrypts only with the private key the Administrator supplies
+**Given** restore-ledger events written by the adapter
+**When** the key and the reader are exercised
+**Then** the key cannot delete objects, entries have unique chained keys, a duplicated, hidden or missing link is flagged as tampering, and a dump decrypts only with the private key the Administrator supplies
+
+**AC-6**
+
+**Given** the Administrator page
+**When** backup status is shown
+**Then** it states that losing the private key makes the dumps unreadable
 
 **Engineering gates:** G-9; planning completion does not change their qualification status.
 
@@ -4191,7 +4475,7 @@ So that retained data does not outlive the adopted limits.
 **Scope:**
 
 - Purge database, files, models, exports, staging, notifications, private usage/adoption associations and operational traces under the deletion manifest.
-- Apply the Story 8.9 backup lifecycle to deletions: deleted targets leave dumps within 14 days and deleted-at-source objects within 7 days. Run a monthly canary that deletes a synthetic Project and proves the deletion reaches the database, Storage and backups within 15 days.
+- Apply the Story 8.9 backup lifecycle to deletions: deleted targets leave dumps within 14 days and deleted-at-source objects within 7 days. Run a monthly canary on a synthetic Account with an internal system-actor deletion (the interactive step-up applies to humans only), proving the deletion reaches the database, Storage and backups within 15 days from manifests and bucket listings, since dumps are encrypted. Account purge also deletes the Auth identity. Register the missed-purge-deadline condition with the Story 1.13 alarm channel.
 
 **Acceptance Criteria:**
 
@@ -4203,9 +4487,9 @@ So that retained data does not outlive the adopted limits.
 
 **AC-2**
 
-**Given** private backups and subsequent restore/rebackup
+**Given** private backups of dumps and mirrored objects
 **When** retention is applied
-**Then** controlled copies expire within 30 days measured from deletion, never extended by restoration or rebackup
+**Then** controlled copies expire within 30 days measured from deletion, never extended by a later backup run (restore and rebackup are tested in Story 8.4)
 
 **AC-3**
 
@@ -4215,9 +4499,9 @@ So that retained data does not outlive the adopted limits.
 
 **AC-4**
 
-**Given** the monthly canary
-**When** it runs
-**Then** a synthetic Project's deletion is confirmed absent from the database, Storage and the backup copies within 15 days, and a miss raises an alarm
+**Given** a synthetic Account and Project in the monthly canary
+**When** an internal system-actor deletion runs
+**Then** the Project is absent from the database and Storage, its mirrored objects are gone within 7 days, every dump created before the purge has expired within 14 days (judged from manifests and bucket listings, with an injected clock in tests), and a miss raises an alarm
 
 **Engineering gates:** G-9; planning completion does not change their qualification status.
 
@@ -4236,7 +4520,8 @@ So that backups restore geometry and enforce every intervening deletion.
 **Scope:**
 
 - Drill restores from the Story 8.9 backups into a dedicated restore project: restore the dump, copy the Storage objects, verify every referenced artifact and treat a manifest without bytes as unusable.
-- Replay the restricted ledger of Story 1.8, held outside every restore set, before access opens: tombstones, Account disables, invitation consumption and rotation, recovery revocations and the highest authorization epoch. No backup runs during a restore; after any restore all session grants and Auth sessions are revoked, and a scrub removes ledgered targets from live and hidden backup copies.
+- Replay the restricted ledger of Story 1.8, held outside every restore set, before access opens: tombstones, Account disables, invitation consumption and rotation, recovery revocations and the highest authorization epoch. The restore state is a lock object in the ledger bucket, which a database restore cannot roll back; no backup runs while it is set, and access reopens only after the replay writes its completion event. After any restore all session grants and Auth sessions are revoked, and a scrub removes ledgered targets from live copies and deletes their mirrored objects, while remaining dumps expire within 14 days.
+- Each drill creates a dedicated Supabase restore project and deletes it afterwards. It uses a read-only ledger key that the application does not hold and the private age key that the Administrator supplies for that drill.
 
 **Acceptance Criteria:**
 
@@ -4268,7 +4553,13 @@ So that backups restore geometry and enforce every intervening deletion.
 
 **Given** a restore in progress
 **When** a scheduled backup would start and the restore completes
-**Then** no backup runs during the restore, and afterwards the scrub removes ledgered targets from live and hidden backup copies
+**Then** no backup runs during the restore, and afterwards the scrub removes ledgered targets from live copies and deletes their mirrored objects while remaining dumps expire within 14 days
+
+**AC-6**
+
+**Given** a restore and a later rebackup
+**When** retention is applied
+**Then** controlled copies still expire within 30 days measured from deletion
 
 **Engineering gates:** G-9; planning completion does not change their qualification status.
 

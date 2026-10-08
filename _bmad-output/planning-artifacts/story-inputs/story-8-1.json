@@ -34,7 +34,7 @@
       {
         "given": "an owned Project or Export and fresh authentication",
         "when": "explicit deletion confirmation commits",
-        "then": "the target is hidden/tombstoned before cleanup and all dependent private paths reject access"
+        "then": "the target is hidden/tombstoned before cleanup and all dependent private paths reject access; the confirmation works on phone and desktop"
       },
       {
         "given": "late Jobs, callbacks, uploads, imports or cache promotion",
@@ -49,7 +49,12 @@
       {
         "given": "an Account owner deleting a Project or Export",
         "when": "the explicit deletion confirmation is submitted",
-        "then": "it needs a fresh-authentication marker of the owner-deletion class and is refused with the step-up offered when none exists"
+        "then": "it needs a fresh-authentication marker of the owner-deletion class and is refused with the step-up offered when none exists; a marker of another action class is refused"
+      },
+      {
+        "given": "a Project or Export deletion",
+        "when": "it commits",
+        "then": "an audit event records the actor and an opaque target identity only, with no identifiable deleted-user history"
       }
     ],
     "gates": [

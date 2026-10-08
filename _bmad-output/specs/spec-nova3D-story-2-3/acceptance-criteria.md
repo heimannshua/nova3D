@@ -19,6 +19,7 @@ So that I understand what the resulting geometry can claim.
 
 - Run deterministic client-side quality checks (short edge of at least 800 px, blur measured as the variance of the Laplacian on a 512-px grayscale copy of at least 100, and at most 35% clipped exposure) and have the user label each view and confirm that nothing blocks the subject. Compare the labelled views with the at least three distinct views direct conversion needs and recommend the missing ones. No model detects obstruction in this version.
 - Persist evidence_images versus image_direct with the appropriate confirmed-input gate.
+- Implement the quality checks as a shared module that Story 7.9 reuses on the device, with fixture images and the exact definitions of the Spine defaults (3 x 3 Laplacian on a grayscale copy whose long edge is 512 px; clipped means luminance 0 or 255; view labels front, back, left, right, top, bottom and detail).
 
 ## Acceptance Criteria
 
@@ -38,7 +39,7 @@ So that I understand what the resulting geometry can claim.
 
 **Given** a picture-mode choice or later mode change
 **When** the request is confirmed
-**Then** research-assisted mode requires whole-plan approval later; direct mode has no synthetic Research Plan, and mode changes create successor requests
+**Then** research-assisted mode requires whole-plan approval later; direct mode has no synthetic Research Plan, and mode changes create successor requests; the accuracy explanation and offline availability of each mode are shown
 
 ## Engineering Gates
 

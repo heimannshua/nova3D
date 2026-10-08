@@ -39,6 +39,12 @@ So that export cannot use a different candidate.
 **When** export authority is queried (a fixture query until Story 6.8)
 **Then** old approval cannot authorize the changed candidate and renewed inspection/approval is required
 
+### AC-4
+
+**Given** a client-supplied approval flag or a worker-initiated approval
+**When** approval is submitted
+**Then** it is rejected, and only the authenticated approval command of the Account owner for the inspected version records an approval
+
 ## Engineering Gates
 
 This story has no separate gate ID; applicable project-wide gates still govern acceptance.

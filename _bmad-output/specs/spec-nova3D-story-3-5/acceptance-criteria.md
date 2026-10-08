@@ -31,7 +31,7 @@ So that evidence-backed geometry follows my exact decisions.
 
 **Given** a complete checklist and independent gap pass
 **When** the user approves the whole plan
-**Then** the immutable exact digest, approver/time, choices and affected details are recorded
+**Then** the immutable exact digest, approver/time, choices and affected details are recorded; the digest includes the pinned evidence-policy snapshot
 
 ### AC-3
 
@@ -44,6 +44,12 @@ So that evidence-backed geometry follows my exact decisions.
 **Given** a plan the user does not accept
 **When** the user rejects it or asks for changes
 **Then** the rejection is recorded immutably with the user's reasons, no generation authority results, and the user can revise the unsettled choices to produce a successor plan
+
+### AC-5
+
+**Given** a client-supplied approval flag, or an approval attempted by a worker
+**When** approval is submitted
+**Then** it is rejected, and only the authenticated approval command of the Account owner records an approval
 
 ## Engineering Gates
 

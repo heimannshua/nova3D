@@ -19,7 +19,7 @@ An Account owner needs to have private local state honor server authority on con
 
 - **CAP-1**
   - **intent:** An Account owner can have private local state honor server authority on contact.
-  - **success:** Local work and private stores lock until a newer authoritative re-enable for the original Account.
+  - **success:** Local work and private stores lock until a newer authoritative re-enable for the original Account; the locked state is shown on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Local work and private stores lock until a newer authoritative re-enable for the original Account. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Local work and private stores lock until a newer authoritative re-enable for the original Account; the locked state is shown on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

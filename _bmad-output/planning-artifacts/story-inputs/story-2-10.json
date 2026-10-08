@@ -40,7 +40,7 @@
       {
         "given": "an unread/read notification or deleted/foreign target",
         "when": "it is selected",
-        "then": "the exact live-authorized item opens or an unavailable state appears; Prints in Progress remains Coming later"
+        "then": "the exact live-authorized item opens or an unavailable state appears; Prints in Progress remains Coming later; empty, failure, permission-disabled and grouped states render"
       }
     ],
     "gates": []

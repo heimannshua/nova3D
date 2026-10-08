@@ -37,7 +37,7 @@ So that the evidence can be reconsidered without manual mesh editing.
 
 **Given** research finds no change or fails
 **When** the result is shown
-**Then** original approved state remains intact with reasons, known cost and permitted next action
+**Then** original approved state remains intact with reasons, known cost and permitted next action; when a paid permission is needed the correction shows that state instead of starting
 
 ## Engineering Gates
 

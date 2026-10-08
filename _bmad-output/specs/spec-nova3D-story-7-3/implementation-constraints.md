@@ -27,21 +27,6 @@ Source: PRD §4, FR-16.
 
 Source: `_bmad-output/planning-artifacts/epics.md`, line 273 in the captured input.
 
-### FR-17
-
-#### FR-17: Plain-language personalization
-
-The user can include or change Personalization through ordinary language, such as adding a name.
-
-**Consequences:**
-- Personalization is generated automatically without manual mesh editing.
-- Every personalized Model Feature is visibly classified as user-added and cannot inherit evidence-backed status.
-- Personalization must participate in inspection, versioning, Model Approval, and print validation.
-
-Source: PRD §4, FR-17.
-
-Source: `_bmad-output/planning-artifacts/epics.md`, line 286 in the captured input.
-
 ### AR-4
 
 **AR-4: Explicit request modes.** Persist immutable evidence_text, evidence_images or image_direct revisions. Evidence modes need complete whole-plan approval of the exact digest. Direct mode needs confirmed scope, ordered image digests and acknowledged uncertainty, and never gains historical status. Changing modes creates a successor request. Every qualified export still requires exact-model approval and compatible validation.

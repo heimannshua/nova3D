@@ -22,6 +22,7 @@ So that my projects and files stay private.
 - Replace the interim `AUTH_ALLOWED_EMAILS` gate with the live-Account check in the same change, and remove the variable from every place it is read or documented: `lib/auth-config.ts` and its callers, `scripts/check-env.mjs`, `scripts/test-env.mjs`, the `.env*.example` files, `docs/auth-setup.md` and `docs/deployment-setup.md`.
 - Reject any cookie-authenticated mutation that lacks a valid origin and CSRF check before it changes state.
 - Authorization fails closed: when Postgres or the live-authorization lookup is unreachable, private requests are denied with a retryable state and no cached grant is honored. Create the Account-owned Preferences record and migrate the device-local choices of Story 1.2 on first sign-in.
+- Create the Identity-owned session-grant record: every sign-in, including step-up and recovery sessions, issues one grant tied to its Auth session_id; each private request verifies it; and revocation by session, by Account and by epoch is a single primitive that Stories 1.5 and 1.6 reuse.
 
 ## Acceptance Criteria
 
@@ -41,7 +42,7 @@ So that my projects and files stay private.
 
 **Given** a failed Google sign-in, a Google identity with no activated Account, or an Administrator session
 **When** sign-in or private browsing is attempted
-**Then** generic failure states are usable and the Administrator cannot impersonate, browse another Workspace or grant administrators
+**Then** generic failure states are usable and the Administrator cannot impersonate, browse another Workspace or grant administrators; a disabled Account sees the disabled state without private data, and sign-in and its failure states work on phone and desktop
 
 ### AC-4
 
@@ -66,6 +67,24 @@ So that my projects and files stay private.
 **Given** preferences chosen on a device before sign-in
 **When** an Account first signs in
 **Then** they become the Account's stored preferences and follow it across devices
+
+### AC-8
+
+**Given** a completed sign-in
+**When** the callback finishes and the user later signs out
+**Then** one grant exists for the session_id, sign-out revokes it, and a request on the revoked session is refused
+
+### AC-9
+
+**Given** the staging project with only the Google provider enabled
+**When** a step-up completes
+**Then** a new session_id whose `amr` holds an `oauth` entry at or after the nonce start is accepted, the marker (action class, 5-minute expiry) belongs to that session only, and the initiating session's grant is revoked
+
+### AC-10
+
+**Given** the repository after this story
+**When** it is searched and the environment checks run
+**Then** `AUTH_ALLOWED_EMAILS` is read or documented nowhere, and a Google identity without a live Account is blocked
 
 ## Engineering Gates
 

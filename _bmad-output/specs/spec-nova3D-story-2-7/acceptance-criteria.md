@@ -17,11 +17,12 @@ So that accepted work survives navigation and failures stay controlled.
 - [2.11](../spec-nova3D-story-2-11/SPEC.md)
 - [1.9](../spec-nova3D-story-1-9/SPEC.md)
 - [1.12](../spec-nova3D-story-1-12/SPEC.md)
+- [1.13](../spec-nova3D-story-1-13/SPEC.md)
 
 ## Scope
 
 - Commit the Job, its initial reservation and the dispatch outbox together, using the identities of Story 2.11.
-- Use signed environment-bound bounded steps (under the Story 1.12 signing-key contract), compatible worker registration and cancellation fencing; never automatically retry failed work. Use a 120-second worker lease renewed every 30 seconds and a 15-second outbox relay, as the Spine fixes.
+- Use signed environment-bound bounded steps (under the Story 1.12 signing-key contract), compatible worker registration and cancellation fencing; never automatically retry failed work. Use a 120-second worker lease renewed every 30 seconds. The committing request publishes the dispatch at once and a QStash schedule sweeps unpublished outbox rows older than 15 seconds every minute, as the Spine fixes. Run the deterministic test-workload step as a Vercel step that a test worker registered through the signed worker-registration endpoint can also take, so lease loss is testable. Workers read inputs and write staged outputs only through the Story 1.12 gateway with attempt-scoped tickets, and report completion with fenced signed commands. The test workload registers a test event type with Story 2.10. Register the outbox-age and expired-lease conditions with the Story 1.13 alarm channel.
 - Ship a deterministic test-workload step so durable-job behavior is testable before research exists.
 - A user cancel revokes commit authority first and starts no new external step; a completing Job settles actual usage against its reservation and releases only demonstrably unused allowance.
 
@@ -31,7 +32,7 @@ So that accepted work survives navigation and failures stay controlled.
 
 **Given** an accepted Job followed by browser close or dispatcher restart
 **When** dispatch resumes
-**Then** committed outbox and unique receipts retain waiting/running/completed/failed/cancelled state without duplicate side effects
+**Then** committed outbox and unique receipts retain waiting/running/completed/failed/cancelled state without duplicate side effects; job state is readable on phone and desktop
 
 ### AC-2
 
@@ -62,6 +63,12 @@ So that accepted work survives navigation and failures stay controlled.
 **Given** an Account disabled while Jobs run
 **When** the disable commits
 **Then** running Jobs lose commit authority at once, no new external step starts, cancellation signals follow, reservations are held until settled and an audit event records the cancellation
+
+### AC-7
+
+**Given** an unpublished outbox row older than 15 seconds
+**When** the sweep runs
+**Then** it is published exactly once, an already published row is skipped, and an outbox age over 60 seconds raises the Story 1.13 alarm
 
 ## Engineering Gates
 
