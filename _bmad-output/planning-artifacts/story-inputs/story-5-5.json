@@ -39,8 +39,8 @@
         "then": "the exact version/digest, actor, time and outcome are retained immutably; approve and reject work on phone and desktop"
       },
       {
-        "given": "a successor, consequential repair or personalization change",
-        "when": "export authority is queried",
+        "given": "a successor, a personalization change or a consequential repair (a fixture repair until Story 6.4)",
+        "when": "export authority is queried (a fixture query until Story 6.8)",
         "then": "old approval cannot authorize the changed candidate and renewed inspection/approval is required"
       }
     ],

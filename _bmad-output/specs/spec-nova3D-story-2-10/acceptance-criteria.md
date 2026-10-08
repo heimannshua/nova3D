@@ -24,7 +24,7 @@ So that background progress remains usable across sessions.
 
 **Given** an event type registered by an implemented producer (research readiness, generation, validation and export register theirs as their stories land)
 **When** the event is committed
-**Then** one durable notification per recipient/event appears in the app-wide bar and history
+**Then** one durable notification per recipient/event appears in the app-wide bar and history; the bar and history work on phone and desktop
 
 ### AC-2
 

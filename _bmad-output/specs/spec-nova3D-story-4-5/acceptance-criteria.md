@@ -25,7 +25,7 @@ So that I can inspect what justifies each consequential shape.
 
 **Given** an evidence-backed feature
 **When** it is selected
-**Then** exact Source/Claim, status, options, governing approval and affected geometry are visible
+**Then** exact Source/Claim, status, options, governing approval and affected geometry are visible; the same actions work on phone and desktop
 
 ### AC-2
 

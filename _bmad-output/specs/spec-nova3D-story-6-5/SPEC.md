@@ -19,7 +19,7 @@ An Account owner needs to recover once after local repair fails. Automatic recov
 
 - **CAP-1**
   - **intent:** An Account owner can recover once after local repair fails.
-  - **success:** One unique (lineage_id, full_regeneration) slot commits atomically with successor Job/outbox and required reservation; duplicates return its receipt.
+  - **success:** One unique (lineage_id, full_regeneration) slot commits atomically with successor Job/outbox and required reservation; duplicates return its receipt; the successor's input includes the failed print constraints.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-One unique (lineage_id, full_regeneration) slot commits atomically with successor Job/outbox and required reservation; duplicates return its receipt. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+One unique (lineage_id, full_regeneration) slot commits atomically with successor Job/outbox and required reservation; duplicates return its receipt; the successor's input includes the failed print constraints. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

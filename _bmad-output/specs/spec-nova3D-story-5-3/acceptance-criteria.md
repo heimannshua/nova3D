@@ -24,7 +24,7 @@ So that I can see what changed and why.
 
 **Given** two non-deleted versions
 **When** comparison opens
-**Then** changed and unchanged features plus every listed provenance/parameter/approval/validation dimension are distinguishable
+**Then** changed and unchanged features plus every listed provenance/parameter/approval/validation dimension are distinguishable; the same actions work on phone and desktop
 
 ### AC-2
 

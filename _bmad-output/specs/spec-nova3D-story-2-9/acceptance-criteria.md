@@ -14,6 +14,7 @@ So that scope, cost and freshness stay explicit.
 
 - [2.5](../spec-nova3D-story-2-5/SPEC.md)
 - [2.7](../spec-nova3D-story-2-7/SPEC.md)
+- [2.13](../spec-nova3D-story-2-13/SPEC.md)
 
 ## Scope
 
@@ -26,7 +27,7 @@ So that scope, cost and freshness stay explicit.
 
 **Given** a confirmed evidence request
 **When** research settings open
-**Then** free/paid and reuse/fresh are separate controls following scope confirmation
+**Then** free/paid and reuse/fresh are separate controls following scope confirmation; both controls work on phone and desktop
 
 ### AC-2
 

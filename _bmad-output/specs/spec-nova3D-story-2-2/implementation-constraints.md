@@ -20,7 +20,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 599 in the captured inp
 
 ### AR-19
 
-**AR-19: Revocable artifact transfer.** Keep buckets private and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. Container gateway streams large uploads/downloads/ranges; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.
+**AR-19: Revocable artifact transfer.** Keep user-data buckets private (the only public bucket holds public, digest-pinned assets) and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. The container gateway, which exists before the first feature that accepts a user file, streams all user uploads/downloads/ranges through application-signed single-use transfer tickets, and no user file crosses a Vercel function; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.
 
 Source: AD-13; file authorization.
 

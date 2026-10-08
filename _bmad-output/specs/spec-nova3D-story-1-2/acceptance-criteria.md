@@ -17,7 +17,7 @@ So that I can use my workspace on phone or computer.
 ## Scope
 
 - Implement semantic tokens and reusable focus, status, empty/error, confirmation and navigation patterns under R-10.
-- Provide configured-language, light/dark and explanation preferences; every later surface inherits these patterns. Ship English and Hebrew catalogs (Hebrew right-to-left) with the device language as the default match.
+- Provide configured-language, light/dark and explanation preferences, stored on the device until Story 1.4 adds the Account-owned record; every later surface inherits these patterns. Ship English and Hebrew catalogs (Hebrew right-to-left) with the device language as the default match.
 
 ## Acceptance Criteria
 
@@ -31,7 +31,7 @@ So that I can use my workspace on phone or computer.
 
 **Given** an Account preference change
 **When** language, explicit dark mode or technical detail is selected
-**Then** the preference persists without changing evidence or decisions and guidance can be reopened
+**Then** the preference persists (on the device until Story 1.4 creates the Account-owned record) without changing evidence or decisions, and guidance can be reopened
 
 ### AC-3
 

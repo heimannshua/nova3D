@@ -31,7 +31,7 @@ An Account owner needs to inspect shape and exact dimensions. They can understan
 
 - **CAP-4**
   - **intent:** Record an immutable inspection event for the exact Model Version.
-  - **success:** Given a user who has opened a Model Version and navigated a feature to its evidence, when approval is requested, then an immutable inspection event for that exact version digest exists, and a later change to the version leaves it not inspected.
+  - **success:** Given a user who has opened a Model Version and navigated a feature to its evidence, when approval is requested (a fixture request until Story 5.5 exists), then an immutable inspection event for that exact version digest exists, and a later change to the version leaves it not inspected.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 

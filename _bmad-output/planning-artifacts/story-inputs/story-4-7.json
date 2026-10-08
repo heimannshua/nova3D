@@ -19,11 +19,13 @@
     ],
     "depends_on": [
       "4-1",
-      "4-5"
+      "4-5",
+      "2-7"
     ],
     "scope": [
       "Generate from the canonical geometry a coarse GLB (at most 5 MB) and a full-detail GLB set (at most 20 MB in total) with explicit millimetre-to-metre and Z-up-to-Y-up transforms, semantic feature maps that do not depend on vertex or triangle order, and version-compatible bindings so selection can switch atomically; publish them through the Story 4.1 manifests.",
-      "Derivatives are labeled preview and never manufacturing authority."
+      "Derivatives are labeled preview and never manufacturing authority.",
+      "Subscribe to the ModelVersionCommitted event of Story 4.2 and enqueue one derivative Job through the Story 2.7 machinery for every new Model Version; a version without derivatives is shown as preview pending and never as inspectable. Large GLB files are served through the Story 1.12 gateway."
     ],
     "acceptance_criteria": [
       {
@@ -40,6 +42,11 @@
         "given": "a preview derivative",
         "when": "it is offered as manufacturing evidence",
         "then": "it is rejected and only canonical content qualifies"
+      },
+      {
+        "given": "a Model Version committed by any producer",
+        "when": "its commit event is handled",
+        "then": "one derivative Job is enqueued, and the version is not inspectable until both derivative manifests exist"
       }
     ],
     "gates": [
@@ -65,7 +72,7 @@
       "line": 607
     },
     "AR-24": {
-      "text": "**AR-24: Viewer and device acceptance.** Qualify current/previous stable Chrome/Edge/Firefox, macOS/iOS Safari and Android Chrome on MacBook Air M2 16 GB, Windows 11 i5-1235U/Iris Xe 16 GB, iPhone 16 Pro and Pixel 9 Pro; freeze actual OS/browser builds. Maximum preview fixture 100,000 triangles; ≤5 MB coarse first view and ≤20 MB full initial GLB. Cold model open-to-interactive ≤5 s at shaped 20 Mbps includes code, network, decode and working orbit/feature-evidence navigation; p95 frame time ≤33 ms after load. LOD swaps retain semantic selection/provenance. GPU loss keeps canonical data and semantic/static fallbacks without claiming a passed 3D benchmark.\n\nSource: AD-7, AD-17; R-5; G-5.",
+      "text": "**AR-24: Viewer and device acceptance.** Qualify current/previous stable Chrome/Edge/Firefox, macOS/iOS Safari and Android Chrome on MacBook Air M2 16 GB, Windows 11 i5-1235U/Iris Xe 16 GB, iPhone 16 Pro and Pixel 9 Pro; freeze actual OS/browser builds. First-release scope (Josh, 2026-10-08): the Windows 11 class must pass; the other device classes are listed as not qualified until real-device evidence exists. Maximum preview fixture 100,000 triangles; ≤5 MB coarse first view and ≤20 MB full initial GLB. Cold model open-to-interactive ≤5 s at shaped 20 Mbps includes code, network, decode and working orbit/feature-evidence navigation; p95 frame time ≤33 ms after load. LOD swaps retain semantic selection/provenance. GPU loss keeps canonical data and semantic/static fallbacks without claiming a passed 3D benchmark.\n\nSource: AD-7, AD-17; R-5; G-5.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 677
     },

@@ -20,17 +20,19 @@
     ],
     "depends_on": [
       "1-5",
-      "2-4"
+      "1-7",
+      "1-8"
     ],
     "scope": [
       "Create the Jobs-owned Job, JobAttempt, StepExecution and ExternalOperation record families with their uniqueness rules (attempt per Job, step per attempt and key, operation per step and ordinal) and immutable operation receipts.",
-      "A user retry creates a new attempt under the same Job and waits until the prior potentially chargeable operation is terminal or reconciled. Public states are waiting, running, completed, failed and cancelled, with stage and reason. Dispatch, signing and workers are Story 2.7; reservations are Story 2.6."
+      "A user retry creates a new attempt under the same Job and waits until the prior potentially chargeable operation is terminal or reconciled. Public states are waiting, running, completed, failed and cancelled, with stage and reason. Dispatch, signing and workers are Story 2.7; reservations are Story 2.6.",
+      "A \"potentially chargeable\" operation is one whose dispatch was persisted and whose outcome is not yet terminal or classified noncharge; \"reconciled\" means a settlement or noncharge classification is recorded (Story 2.8 supplies the process, this story stores the state). Commands carry a command ID: the same ID with a different payload is rejected."
     ],
     "acceptance_criteria": [
       {
         "given": "the same logical step requested twice",
         "when": "two commands create it",
-        "then": "one StepExecution and one ExternalOperation exist and the second command returns the original receipt"
+        "then": "one StepExecution and one ExternalOperation exist and the second command returns the original receipt; the same command ID with a different payload is rejected"
       },
       {
         "given": "a failed attempt with a potentially chargeable operation",

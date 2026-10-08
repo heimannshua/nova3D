@@ -31,7 +31,7 @@ So that spending stays within my allowance.
 
 **Given** outstanding liabilities and existing settlements
 **When** a fresh-authenticated Administrator resets or changes a limit
-**Then** the new period carries liabilities without rewriting history; already reserved work retains its reservation
+**Then** the new period carries liabilities without rewriting history; already reserved work retains its reservation; an immutable audit event records the actor, time and old and new limits
 
 ### AC-3
 

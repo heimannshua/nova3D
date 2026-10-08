@@ -19,7 +19,7 @@ An Account owner needs to have every unit of background work recorded under a un
 
 - **CAP-1**
   - **intent:** An Account owner can have every unit of background work recorded under a unique identity.
-  - **success:** One StepExecution and one ExternalOperation exist and the second command returns the original receipt.
+  - **success:** One StepExecution and one ExternalOperation exist and the second command returns the original receipt; the same command ID with a different payload is rejected.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-One StepExecution and one ExternalOperation exist and the second command returns the original receipt. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+One StepExecution and one ExternalOperation exist and the second command returns the original receipt; the same command ID with a different payload is rejected. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

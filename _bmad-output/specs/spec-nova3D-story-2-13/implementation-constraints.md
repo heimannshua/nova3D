@@ -78,15 +78,68 @@ Source: UX-2; FR-4/FR-5/FR-14.
 
 Source: `_bmad-output/planning-artifacts/epics.md`, line 807 in the captured input.
 
-### UX-DR34
+### FR-4
 
-**UX-DR34: Picture quality and coverage (C-04).** Explain blur, obstruction, or missing angles and recommend better/additional views.
+#### FR-4: Usage visibility and limits
 
-Required states/variants: Sufficient, insufficient, additional view requested, **Generate anyway** warning.
+The Administrator can view per-Account paid usage or spending and configure a Usage Limit.
 
-Source: SCREEN-INVENTORY C-04; canonical ux-contract; applicable ratified decisions.
+**Consequences:**
+- Reaching a Usage Limit blocks new paid Jobs with an explanation.
+- Already-running Jobs are allowed to finish.
+- The Administrator can raise or reset the Usage Limit.
+- Before a paid Job starts, nova3D atomically reserves its maximum estimated cost against settled usage and all outstanding reservations.
+- A Job cannot start when the available allowance cannot cover its reservation.
+- Duplicate submissions cannot create duplicate reservations, Jobs, or charges.
+- Completion or cancellation settles actual usage and releases unused reserved allowance.
+- Paid permission applies by category across all Paid Work. Before the first paid operation in a category, nova3D identifies the category, provider, purpose, and declared maximum charge and obtains permission for that Project.
+- Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.
+- Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.
+- Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 937 in the captured input.
+Source: PRD §4, FR-4.
+
+Source: `_bmad-output/planning-artifacts/epics.md`, line 114 in the captured input.
+
+### AR-7
+
+**AR-7: Untrusted acquisition and output.** Restrict acquisition destinations/redirects, sizes and content types; block private-network and credential access. Source text, uploads and provider output are untrusted. Schema-validate output and verify citations before evidence acceptance. Never treat embedded instructions, prompts or proposed executable code as authority.
+
+Source: AD-1, AD-5.
+
+Source: `_bmad-output/planning-artifacts/epics.md`, line 599 in the captured input.
+
+### AR-14
+
+**AR-14: Durable Jobs and bounded retries.** Accept Jobs only with committed dispatch outbox; persist Job → JobAttempt → StepExecution → ExternalOperation identities and receipts. Upstash orchestrates bounded HTTP steps and worker completions; Postgres owns state. Configure workflow, explicit queue publishes and provider SDKs for zero failed-work retries, verifying effective behavior with a deliberately failing research step. Duplicate transport returns existing receipts without repeated side effects; terminal failed/cancelled attempts cannot be reclaimed. Lease loss becomes interrupted failure; user retries create new linked attempts under the same Job and wait for prior potentially chargeable work to reconcile. Logical step keys are unique per attempt, and operation ordinals per step; Jobs owns receipts while Usage owns their ledger entries. Preserve last approved state and actionable failure details.
+
+Source: AD-9; work/billing identity.
+
+Source: `_bmad-output/planning-artifacts/epics.md`, line 637 in the captured input.
+
+### AR-16
+
+**AR-16: Atomic money and paid permissions.** Paid categories independently disclose provider, purpose, outbound-data/retention categories and maximum, with Project permission off by default. Use one Usage-owned checked integer USD-microdollar/rational calculator: sum under immutable model/options/rates, apply billing increments, round upward once per operation, reject overflow/unknown rates/foreign currency/unsupported parameters. Atomically enforce Account-period allowance, $5 lifetime research-Job cap across attempts and $1 external-operation cap. Defaults are $25/invitee and $50/Administrator per UTC month. Preserve outstanding liabilities across resets; already-authorized work retains reservations while disable cancels it.
+
+Source: AD-11; R-6; G-6.
+
+Source: `_bmad-output/planning-artifacts/epics.md`, line 645 in the captured input.
+
+### NFR-9
+
+**NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
+
+Source: `_bmad-output/planning-artifacts/epics.md`, line 559 in the captured input.
+
+### UX-DR36
+
+**UX-DR36: Understood request (C-06).** Show subject, scope, intended outcome, picture mode, and Personalization; wait for confirmation.
+
+Required states/variants: Clear, ambiguous with clarification questions, edit request, confirmed.
+
+Source: SCREEN-INVENTORY C-06; canonical ux-contract; applicable ratified decisions.
+
+Source: `_bmad-output/planning-artifacts/epics.md`, line 949 in the captured input.
 
 ## Planning Assumptions
 

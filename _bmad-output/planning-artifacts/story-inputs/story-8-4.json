@@ -21,11 +21,12 @@
     ],
     "depends_on": [
       "8-3",
-      "1-9"
+      "1-9",
+      "8-9"
     ],
     "scope": [
-      "Run the dedicated backup service every 12 hours: stream an encrypted logical dump to the backup store without persisting it on Railway, then run an incremental deletion-mirroring Storage sync that records the dump's cutoff; abort without hiding anything on a failed listing or a sharp object-count drop; scope credentials to one bucket per environment.",
-      "Keep the restricted deletion ledger in a separate append-only store outside every restore set; it also carries Account disables, invitation consumption and rotation, recovery revocations and the highest authorization epoch. No backup runs during a restore; after any restore all session grants and Auth sessions are revoked and the ledger replays before access opens. Drill restores into a dedicated restore project and alarm when the newest completed snapshot is older than 18 hours."
+      "Drill restores from the Story 8.9 backups into a dedicated restore project: restore the dump, copy the Storage objects, verify every referenced artifact and treat a manifest without bytes as unusable.",
+      "Replay the restricted ledger of Story 1.8, held outside every restore set, before access opens: tombstones, Account disables, invitation consumption and rotation, recovery revocations and the highest authorization epoch. No backup runs during a restore; after any restore all session grants and Auth sessions are revoked, and a scrub removes ledgered targets from live and hidden backup copies."
     ],
     "acceptance_criteria": [
       {
@@ -42,6 +43,16 @@
         "given": "the provisioned recovery setup",
         "when": "a measured drill completes",
         "then": "RPO (the age of the newest completed snapshot) and RTO are each ≤24 hours and active-purge/backup-expiry settings and provider plans are evidenced"
+      },
+      {
+        "given": "a snapshot taken before an Account disable, an invitation consumption, a general-code rotation and a recovery revocation",
+        "when": "it is restored",
+        "then": "the ledger replay re-applies each (the Account stays disabled, consumed and rotated codes stay unusable, recovery links stay revoked, the authorization epoch is at least the ledger maximum) and all session grants and Auth sessions are revoked before access opens"
+      },
+      {
+        "given": "a restore in progress",
+        "when": "a scheduled backup would start and the restore completes",
+        "then": "no backup runs during the restore, and afterwards the scrub removes ledgered targets from live and hidden backup copies"
       }
     ],
     "gates": [
@@ -67,12 +78,12 @@
       "line": 444
     },
     "AR-21": {
-      "text": "**AR-21: Deletion and tested recovery.** Tombstone/hide before cancellation/purge; cover database, images, models, exports, staging, notifications, usage associations and private operational records. Active purge ≤24 h; all controlled private backup copies expire ≤30 days from deletion, never extended by restore/rebackup. Back up database daily and objects independently; target RPO/RTO ≤24 h. Persist the minimum restricted anti-resurrection ledger of opaque target identities outside restore rollback and replay before reopening access. Verify interrupted cross-store deletion and restore; apart from that minimum ledger, preserve only permitted public claims/nonidentifying aggregates. Apply sole-Administrator close-instance safeguards and disclose external retention exceptions.\n\nSource: AD-15; R-9; FR-30; G-9.",
+      "text": "**AR-21: Deletion and tested recovery.** Tombstone/hide before cancellation/purge; cover database, images, models, exports, staging, notifications, usage associations and private operational records. Active purge ≤24 h; all controlled private backup copies expire ≤30 days from deletion, never extended by restore/rebackup. Back up the database and objects independently every 12 hours; target RPO/RTO ≤24 h. Persist the minimum restricted anti-resurrection ledger of opaque target identities outside restore rollback and replay before reopening access. Verify interrupted cross-store deletion and restore; apart from that minimum ledger, preserve only permitted public claims/nonidentifying aggregates. Apply sole-Administrator close-instance safeguards and disclose external retention exceptions.\n\nSource: AD-15; R-9; FR-30; G-9.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 665
     },
     "AR-26": {
-      "text": "**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify immutable environment IDs at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects, with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge and the Auth identity count with redacted IDs; outages fail authorization closed.\n\nSource: AD-19; R-9; G-9.",
+      "text": "**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify the immutable environment ID (one Lifecycle `instance_identity` row mirrored by `APP_ENV` and `INSTANCE_ID`) at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects (staging is also its own Vercel project on the `staging` branch), with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge and the Auth identity count with redacted IDs; outages fail authorization closed.\n\nSource: AD-19; R-9; G-9.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 685
     },

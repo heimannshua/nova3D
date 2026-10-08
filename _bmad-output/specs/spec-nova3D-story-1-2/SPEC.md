@@ -23,7 +23,7 @@ An Account owner needs consistent navigation and readable controls. They can use
 
 - **CAP-2**
   - **intent:** Save language, theme and explanation preferences.
-  - **success:** Given an Account preference change, when language, explicit dark mode or technical detail is selected, then the preference persists without changing evidence or decisions and guidance can be reopened.
+  - **success:** Given an Account preference change, when language, explicit dark mode or technical detail is selected, then the preference persists (on the device until Story 1.4 creates the Account-owned record) without changing evidence or decisions, and guidance can be reopened.
 
 - **CAP-3**
   - **intent:** Operate every shared control with accessible input and presentation.

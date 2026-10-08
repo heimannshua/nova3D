@@ -1,6 +1,6 @@
 # Acceptance Criteria
 
-**Story 7.6: Qualify and recover direct models through the shared lineage**
+**Story 7.6: Qualify direct models through the shared lineage**
 
 **Epic 7: Create direct models offline and synchronize safely.** Prepared supported devices can create honestly labeled image-derived models offline, preserve them locally and synchronize without privacy or history loss.
 
@@ -34,6 +34,18 @@ So that direct mode receives the same model and print gates.
 **Given** a synchronized direct candidate with no confirmed real-world dimension
 **When** print scale or export is requested
 **Then** qualified export stays blocked until the user confirms a dimension, after which the lineage print scale and default orientation apply and the model keeps its honest image-derived provenance
+
+### AC-3
+
+**Given** a synchronized direct candidate being exported
+**When** the provenance envelope and PDF Source Record are produced
+**Then** the Evidence group states image-derived provenance with input image digests, engine bundle and settings, confirmed scope and the uncertainty acknowledgment, contains no historical claim, and the PDF and envelope agree
+
+### AC-4
+
+**Given** a synchronized direct candidate that fails structural validation
+**When** local repair is attempted
+**Then** the Story 6.4 classes apply unchanged: a nonconsequential repair keeps the version only with the equivalence proof, a consequential one creates a successor needing re-inspection and approval, and reconversion is Story 7.8
 
 ## Engineering Gates
 

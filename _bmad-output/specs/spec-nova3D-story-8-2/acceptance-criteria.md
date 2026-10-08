@@ -46,6 +46,12 @@ So that all authorized private targets enter the deletion process.
 **When** ordinary self-deletion is requested
 **Then** it is treated as close-instance with its fresh authentication, destructive confirmation and consequences
 
+### AC-5
+
+**Given** Account deletion or close-instance with a step-up completed before the destructive confirmation was shown, or with a marker already used
+**When** the command is submitted
+**Then** it is rejected and a new step-up is required, and a successful command consumes the marker
+
 ## Engineering Gates
 
 G-9.

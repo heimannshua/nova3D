@@ -29,7 +29,7 @@
       {
         "given": "a Model Version and a pinned profile",
         "when": "the mesh is produced",
-        "then": "it derives from the canonical solid at the pinned scale and orientation with recorded tessellation settings and tool identities, and is published as a manifest"
+        "then": "it derives from the canonical solid at the pinned scale and orientation with recorded tessellation settings and tool identities, and is published as a manifest; the tessellated mesh's bounds are checked against the profile cube"
       },
       {
         "given": "a repair child or regenerated successor",

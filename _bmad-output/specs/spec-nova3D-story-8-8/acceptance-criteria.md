@@ -17,6 +17,7 @@ So that phone and Safari users get the same capabilities.
 ## Scope
 
 - Repeat the Story 8.5 qualification on the MacBook Air M2 (Safari, Chrome and Firefox), the iPhone 16 Pro and the Pixel 9 Pro. Josh arranges borrowed devices or a real-device testing service; emulation cannot substitute. Until these are recorded G-5 stays BLOCKED or PARTIAL and full first-version release stays blocked.
+- This story completes when each class is either qualified with real-device evidence or recorded as not qualified in the release record and in the application's help. A class recorded as not qualified does not block release (Josh, 2026-10-08), and G-5 stays PARTIAL until every class is qualified.
 
 ## Acceptance Criteria
 
@@ -24,7 +25,7 @@ So that phone and Safari users get the same capabilities.
 
 **Given** a MacBook Air M2 16 GB, an iPhone 16 Pro and a Pixel 9 Pro
 **When** the complete phone and computer flows are exercised
-**Then** actual OS/browser builds, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded
+**Then** actual OS/browser builds, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded and each flow passes, or the class is recorded as not qualified with the reason
 
 ### AC-2
 

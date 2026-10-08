@@ -30,11 +30,12 @@
       "1-5",
       "2-6",
       "2-11",
-      "1-9"
+      "1-9",
+      "1-12"
     ],
     "scope": [
       "Commit the Job, its initial reservation and the dispatch outbox together, using the identities of Story 2.11.",
-      "Use signed environment-bound bounded steps, compatible worker registration and cancellation fencing; never automatically retry failed work.",
+      "Use signed environment-bound bounded steps (under the Story 1.12 signing-key contract), compatible worker registration and cancellation fencing; never automatically retry failed work. Use a 120-second worker lease renewed every 30 seconds and a 15-second outbox relay, as the Spine fixes.",
       "Ship a deterministic test-workload step so durable-job behavior is testable before research exists.",
       "A user cancel revokes commit authority first and starts no new external step; a completing Job settles actual usage against its reservation and releases only demonstrably unused allowance."
     ],
@@ -52,7 +53,7 @@
       {
         "given": "a signed callback with stale revision, revoked epoch, expired lease, invalid signature or wrong environment",
         "when": "publication is attempted",
-        "then": "it is rejected; valid requests bind nonce/digest/attempt with ≤5-minute expiry and ≤60-second skew; a missing compatible pinned worker leaves work waiting"
+        "then": "it is rejected; valid requests bind nonce/digest/attempt with ≤5-minute expiry and ≤60-second skew; a missing compatible pinned worker leaves work waiting; a request signed with a revoked or non-active key is rejected, and a retiring key is accepted only for its outstanding window"
       },
       {
         "given": "an authorized running Job",
@@ -63,6 +64,11 @@
         "given": "a Job whose operations complete",
         "when": "completion is committed",
         "then": "actual usage settles against the reservation and any unused remainder is released without rewriting history"
+      },
+      {
+        "given": "an Account disabled while Jobs run",
+        "when": "the disable commits",
+        "then": "running Jobs lose commit authority at once, no new external step starts, cancellation signals follow, reservations are held until settled and an audit event records the cancellation"
       }
     ],
     "gates": []
@@ -96,7 +102,7 @@
       "line": 641
     },
     "AR-26": {
-      "text": "**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify immutable environment IDs at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects, with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge and the Auth identity count with redacted IDs; outages fail authorization closed.\n\nSource: AD-19; R-9; G-9.",
+      "text": "**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify the immutable environment ID (one Lifecycle `instance_identity` row mirrored by `APP_ENV` and `INSTANCE_ID`) at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects (staging is also its own Vercel project on the `staging` branch), with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge and the Auth identity count with redacted IDs; outages fail authorization closed.\n\nSource: AD-19; R-9; G-9.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 685
     },

@@ -14,11 +14,13 @@ So that inspection is fast without changing manufacturing geometry.
 
 - [4.1](../spec-nova3D-story-4-1/SPEC.md)
 - [4.5](../spec-nova3D-story-4-5/SPEC.md)
+- [2.7](../spec-nova3D-story-2-7/SPEC.md)
 
 ## Scope
 
 - Generate from the canonical geometry a coarse GLB (at most 5 MB) and a full-detail GLB set (at most 20 MB in total) with explicit millimetre-to-metre and Z-up-to-Y-up transforms, semantic feature maps that do not depend on vertex or triangle order, and version-compatible bindings so selection can switch atomically; publish them through the Story 4.1 manifests.
 - Derivatives are labeled preview and never manufacturing authority.
+- Subscribe to the ModelVersionCommitted event of Story 4.2 and enqueue one derivative Job through the Story 2.7 machinery for every new Model Version; a version without derivatives is shown as preview pending and never as inspectable. Large GLB files are served through the Story 1.12 gateway.
 
 ## Acceptance Criteria
 
@@ -39,6 +41,12 @@ So that inspection is fast without changing manufacturing geometry.
 **Given** a preview derivative
 **When** it is offered as manufacturing evidence
 **Then** it is rejected and only canonical content qualifies
+
+### AC-4
+
+**Given** a Model Version committed by any producer
+**When** its commit event is handled
+**Then** one derivative Job is enqueued, and the version is not inspectable until both derivative manifests exist
 
 ## Engineering Gates
 

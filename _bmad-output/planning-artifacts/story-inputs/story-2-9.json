@@ -21,7 +21,8 @@
     ],
     "depends_on": [
       "2-5",
-      "2-7"
+      "2-7",
+      "2-13"
     ],
     "scope": [
       "After scope confirmation present independent payment and cache/fresh choices; dispatch pins these choices.",
@@ -31,7 +32,7 @@
       {
         "given": "a confirmed evidence request",
         "when": "research settings open",
-        "then": "free/paid and reuse/fresh are separate controls following scope confirmation"
+        "then": "free/paid and reuse/fresh are separate controls following scope confirmation; both controls work on phone and desktop"
       },
       {
         "given": "a reusable eligible revision (a fixture until Story 3.6 admits real ones)",

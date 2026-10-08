@@ -29,6 +29,10 @@ An Account owner needs to generate the approved reconstruction automatically. Th
   - **intent:** Retain the complete recipe and its source-to-geometry provenance.
   - **success:** Given a successful canonical result, when its version is recorded, then recipe, settings, dependencies and source-to-parameter provenance remain authoritative in millimetres/right-handed/Z-up; STEP alone is not the recipe.
 
+- **CAP-4**
+  - **intent:** Notify the recipient when generation completes or fails.
+  - **success:** Given generation that completes or fails, when the Job commits the outcome, then one durable notification event is registered with Story 2.10 for the recipient, carrying an exact authorized target.
+
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Constraints

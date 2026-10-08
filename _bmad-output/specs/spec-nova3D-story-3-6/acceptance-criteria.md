@@ -37,7 +37,7 @@ So that reuse saves work without exposing anyone’s private history.
 
 ### AC-3
 
-**Given** fresh research or Project/Account deletion
+**Given** fresh research, or a Project or Account tombstone (a fixture tombstone from Story 1.8 until Epic 8 supplies the deletion commands)
 **When** the cache/adoption paths execute
 **Then** fresh work does not substitute cached conclusions and private associations are deleted without promoting tombstoned private data
 

@@ -30,7 +30,7 @@
       {
         "given": "an event type registered by an implemented producer (research readiness, generation, validation and export register theirs as their stories land)",
         "when": "the event is committed",
-        "then": "one durable notification per recipient/event appears in the app-wide bar and history"
+        "then": "one durable notification per recipient/event appears in the app-wide bar and history; the bar and history work on phone and desktop"
       },
       {
         "given": "duplicate, missing or delayed realtime delivery",

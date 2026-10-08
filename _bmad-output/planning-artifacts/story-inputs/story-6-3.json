@@ -16,7 +16,8 @@
       "AR-11",
       "NFR-11",
       "UX-DR17",
-      "UX-DR59"
+      "UX-DR59",
+      "FR-7"
     ],
     "depends_on": [
       "6-2"
@@ -39,6 +40,11 @@
         "given": "general and adversarial geometry",
         "when": "the validator corpus runs",
         "then": "warnings and unknowns remain explicit with profile/time/tool identity; a successful box slice does not qualify arbitrary geometry"
+      },
+      {
+        "given": "validation that finishes all required checks",
+        "when": "the result is committed",
+        "then": "one durable notification event is registered with Story 2.10 for the recipient, carrying an exact authorized target"
       }
     ],
     "gates": [
@@ -77,6 +83,11 @@
       "text": "**UX-DR59: Validation results (V-02).** Supported checks, profile, last checked time, pass/warning/failure/unknown; never claim universal safety.\n\nRequired states/variants: Pass, warning, blocking failure, unknown, stale after profile change.\n\nSource: SCREEN-INVENTORY V-02; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 1087
+    },
+    "FR-7": {
+      "text": "#### FR-7: Actionable notifications\n\nThe app displays an app-wide Notification bar for Jobs and approval events.\n\n**Consequences:**\n- Notifications cover research readiness, generation completion or failure, Export readiness, and later printer events.\n- Selecting a Notification opens the exact Project, approval item, failed Job, Export, or later printer event requiring attention.\n\nSource: PRD §4, FR-7.\n\n**Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 157
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

@@ -8,17 +8,19 @@ As an Account owner,
 I want to generate the approved reconstruction automatically,
 So that I can obtain canonical geometry without manual modeling.
 
-**Requirement IDs:** FR-15, FR-16, AR-2, AR-8, AR-9, NFR-3, NFR-6
+**Requirement IDs:** FR-15, FR-16, AR-2, AR-8, AR-9, NFR-3, NFR-6, FR-7
 
 ## Dependencies
 
 - [3.5](../spec-nova3D-story-3-5/SPEC.md)
 - [4.1](../spec-nova3D-story-4-1/SPEC.md)
+- [2.10](../spec-nova3D-story-2-10/SPEC.md)
 
 ## Scope
 
 - Implement trusted declarative subject recipe and pinned native CadQuery worker for the evidence-backed altar/ramp fixture.
 - Declare in the domain package the base face, the personalization surfaces and the pinned source registry; Josh approves the G-1 corpus before the qualification run is recorded.
+- Emit a ModelVersionCommitted outbox event from the shared Model Version commit that every producer uses (Stories 4.4, 5.2, 6.4 successors and 7.4 imports). The generator schema accepts optional failed print constraints (check, measured value, required value, feature references) for the constrained regeneration of Story 6.5.
 
 ## Acceptance Criteria
 
@@ -39,6 +41,12 @@ So that I can obtain canonical geometry without manual modeling.
 **Given** a successful canonical result
 **When** its version is recorded
 **Then** recipe, settings, dependencies and source-to-parameter provenance remain authoritative in millimetres/right-handed/Z-up; STEP alone is not the recipe
+
+### AC-4
+
+**Given** generation that completes or fails
+**When** the Job commits the outcome
+**Then** one durable notification event is registered with Story 2.10 for the recipient, carrying an exact authorized target
 
 ## Engineering Gates
 

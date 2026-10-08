@@ -19,7 +19,7 @@ An Account owner needs to return to a previous version. Restoration preserves bo
 
 - **CAP-1**
   - **intent:** Restore the full content of a non-deleted restorable version.
-  - **success:** Given a non-deleted version advertised as restorable, when restoration runs, then all geometry, parameters, governing inputs, approvals, validation and personalization restore from verified manifests.
+  - **success:** Given a non-deleted version advertised as restorable, when restoration runs, then all geometry, parameters, governing inputs, approvals, validation and personalization restore from verified manifests; the same actions work on phone and desktop.
 
 - **CAP-2**
   - **intent:** Keep later history and reject unavailable or tombstoned content.
@@ -27,7 +27,7 @@ An Account owner needs to return to a previous version. Restoration preserves bo
 
 - **CAP-3**
   - **intent:** Recheck exact approval and validation before exporting restored work.
-  - **success:** Given a restored model and a new export request, when readiness is checked, then the exact current model digest/approval and profile validation are rechecked; restoration itself grants no export authority.
+  - **success:** Given a restored model and a new export request (a fixture request until Story 6.8), when readiness is checked, then the exact current model digest/approval and profile validation are rechecked; restoration itself grants no export authority.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -44,7 +44,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-All geometry, parameters, governing inputs, approvals, validation and personalization restore from verified manifests. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+All geometry, parameters, governing inputs, approvals, validation and personalization restore from verified manifests; the same actions work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

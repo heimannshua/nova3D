@@ -14,11 +14,12 @@ So that backups restore geometry and enforce every intervening deletion.
 
 - [8.3](../spec-nova3D-story-8-3/SPEC.md)
 - [1.9](../spec-nova3D-story-1-9/SPEC.md)
+- [8.9](../spec-nova3D-story-8-9/SPEC.md)
 
 ## Scope
 
-- Run the dedicated backup service every 12 hours: stream an encrypted logical dump to the backup store without persisting it on Railway, then run an incremental deletion-mirroring Storage sync that records the dump's cutoff; abort without hiding anything on a failed listing or a sharp object-count drop; scope credentials to one bucket per environment.
-- Keep the restricted deletion ledger in a separate append-only store outside every restore set; it also carries Account disables, invitation consumption and rotation, recovery revocations and the highest authorization epoch. No backup runs during a restore; after any restore all session grants and Auth sessions are revoked and the ledger replays before access opens. Drill restores into a dedicated restore project and alarm when the newest completed snapshot is older than 18 hours.
+- Drill restores from the Story 8.9 backups into a dedicated restore project: restore the dump, copy the Storage objects, verify every referenced artifact and treat a manifest without bytes as unusable.
+- Replay the restricted ledger of Story 1.8, held outside every restore set, before access opens: tombstones, Account disables, invitation consumption and rotation, recovery revocations and the highest authorization epoch. No backup runs during a restore; after any restore all session grants and Auth sessions are revoked, and a scrub removes ledgered targets from live and hidden backup copies.
 
 ## Acceptance Criteria
 
@@ -39,6 +40,18 @@ So that backups restore geometry and enforce every intervening deletion.
 **Given** the provisioned recovery setup
 **When** a measured drill completes
 **Then** RPO (the age of the newest completed snapshot) and RTO are each ≤24 hours and active-purge/backup-expiry settings and provider plans are evidenced
+
+### AC-4
+
+**Given** a snapshot taken before an Account disable, an invitation consumption, a general-code rotation and a recovery revocation
+**When** it is restored
+**Then** the ledger replay re-applies each (the Account stays disabled, consumed and rotated codes stay unusable, recovery links stay revoked, the authorization epoch is at least the ledger maximum) and all session grants and Auth sessions are revoked before access opens
+
+### AC-5
+
+**Given** a restore in progress
+**When** a scheduled backup would start and the restore completes
+**Then** no backup runs during the restore, and afterwards the scrub removes ledgered targets from live and hidden backup copies
 
 ## Engineering Gates
 

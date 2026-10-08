@@ -37,7 +37,7 @@
       {
         "given": "unrelated canonical features",
         "when": "old and new versions are compared",
-        "then": "correspondence and geometry remain within the ratified R-2 tolerance under the same pinned frame"
+        "then": "correspondence and geometry remain within the ratified R-2 tolerance under the same pinned print frame, computed from the original version by the Story 4.3 function"
       },
       {
         "given": "stale, cancelled or superseded correction work",

@@ -17,7 +17,7 @@ So that my additions remain distinct from historical reconstruction.
 
 ## Scope
 
-- Generate a personalized altar/ramp variation through the trusted recipe with explicit user-added feature provenance. The supported kind is raised or recessed text in the bundled Noto Sans and Noto Sans Hebrew fonts on surfaces the domain package declares, within the print profile's relief and clearance rules; free-form requests are mapped to it or declined with what is supported.
+- Generate a personalized altar/ramp variation through the trusted recipe with explicit user-added feature provenance. The supported kind is raised or recessed text in the bundled Noto Sans and Noto Sans Hebrew fonts on surfaces the domain package declares, within the print profile's relief and clearance rules (the R-3 constants as a pinned fixture until Story 6.1 pins profiles); free-form requests are mapped to it or declined with what is supported.
 
 ## Acceptance Criteria
 

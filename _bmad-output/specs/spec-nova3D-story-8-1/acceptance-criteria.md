@@ -19,6 +19,7 @@ So that private content becomes inaccessible immediately.
 ## Scope
 
 - Implement fresh-authenticated explicit deletion intent and manifests across record owners, using the tombstone contract of Story 1.8, before best-effort cancellation/purge.
+- Project and Export deletion each need a fresh-authentication marker of the owner-deletion class (valid 5 minutes).
 
 ## Acceptance Criteria
 
@@ -39,6 +40,12 @@ So that private content becomes inaccessible immediately.
 **Given** interrupted multi-store cleanup
 **When** deletion resumes
 **Then** the durable manifest remains retryable and distinguishes immediately inaccessible from cleanup complete
+
+### AC-4
+
+**Given** an Account owner deleting a Project or Export
+**When** the explicit deletion confirmation is submitted
+**Then** it needs a fresh-authentication marker of the owner-deletion class and is refused with the step-up offered when none exists
 
 ## Engineering Gates
 

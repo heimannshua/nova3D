@@ -31,7 +31,7 @@
       {
         "given": "two non-deleted versions",
         "when": "comparison opens",
-        "then": "changed and unchanged features plus every listed provenance/parameter/approval/validation dimension are distinguishable"
+        "then": "changed and unchanged features plus every listed provenance/parameter/approval/validation dimension are distinguishable; the same actions work on phone and desktop"
       },
       {
         "given": "an older version",

@@ -24,17 +24,19 @@
     ],
     "depends_on": [
       "7-3",
-      "1-4"
+      "1-4",
+      "2-12"
     ],
     "scope": [
       "Import stable UUIDs only into the original authorized Account with verified artifacts and expected parent revision.",
-      "Show the conflict state in My Projects (H-02) with an explicit current-version selection."
+      "Show the conflict state in My Projects (H-02) with an explicit current-version selection.",
+      "Import the model's confirmed pictures as retained Project artifacts of the Story 2.12 family with verified digests, so a reconversion can run on the server."
     ],
     "acceptance_criteria": [
       {
         "given": "an authorized reconnect and a local draft",
         "when": "sync is delivered more than once",
-        "then": "one idempotent import appears in original My Projects using verified digests and stable identities"
+        "then": "one idempotent import appears in original My Projects using verified digests and stable identities; the confirmed pictures arrive as retained Project artifacts"
       },
       {
         "given": "a newer server version or divergent local history",
@@ -70,7 +72,7 @@
       "line": 591
     },
     "AR-22": {
-      "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
+      "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. The one server run of the engine port is the user-requested pinned reconversion after failed print repair, a fenced Job from retained pictures with no provider charge. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 669
     },

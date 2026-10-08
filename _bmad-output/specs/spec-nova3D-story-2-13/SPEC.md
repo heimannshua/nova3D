@@ -19,7 +19,7 @@ An Account owner needs to confirm what their pictures show before research start
 
 - **CAP-1**
   - **intent:** An Account owner can confirm what their pictures show before research starts.
-  - **success:** One bounded operation proposes a subject, the user confirms or edits it, and the confirmed subject (not the model proposal) is recorded in the request revision.
+  - **success:** One bounded operation, reserved and recorded like any billable operation, proposes a subject, the user confirms or edits it, and a successor request revision records the confirmed subject rather than the proposal; the same actions work on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-One bounded operation proposes a subject, the user confirms or edits it, and the confirmed subject (not the model proposal) is recorded in the request revision. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+One bounded operation, reserved and recorded like any billable operation, proposes a subject, the user confirms or edits it, and a successor request revision records the confirmed subject rather than the proposal; the same actions work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

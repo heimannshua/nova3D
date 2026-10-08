@@ -33,7 +33,7 @@
       {
         "given": "outstanding liabilities and existing settlements",
         "when": "a fresh-authenticated Administrator resets or changes a limit",
-        "then": "the new period carries liabilities without rewriting history; already reserved work retains its reservation"
+        "then": "the new period carries liabilities without rewriting history; already reserved work retains its reservation; an immutable audit event records the actor, time and old and new limits"
       },
       {
         "given": "an allowance at or above 80% of its period limit, or reached",

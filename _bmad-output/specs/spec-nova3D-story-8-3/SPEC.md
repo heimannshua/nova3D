@@ -29,6 +29,10 @@ An Account owner needs to have deletion remove controlled copies. Retained data 
   - **intent:** Retain only permitted public data, aggregates and minimum deletion exclusions.
   - **success:** Given retained shared research, aggregates and deletion exclusions, when retention is audited, then only allowed public-source data, nonidentifying aggregates and the minimum restricted opaque-target anti-resurrection ledger remain; external/disconnected-copy limitations are disclosed accurately.
 
+- **CAP-4**
+  - **intent:** Prove a deletion reaches backups within the canary window.
+  - **success:** Given the monthly canary, when it runs, then a synthetic Project's deletion is confirmed absent from the database, Storage and the backup copies within 15 days, and a miss raises an alarm.
+
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Constraints

@@ -25,7 +25,7 @@ So that the evidence can be reconsidered without manual mesh editing.
 
 **Given** selected consequential features
 **When** a plain-language correction is submitted
-**Then** the issue, affected details/dependencies and requested evidence are retained
+**Then** the issue, affected details/dependencies and requested evidence are retained; the same actions work on phone and desktop
 
 ### AC-2
 

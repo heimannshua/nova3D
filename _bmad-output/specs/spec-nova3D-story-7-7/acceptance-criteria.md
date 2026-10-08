@@ -14,11 +14,13 @@ So that I can return to completed work without losing in-app history.
 
 - [2.10](../spec-nova3D-story-2-10/SPEC.md)
 - [6.9](../spec-nova3D-story-6-9/SPEC.md)
+- [7.2](../spec-nova3D-story-7-2/SPEC.md)
 
 ## Scope
 
 - Implement category preferences and contextual install/permission guidance for research/generation/validation/export; printing remains inactive.
 - Use the standard Web Push protocol with VAPID keys through each browser's push service and no third-party notification provider; iOS delivery requires the installed web app.
+- Add the push handler and subscription flow to the service worker owned by Story 7.2.
 
 ## Acceptance Criteria
 

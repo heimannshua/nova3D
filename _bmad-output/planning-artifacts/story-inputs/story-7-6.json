@@ -7,7 +7,7 @@
   "story": {
     "id": "7-6",
     "epic_id": "7",
-    "title": "Qualify and recover direct models through the shared lineage",
+    "title": "Qualify direct models through the shared lineage",
     "user": "Account owner",
     "want": "to validate and export an image-derived model",
     "benefit": "direct mode receives the same model and print gates",
@@ -47,6 +47,16 @@
         "given": "a synchronized direct candidate with no confirmed real-world dimension",
         "when": "print scale or export is requested",
         "then": "qualified export stays blocked until the user confirms a dimension, after which the lineage print scale and default orientation apply and the model keeps its honest image-derived provenance"
+      },
+      {
+        "given": "a synchronized direct candidate being exported",
+        "when": "the provenance envelope and PDF Source Record are produced",
+        "then": "the Evidence group states image-derived provenance with input image digests, engine bundle and settings, confirmed scope and the uncertainty acknowledgment, contains no historical claim, and the PDF and envelope agree"
+      },
+      {
+        "given": "a synchronized direct candidate that fails structural validation",
+        "when": "local repair is attempted",
+        "then": "the Story 6.4 classes apply unchanged: a nonconsequential repair keeps the version only with the equivalence proof, a consequential one creates a successor needing re-inspection and approval, and reconversion is Story 7.8"
       }
     ],
     "gates": [
@@ -103,7 +113,7 @@
       "line": 623
     },
     "AR-22": {
-      "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
+      "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. The one server run of the engine port is the user-requested pinned reconversion after failed print repair, a fenced Job from retained pictures with no provider charge. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 669
     },

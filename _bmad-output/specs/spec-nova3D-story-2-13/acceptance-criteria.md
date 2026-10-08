@@ -8,7 +8,7 @@ As an Account owner,
 I want to confirm what my pictures show before research starts,
 So that research is aimed at the right subject and unsupported subjects stop early.
 
-**Requirement IDs:** FR-5, FR-14, AR-17, SC-1, UX-DR8, UX-DR34
+**Requirement IDs:** FR-5, FR-14, AR-17, SC-1, UX-DR8, FR-4, AR-7, AR-14, AR-16, NFR-9, UX-DR36
 
 ## Dependencies
 
@@ -16,29 +16,32 @@ So that research is aimed at the right subject and unsupported subjects stop ear
 - [2.5](../spec-nova3D-story-2-5/SPEC.md)
 - [2.7](../spec-nova3D-story-2-7/SPEC.md)
 - [2.12](../spec-nova3D-story-2-12/SPEC.md)
+- [2.1](../spec-nova3D-story-2-1/SPEC.md)
+- [2.8](../spec-nova3D-story-2-8/SPEC.md)
 
 ## Scope
 
-- In evidence_images mode, propose the pictured subject: with the paid synthesis/vision permission granted, one bounded Anthropic vision operation proposes a subject from the retained pictures for the user to confirm or edit; otherwise the user names the subject.
-- A confirmed subject maps to a registered domain package. A subject with no registered package ends with a clear no-generator outcome that offers direct mode, and no research starts.
+- In evidence_images mode, after the pictures are confirmed and retained (Story 2.12) and before scope confirmation, the user either names the pictured subject or grants an identification permission. That permission is its own category-and-purpose disclosure (purpose: identify the pictured subject; data: the retained pictures; maximum from the Story 2.6 calculator) and never authorizes a later research operation.
+- With that permission, one bounded Anthropic vision operation runs as its own Job (its own parent-Job cap, the $1 operation ceiling and the Account allowance) and returns a schema-validated, untrusted proposal for the user to confirm or edit; a successor request revision records the confirmed subject, not the proposal.
+- A confirmed subject is matched by name or alias against the domain-package registry created in Story 2.1. No match ends with a no-generator outcome that lists the supported subjects and offers direct mode, and no research starts.
 
 ## Acceptance Criteria
 
 ### AC-1
 
-**Given** evidence_images mode with the paid vision permission
+**Given** evidence_images mode with confirmed pictures and the identification permission
 **When** identification runs
-**Then** one bounded operation proposes a subject, the user confirms or edits it, and the confirmed subject (not the model proposal) is recorded in the request revision
+**Then** one bounded operation, reserved and recorded like any billable operation, proposes a subject, the user confirms or edits it, and a successor request revision records the confirmed subject rather than the proposal; the same actions work on phone and desktop
 
 ### AC-2
 
-**Given** free mode or no vision permission
+**Given** free mode, no permission or insufficient allowance
 **When** the user continues
 **Then** they name the subject themselves and no billable call occurs
 
 ### AC-3
 
-**Given** a subject with no registered domain package
+**Given** a confirmed subject with no registered domain package
 **When** scope is confirmed
 **Then** no research or paid step starts and the user sees what is supported and the direct-mode alternative
 

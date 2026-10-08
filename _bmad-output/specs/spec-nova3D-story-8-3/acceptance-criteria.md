@@ -13,11 +13,12 @@ So that retained data does not outlive the adopted limits.
 ## Dependencies
 
 - [8.2](../spec-nova3D-story-8-2/SPEC.md)
+- [8.9](../spec-nova3D-story-8-9/SPEC.md)
 
 ## Scope
 
 - Purge database, files, models, exports, staging, notifications, private usage/adoption associations and operational traces under the deletion manifest.
-- Apply the backup lifecycle (dumps removed within 14 days, deleted-at-source objects within 7 days, object lock of at most 7 days); after any restore a scrub removes ledgered targets from live and hidden backup copies, and a monthly canary proves a deletion reaches the database, Storage and backups within 15 days.
+- Apply the Story 8.9 backup lifecycle to deletions: deleted targets leave dumps within 14 days and deleted-at-source objects within 7 days. Run a monthly canary that deletes a synthetic Project and proves the deletion reaches the database, Storage and backups within 15 days.
 
 ## Acceptance Criteria
 
@@ -38,6 +39,12 @@ So that retained data does not outlive the adopted limits.
 **Given** retained shared research, aggregates and deletion exclusions
 **When** retention is audited
 **Then** only allowed public-source data, nonidentifying aggregates and the minimum restricted opaque-target anti-resurrection ledger remain; external/disconnected-copy limitations are disclosed accurately
+
+### AC-4
+
+**Given** the monthly canary
+**When** it runs
+**Then** a synthetic Project's deletion is confirmed absent from the database, Storage and the backup copies within 15 days, and a miss raises an alarm
 
 ## Engineering Gates
 

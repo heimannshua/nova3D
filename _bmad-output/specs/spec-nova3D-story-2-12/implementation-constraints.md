@@ -20,7 +20,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 583 in the captured inp
 
 ### AR-19
 
-**AR-19: Revocable artifact transfer.** Keep buckets private and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. Container gateway streams large uploads/downloads/ranges; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.
+**AR-19: Revocable artifact transfer.** Keep user-data buckets private (the only public bucket holds public, digest-pinned assets) and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. The container gateway, which exists before the first feature that accepts a user file, streams all user uploads/downloads/ranges through application-signed single-use transfer tickets, and no user file crosses a Vercel function; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.
 
 Source: AD-13; file authorization.
 
@@ -58,6 +58,22 @@ Picture intake supports existing images, phone camera capture, and multiple imag
 Source: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.
 
 Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured input.
+
+### AR-2
+
+**AR-2: Module boundaries and ownership.** Use a modular monolith with provider-neutral domain ports and versioned subject packages. Next.js handles commands/web delivery; trusted Railway native workers handle geometry/validation/export and large-file delivery. Models propose validated data, never executable scripts. Retain the architecture's sole ownership of Identity, Projects, Evidence, Geometry, Manufacturing, Artifacts, Jobs, Usage, Preferences/notifications and Lifecycle records; shared invariants use coordinated Postgres transactions.
+
+Source: AD-1, AD-2; Structural Seed.
+
+Source: `_bmad-output/planning-artifacts/epics.md`, line 579 in the captured input.
+
+### AR-5
+
+**AR-5: Provenance and immutable publication.** Preserve SourceRevision → ClaimRevision → Detail/Option → PlanRevision/PlanApproval → Parameter → Feature → ModelVersion → ModelApproval/Validation → Export links, including reverse navigation, competing choices, actors and times. Stable logical features have version-specific geometry/claim bindings. Artifacts owns one canonical JSON manifest-root/digest family with immutable ID, ownership, size, kind, byte digest, canonical serialization version, producing activity and child references. Approval, gateway access, restore, cleanup and deletion resolve the same manifest roots; object keys cannot redefine them. Staged output becomes usable/restorable only through verified coordinated publication.
+
+Source: AD-4, AD-13; shared artifact identity.
+
+Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured input.
 
 ## Planning Assumptions
 

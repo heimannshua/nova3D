@@ -41,7 +41,7 @@
       {
         "given": "staging services and actual provider settings",
         "when": "callback, private-file, environment isolation and rollout/rollback drills run",
-        "then": "the recorded Vercel/Supabase/Railway/Upstash topology enforces signed environment identity, consumer-before-producer evolution and redacted operational monitoring"
+        "then": "the recorded Vercel, Supabase, Railway, Upstash, Backblaze and Resend topology enforces signed environment identity, consumer-before-producer evolution and redacted operational monitoring"
       },
       {
         "given": "the complete evidence altar/ramp and direct/offline regression suites",
@@ -51,7 +51,7 @@
       {
         "given": "the September 14 PARTIAL/BLOCKED/NOT RUN baseline",
         "when": "release is considered",
-        "then": "no applicable G-1–G-9 remains open; local probes, documents and a physical-box slice do not establish app acceptance, and physical printing/printer control are not required for the adopted software demonstration"
+        "then": "each applicable G-1–G-9 gate is passed or covered by a recorded product-scope decision (the Windows-only device claim, the G-8 checkpoint record), with none silently open; local probes, documents and a physical-box slice do not establish app acceptance, and physical printing/printer control are not required for the adopted software demonstration"
       }
     ],
     "gates": [
@@ -75,7 +75,7 @@
   ],
   "source_requirements": {
     "AR-26": {
-      "text": "**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify immutable environment IDs at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects, with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge and the Auth identity count with redacted IDs; outages fail authorization closed.\n\nSource: AD-19; R-9; G-9.",
+      "text": "**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify the immutable environment ID (one Lifecycle `instance_identity` row mirrored by `APP_ENV` and `INSTANCE_ID`) at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects (staging is also its own Vercel project on the `staging` branch), with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge and the Auth identity count with redacted IDs; outages fail authorization closed.\n\nSource: AD-19; R-9; G-9.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 685
     },

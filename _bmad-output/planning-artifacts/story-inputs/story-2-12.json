@@ -17,31 +17,38 @@
       "NFR-1",
       "NFR-3",
       "NFR-7",
-      "SC-1"
+      "SC-1",
+      "AR-2",
+      "AR-5"
     ],
     "depends_on": [
       "2-2",
       "2-3"
     ],
     "scope": [
-      "On confirmation of a request, attach its ordered staged pictures to the immutable request revision as Project-owned artifacts: create the Artifacts-owned manifest record family and the coordinated verified publication command (canonical JSON manifest root, ownership scope, digest and length), then let the staging copies expire.",
+      "When the user confirms the ordered pictures (the end of the Story 2.3 quality review), attach them to the Project as retained artifacts and pin their roots in a successor request revision: create the Artifacts-owned manifest record family and the coordinated verified publication command (canonical JSON manifest root, ownership scope, digest and length), strip location tags from the retained copy and record its digest, then let the staging copies expire. A retained-picture quota of 2 GiB per Account applies.",
       "Later consumers (subject identification, research, direct conversion and reconversion) read these retained roots, never lease-bounded staging. Story 4.1 extends the same family to worker outputs."
     ],
     "acceptance_criteria": [
       {
-        "given": "a confirmed request and its staged pictures",
+        "given": "confirmed ordered pictures and their staged copies",
         "when": "retention runs",
-        "then": "each picture has a verified manifest root, the request revision references the ordered roots and the staging copies expire"
+        "then": "each picture has a verified manifest root, a successor request revision pins the ordered roots and the staging copies expire"
       },
       {
         "given": "changed bytes, a foreign owner or an expired lease before attachment",
         "when": "retention is attempted",
-        "then": "nothing is published and the request stays unconfirmed with an actionable state"
+        "then": "nothing is published and the pictures stay unconfirmed with an actionable state"
       },
       {
         "given": "a later consumer needing the pictures",
         "when": "it resolves them",
         "then": "it reads the retained roots and the original digests match the confirmed order"
+      },
+      {
+        "given": "the retained-picture quota is exceeded or an image carries location tags",
+        "when": "retention runs",
+        "then": "the quota rejects the excess with an actionable state, and the retained copy has no location tags while its digest and the confirmed order are recorded"
       }
     ],
     "gates": []
@@ -60,7 +67,7 @@
       "line": 583
     },
     "AR-19": {
-      "text": "**AR-19: Revocable artifact transfer.** Keep buckets private and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. Container gateway streams large uploads/downloads/ranges; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.\n\nSource: AD-13; file authorization.",
+      "text": "**AR-19: Revocable artifact transfer.** Keep user-data buckets private (the only public bucket holds public, digest-pinned assets) and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. The container gateway, which exists before the first feature that accepts a user file, streams all user uploads/downloads/ranges through application-signed single-use transfer tickets, and no user file crosses a Vercel function; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.\n\nSource: AD-13; file authorization.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 657
     },
@@ -83,6 +90,16 @@
       "text": "##### SC-1: Picture workflows move into the first version\n\nThe PRD deferred picture workflows. The first version now includes both:\n\n- **Direct picture-to-model:** labelled image-derived and not historically verified.\n- **Research-assisted picture reconstruction:** identifies the subject, researches it, builds a complete Research Plan, and follows Plan Approval before evidence-backed generation.\n\nPicture intake supports existing images, phone camera capture, and multiple images of one subject from different angles. Before conversion, nova3D checks clarity and angle coverage and recommends additional views. The user may choose **Generate anyway** after an explicit warning that incomplete views can cause invented or inaccurate geometry.\n\nSource: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 483
+    },
+    "AR-2": {
+      "text": "**AR-2: Module boundaries and ownership.** Use a modular monolith with provider-neutral domain ports and versioned subject packages. Next.js handles commands/web delivery; trusted Railway native workers handle geometry/validation/export and large-file delivery. Models propose validated data, never executable scripts. Retain the architecture's sole ownership of Identity, Projects, Evidence, Geometry, Manufacturing, Artifacts, Jobs, Usage, Preferences/notifications and Lifecycle records; shared invariants use coordinated Postgres transactions.\n\nSource: AD-1, AD-2; Structural Seed.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 579
+    },
+    "AR-5": {
+      "text": "**AR-5: Provenance and immutable publication.** Preserve SourceRevision → ClaimRevision → Detail/Option → PlanRevision/PlanApproval → Parameter → Feature → ModelVersion → ModelApproval/Validation → Export links, including reverse navigation, competing choices, actors and times. Stable logical features have version-specific geometry/claim bindings. Artifacts owns one canonical JSON manifest-root/digest family with immutable ID, ownership, size, kind, byte digest, canonical serialization version, producing activity and child references. Approval, gateway access, restore, cleanup and deletion resolve the same manifest roots; object keys cannot redefine them. Staged output becomes usable/restorable only through verified coordinated publication.\n\nSource: AD-4, AD-13; shared artifact identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 591
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

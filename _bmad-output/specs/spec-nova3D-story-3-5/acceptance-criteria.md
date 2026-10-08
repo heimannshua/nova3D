@@ -39,6 +39,12 @@ So that evidence-backed geometry follows my exact decisions.
 **When** generation authority is checked
 **Then** the successor needs renewed approval; previous approved records remain immutable and do not authorize changed content
 
+### AC-4
+
+**Given** a plan the user does not accept
+**When** the user rejects it or asks for changes
+**Then** the rejection is recorded immutably with the user's reasons, no generation authority results, and the user can revise the unsettled choices to produce a successor plan
+
 ## Engineering Gates
 
 This story has no separate gate ID; applicable project-wide gates still govern acceptance.

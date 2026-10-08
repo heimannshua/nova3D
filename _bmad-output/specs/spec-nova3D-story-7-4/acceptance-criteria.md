@@ -14,11 +14,13 @@ So that sync does not duplicate or discard versions.
 
 - [7.3](../spec-nova3D-story-7-3/SPEC.md)
 - [1.4](../spec-nova3D-story-1-4/SPEC.md)
+- [2.12](../spec-nova3D-story-2-12/SPEC.md)
 
 ## Scope
 
 - Import stable UUIDs only into the original authorized Account with verified artifacts and expected parent revision.
 - Show the conflict state in My Projects (H-02) with an explicit current-version selection.
+- Import the model's confirmed pictures as retained Project artifacts of the Story 2.12 family with verified digests, so a reconversion can run on the server.
 
 ## Acceptance Criteria
 
@@ -26,7 +28,7 @@ So that sync does not duplicate or discard versions.
 
 **Given** an authorized reconnect and a local draft
 **When** sync is delivered more than once
-**Then** one idempotent import appears in original My Projects using verified digests and stable identities
+**Then** one idempotent import appears in original My Projects using verified digests and stable identities; the confirmed pictures arrive as retained Project artifacts
 
 ### AC-2
 

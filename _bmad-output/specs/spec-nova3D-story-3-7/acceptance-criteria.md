@@ -28,7 +28,7 @@ So that background research stays understandable and controlled.
 
 **Given** a running research Job
 **When** sources are examined or replaced
-**Then** actual activity and evidence-based explanations appear without fabricated hidden reasoning
+**Then** actual activity and evidence-based explanations appear without fabricated hidden reasoning; the same actions work on phone and desktop
 
 ### AC-2
 
@@ -47,6 +47,12 @@ So that background research stays understandable and controlled.
 **Given** free-mode gaps that block Plan Approval and a declined paid escalation
 **When** the user declines
 **Then** the Project stays unready for Plan Approval while blocking gaps remain, the gaps stay visible, and no paid operation or reservation is created
+
+### AC-5
+
+**Given** research that completes, fails or needs the user's attention
+**When** the Job commits that outcome
+**Then** one durable notification event is registered with Story 2.10 for each recipient, carrying an exact authorized target
 
 ## Engineering Gates
 

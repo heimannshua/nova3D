@@ -19,7 +19,7 @@ An Account owner needs to have the printable mesh made from the exact model they
 
 - **CAP-1**
   - **intent:** An Account owner can have the printable mesh made from the exact model they approved.
-  - **success:** It derives from the canonical solid at the pinned scale and orientation with recorded tessellation settings and tool identities, and is published as a manifest.
+  - **success:** It derives from the canonical solid at the pinned scale and orientation with recorded tessellation settings and tool identities, and is published as a manifest; the tessellated mesh's bounds are checked against the profile cube.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-It derives from the canonical solid at the pinned scale and orientation with recorded tessellation settings and tool identities, and is published as a manifest. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+It derives from the canonical solid at the pinned scale and orientation with recorded tessellation settings and tool identities, and is published as a manifest; the tessellated mesh's bounds are checked against the profile cube. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

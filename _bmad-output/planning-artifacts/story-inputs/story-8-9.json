@@ -1,0 +1,103 @@
+{
+  "epic": {
+    "id": "8",
+    "title": "Delete private work and prove release readiness",
+    "goal": "Users can remove their data, Josh can close the instance, and the complete product is accepted only with real application/device and recovery evidence."
+  },
+  "story": {
+    "id": "8-9",
+    "epic_id": "8",
+    "title": "Back up the database and Storage independently",
+    "user": "Administrator",
+    "want": "to have encrypted backups of the database and every stored file made on their own every 12 hours",
+    "benefit": "a lost provider or a bad change cannot take my users' work",
+    "requirements": [
+      "AR-21",
+      "AR-26",
+      "NFR-7",
+      "NFR-12"
+    ],
+    "depends_on": [
+      "1-8",
+      "1-9",
+      "1-10",
+      "4-1"
+    ],
+    "scope": [
+      "Build `workers/backup` on Railway, run every 12 hours: stream an age-encrypted logical dump (application schemas plus Auth and Storage metadata) straight to the private Backblaze bucket without persisting it on Railway, then run an incremental, deletion-mirroring Storage sync that records the dump's cutoff, and write a dated manifest of counts and digests. Credentials are scoped to one bucket per environment in Backblaze's US East region, and the service holds only the public encryption key.",
+      "Abort the sync without hiding or deleting anything when a listing page fails or the object count falls sharply against Postgres metadata. Apply the lifecycle (dumps removed after 14 days, deleted-at-source objects after 7 days, object lock of at most 7 days). The Administrator holds the private key in a password manager; losing it makes dumps unreadable, which the application discloses.",
+      "Supply the Backblaze adapter for the restore ledger of Story 1.8: a separate bucket, a create-only application key and no lifecycle rule. A scheduled route on the application platform, independent of the backup service, raises the Story 1.9 alarm when the newest completed snapshot is older than 18 hours."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "a staging project with database rows and Storage objects",
+        "when": "a scheduled backup run executes",
+        "then": "an encrypted dump and a deletion-mirroring Storage copy reach the bucket, nothing is persisted on Railway, the manifest records cutoff, counts and digests, and the service cannot decrypt what it wrote"
+      },
+      {
+        "given": "a failed listing page or an object count that drops sharply against Postgres",
+        "when": "the Storage sync runs",
+        "then": "it aborts, hides and deletes nothing, and raises an alarm"
+      },
+      {
+        "given": "the real bucket",
+        "when": "lifecycle and object lock are exercised",
+        "then": "dumps expire within 14 days and deleted-at-source objects within 7 days, and locks last no longer than 7 days"
+      },
+      {
+        "given": "the backup service stopped or failing",
+        "when": "18 hours pass without a completed snapshot",
+        "then": "the independent monitor emails the Administrator and shows the alarm, once per condition per 24 hours"
+      },
+      {
+        "given": "a restore-ledger event",
+        "when": "the adapter writes it",
+        "then": "the key can create but never overwrite or delete ledger objects, and a dump decrypts only with the private key the Administrator supplies"
+      }
+    ],
+    "gates": [
+      "G-9"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "AR-21": {
+      "text": "**AR-21: Deletion and tested recovery.** Tombstone/hide before cancellation/purge; cover database, images, models, exports, staging, notifications, usage associations and private operational records. Active purge ≤24 h; all controlled private backup copies expire ≤30 days from deletion, never extended by restore/rebackup. Back up the database and objects independently every 12 hours; target RPO/RTO ≤24 h. Persist the minimum restricted anti-resurrection ledger of opaque target identities outside restore rollback and replay before reopening access. Verify interrupted cross-store deletion and restore; apart from that minimum ledger, preserve only permitted public claims/nonidentifying aggregates. Apply sole-Administrator close-instance safeguards and disclose external retention exceptions.\n\nSource: AD-15; R-9; FR-30; G-9.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 665
+    },
+    "AR-26": {
+      "text": "**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify the immutable environment ID (one Lifecycle `instance_identity` row mirrored by `APP_ENV` and `INSTANCE_ID`) at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects (staging is also its own Vercel project on the `staging` branch), with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge and the Auth identity count with redacted IDs; outages fail authorization closed.\n\nSource: AD-19; R-9; G-9.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 685
+    },
+    "NFR-7": {
+      "text": "**NFR-7: Version durability.** Every Version presented as restorable must restore its geometry and provenance successfully. Deletion under FR-30 is the explicit exception.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 555
+    },
+    "NFR-12": {
+      "text": "**NFR-12: Privacy-preserving cache and deletion.** Shared cached research contains only fields reproducible from identified non-private Sources and cannot expose user identity, private inputs, decisions, or deleted artifacts. Admission rejects all user- and Project-derived fields. Project or whole-Account deletion takes effect immediately through durable tombstones. It blocks late writes and cache promotion, promptly removes active private data, removes remaining copies from operational backups within 30 days, and remains enforced after backup restoration.\n\nSource: PRD §7. All twelve NFRs apply across the capability set, with the explicit mode distinction above. Architecture requirements below supply measurable limits and enforcement contracts.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 565
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

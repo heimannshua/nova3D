@@ -23,18 +23,22 @@
       "UX-DR7",
       "UX-DR13",
       "UX-DR35",
-      "UX-DR50"
+      "UX-DR50",
+      "FR-18",
+      "AR-9"
     ],
     "depends_on": [
       "7-2",
-      "2-3",
       "4-1",
       "4-6",
-      "2-12"
+      "7-9",
+      "4-7"
     ],
     "scope": [
       "Execute the qualified direct engine in a dedicated worker and retain exact immutable image/scope/engine/settings/output snapshots.",
-      "A converted model has no physical scale: the user confirms one real-world dimension of the confirmed scope before print scale, validation or export (see Story 6.1)."
+      "A converted model has no physical scale: the user confirms one real-world dimension of the confirmed scope before print scale, validation or export (see Story 6.1).",
+      "The model's canonical content is its mesh snapshot (no B-rep). The confirmed real-world dimension is stored as an immutable capture record: which measurement of the confirmed scope, value and unit, and the confirming actor and time.",
+      "Produce coarse and full GLB derivatives on the device from the local mesh, with the same transform and feature-map contract as Story 4.7, so the Story 4.6 viewer opens the model offline."
     ],
     "acceptance_criteria": [
       {
@@ -51,6 +55,11 @@
         "given": "inference interruption or failure",
         "when": "the user returns to the Project",
         "then": "preserved inputs/drafts and actionable status remain, with no silent upload or paid cloud fallback"
+      },
+      {
+        "given": "a local model and no network",
+        "when": "the viewer opens it",
+        "then": "the on-device coarse and full derivatives load with the Story 4.7 transforms and semantic feature maps and are labelled preview"
       }
     ],
     "gates": [
@@ -86,7 +95,7 @@
       "line": 591
     },
     "AR-22": {
-      "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
+      "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. The one server run of the engine port is the user-requested pinned reconversion after failed print repair, a fenced Job from retained pictures with no provider charge. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 669
     },
@@ -124,6 +133,16 @@
       "text": "**UX-DR50: Model Feature evidence (M-02).** Selecting a part reveals the exact Sources, Claims, interpretation, Detail Status, approvals, and affected geometry.\n\nRequired states/variants: Sourced, disputed, user-added Personalization, now-disabled Source warning.\n\nSource: SCREEN-INVENTORY M-02; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 1033
+    },
+    "FR-18": {
+      "text": "#### FR-18: Read-only model inspection\n\nThe user can inspect a Model Version without manual geometry editing.\n\n**Consequences:**\n- Inspection supports rotating, panning, zooming, fitting or resetting the view, selecting standard or section views, hiding or isolating features, and measuring dimensions.\n- Preview geometry is identified as a viewing representation and is not presented as proof of printability.\n\nSource: PRD §4, FR-18.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 297
+    },
+    "AR-9": {
+      "text": "**AR-9: Coordinate frames, measurement and versions.** Canonical content uses millimetres, right-handed coordinates and Z-up, retaining approved historical unit conversions. GLB explicitly converts to metres/Y-up; final-print scale/orientation is separately versioned. Every LOD preserves semantic feature IDs independently of triangles. Measurements use canonical geometry or labelled exact dimensions. Corrections rebuild dependency closure; restoration appends history and rechecks approval/profile validity without erasing successors.\n\nSource: AD-7; FR-18–FR-22.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 607
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

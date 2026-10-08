@@ -19,7 +19,7 @@ An Account owner needs to know the workflow works on Mac, iPhone and Android. Ph
 
 - **CAP-1**
   - **intent:** An Account owner can know the workflow works on Mac, iPhone and Android.
-  - **success:** Actual OS/browser builds, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded.
+  - **success:** Actual OS/browser builds, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded and each flow passes, or the class is recorded as not qualified with the reason.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Actual OS/browser builds, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Actual OS/browser builds, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded and each flow passes, or the class is recorded as not qualified with the reason. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

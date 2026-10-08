@@ -29,6 +29,10 @@ An Account owner needs to understand thin features, clearances and support needs
   - **intent:** Report general validation honestly with warnings and unknowns.
   - **success:** Given general and adversarial geometry, when the validator corpus runs, then warnings and unknowns remain explicit with profile/time/tool identity; a successful box slice does not qualify arbitrary geometry.
 
+- **CAP-4**
+  - **intent:** Notify the recipient when validation finishes.
+  - **success:** Given validation that finishes all required checks, when the result is committed, then one durable notification event is registered with Story 2.10 for the recipient, carrying an exact authorized target.
+
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Constraints

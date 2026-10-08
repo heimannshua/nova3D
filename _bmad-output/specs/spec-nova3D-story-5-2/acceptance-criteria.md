@@ -31,7 +31,7 @@ So that unrelated geometry stays within the agreed tolerance.
 
 **Given** unrelated canonical features
 **When** old and new versions are compared
-**Then** correspondence and geometry remain within the ratified R-2 tolerance under the same pinned frame
+**Then** correspondence and geometry remain within the ratified R-2 tolerance under the same pinned print frame, computed from the original version by the Story 4.3 function
 
 ### AC-3
 

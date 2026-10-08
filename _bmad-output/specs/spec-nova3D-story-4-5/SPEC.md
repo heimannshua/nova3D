@@ -19,7 +19,7 @@ An Account owner needs to move between a feature and its evidence. They can insp
 
 - **CAP-1**
   - **intent:** An Account owner can move between a feature and its evidence.
-  - **success:** Exact Source/Claim, status, options, governing approval and affected geometry are visible.
+  - **success:** Exact Source/Claim, status, options, governing approval and affected geometry are visible; the same actions work on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Exact Source/Claim, status, options, governing approval and affected geometry are visible. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Exact Source/Claim, status, options, governing approval and affected geometry are visible; the same actions work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

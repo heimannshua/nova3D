@@ -13,11 +13,12 @@ So that validation applies to the intended output.
 ## Dependencies
 
 - [5.5](../spec-nova3D-story-5-5/SPEC.md)
+- [4.3](../spec-nova3D-story-4-3/SPEC.md)
 
 ## Scope
 
 - Pin the complete manufacturer profile inheritance plus explicit application overrides and print transform.
-- Compute the default print scale once per validation lineage at its first validation (largest uniform scale, never above 1:1, that fits the exact vertex bounding box of the oriented manufacturing mesh inside the profile cube minus 1 mm per side, stored as an exact rational) and inherit it unchanged through every repair and regeneration child. Default the orientation to the domain package's declared base face on the plate, Z-up. An image-derived model has no print scale until the user confirms a real-world dimension, and its default orientation is the largest planar face, user-confirmed.
+- Compute the default print scale once per validation lineage at its first validation with the Story 4.3 print-frame function (largest uniform scale, never above 1:1, that fits the oriented canonical solid's exact kernel bounding box inside the profile cube minus 1 mm per side, stored as an exact rational), and create the Manufacturing validation lineage record: lineage ID, root Model Version, profile revision, scale, orientation and the single full_regeneration slot, which every repair and regeneration child inherits unchanged. Default the orientation to the domain package's declared base face on the plate, Z-up. An image-derived model has no print scale until the user confirms a real-world dimension, and its default orientation is the largest planar face, user-confirmed.
 
 ## Acceptance Criteria
 
@@ -31,13 +32,19 @@ So that validation applies to the intended output.
 
 **Given** profile, scale or orientation changes
 **When** validation identity is computed
-**Then** a new revision makes incompatible prior results stale, a user-chosen smaller scale is a new validation identity, and a successor that no longer fits fails validation instead of being rescaled
+**Then** a new revision makes incompatible prior results stale, a user-chosen smaller scale is a new validation identity inside the same lineage that cannot rearm its regeneration slot, and a successor that no longer fits fails validation instead of being rescaled
 
 ### AC-3
 
 **Given** an incomplete or unknown profile
 **When** qualification is requested
 **Then** missing fields are visible and qualified export is blocked without a universal safety claim
+
+### AC-4
+
+**Given** a Model Version's first validation
+**When** the lineage is created
+**Then** the record holds the root Model Version, profile revision, exact-rational scale, orientation and an unconsumed full_regeneration slot, and a repair child or regenerated successor inherits it unchanged
 
 ## Engineering Gates
 

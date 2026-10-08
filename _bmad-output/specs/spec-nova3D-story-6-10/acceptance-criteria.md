@@ -26,7 +26,7 @@ So that validation and export always use the same authoritative geometry.
 
 **Given** a Model Version and a pinned profile
 **When** the mesh is produced
-**Then** it derives from the canonical solid at the pinned scale and orientation with recorded tessellation settings and tool identities, and is published as a manifest
+**Then** it derives from the canonical solid at the pinned scale and orientation with recorded tessellation settings and tool identities, and is published as a manifest; the tessellated mesh's bounds are checked against the profile cube
 
 ### AC-2
 

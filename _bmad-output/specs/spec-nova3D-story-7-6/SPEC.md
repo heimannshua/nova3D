@@ -9,7 +9,7 @@ sources:
 - ../../planning-artifacts/story-inputs/story-7-6.json
 ---
 
-# Story 7.6: Qualify and recover direct models through the shared lineage
+# Story 7.6: Qualify direct models through the shared lineage
 
 ## Why
 
@@ -24,6 +24,14 @@ An Account owner needs to validate and export an image-derived model. Direct mod
 - **CAP-2**
   - **intent:** Require a confirmed real-world dimension before print scale or qualified export of a direct model.
   - **success:** Given a synchronized direct candidate with no confirmed real-world dimension, when print scale or export is requested, then qualified export stays blocked until the user confirms a dimension, after which the lineage print scale and default orientation apply and the model keeps its honest image-derived provenance.
+
+- **CAP-3**
+  - **intent:** Present direct-mode provenance in the envelope and PDF Source Record.
+  - **success:** Given a synchronized direct candidate being exported, when the provenance envelope and PDF Source Record are produced, then the Evidence group states image-derived provenance with input image digests, engine bundle and settings, confirmed scope and the uncertainty acknowledgment, contains no historical claim, and the PDF and envelope agree.
+
+- **CAP-4**
+  - **intent:** Apply the shared repair classes to direct candidates.
+  - **success:** Given a synchronized direct candidate that fails structural validation, when local repair is attempted, then the Story 6.4 classes apply unchanged: a nonconsequential repair keeps the version only with the equivalence proof, a consequential one creates a successor needing re-inspection and approval, and reconversion is Story 7.8.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 

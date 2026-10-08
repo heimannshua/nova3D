@@ -1,6 +1,6 @@
 # Acceptance Criteria
 
-**Story 6.9: Stream private files with live revocation**
+**Story 6.9: Deliver export packages on phone and computer**
 
 **Epic 6: Qualify and export an evidence-backed printable model.** An approved model can pass exact profile checks, receive bounded audited repair and be downloaded with immutable bilingual provenance.
 
@@ -16,23 +16,24 @@ So that large files remain private and access stops when revoked.
 - [4.1](../spec-nova3D-story-4-1/SPEC.md)
 - [1.5](../spec-nova3D-story-1-5/SPEC.md)
 - [1.8](../spec-nova3D-story-1-8/SPEC.md)
+- [1.12](../spec-nova3D-story-1-12/SPEC.md)
 
 ## Scope
 
-- Use the container gateway for large authenticated downloads/ranges and existing staging uploads.
+- Deliver qualified export packages through the Story 1.12 gateway: individual files and the whole package, with preparing, ready and failed states, resumable range downloads and phone file handling.
 
 ## Acceptance Criteria
 
 ### AC-1
 
 **Given** a large owned export
-**When** download or range transfer runs
+**When** download or range transfer runs through the Story 1.12 gateway
 **Then** each range and each chunk of at most 1 MiB checks live session/Account/Project/artifact state; no reusable signed storage URL is exposed
 
 ### AC-2
 
 **Given** disable, deletion or grant revocation during transfer
-**When** the next chunk is authorized
+**When** the next chunk of an export download is authorized
 **Then** future chunks stop without cached authorization; previously delivered or in-flight bytes are not claimed recalled
 
 ### AC-3

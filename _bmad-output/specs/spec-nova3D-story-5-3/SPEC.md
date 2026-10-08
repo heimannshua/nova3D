@@ -19,7 +19,7 @@ An Account owner needs to compare two versions and their reasons. They can see w
 
 - **CAP-1**
   - **intent:** An Account owner can compare two versions and their reasons.
-  - **success:** Changed and unchanged features plus every listed provenance/parameter/approval/validation dimension are distinguishable.
+  - **success:** Changed and unchanged features plus every listed provenance/parameter/approval/validation dimension are distinguishable; the same actions work on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Changed and unchanged features plus every listed provenance/parameter/approval/validation dimension are distinguishable. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Changed and unchanged features plus every listed provenance/parameter/approval/validation dimension are distinguishable; the same actions work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

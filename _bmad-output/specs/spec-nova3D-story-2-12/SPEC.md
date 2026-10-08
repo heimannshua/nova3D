@@ -19,7 +19,7 @@ An Account owner needs to have their confirmed pictures kept with the request th
 
 - **CAP-1**
   - **intent:** An Account owner can have their confirmed pictures kept with the request that used them.
-  - **success:** Each picture has a verified manifest root, the request revision references the ordered roots and the staging copies expire.
+  - **success:** Each picture has a verified manifest root, a successor request revision pins the ordered roots and the staging copies expire.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Each picture has a verified manifest root, the request revision references the ordered roots and the staging copies expire. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Each picture has a verified manifest root, a successor request revision pins the ordered roots and the staging copies expire. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

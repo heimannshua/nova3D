@@ -18,26 +18,36 @@
       "SC-1",
       "SC-2",
       "UX-DR17",
-      "UX-DR61"
+      "UX-DR61",
+      "AR-14",
+      "AR-15"
     ],
     "depends_on": [
       "7-6",
       "6-5",
-      "2-12"
+      "2-12",
+      "7-4",
+      "2-7"
     ],
     "scope": [
-      "Integrate direct snapshots with the existing full-regeneration slot: one reconversion in the validation lineage using the retained original pictures, confirmed scope, original engine and the failed print constraints, with a new settings digest."
+      "Integrate direct snapshots with the existing full-regeneration slot: one reconversion in the validation lineage, run as a fenced Job on the Railway engine worker (`workers/engine`) through the Story 2.7 machinery, from the Project's retained pictures (Story 2.12, synced by Story 7.4), the confirmed scope, the original pinned engine bundle and the failed print constraints, with a new settings digest.",
+      "The request screen states that the retained pictures are processed on the server. No provider is called, so no paid permission or reservation applies; admission checks that the Account is active, the lineage slot is unused and no other reconversion is running for the Account. A model whose pictures never synced cannot start it and says why. Reconversion is never a fallback for failed local inference."
     ],
     "acceptance_criteria": [
       {
-        "given": "failed local repair and an unused shared lineage slot",
+        "given": "failed local repair, an unused shared lineage slot and retained pictures",
         "when": "reconversion is requested",
-        "then": "the unique slot and the successor Job/outbox commit atomically using the pinned original pictures/scope/engine, failed print constraints and a new settings digest"
+        "then": "the unique slot and the successor Job/outbox commit atomically with the pinned pictures, scope, engine bundle, failed print constraints and a new settings digest, and the screen states that the pictures are processed on the server"
       },
       {
-        "given": "an incapable engine, a consumed slot or a completed reconversion",
+        "given": "an incapable engine, a consumed slot, a second concurrent request or pictures that never synced",
         "when": "the outcome is recorded",
-        "then": "failure stops without resetting the lineage, and success preserves the original and returns a new version to inspection, approval and full validation with honest direct provenance"
+        "then": "failure stops without resetting the lineage or starting work and gives an actionable reason, and success preserves the original and returns a new version to inspection, approval and full validation with honest direct provenance"
+      },
+      {
+        "given": "a running reconversion Job",
+        "when": "the Account is disabled, the Project deleted or the attempt superseded",
+        "then": "the attempt's output stays in attempt-scoped staging and is discarded, nothing publishes, and the worker holds no authoritative data after the Job ends"
       }
     ],
     "gates": [
@@ -64,7 +74,7 @@
       "line": 619
     },
     "AR-22": {
-      "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
+      "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. The one server run of the engine port is the user-requested pinned reconversion after failed print repair, a fenced Job from retained pictures with no provider charge. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 669
     },
@@ -87,6 +97,16 @@
       "text": "**UX-DR61: Full regeneration fallback (V-04).** At most one constrained attempt after local repair failure. R-11 applies the same one-attempt lineage rule to direct-image constrained reconversion.\n\nRequired states/variants: Running, new Version awaiting inspection/approval, failed and stopped.\n\nSource: SCREEN-INVENTORY V-04; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 1099
+    },
+    "AR-14": {
+      "text": "**AR-14: Durable Jobs and bounded retries.** Accept Jobs only with committed dispatch outbox; persist Job → JobAttempt → StepExecution → ExternalOperation identities and receipts. Upstash orchestrates bounded HTTP steps and worker completions; Postgres owns state. Configure workflow, explicit queue publishes and provider SDKs for zero failed-work retries, verifying effective behavior with a deliberately failing research step. Duplicate transport returns existing receipts without repeated side effects; terminal failed/cancelled attempts cannot be reclaimed. Lease loss becomes interrupted failure; user retries create new linked attempts under the same Job and wait for prior potentially chargeable work to reconcile. Logical step keys are unique per attempt, and operation ordinals per step; Jobs owns receipts while Usage owns their ledger entries. Preserve last approved state and actionable failure details.\n\nSource: AD-9; work/billing identity.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 637
+    },
+    "AR-15": {
+      "text": "**AR-15: Fencing and authenticated service calls.** Each attempt binds input digest, Project revision, live Account authorization/evidence-policy epochs, lease and unique fencing token. Recheck before claim, each external step and publication. Cancel/disable/delete revoke commit authority before best-effort cancellation; stage output by attempt and clean it without publishing late results. Signed service requests bind environment, audience, Job/attempt, payload digest and nonce, expire within five minutes and allow at most 60 seconds skew. Verify native callback signatures and stored dispatch receipts; never infer callback identity from Project ID alone. Accept only the active signing key and one explicitly retiring key during the outstanding-request window; suspected compromise immediately revokes the key and affected leases. Reject replay mutations.\n\nSource: AD-10; service authentication and delivery conventions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 641
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

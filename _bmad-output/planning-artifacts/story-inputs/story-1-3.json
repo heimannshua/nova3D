@@ -17,24 +17,24 @@
       "AR-18",
       "NFR-1",
       "NFR-2",
-      "UX-DR22",
-      "UX-DR69"
+      "UX-DR22"
     ],
     "depends_on": [
       "1-1",
-      "1-2"
+      "1-2",
+      "1-10"
     ],
     "scope": [
-      "Implement fresh-authenticated Administrator invitation issuance/revocation and narrow idempotent registration: a user signs in with Google, then redeems an invitation code to activate an Account. No code, no Account.",
+      "Implement narrow idempotent registration: a user signs in with Google, then redeems an invitation code to activate an Account. No code, no Account. Invitations are issued and revoked through the audited seed command until Story 1.11 adds the Administrator surface.",
       "Named and current general codes are hashed, single-use and nonexpiring until used or revoked; partial Auth provisioning is unusable.",
       "Provision the Administrator (heimannshua@gmail.com, Google subject pinned at first sign-in) and the other currently allowlisted identity once through a documented, audited seed that calls the same provisioning function as registration, rather than code redemption.",
-      "Registration runs only in a server route using the service role: no registration or invitation database object is executable by `anon` or `authenticated`, attempts are limited to 5 failures per network origin per 15 minutes and 100 failures per hour across all origins, and codes carry at least 128 bits of entropy."
+      "Registration runs only in a server route using the service role: no registration or invitation database object is executable by `anon` or `authenticated`, attempts are limited to 5 failures per network origin per 15 minutes and 100 failures per hour across all origins, and codes carry at least 128 bits of entropy. Failures are counted in an Identity-owned Postgres table keyed by a keyed hash of the platform-reported client address and the time window, so the limiter works before Redis exists and fails closed. Registration locks the Auth identity row and persists its attempt time, which the dormant-identity purge of Story 1.9 shares. A Before User Created hook declared in `supabase/config.toml` rejects any non-Google or unverified-email creation, and the interim email allowlist stays in force until Story 1.4 replaces it."
     ],
     "acceptance_criteria": [
       {
         "given": "one unused invitation and concurrent registrations",
         "when": "both attempt redemption",
-        "then": "at most one activated Account/Workspace is created; retries return the original outcome, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path"
+        "then": "at most one activated Account/Workspace is created; retries return the original outcome, the same command ID with a different payload is rejected, partial provisioning cannot sign in, and a signed-in Google identity with no activated Account reaches no private path"
       },
       {
         "given": "named codes and the current general code",
@@ -44,7 +44,17 @@
       {
         "given": "invalid, used, revoked or guessed codes",
         "when": "registration is attempted repeatedly",
-        "then": "generic failures and rate limits (keyed on network origin plus a global budget, including direct calls to the database API) prevent guessing, code values are not logged, and fresh-authenticated administration records an audit event"
+        "then": "generic failures and rate limits (keyed on network origin plus a global budget, including direct calls to the database API) prevent guessing, code values are not logged, and exceeding a limit fails closed even when Redis is absent"
+      },
+      {
+        "given": "an email, phone, anonymous or unverified-email sign-up attempt",
+        "when": "the Auth user would be created",
+        "then": "the Before User Created hook rejects it, and only a verified Google identity can create an Auth user"
+      },
+      {
+        "given": "a registration holding the Auth identity row lock",
+        "when": "a second transaction tries to delete that identity (standing in for the Story 1.9 purge)",
+        "then": "the delete waits or sees the registration attempt and deletes nothing, and the attempt time is persisted"
       }
     ],
     "gates": []
@@ -68,7 +78,7 @@
       "line": 85
     },
     "AR-18": {
-      "text": "**AR-18: Identity and administrative enforcement.** Google is the only credential and an Auth identity without an activated Account has no access (no public Account creation); hash/atomically claim invitations for the signed-in verified Google identity and idempotently provision the Account plus Workspace with unusable partial activation. Rate-limit guessing by network origin plus a global budget, never by Auth identity alone; use codes of at least 128 bits; rotate shared codes only after success. Only the Google provider is enabled (email, phone, anonymous and magic-link sign-in off, asserted in CI) while Supabase sign-ups stay on; registration, invitation and recovery run only in server routes with no database object executable by `anon` or `authenticated`. Delete an Auth identity with no Account 30 days after its last sign-in or registration attempt, under a lock shared with registration. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication (a server-controlled step-up with a 5-minute Postgres marker, consumed by use for Account deletion and close-instance) and immutable audit; recovery is a single-use 15-minute link emailed by the application to the configured Administrator address, and its redemption revokes prior sessions.\n\nSource: AD-12; FR-1–FR-4.",
+      "text": "**AR-18: Identity and administrative enforcement.** Google is the only credential and an Auth identity without an activated Account has no access (no public Account creation); hash/atomically claim invitations for the signed-in verified Google identity and idempotently provision the Account plus Workspace with unusable partial activation. Rate-limit guessing by network origin plus a global budget counted in Postgres, never by Auth identity alone; use codes of at least 128 bits; rotate shared codes only after success. Only the Google provider is enabled (email, phone, anonymous and magic-link sign-in off, asserted in CI) while Supabase sign-ups stay on; registration, invitation and recovery run only in server routes with no database object executable by `anon` or `authenticated`. Delete an Auth identity with no Account 30 days after its last sign-in or registration attempt, under a lock shared with registration. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication (a server-controlled step-up with a 5-minute Postgres marker, consumed by use for Account deletion and close-instance) and immutable audit; recovery is a single-use 15-minute link emailed by the application to the configured Administrator address, and its redemption revokes prior sessions.\n\nSource: AD-12; FR-1–FR-4.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 653
     },
@@ -86,11 +96,6 @@
       "text": "**UX-DR22: Invitation registration (A-02).** Single-use Invitation Code redeemed by a signed-in Google identity, Account activation, clear generic failures.\n\nRequired states/variants: Valid, invalid/revoked/used code, rate-limited, success.\n\nSource: SCREEN-INVENTORY A-02; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 865
-    },
-    "UX-DR69": {
-      "text": "**UX-DR69: Invitation Codes (AD-01).** Unique named codes plus rotating single-use general code.\n\nRequired states/variants: Unused, used, revoked, newly rotated, copy action.\n\nSource: SCREEN-INVENTORY AD-01; canonical ux-contract; applicable ratified decisions.",
-      "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 1147
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

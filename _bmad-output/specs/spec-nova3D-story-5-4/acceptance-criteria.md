@@ -25,7 +25,7 @@ So that restoration preserves both geometry and history.
 
 **Given** a non-deleted version advertised as restorable
 **When** restoration runs
-**Then** all geometry, parameters, governing inputs, approvals, validation and personalization restore from verified manifests
+**Then** all geometry, parameters, governing inputs, approvals, validation and personalization restore from verified manifests; the same actions work on phone and desktop
 
 ### AC-2
 
@@ -35,7 +35,7 @@ So that restoration preserves both geometry and history.
 
 ### AC-3
 
-**Given** a restored model and a new export request
+**Given** a restored model and a new export request (a fixture request until Story 6.8)
 **When** readiness is checked
 **Then** the exact current model digest/approval and profile validation are rechecked; restoration itself grants no export authority
 

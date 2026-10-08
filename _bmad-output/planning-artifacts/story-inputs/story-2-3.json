@@ -36,7 +36,7 @@
       {
         "given": "unclear or incomplete views",
         "when": "quality review runs",
-        "then": "measured blur, resolution or exposure problems, unconfirmed obstruction and missing labelled views are explained with useful remedies"
+        "then": "measured blur, resolution or exposure problems, unconfirmed obstruction and missing labelled views are explained with useful remedies; the same actions work on phone and desktop"
       },
       {
         "given": "incomplete direct inputs",

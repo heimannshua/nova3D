@@ -33,7 +33,7 @@
     ],
     "scope": [
       "Implement semantic tokens and reusable focus, status, empty/error, confirmation and navigation patterns under R-10.",
-      "Provide configured-language, light/dark and explanation preferences; every later surface inherits these patterns. Ship English and Hebrew catalogs (Hebrew right-to-left) with the device language as the default match."
+      "Provide configured-language, light/dark and explanation preferences, stored on the device until Story 1.4 adds the Account-owned record; every later surface inherits these patterns. Ship English and Hebrew catalogs (Hebrew right-to-left) with the device language as the default match."
     ],
     "acceptance_criteria": [
       {
@@ -44,7 +44,7 @@
       {
         "given": "an Account preference change",
         "when": "language, explicit dark mode or technical detail is selected",
-        "then": "the preference persists without changing evidence or decisions and guidance can be reopened"
+        "then": "the preference persists (on the device until Story 1.4 creates the Account-owned record) without changing evidence or decisions, and guidance can be reopened"
       },
       {
         "given": "keyboard, screen reader, enlarged text, high contrast, reduced motion or an RTL locale",

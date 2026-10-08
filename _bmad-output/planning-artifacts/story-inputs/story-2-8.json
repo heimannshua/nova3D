@@ -21,10 +21,12 @@
     ],
     "depends_on": [
       "2-6",
-      "2-7"
+      "2-7",
+      "2-4"
     ],
     "scope": [
-      "Persist operation identity before dispatch and reconcile under that identity; user retries remain under the parent Job."
+      "Persist operation identity before dispatch and reconcile under that identity; user retries remain under the parent Job.",
+      "List each overrun incident on the Administrator usage page with provider, operation and amounts; only the freshly authenticated Administrator can review and clear it, which re-enables admissions for that provider."
     ],
     "acceptance_criteria": [
       {
@@ -41,6 +43,11 @@
         "given": "a retry, cancellation or allowance reset while a charge is unresolved",
         "when": "another attempt is requested",
         "then": "it waits for reconciliation, releases only demonstrably unused allowance and cannot bypass the parent-Job lifetime cap"
+      },
+      {
+        "given": "provider usage above an operation's reservation",
+        "when": "the incident is recorded",
+        "then": "it settles at the evidence, counts against every limit, blocks that provider's admissions, and only the freshly authenticated Administrator can review and clear it on the usage page"
       }
     ],
     "gates": [

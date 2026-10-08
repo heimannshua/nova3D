@@ -41,7 +41,7 @@
       {
         "given": "a running research Job",
         "when": "sources are examined or replaced",
-        "then": "actual activity and evidence-based explanations appear without fabricated hidden reasoning"
+        "then": "actual activity and evidence-based explanations appear without fabricated hidden reasoning; the same actions work on phone and desktop"
       },
       {
         "given": "free research leaves a material gap",
@@ -57,6 +57,11 @@
         "given": "free-mode gaps that block Plan Approval and a declined paid escalation",
         "when": "the user declines",
         "then": "the Project stays unready for Plan Approval while blocking gaps remain, the gaps stay visible, and no paid operation or reservation is created"
+      },
+      {
+        "given": "research that completes, fails or needs the user's attention",
+        "when": "the Job commits that outcome",
+        "then": "one durable notification event is registered with Story 2.10 for each recipient, carrying an exact authorized target"
       }
     ],
     "gates": []

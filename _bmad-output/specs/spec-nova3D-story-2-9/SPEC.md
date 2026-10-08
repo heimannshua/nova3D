@@ -19,7 +19,7 @@ An Account owner needs to choose free or paid work and reuse or fresh research. 
 
 - **CAP-1**
   - **intent:** An Account owner can choose free or paid work and reuse or fresh research.
-  - **success:** Free/paid and reuse/fresh are separate controls following scope confirmation.
+  - **success:** Free/paid and reuse/fresh are separate controls following scope confirmation; both controls work on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Free/paid and reuse/fresh are separate controls following scope confirmation. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Free/paid and reuse/fresh are separate controls following scope confirmation; both controls work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

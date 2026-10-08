@@ -20,11 +20,12 @@
       "UX-DR58"
     ],
     "depends_on": [
-      "5-5"
+      "5-5",
+      "4-3"
     ],
     "scope": [
       "Pin the complete manufacturer profile inheritance plus explicit application overrides and print transform.",
-      "Compute the default print scale once per validation lineage at its first validation (largest uniform scale, never above 1:1, that fits the exact vertex bounding box of the oriented manufacturing mesh inside the profile cube minus 1 mm per side, stored as an exact rational) and inherit it unchanged through every repair and regeneration child. Default the orientation to the domain package's declared base face on the plate, Z-up. An image-derived model has no print scale until the user confirms a real-world dimension, and its default orientation is the largest planar face, user-confirmed."
+      "Compute the default print scale once per validation lineage at its first validation with the Story 4.3 print-frame function (largest uniform scale, never above 1:1, that fits the oriented canonical solid's exact kernel bounding box inside the profile cube minus 1 mm per side, stored as an exact rational), and create the Manufacturing validation lineage record: lineage ID, root Model Version, profile revision, scale, orientation and the single full_regeneration slot, which every repair and regeneration child inherits unchanged. Default the orientation to the domain package's declared base face on the plate, Z-up. An image-derived model has no print scale until the user confirms a real-world dimension, and its default orientation is the largest planar face, user-confirmed."
     ],
     "acceptance_criteria": [
       {
@@ -35,12 +36,17 @@
       {
         "given": "profile, scale or orientation changes",
         "when": "validation identity is computed",
-        "then": "a new revision makes incompatible prior results stale, a user-chosen smaller scale is a new validation identity, and a successor that no longer fits fails validation instead of being rescaled"
+        "then": "a new revision makes incompatible prior results stale, a user-chosen smaller scale is a new validation identity inside the same lineage that cannot rearm its regeneration slot, and a successor that no longer fits fails validation instead of being rescaled"
       },
       {
         "given": "an incomplete or unknown profile",
         "when": "qualification is requested",
         "then": "missing fields are visible and qualified export is blocked without a universal safety claim"
+      },
+      {
+        "given": "a Model Version's first validation",
+        "when": "the lineage is created",
+        "then": "the record holds the root Model Version, profile revision, exact-rational scale, orientation and an unconsumed full_regeneration slot, and a repair child or regenerated successor inherits it unchanged"
       }
     ],
     "gates": [

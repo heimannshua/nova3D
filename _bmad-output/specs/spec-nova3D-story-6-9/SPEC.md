@@ -9,7 +9,7 @@ sources:
 - ../../planning-artifacts/story-inputs/story-6-9.json
 ---
 
-# Story 6.9: Stream private files with live revocation
+# Story 6.9: Deliver export packages on phone and computer
 
 ## Why
 

@@ -42,7 +42,7 @@
         "then": "immutable original dates and policy snapshots are retained and excluded sources cannot support new conclusions"
       },
       {
-        "given": "fresh research or Project/Account deletion",
+        "given": "fresh research, or a Project or Account tombstone (a fixture tombstone from Story 1.8 until Epic 8 supplies the deletion commands)",
         "when": "the cache/adoption paths execute",
         "then": "fresh work does not substitute cached conclusions and private associations are deleted without promoting tombstoned private data"
       },

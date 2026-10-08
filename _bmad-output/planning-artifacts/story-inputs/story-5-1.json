@@ -30,7 +30,7 @@
       {
         "given": "selected consequential features",
         "when": "a plain-language correction is submitted",
-        "then": "the issue, affected details/dependencies and requested evidence are retained"
+        "then": "the issue, affected details/dependencies and requested evidence are retained; the same actions work on phone and desktop"
       },
       {
         "given": "new evidence changes an interpretation",

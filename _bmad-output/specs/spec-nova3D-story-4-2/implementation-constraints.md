@@ -82,6 +82,22 @@ Ratified application: this is evidence-recipe equivalence under R-2 / AR-10. The
 
 Source: `_bmad-output/planning-artifacts/epics.md`, line 551 in the captured input.
 
+### FR-7
+
+#### FR-7: Actionable notifications
+
+The app displays an app-wide Notification bar for Jobs and approval events.
+
+**Consequences:**
+- Notifications cover research readiness, generation completion or failure, Export readiness, and later printer events.
+- Selecting a Notification opens the exact Project, approval item, failed Job, Export, or later printer event requiring attention.
+
+Source: PRD §4, FR-7.
+
+**Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.
+
+Source: `_bmad-output/planning-artifacts/epics.md`, line 157 in the captured input.
+
 ## Planning Assumptions
 
 - Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.

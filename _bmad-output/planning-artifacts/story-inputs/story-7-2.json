@@ -25,7 +25,8 @@
     ],
     "scope": [
       "Cache verified public app/model assets with Account-scoped IndexedDB metadata and OPFS private artifacts.",
-      "Host the verified bundle as public, versioned, digest-pinned assets with a long-cache policy on a public bucket (Backblaze B2 or a Supabase public bucket, chosen once Story 7.1 knows the weight size), never from a Vercel function. Show preparation, verification and missing-preparation states in the Create entry (C-01) and Settings."
+      "Host the verified bundle as public, versioned, digest-pinned assets with a long-cache policy on a public bucket (Backblaze B2 or a Supabase public bucket, chosen once Story 7.1 knows the weight size), never from a Vercel function. Show preparation, verification and missing-preparation states in the Create entry (C-01) and Settings.",
+      "Own the application service worker (registration, scope, public-asset allowlist and update flow): it caches the app shell and verified public model assets and never an authenticated response."
     ],
     "acceptance_criteria": [
       {
@@ -57,7 +58,7 @@
   ],
   "source_requirements": {
     "AR-22": {
-      "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
+      "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. The one server run of the engine port is the user-requested pinned reconversion after failed print repair, a fenced Job from retained pictures with no provider charge. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 669
     },

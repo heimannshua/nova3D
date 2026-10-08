@@ -35,8 +35,8 @@ So that export cannot use a different candidate.
 
 ### AC-3
 
-**Given** a successor, consequential repair or personalization change
-**When** export authority is queried
+**Given** a successor, a personalization change or a consequential repair (a fixture repair until Story 6.4)
+**When** export authority is queried (a fixture query until Story 6.8)
 **Then** old approval cannot authorize the changed candidate and renewed inspection/approval is required
 
 ## Engineering Gates

@@ -19,7 +19,7 @@ An Account owner needs to describe the desired model and personal additions. Wor
 
 - **CAP-1**
   - **intent:** An Account owner can describe the desired model and personal additions.
-  - **success:** Clarifications or actionable field errors appear before any research or paid step.
+  - **success:** Clarifications (a choice among several registered subjects) or actionable field errors (no registered subject, with the supported subjects and picture mode offered) appear before any research or paid step; the same actions work on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Clarifications or actionable field errors appear before any research or paid step. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Clarifications (a choice among several registered subjects) or actionable field errors (no registered subject, with the supported subjects and picture mode offered) appear before any research or paid step; the same actions work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

@@ -8,13 +8,14 @@ As an Account owner,
 I want to download an approved printable model with its record,
 So that the file package matches the model I accepted.
 
-**Requirement IDs:** FR-29, AR-4, AR-5, AR-13, NFR-3, NFR-11, UX-DR62, UX-DR63
+**Requirement IDs:** FR-29, AR-4, AR-5, AR-13, NFR-3, NFR-11, UX-DR62, UX-DR63, FR-7
 
 ## Dependencies
 
 - [6.3](../spec-nova3D-story-6-3/SPEC.md)
 - [6.6](../spec-nova3D-story-6-6/SPEC.md)
 - [6.7](../spec-nova3D-story-6-7/SPEC.md)
+- [1.12](../spec-nova3D-story-1-12/SPEC.md)
 
 ## Scope
 
@@ -32,13 +33,19 @@ So that the file package matches the model I accepted.
 
 **Given** valid exact approval and all required checks passing
 **When** export commits
-**Then** 3MF, optional STL, PDF and structured provenance share the approved version and manifest-root lineage; package download works on phone and desktop
+**Then** 3MF, optional STL, PDF and structured provenance share the approved version and manifest-root lineage; the package files resolve through the Story 1.12 gateway for the owner (transfer and phone download states are Story 6.9)
 
 ### AC-3
 
 **Given** repair history or personalization
 **When** the package is inspected
 **Then** every derivative, proof, warning, check and user-added detail remains represented without implying historical certainty or universal manufacturability
+
+### AC-4
+
+**Given** an export package that commits
+**When** publication completes
+**Then** one durable notification event is registered with Story 2.10 for the recipient, with the package as its authorized target
 
 ## Engineering Gates
 

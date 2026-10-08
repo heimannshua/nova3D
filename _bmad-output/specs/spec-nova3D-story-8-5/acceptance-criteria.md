@@ -26,8 +26,8 @@ So that phone, desktop and assistive access have measured evidence.
 ### AC-1
 
 **Given** the Windows 11 i5-1235U/Iris Xe 16 GB laptop
-**When** current/previous stable desktop Chrome/Edge/Firefox, macOS/iOS Safari and Android Chrome are qualified
-**Then** actual OS/browser builds and complete computer flows in Chrome, Edge and Firefox, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded
+**When** current and previous stable Chrome, Edge and Firefox are exercised
+**Then** actual OS/browser builds and complete computer flows in Chrome, Edge and Firefox, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded, every flow, state and accessibility check passes, and any failure is recorded as a blocking defect
 
 ### AC-2
 

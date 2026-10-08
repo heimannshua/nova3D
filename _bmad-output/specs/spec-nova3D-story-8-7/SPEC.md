@@ -19,7 +19,7 @@ A maintainer needs to see evidence that the integrated product meets its contrac
 
 - **CAP-1**
   - **intent:** Verify cross-provider environment, callback and private-file behavior.
-  - **success:** Given staging services and actual provider settings, when callback, private-file, environment isolation and rollout/rollback drills run, then the recorded Vercel/Supabase/Railway/Upstash topology enforces signed environment identity, consumer-before-producer evolution and redacted operational monitoring.
+  - **success:** Given staging services and actual provider settings, when callback, private-file, environment isolation and rollout/rollback drills run, then the recorded Vercel, Supabase, Railway, Upstash, Backblaze and Resend topology enforces signed environment identity, consumer-before-producer evolution and redacted operational monitoring.
 
 - **CAP-2**
   - **intent:** Demonstrate the complete integrated acceptance contract.
@@ -27,7 +27,7 @@ A maintainer needs to see evidence that the integrated product meets its contrac
 
 - **CAP-3**
   - **intent:** Require qualifying evidence for every applicable release gate.
-  - **success:** Given the September 14 PARTIAL/BLOCKED/NOT RUN baseline, when release is considered, then no applicable G-1–G-9 remains open; local probes, documents and a physical-box slice do not establish app acceptance, and physical printing/printer control are not required for the adopted software demonstration.
+  - **success:** Given the September 14 PARTIAL/BLOCKED/NOT RUN baseline, when release is considered, then each applicable G-1–G-9 gate is passed or covered by a recorded product-scope decision (the Windows-only device claim, the G-8 checkpoint record), with none silently open; local probes, documents and a physical-box slice do not establish app acceptance, and physical printing/printer control are not required for the adopted software demonstration.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -44,7 +44,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-The recorded Vercel/Supabase/Railway/Upstash topology enforces signed environment identity, consumer-before-producer evolution and redacted operational monitoring. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+The recorded Vercel, Supabase, Railway, Upstash, Backblaze and Resend topology enforces signed environment identity, consumer-before-producer evolution and redacted operational monitoring. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

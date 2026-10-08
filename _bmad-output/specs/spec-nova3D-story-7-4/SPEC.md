@@ -19,7 +19,7 @@ An Account owner needs to find local work in My Projects after reconnecting. Syn
 
 - **CAP-1**
   - **intent:** An Account owner can find local work in My Projects after reconnecting.
-  - **success:** One idempotent import appears in original My Projects using verified digests and stable identities.
+  - **success:** One idempotent import appears in original My Projects using verified digests and stable identities; the confirmed pictures arrive as retained Project artifacts.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-One idempotent import appears in original My Projects using verified digests and stable identities. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+One idempotent import appears in original My Projects using verified digests and stable identities; the confirmed pictures arrive as retained Project artifacts. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

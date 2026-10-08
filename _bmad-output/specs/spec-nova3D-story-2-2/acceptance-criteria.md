@@ -14,10 +14,11 @@ So that the request preserves all useful views.
 
 - [1.4](../spec-nova3D-story-1-4/SPEC.md)
 - [1.7](../spec-nova3D-story-1-7/SPEC.md)
+- [1.12](../spec-nova3D-story-1-12/SPEC.md)
 
 ## Scope
 
-- Implement authenticated bounded image staging, checksum/content checks and ordered image editing. Accept 1 to 12 JPEG, PNG or WebP images (at most 12 MiB each and 60 MiB per request), a 250 MiB staging quota per Account and a 24-hour staging lease renewed by activity.
+- Implement ordered image editing over the Story 1.12 gateway's authenticated, bounded, checksum- and content-checked staging, so no image body crosses a Vercel function. Accept 1 to 12 JPEG, PNG or WebP images (at most 12 MiB each and 60 MiB per request), a 250 MiB staging quota per Account and a 24-hour staging lease renewed by activity.
 
 ## Acceptance Criteria
 

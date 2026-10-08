@@ -60,7 +60,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured inp
 
 ### AR-22
 
-**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.
+**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. The one server run of the engine port is the user-requested pinned reconversion after failed print repair, a fenced Job from retained pictures with no provider charge. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.
 
 Source: AD-16; R-8; G-8.
 
@@ -138,6 +138,28 @@ Required states/variants: Sourced, disputed, user-added Personalization, now-dis
 Source: SCREEN-INVENTORY M-02; canonical ux-contract; applicable ratified decisions.
 
 Source: `_bmad-output/planning-artifacts/epics.md`, line 1033 in the captured input.
+
+### FR-18
+
+#### FR-18: Read-only model inspection
+
+The user can inspect a Model Version without manual geometry editing.
+
+**Consequences:**
+- Inspection supports rotating, panning, zooming, fitting or resetting the view, selecting standard or section views, hiding or isolating features, and measuring dimensions.
+- Preview geometry is identified as a viewing representation and is not presented as proof of printability.
+
+Source: PRD §4, FR-18.
+
+Source: `_bmad-output/planning-artifacts/epics.md`, line 297 in the captured input.
+
+### AR-9
+
+**AR-9: Coordinate frames, measurement and versions.** Canonical content uses millimetres, right-handed coordinates and Z-up, retaining approved historical unit conversions. GLB explicitly converts to metres/Y-up; final-print scale/orientation is separately versioned. Every LOD preserves semantic feature IDs independently of triangles. Measurements use canonical geometry or labelled exact dimensions. Corrections rebuild dependency closure; restoration appends history and rechecks approval/profile validity without erasing successors.
+
+Source: AD-7; FR-18–FR-22.
+
+Source: `_bmad-output/planning-artifacts/epics.md`, line 607 in the captured input.
 
 ## Planning Assumptions
 

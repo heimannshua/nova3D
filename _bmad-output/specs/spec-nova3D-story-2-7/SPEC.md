@@ -27,7 +27,7 @@ An Account owner needs to continue using Projects while work runs. Accepted work
 
 - **CAP-3**
   - **intent:** Reject results without current publication authority.
-  - **success:** Given a signed callback with stale revision, revoked epoch, expired lease, invalid signature or wrong environment, when publication is attempted, then it is rejected; valid requests bind nonce/digest/attempt with ≤5-minute expiry and ≤60-second skew; a missing compatible pinned worker leaves work waiting.
+  - **success:** Given a signed callback with stale revision, revoked epoch, expired lease, invalid signature or wrong environment, when publication is attempted, then it is rejected; valid requests bind nonce/digest/attempt with ≤5-minute expiry and ≤60-second skew; a missing compatible pinned worker leaves work waiting; a request signed with a revoked or non-active key is rejected, and a retiring key is accepted only for its outstanding window.
 
 - **CAP-4**
   - **intent:** Cancel an authorized Job without starting new external steps or losing approved state.
@@ -36,6 +36,10 @@ An Account owner needs to continue using Projects while work runs. Accepted work
 - **CAP-5**
   - **intent:** Settle completed usage and release only demonstrably unused allowance.
   - **success:** Given a Job whose operations complete, when completion is committed, then actual usage settles against the reservation and any unused remainder is released without rewriting history.
+
+- **CAP-6**
+  - **intent:** Cancel running Jobs and hold their reservations when an Account is disabled.
+  - **success:** Given an Account disabled while Jobs run, when the disable commits, then running Jobs lose commit authority at once, no new external step starts, cancellation signals follow, reservations are held until settled and an audit event records the cancellation.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 

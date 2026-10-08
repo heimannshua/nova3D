@@ -19,6 +19,7 @@ So that offline creation can meet the adopted device limits.
 
 - Select/adapt licensed pinned weights with ONNX Runtime Web 1.29.0 as the first browser backend; no engine is currently qualified.
 - Expose the engine through a versioned engine port with a conformance test suite and a deterministic test engine, so Stories 7.2 to 7.5 can be built and accepted without qualified weights.
+- The engine port also accepts optional explicit print constraints (failed check, measured value, required value, feature references) and stops with an actionable failure when it cannot satisfy them. The same pinned bundle runs in the browser worker and, for reconversion only, in the Railway engine worker (`workers/engine`); the conformance suite and the deterministic test engine run on both targets.
 
 ## Acceptance Criteria
 
@@ -26,7 +27,7 @@ So that offline creation can meet the adopted device limits.
 
 **Given** a candidate model and held-out multi-view corpus
 **When** license, shape/coverage and resource qualification runs
-**Then** exact weights/runtime/digests and screening evidence on the hardware available indicate ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s local conversion, with qualifying proof on the adopted R-5 devices left to Story 8.6
+**Then** exact weights/runtime/digests and screening evidence on the hardware available indicate ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s local conversion, with qualifying proof on the adopted R-5 devices left to Story 8.6; the same weights are screened on the server target against the Spine default of 600 seconds and 8 GiB
 
 ### AC-2
 
@@ -43,7 +44,7 @@ So that offline creation can meet the adopted device limits.
 ### AC-4
 
 **Given** Story 7.1 has completed with a recorded BLOCKED report
-**When** Stories 7.2 to 7.5 are built
+**When** Stories 7.2 to 7.5, 7.8 and 7.9 are built
 **Then** they run against the engine port using only the test engine, label every output non-qualified, never offer it to users as reconstruction, and cannot close G-8
 
 ## Engineering Gates

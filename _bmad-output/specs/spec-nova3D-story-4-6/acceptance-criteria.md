@@ -44,7 +44,7 @@ So that I can understand the model on phone or computer.
 ### AC-4
 
 **Given** a user who has opened a Model Version and navigated a feature to its evidence
-**When** approval is requested
+**When** approval is requested (a fixture request until Story 5.5 exists)
 **Then** an immutable inspection event for that exact version digest exists, and a later change to the version leaves it not inspected
 
 ## Engineering Gates

@@ -19,7 +19,7 @@ An Account owner needs to use every supported workflow on the adopted devices. P
 
 - **CAP-1**
   - **intent:** An Account owner can use every supported workflow on the adopted devices.
-  - **success:** Actual OS/browser builds and complete computer flows in Chrome, Edge and Firefox, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded.
+  - **success:** Actual OS/browser builds and complete computer flows in Chrome, Edge and Firefox, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded, every flow, state and accessibility check passes, and any failure is recorded as a blocking defect.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Actual OS/browser builds and complete computer flows in Chrome, Edge and Firefox, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Actual OS/browser builds and complete computer flows in Chrome, Edge and Firefox, RTL/bilingual evidence, light/dark, keyboard/screen-reader and accessibility states are recorded, every flow, state and accessibility check passes, and any failure is recorded as a blocking defect. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

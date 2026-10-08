@@ -19,7 +19,7 @@ An Account owner needs to follow sources being examined and approve needed paid 
 
 - **CAP-1**
   - **intent:** An Account owner can follow sources being examined and approve needed paid work.
-  - **success:** Actual activity and evidence-based explanations appear without fabricated hidden reasoning.
+  - **success:** Actual activity and evidence-based explanations appear without fabricated hidden reasoning; the same actions work on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Actual activity and evidence-based explanations appear without fabricated hidden reasoning. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Actual activity and evidence-based explanations appear without fabricated hidden reasoning; the same actions work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

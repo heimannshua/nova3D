@@ -19,11 +19,15 @@ An Account owner needs to retry a failed direct model once from their original p
 
 - **CAP-1**
   - **intent:** Use the single shared lineage slot for constrained direct reconversion.
-  - **success:** Given failed local repair and an unused shared lineage slot, when reconversion is requested, then the unique slot and the successor Job/outbox commit atomically using the pinned original pictures/scope/engine, failed print constraints and a new settings digest.
+  - **success:** Given failed local repair, an unused shared lineage slot and retained pictures, when reconversion is requested, then the unique slot and the successor Job/outbox commit atomically with the pinned pictures, scope, engine bundle, failed print constraints and a new settings digest, and the screen states that the pictures are processed on the server.
 
 - **CAP-2**
   - **intent:** Preserve original versions and require renewed approval after successful recovery.
-  - **success:** Given an incapable engine, a consumed slot or a completed reconversion, when the outcome is recorded, then failure stops without resetting the lineage, and success preserves the original and returns a new version to inspection, approval and full validation with honest direct provenance.
+  - **success:** Given an incapable engine, a consumed slot, a second concurrent request or pictures that never synced, when the outcome is recorded, then failure stops without resetting the lineage or starting work and gives an actionable reason, and success preserves the original and returns a new version to inspection, approval and full validation with honest direct provenance.
+
+- **CAP-3**
+  - **intent:** Keep reconversion output fenced and discard it when authority is revoked.
+  - **success:** Given a running reconversion Job, when the Account is disabled, the Project deleted or the attempt superseded, then the attempt's output stays in attempt-scoped staging and is discarded, nothing publishes, and the worker holds no authoritative data after the Job ends.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -40,7 +44,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-The unique slot and the successor Job/outbox commit atomically using the pinned original pictures/scope/engine, failed print constraints and a new settings digest. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+The unique slot and the successor Job/outbox commit atomically with the pinned pictures, scope, engine bundle, failed print constraints and a new settings digest, and the screen states that the pictures are processed on the server. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

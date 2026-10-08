@@ -19,9 +19,10 @@ So that paid work uses only the data and maximum I permitted.
 
 ## Scope
 
-- Implement provider-neutral Anthropic (claude-sonnet-5-5) and Brave adapters and permission snapshots; provider terms/rates must be verified before enablement, and the Brave adapter ships disabled until a terms review is recorded.
+- Implement provider-neutral Anthropic (claude-sonnet-5-5) and Brave adapters and permission snapshots; provider terms/rates must be verified before enablement, and the Brave adapter ships disabled until the terms review is recorded in the Story 1.10 ledger.
 - Use no paid external 3D provider or billable free-credit fallback; instance hosting/local inference remains overhead.
 - Disclose each category's maximum using the computed bound of the Story 2.6 calculator.
+- Re-match the Project permission to category, provider, purpose, outbound-data categories and disclosed maximum inside the Story 2.6 admission transaction for every operation; a permission never carries over to another category, purpose or Project.
 
 ## Acceptance Criteria
 
@@ -42,6 +43,12 @@ So that paid work uses only the data and maximum I permitted.
 **Given** a permissioned vision/synthesis operation
 **When** its outbound payload is formed
 **Then** only purpose-required approved content is included, excluding unrelated Workspace data and unapproved personalization
+
+### AC-4
+
+**Given** a permission granted for one category, purpose, provider or Project
+**When** an operation for another category, purpose, provider, outbound-data category or Project is admitted, or the disclosed maximum would be exceeded
+**Then** admission is refused, because the permission is re-matched at every operation and never carries over
 
 ## Engineering Gates
 

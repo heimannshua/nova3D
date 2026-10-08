@@ -8,7 +8,7 @@ As an Account owner,
 I want to understand thin features, clearances and support needs,
 So that the export meets the adopted profile checks.
 
-**Requirement IDs:** FR-25, AR-11, NFR-11, UX-DR17, UX-DR59
+**Requirement IDs:** FR-25, AR-11, NFR-11, UX-DR17, UX-DR59, FR-7
 
 ## Dependencies
 
@@ -37,6 +37,12 @@ So that the export meets the adopted profile checks.
 **Given** general and adversarial geometry
 **When** the validator corpus runs
 **Then** warnings and unknowns remain explicit with profile/time/tool identity; a successful box slice does not qualify arbitrary geometry
+
+### AC-4
+
+**Given** validation that finishes all required checks
+**When** the result is committed
+**Then** one durable notification event is registered with Story 2.10 for the recipient, carrying an exact authorized target
 
 ## Engineering Gates
 

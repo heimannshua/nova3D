@@ -19,7 +19,7 @@ An Account owner needs to explain a problem with selected features. The evidence
 
 - **CAP-1**
   - **intent:** An Account owner can explain a problem with selected features.
-  - **success:** The issue, affected details/dependencies and requested evidence are retained.
+  - **success:** The issue, affected details/dependencies and requested evidence are retained; the same actions work on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-The issue, affected details/dependencies and requested evidence are retained. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+The issue, affected details/dependencies and requested evidence are retained; the same actions work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

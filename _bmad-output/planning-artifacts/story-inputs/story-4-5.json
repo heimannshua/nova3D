@@ -31,7 +31,7 @@
       {
         "given": "an evidence-backed feature",
         "when": "it is selected",
-        "then": "exact Source/Claim, status, options, governing approval and affected geometry are visible"
+        "then": "exact Source/Claim, status, options, governing approval and affected geometry are visible; the same actions work on phone and desktop"
       },
       {
         "given": "a governing claim with one or many features",

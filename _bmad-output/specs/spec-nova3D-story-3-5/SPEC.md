@@ -29,6 +29,10 @@ An Account owner needs to approve the complete plan once. Evidence-backed geomet
   - **intent:** Require renewed approval for changed plan content.
   - **success:** Given a successor interpretation or policy-driven draft, when generation authority is checked, then the successor needs renewed approval; previous approved records remain immutable and do not authorize changed content.
 
+- **CAP-4**
+  - **intent:** Record a rejected plan without granting generation authority.
+  - **success:** Given a plan the user does not accept, when the user rejects it or asks for changes, then the rejection is recorded immutably with the user's reasons, no generation authority results, and the user can revise the unsettled choices to produce a successor plan.
+
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Constraints

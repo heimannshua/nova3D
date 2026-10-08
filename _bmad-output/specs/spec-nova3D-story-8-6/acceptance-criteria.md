@@ -19,7 +19,7 @@ So that storage and inference evidence covers real failures and reconnects.
 
 ## Scope
 
-- Run the G-8 held-out multi-view, offline asset, local persistence, eviction/interruption and conflict/revocation matrix on real devices.
+- Run the G-8 held-out multi-view, offline asset, local persistence, eviction/interruption and conflict/revocation matrix on the real devices of the qualified classes (the Windows 11 class at minimum).
 
 ## Acceptance Criteria
 

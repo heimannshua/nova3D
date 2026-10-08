@@ -14,6 +14,7 @@ So that partial output cannot masquerade as a completed version.
 
 - [2.7](../spec-nova3D-story-2-7/SPEC.md)
 - [2.12](../spec-nova3D-story-2-12/SPEC.md)
+- [1.12](../spec-nova3D-story-1-12/SPEC.md)
 
 ## Scope
 
@@ -35,7 +36,7 @@ So that partial output cannot masquerade as a completed version.
 
 ### AC-3
 
-**Given** approval, gateway, restoration or deletion consumers
+**Given** the Story 1.12 gateway and approval, restoration or deletion consumers (fixtures until Stories 5.5, 5.4 and 8.1 exist)
 **When** they resolve artifact identity
 **Then** all use the same immutable manifest roots rather than independently interpreting object keys
 

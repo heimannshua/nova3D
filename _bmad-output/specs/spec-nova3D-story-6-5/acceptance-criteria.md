@@ -18,7 +18,7 @@ So that automatic recovery has a firm limit.
 
 ## Scope
 
-- Manufacturing owns an immutable validation lineage and one full_regeneration slot; this story implements the evidence-plan adapter and shared authority used later by direct reconversion.
+- The Manufacturing validation lineage and its single full_regeneration slot are created by Story 6.1; this story implements consuming the slot, the evidence-plan adapter and the shared authority used later by direct reconversion. The successor carries the failed print constraints as explicit generator input.
 
 ## Acceptance Criteria
 
@@ -26,7 +26,7 @@ So that automatic recovery has a firm limit.
 
 **Given** failed local repair and an exact approved evidence plan
 **When** concurrent fallback triggers arrive
-**Then** one unique (lineage_id, full_regeneration) slot commits atomically with successor Job/outbox and required reservation; duplicates return its receipt
+**Then** one unique (lineage_id, full_regeneration) slot commits atomically with successor Job/outbox and required reservation; duplicates return its receipt; the successor's input includes the failed print constraints
 
 ### AC-2
 

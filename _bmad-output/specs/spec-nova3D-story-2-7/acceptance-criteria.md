@@ -16,11 +16,12 @@ So that accepted work survives navigation and failures stay controlled.
 - [2.6](../spec-nova3D-story-2-6/SPEC.md)
 - [2.11](../spec-nova3D-story-2-11/SPEC.md)
 - [1.9](../spec-nova3D-story-1-9/SPEC.md)
+- [1.12](../spec-nova3D-story-1-12/SPEC.md)
 
 ## Scope
 
 - Commit the Job, its initial reservation and the dispatch outbox together, using the identities of Story 2.11.
-- Use signed environment-bound bounded steps, compatible worker registration and cancellation fencing; never automatically retry failed work.
+- Use signed environment-bound bounded steps (under the Story 1.12 signing-key contract), compatible worker registration and cancellation fencing; never automatically retry failed work. Use a 120-second worker lease renewed every 30 seconds and a 15-second outbox relay, as the Spine fixes.
 - Ship a deterministic test-workload step so durable-job behavior is testable before research exists.
 - A user cancel revokes commit authority first and starts no new external step; a completing Job settles actual usage against its reservation and releases only demonstrably unused allowance.
 
@@ -42,7 +43,7 @@ So that accepted work survives navigation and failures stay controlled.
 
 **Given** a signed callback with stale revision, revoked epoch, expired lease, invalid signature or wrong environment
 **When** publication is attempted
-**Then** it is rejected; valid requests bind nonce/digest/attempt with ≤5-minute expiry and ≤60-second skew; a missing compatible pinned worker leaves work waiting
+**Then** it is rejected; valid requests bind nonce/digest/attempt with ≤5-minute expiry and ≤60-second skew; a missing compatible pinned worker leaves work waiting; a request signed with a revoked or non-active key is rejected, and a retiring key is accepted only for its outstanding window
 
 ### AC-4
 
@@ -55,6 +56,12 @@ So that accepted work survives navigation and failures stay controlled.
 **Given** a Job whose operations complete
 **When** completion is committed
 **Then** actual usage settles against the reservation and any unused remainder is released without rewriting history
+
+### AC-6
+
+**Given** an Account disabled while Jobs run
+**When** the disable commits
+**Then** running Jobs lose commit authority at once, no new external step starts, cancellation signals follow, reservations are held until settled and an audit event records the cancellation
 
 ## Engineering Gates
 

@@ -19,7 +19,7 @@ An Account owner needs to open the exact item needing attention. Background prog
 
 - **CAP-1**
   - **intent:** An Account owner can open the exact item needing attention.
-  - **success:** One durable notification per recipient/event appears in the app-wide bar and history.
+  - **success:** One durable notification per recipient/event appears in the app-wide bar and history; the bar and history work on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-One durable notification per recipient/event appears in the app-wide bar and history. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+One durable notification per recipient/event appears in the app-wide bar and history; the bar and history work on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

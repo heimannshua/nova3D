@@ -27,7 +27,8 @@
       "1-8"
     ],
     "scope": [
-      "Implement fresh-authenticated explicit deletion intent and manifests across record owners, using the tombstone contract of Story 1.8, before best-effort cancellation/purge."
+      "Implement fresh-authenticated explicit deletion intent and manifests across record owners, using the tombstone contract of Story 1.8, before best-effort cancellation/purge.",
+      "Project and Export deletion each need a fresh-authentication marker of the owner-deletion class (valid 5 minutes)."
     ],
     "acceptance_criteria": [
       {
@@ -44,6 +45,11 @@
         "given": "interrupted multi-store cleanup",
         "when": "deletion resumes",
         "then": "the durable manifest remains retryable and distinguishes immediately inaccessible from cleanup complete"
+      },
+      {
+        "given": "an Account owner deleting a Project or Export",
+        "when": "the explicit deletion confirmation is submitted",
+        "then": "it needs a fresh-authentication marker of the owner-deletion class and is refused with the step-up offered when none exists"
       }
     ],
     "gates": [
@@ -69,7 +75,7 @@
       "line": 641
     },
     "AR-21": {
-      "text": "**AR-21: Deletion and tested recovery.** Tombstone/hide before cancellation/purge; cover database, images, models, exports, staging, notifications, usage associations and private operational records. Active purge ≤24 h; all controlled private backup copies expire ≤30 days from deletion, never extended by restore/rebackup. Back up database daily and objects independently; target RPO/RTO ≤24 h. Persist the minimum restricted anti-resurrection ledger of opaque target identities outside restore rollback and replay before reopening access. Verify interrupted cross-store deletion and restore; apart from that minimum ledger, preserve only permitted public claims/nonidentifying aggregates. Apply sole-Administrator close-instance safeguards and disclose external retention exceptions.\n\nSource: AD-15; R-9; FR-30; G-9.",
+      "text": "**AR-21: Deletion and tested recovery.** Tombstone/hide before cancellation/purge; cover database, images, models, exports, staging, notifications, usage associations and private operational records. Active purge ≤24 h; all controlled private backup copies expire ≤30 days from deletion, never extended by restore/rebackup. Back up the database and objects independently every 12 hours; target RPO/RTO ≤24 h. Persist the minimum restricted anti-resurrection ledger of opaque target identities outside restore rollback and replay before reopening access. Verify interrupted cross-store deletion and restore; apart from that minimum ledger, preserve only permitted public claims/nonidentifying aggregates. Apply sole-Administrator close-instance safeguards and disclose external retention exceptions.\n\nSource: AD-15; R-9; FR-30; G-9.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 665
     },

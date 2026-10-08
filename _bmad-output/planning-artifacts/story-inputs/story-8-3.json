@@ -18,11 +18,12 @@
       "NFR-12"
     ],
     "depends_on": [
-      "8-2"
+      "8-2",
+      "8-9"
     ],
     "scope": [
       "Purge database, files, models, exports, staging, notifications, private usage/adoption associations and operational traces under the deletion manifest.",
-      "Apply the backup lifecycle (dumps removed within 14 days, deleted-at-source objects within 7 days, object lock of at most 7 days); after any restore a scrub removes ledgered targets from live and hidden backup copies, and a monthly canary proves a deletion reaches the database, Storage and backups within 15 days."
+      "Apply the Story 8.9 backup lifecycle to deletions: deleted targets leave dumps within 14 days and deleted-at-source objects within 7 days. Run a monthly canary that deletes a synthetic Project and proves the deletion reaches the database, Storage and backups within 15 days."
     ],
     "acceptance_criteria": [
       {
@@ -39,6 +40,11 @@
         "given": "retained shared research, aggregates and deletion exclusions",
         "when": "retention is audited",
         "then": "only allowed public-source data, nonidentifying aggregates and the minimum restricted opaque-target anti-resurrection ledger remain; external/disconnected-copy limitations are disclosed accurately"
+      },
+      {
+        "given": "the monthly canary",
+        "when": "it runs",
+        "then": "a synthetic Project's deletion is confirmed absent from the database, Storage and the backup copies within 15 days, and a miss raises an alarm"
       }
     ],
     "gates": [
@@ -64,7 +70,7 @@
       "line": 661
     },
     "AR-21": {
-      "text": "**AR-21: Deletion and tested recovery.** Tombstone/hide before cancellation/purge; cover database, images, models, exports, staging, notifications, usage associations and private operational records. Active purge ≤24 h; all controlled private backup copies expire ≤30 days from deletion, never extended by restore/rebackup. Back up database daily and objects independently; target RPO/RTO ≤24 h. Persist the minimum restricted anti-resurrection ledger of opaque target identities outside restore rollback and replay before reopening access. Verify interrupted cross-store deletion and restore; apart from that minimum ledger, preserve only permitted public claims/nonidentifying aggregates. Apply sole-Administrator close-instance safeguards and disclose external retention exceptions.\n\nSource: AD-15; R-9; FR-30; G-9.",
+      "text": "**AR-21: Deletion and tested recovery.** Tombstone/hide before cancellation/purge; cover database, images, models, exports, staging, notifications, usage associations and private operational records. Active purge ≤24 h; all controlled private backup copies expire ≤30 days from deletion, never extended by restore/rebackup. Back up the database and objects independently every 12 hours; target RPO/RTO ≤24 h. Persist the minimum restricted anti-resurrection ledger of opaque target identities outside restore rollback and replay before reopening access. Verify interrupted cross-store deletion and restore; apart from that minimum ledger, preserve only permitted public claims/nonidentifying aggregates. Apply sole-Administrator close-instance safeguards and disclose external retention exceptions.\n\nSource: AD-15; R-9; FR-30; G-9.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 665
     },

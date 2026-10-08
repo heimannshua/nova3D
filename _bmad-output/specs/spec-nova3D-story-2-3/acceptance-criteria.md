@@ -26,7 +26,7 @@ So that I understand what the resulting geometry can claim.
 
 **Given** unclear or incomplete views
 **When** quality review runs
-**Then** measured blur, resolution or exposure problems, unconfirmed obstruction and missing labelled views are explained with useful remedies
+**Then** measured blur, resolution or exposure problems, unconfirmed obstruction and missing labelled views are explained with useful remedies; the same actions work on phone and desktop
 
 ### AC-2
 

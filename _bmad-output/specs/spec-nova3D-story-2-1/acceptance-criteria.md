@@ -17,6 +17,7 @@ So that work starts from my confirmed intent.
 ## Scope
 
 - Persist immutable subject, scope, outcome, mode and optional user-added personalization; clarify ambiguity before research. Personalization is free-form wording mapped to the one supported kind, raised or recessed text on declared surfaces; any other request is explained as unsupported.
+- Create the domain-package manifest contract and the registry port, with the Middot manifest holding its registered subject (ID, display name and aliases); later stories add manifest fields as they land. Clarification is deterministic and free: the description is matched against registered subject names and aliases, no match explains the supported subjects and offers picture mode, several matches ask which one, and no billable call is made.
 
 ## Acceptance Criteria
 
@@ -24,7 +25,7 @@ So that work starts from my confirmed intent.
 
 **Given** an ambiguous or invalid description
 **When** the user submits it
-**Then** clarifications or actionable field errors appear before any research or paid step
+**Then** clarifications (a choice among several registered subjects) or actionable field errors (no registered subject, with the supported subjects and picture mode offered) appear before any research or paid step; the same actions work on phone and desktop
 
 ### AC-2
 

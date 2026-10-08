@@ -14,6 +14,7 @@ So that I can regain control without bypassing workspace privacy.
 
 - [1.4](../spec-nova3D-story-1-4/SPEC.md)
 - [1.5](../spec-nova3D-story-1-5/SPEC.md)
+- [1.10](../spec-nova3D-story-1-10/SPEC.md)
 
 ## Scope
 
