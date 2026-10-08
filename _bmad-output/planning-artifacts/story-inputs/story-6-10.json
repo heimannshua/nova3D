@@ -23,7 +23,8 @@
     ],
     "scope": [
       "Produce the manufacturing mesh from the canonical solid: apply the pinned print scale and orientation, tessellate at 0.002 mm linear and 0.1 rad angular deflection in the print frame, and publish it as a manifest root with its settings and tool versions. It is the authority that Stories 6.2 to 6.4 validate and that Story 4.3 compares; preview LODs never substitute.",
-      "Repair children and regenerated successors reuse the lineage print scale; one that does not fit fails and is never rescaled."
+      "Repair children and regenerated successors reuse the lineage print scale; one that does not fit fails and is never rescaled.",
+      "For an image-derived Model Version the manufacturing mesh is the verified snapshot transformed by calibration, scale and orientation with no re-tessellation; repairs of such a mesh are compared mesh to mesh with the Story 4.3 comparator."
     ],
     "acceptance_criteria": [
       {

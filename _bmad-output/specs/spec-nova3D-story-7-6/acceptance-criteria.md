@@ -45,7 +45,7 @@ So that direct mode receives the same model and print gates.
 
 **Given** a synchronized direct candidate that fails structural validation
 **When** local repair is attempted
-**Then** the Story 6.4 classes apply unchanged: a nonconsequential repair keeps the version only with the equivalence proof, a consequential one creates a successor needing re-inspection and approval, and reconversion is Story 7.8
+**Then** the Story 6.4 classes apply with the mesh-to-mesh comparison of Story 6.10: a nonconsequential repair keeps the version only with the equivalence proof, a consequential one creates a successor needing re-inspection and approval, and reconversion is Story 7.8
 
 ## Engineering Gates
 

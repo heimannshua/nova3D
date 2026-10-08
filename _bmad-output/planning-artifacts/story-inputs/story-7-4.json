@@ -52,7 +52,7 @@
       {
         "given": "a local draft from a disabled or tombstoned Account, or for a tombstoned Project",
         "when": "sync is attempted",
-        "then": "the import is refused before anything attaches and the client keeps its locked or purged state"
+        "then": "the import is refused before anything attaches and the server returns the refusal reason (the client lock and purge states are Story 7.5)"
       }
     ],
     "gates": [

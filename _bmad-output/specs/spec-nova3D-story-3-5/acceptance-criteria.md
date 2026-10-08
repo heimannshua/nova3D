@@ -31,7 +31,7 @@ So that evidence-backed geometry follows my exact decisions.
 
 **Given** a complete checklist and independent gap pass
 **When** the user approves the whole plan
-**Then** the immutable exact digest, approver/time, choices and affected details are recorded; the digest includes the pinned evidence-policy snapshot
+**Then** the immutable exact digest, approver/time, choices and affected details are recorded; the digest includes the pinned evidence-policy snapshot and the domain package version
 
 ### AC-3
 

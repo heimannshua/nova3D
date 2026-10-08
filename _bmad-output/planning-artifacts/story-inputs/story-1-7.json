@@ -32,7 +32,8 @@
     "scope": [
       "Create Project identity and model-focused collection with My Projects, Create and In Progress.",
       "Expose current stage and navigation; feature-specific transitions and deletion are supplied by their owning stories.",
-      "Register the Project target resolver with the Story 1.12 gateway."
+      "Register the Project target resolver with the Story 1.12 gateway.",
+      "Give each Project a revision counter, bumped by every committed command that changes Project-owned state; commands carry the expected revision and a stale one is rejected with the current revision. Each Project also carries the random 128-bit status handle of Story 1.8."
     ],
     "acceptance_criteria": [
       {
@@ -49,6 +50,11 @@
         "given": "a stale, deleted or foreign Project link",
         "when": "navigation resolves it",
         "then": "live ownership/lifecycle checks prevent disclosure and a clear unavailable state is shown"
+      },
+      {
+        "given": "a command carrying a stale expected Project revision",
+        "when": "it is submitted",
+        "then": "it is rejected with the current revision and changes nothing, while the same command with the current revision commits and bumps it"
       }
     ],
     "gates": []

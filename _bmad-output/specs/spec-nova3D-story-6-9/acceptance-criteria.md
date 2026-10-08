@@ -20,7 +20,7 @@ So that large files remain private and access stops when revoked.
 
 ## Scope
 
-- Deliver qualified export packages through the Story 1.12 gateway: each file with its content type and file name, and the whole package as one ZIP assembled on the fly by the gateway from the manifest's files in the order listed there (stored, not recompressed). A package is preparing while its manifest roots are verified, ready when every root verifies, and failed otherwise; a browser-native download resumes through its transfer handle (30 minutes at most) and later needs a new ticket; the ZIP is named `<project-slug>-v<n>.zip`, is served as an attachment and carries a `SHA256SUMS` entry listing each file digest from the manifest, which is the verification basis; this story registers the export resolver and the ZIP assembler with the gateway; a foreign or tombstoned export returns the unavailable state.
+- Deliver qualified export packages through the Story 1.12 gateway: each file with its content type and file name, and the whole package as the ZIP that Story 6.8 published (an ordinary stored artifact, so ranges and resume work unchanged). A package is preparing while its manifest roots are verified, ready when every root verifies, and failed otherwise; a browser-native download resumes through its transfer handle (30 minutes at most) and later needs a new ticket; the ZIP is served as an attachment named `<slug>-v<n>.zip`, where slug is the lowercase ASCII of the confirmed subject (or "model") and n is the Model Version number, and its `SHA256SUMS` entry is the verification basis; this story registers the export resolver with the gateway; a foreign or tombstoned export returns the unavailable state.
 
 ## Acceptance Criteria
 

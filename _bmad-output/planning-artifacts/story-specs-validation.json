@@ -5,9 +5,9 @@
   "stories": 73,
   "unique_requirement_ids": 150,
   "requirement_occurrences": 556,
-  "scope_clauses": 198,
-  "acceptance_criteria": 314,
-  "local_capability_ids": 129,
+  "scope_clauses": 214,
+  "acceptance_criteria": 322,
+  "local_capability_ids": 130,
   "source_preservation": "PASS",
   "dependencies": "PASS",
   "recursive_companions": "PASS",
@@ -29,7 +29,7 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 4,
+      "source_scope_items": 5,
       "acceptance_criteria": 4,
       "mapped_requirements": 4,
       "coherence": "PASS (scripted parity only)",
@@ -64,7 +64,7 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 7,
+      "source_scope_items": 8,
       "acceptance_criteria": 11,
       "mapped_requirements": 6,
       "coherence": "PASS",
@@ -75,7 +75,7 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 2,
+      "source_scope_items": 3,
       "acceptance_criteria": 4,
       "mapped_requirements": 6,
       "coherence": "PASS (scripted parity only)",
@@ -111,8 +111,8 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 4,
-      "acceptance_criteria": 5,
+      "source_scope_items": 5,
+      "acceptance_criteria": 6,
       "mapped_requirements": 5,
       "coherence": "PASS (scripted parity only)",
       "preservation": "PASS (scripted parity only)"
@@ -122,8 +122,8 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 3,
-      "acceptance_criteria": 6,
+      "source_scope_items": 4,
+      "acceptance_criteria": 7,
       "mapped_requirements": 4,
       "coherence": "PASS (scripted parity only)",
       "preservation": "PASS (scripted parity only)"
@@ -133,8 +133,8 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 5,
-      "acceptance_criteria": 6,
+      "source_scope_items": 6,
+      "acceptance_criteria": 7,
       "mapped_requirements": 6,
       "coherence": "PASS (scripted parity only)",
       "preservation": "PASS (scripted parity only)"
@@ -155,8 +155,8 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 3,
-      "acceptance_criteria": 3,
+      "source_scope_items": 4,
+      "acceptance_criteria": 4,
       "mapped_requirements": 10,
       "coherence": "PASS",
       "preservation": "PASS"
@@ -166,7 +166,7 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 3,
+      "source_scope_items": 4,
       "acceptance_criteria": 4,
       "mapped_requirements": 8,
       "coherence": "PASS",
@@ -274,7 +274,7 @@
         "CAP-1"
       ],
       "source_scope_items": 4,
-      "acceptance_criteria": 4,
+      "acceptance_criteria": 5,
       "mapped_requirements": 6,
       "coherence": "PASS",
       "preservation": "PASS"
@@ -323,7 +323,7 @@
         "CAP-6",
         "CAP-7"
       ],
-      "source_scope_items": 5,
+      "source_scope_items": 6,
       "acceptance_criteria": 7,
       "mapped_requirements": 8,
       "coherence": "PASS",
@@ -423,7 +423,7 @@
         "CAP-8",
         "CAP-9"
       ],
-      "source_scope_items": 5,
+      "source_scope_items": 6,
       "acceptance_criteria": 9,
       "mapped_requirements": 8,
       "coherence": "PASS",
@@ -434,7 +434,7 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 3,
+      "source_scope_items": 4,
       "acceptance_criteria": 4,
       "mapped_requirements": 5,
       "coherence": "PASS",
@@ -560,7 +560,7 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 2,
+      "source_scope_items": 3,
       "acceptance_criteria": 3,
       "mapped_requirements": 4,
       "coherence": "PASS (scripted parity only)",
@@ -642,7 +642,7 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 1,
+      "source_scope_items": 2,
       "acceptance_criteria": 4,
       "mapped_requirements": 9,
       "coherence": "PASS",
@@ -723,8 +723,8 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 1,
-      "acceptance_criteria": 3,
+      "source_scope_items": 2,
+      "acceptance_criteria": 4,
       "mapped_requirements": 7,
       "coherence": "PASS",
       "preservation": "PASS"
@@ -807,10 +807,11 @@
         "CAP-1",
         "CAP-2",
         "CAP-3",
-        "CAP-4"
+        "CAP-4",
+        "CAP-5"
       ],
-      "source_scope_items": 2,
-      "acceptance_criteria": 4,
+      "source_scope_items": 3,
+      "acceptance_criteria": 5,
       "mapped_requirements": 4,
       "coherence": "PASS",
       "preservation": "PASS"
@@ -820,8 +821,8 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 3,
-      "acceptance_criteria": 6,
+      "source_scope_items": 4,
+      "acceptance_criteria": 7,
       "mapped_requirements": 6,
       "coherence": "PASS",
       "preservation": "PASS"

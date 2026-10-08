@@ -20,6 +20,7 @@ So that the file package matches the model I accepted.
 ## Scope
 
 - Create primary 3MF, optional STL, structured provenance and PDF as one immutable qualified package.
+- Assemble the package as one deterministic ZIP (stored entries, entry times fixed to the export commit time, sorted names, CRC-32 computed at assembly) holding the files and a `SHA256SUMS` listing (`<hex>  <name>` lines), and publish it as a manifest root.
 
 ## Acceptance Criteria
 

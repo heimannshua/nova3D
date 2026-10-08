@@ -21,6 +21,7 @@ So that later features cannot bypass deletion or revocation.
 - Expose the tombstone check as a reusable authority guard beside the Story 1.5 epoch guard. Deletion commands, manifests and cleanup are supplied by Stories 8.1 to 8.3.
 - Record the auditable deletion-verification procedure required by PRD D-3 before any purge code ships: which stores are checked (database, Storage, backups, notifications, logs), how absence is proven, and who runs it.
 - Create the Lifecycle-owned restore ledger port and its outbox relay for tombstones, Account disables and re-enables, invitation consumption and rotation, recovery revocations and the highest authorization epoch. Stories 1.3, 1.5 and 1.6 append their events through it from this story on. The local change always takes effect first; the relay retries until the ledger store accepts the event and exposes how many are pending for monitoring. Story 8.9 supplies the Backblaze adapter; until then the relay writes to a fixture store and is tested as a function until Story 1.9 schedules it.
+- Give each Account (Story 1.3) and Project (Story 1.7) a random 128-bit status handle created with it, and expose an unauthenticated, rate-limited status route that answers active, disabled or deleted for a handle; deleted handles stay in the ledger. The ledger objects use keys of the form `<instance id>/<20-digit sequence>-<hash of the previous body>.json`, each body holding its sequence, the previous body's SHA-256, the event and the time.
 
 ## Acceptance Criteria
 
@@ -53,6 +54,12 @@ So that later features cannot bypass deletion or revocation.
 **Given** an Account disable, an invitation consumption or a recovery revocation
 **When** it commits
 **Then** a ledger event is queued with the change and relayed idempotently, and a ledger store outage leaves the change in force with the event pending and counted
+
+### AC-6
+
+**Given** a deleted Account whose Auth identity no longer exists
+**When** a device presents its cached status handle
+**Then** the status route answers deleted without authentication, and guessing handles is infeasible and rate-limited
 
 ## Engineering Gates
 

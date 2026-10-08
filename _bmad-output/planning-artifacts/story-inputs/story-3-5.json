@@ -37,7 +37,7 @@
       {
         "given": "a complete checklist and independent gap pass",
         "when": "the user approves the whole plan",
-        "then": "the immutable exact digest, approver/time, choices and affected details are recorded; the digest includes the pinned evidence-policy snapshot"
+        "then": "the immutable exact digest, approver/time, choices and affected details are recorded; the digest includes the pinned evidence-policy snapshot and the domain package version"
       },
       {
         "given": "a successor interpretation or policy-driven draft",

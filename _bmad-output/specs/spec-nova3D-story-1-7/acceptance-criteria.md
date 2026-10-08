@@ -22,6 +22,7 @@ So that I can resume the next required action.
 - Create Project identity and model-focused collection with My Projects, Create and In Progress.
 - Expose current stage and navigation; feature-specific transitions and deletion are supplied by their owning stories.
 - Register the Project target resolver with the Story 1.12 gateway.
+- Give each Project a revision counter, bumped by every committed command that changes Project-owned state; commands carry the expected revision and a stale one is rejected with the current revision. Each Project also carries the random 128-bit status handle of Story 1.8.
 
 ## Acceptance Criteria
 
@@ -42,6 +43,12 @@ So that I can resume the next required action.
 **Given** a stale, deleted or foreign Project link
 **When** navigation resolves it
 **Then** live ownership/lifecycle checks prevent disclosure and a clear unavailable state is shown
+
+### AC-4
+
+**Given** a command carrying a stale expected Project revision
+**When** it is submitted
+**Then** it is rejected with the current revision and changes nothing, while the same command with the current revision commits and bumps it
 
 ## Engineering Gates
 

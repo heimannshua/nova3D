@@ -19,6 +19,7 @@ So that regeneration and minor repair cannot silently alter the model.
 - Implement a certified comparator and deliberate negative corpus independently of preview meshes.
 - Tessellate the oriented, scaled solid at the print-frame deflection (0.002 mm linear, 0.1 rad angular) on both sides. The approximation bound is twice the deflection plus comparator and floating-point error; until G-2 verifies achieved deviation, use the larger of nominal and measured maximum deviation.
 - Provide the pure print-frame function the comparator uses: the default orientation from the domain package's declared base face, and the largest uniform scale, never above 1:1, that fits the oriented solid's exact kernel bounding box (stored with the Model Version by Story 4.2) inside the profile cube minus 1 mm per side, as an exact rational. Use the R-3 profile constants as a pinned fixture until Story 6.1 pins profiles; Story 6.1 stores the result on the validation lineage, and Stories 4.4 and 5.2 reuse it.
+- The comparator also compares two meshes directly, with a bound of comparator and floating-point error only (no deflection term).
 
 ## Acceptance Criteria
 

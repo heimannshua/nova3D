@@ -31,7 +31,7 @@ An Account owner needs to validate and export an image-derived model. Direct mod
 
 - **CAP-4**
   - **intent:** Apply the shared repair classes to direct candidates.
-  - **success:** Given a synchronized direct candidate that fails structural validation, when local repair is attempted, then the Story 6.4 classes apply unchanged: a nonconsequential repair keeps the version only with the equivalence proof, a consequential one creates a successor needing re-inspection and approval, and reconversion is Story 7.8.
+  - **success:** Given a synchronized direct candidate that fails structural validation, when local repair is attempted, then the Story 6.4 classes apply with the mesh-to-mesh comparison of Story 6.10: a nonconsequential repair keeps the version only with the equivalence proof, a consequential one creates a successor needing re-inspection and approval, and reconversion is Story 7.8.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 

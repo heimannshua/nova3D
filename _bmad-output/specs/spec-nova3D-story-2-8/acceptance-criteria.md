@@ -50,6 +50,12 @@ So that retries cannot double-charge me.
 **When** the incident is recorded
 **Then** it settles at the evidence, counts against every limit, blocks that provider's admissions, and only the freshly authenticated Administrator can review and clear it on the usage page; a clear attempt without a fresh administration marker is refused
 
+### AC-5
+
+**Given** an ambiguous charge past its 24-hour deadline
+**When** the Story 2.7 minute sweep runs
+**Then** it settles at the reservation exactly once, a repeated sweep changes nothing, and the settlement keeps its ambiguous classification
+
 ## Engineering Gates
 
 G-6.

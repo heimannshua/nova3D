@@ -56,7 +56,7 @@
       {
         "given": "a synchronized direct candidate that fails structural validation",
         "when": "local repair is attempted",
-        "then": "the Story 6.4 classes apply unchanged: a nonconsequential repair keeps the version only with the equivalence proof, a consequential one creates a successor needing re-inspection and approval, and reconversion is Story 7.8"
+        "then": "the Story 6.4 classes apply with the mesh-to-mesh comparison of Story 6.10: a nonconsequential repair keeps the version only with the equivalence proof, a consequential one creates a successor needing re-inspection and approval, and reconversion is Story 7.8"
       }
     ],
     "gates": [

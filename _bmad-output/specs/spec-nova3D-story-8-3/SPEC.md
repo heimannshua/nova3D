@@ -33,6 +33,10 @@ An Account owner needs to have deletion remove controlled copies. Retained data 
   - **intent:** Prove a deletion reaches backups within the canary window.
   - **success:** Given a synthetic Account and Project in the monthly canary, when an internal system-actor deletion runs, then the Project is absent from the database and Storage, its mirrored objects are gone within 7 days, every dump created before the purge has expired within 14 days (judged from manifests and bucket listings, with an injected clock in tests), and a miss raises an alarm.
 
+- **CAP-5**
+  - **intent:** Keep spending totals unchanged when a Project is deleted.
+  - **success:** Given a Project with settled usage in the current period, when it is deleted, then the period's settled and reserved totals are unchanged and no Project, Job or request identity remains on those rows.
+
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Constraints

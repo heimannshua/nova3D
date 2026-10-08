@@ -23,6 +23,7 @@ So that I can obtain canonical geometry without manual modeling.
 - Emit a ModelVersionCommitted outbox event from the shared Model Version commit that every producer uses (Stories 4.4, 5.2, 6.4 successors and 7.4 imports). The generator schema accepts optional failed print constraints (check, measured value, required value, feature references) for the constrained regeneration of Story 6.5.
 - Store with every Model Version the exact bounding box of the solid in the declared default print orientation (exact rationals in millimetres), which the print-frame function of Story 4.3 reads. Retain the generator image digest and dependency lock for every non-deleted Model Version. Define the regression corpus (the approved G-1 fixture set) in the repository before acceptance.
 - The domain package declares a parameter schema, and the recipe consumes the approved plan by binding each plan choice to a parameter through its stable detail ID. Failed print constraints may adjust only parameters the plan marks adjustable within their stated bounds; otherwise the generator returns "cannot satisfy" and the lineage fails.
+- The first declared personalization surface is `altar-base-front`, a flat vertical face of the altar base, with text of at most 24 characters, relief of 0.6 to 1.2 mm and a 5 mm margin to the face edge (values for Josh to approve with the G-1 corpus). The parameter schema marks each parameter adjustable or fixed with bounds, and its version is part of the plan digest.
 
 ## Acceptance Criteria
 

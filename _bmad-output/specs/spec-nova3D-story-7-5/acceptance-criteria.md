@@ -19,6 +19,7 @@ So that disabled or deleted work cannot be republished.
 ## Scope
 
 - Implement permitted_local, locked_disabled and terminal tombstoned local states against the server tombstones and monotonic revisions of Story 1.8, and show the locked state in My Projects (H-02) and the shell.
+- Learn of an Account or Project deletion through the status handle route of Story 1.8 when the session or Auth identity no longer exists, and purge on a deleted answer.
 
 ## Acceptance Criteria
 
@@ -39,6 +40,12 @@ So that disabled or deleted work cannot be republished.
 **Given** older status responses, JWT refresh, Account switching, connectivity changes or timeout
 **When** local state is reconsidered
 **Then** none bypass known disable/deletion; uncertainty alone is not deletion, disconnected permitted drafts have no time lease and explicit sign-out clears private stores (as Story 7.9 implements it)
+
+### AC-4
+
+**Given** a device whose Account was deleted and whose Auth identity is gone
+**When** it reconnects
+**Then** the cached status handle yields deleted, the device purges that Account's private stores and pending commands, and an unknown handle changes nothing
 
 ## Engineering Gates
 

@@ -23,6 +23,7 @@ So that I need not locate or upload the texts myself.
 - Extend the Middot manifest with its pinned source registry. Research starts only for a confirmed subject that has a registered package.
 - Own the research start command: it validates the Story 2.9 choices and permission snapshot, dispatches the research Job through Story 2.7 and records each acquisition step (searching, opened, lead, accepted, rejected, replacement) as an Evidence-owned activity event that Story 3.7 renders.
 - The pinned registry enumerates its allowlisted hostnames (initially www.sefaria.org). Activity events for search-provider results hold only transient fields and expire with the Job, because Brave's terms bar storing results; a page nova3D fetches is recorded as a Source in the ordinary way.
+- The registry also lists the unit-definition passages (Mishnah Kelim 17 on cubit measures, to be confirmed by Josh) as unit sources.
 
 ## Acceptance Criteria
 

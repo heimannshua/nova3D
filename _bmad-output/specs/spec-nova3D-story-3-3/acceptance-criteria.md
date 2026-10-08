@@ -20,7 +20,7 @@ So that I do not approve a reconstruction with hidden omissions.
 - Build the finite subject-specific detail checklist, statuses and independent omission review; product FRs are not physical detail records.
 - Implement the research-engine port with deterministic domain-package extractors that map governing text to checklist items, and the separate omission scan driven by a versioned grammar of quantity, relational, material and placement phrases. Free mode counts as complete only for domain-registered subjects, only after the scan finds omissions seeded into a fixture and an independent human or other-engine pass covers the first registry subject.
 - Extend the Middot manifest with its detail checklist.
-- Implement the paid mode of the port for items free mode left unresolved: a search step (normalized public subject only), a fetch of the cited page by nova3D, Anthropic claim extraction with schema validation and a citation check, each as its own reserved operation under Story 2.6.
+- Implement the paid mode of the port for items free mode left unresolved: a search step (normalized public subject only), a fetch of the cited page by nova3D, Anthropic claim extraction with schema validation and a citation check, where each provider request (search, extraction) is an ExternalOperation reserved under Story 2.6, and the fetch and the citation check are bounded local steps (5 MiB, 10 seconds). Extraction sends only the cited section of the fetched page, converted to text and capped at 20 KB.
 - Checklist details carry typed finite values with original units where the subject has dimensions, and the unit conversion (AD-7) is part of the plan. The independent omission pass is an Evidence-owned review record (reviewer, method, time, subject, findings).
 - The domain package declares a unit table: each historical unit with its candidate definitions in millimetres, each cited to a governing source in the registry. The plan's conversion is one of those candidates, chosen at Plan Approval, and Josh approves the table's content with the G-1 corpus. The independent omission pass is performed by Josh or by a second-engine pass that he records.
 - In paid mode a fetched page can become a Source Revision only when its licence is verified as Public Domain, CC0 or CC-BY from machine-readable metadata or an explicit licence statement; otherwise it stays a lead.
@@ -55,7 +55,7 @@ So that I do not approve a reconstruction with hidden omissions.
 
 **Given** paid expansion with the search and synthesis permissions and unresolved items
 **When** the paid steps run
-**Then** search, fetch, extraction and citation check run as separate reserved operations, output that fails schema or citation validation is rejected, and resolved items keep their source status
+**Then** the search and extraction requests are separate reserved operations, the fetch and citation check run as bounded steps, output that fails schema or citation validation is rejected, and resolved items keep their source status
 
 ### AC-6
 

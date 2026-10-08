@@ -23,7 +23,7 @@ An Account owner needs to approve the complete plan once. Evidence-backed geomet
 
 - **CAP-2**
   - **intent:** Approve the exact complete whole-Project plan.
-  - **success:** Given a complete checklist and independent gap pass, when the user approves the whole plan, then the immutable exact digest, approver/time, choices and affected details are recorded; the digest includes the pinned evidence-policy snapshot.
+  - **success:** Given a complete checklist and independent gap pass, when the user approves the whole plan, then the immutable exact digest, approver/time, choices and affected details are recorded; the digest includes the pinned evidence-policy snapshot and the domain package version.
 
 - **CAP-3**
   - **intent:** Require renewed approval for changed plan content.

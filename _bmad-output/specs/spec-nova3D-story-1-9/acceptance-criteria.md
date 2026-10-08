@@ -21,6 +21,7 @@ So that housekeeping and recovery do not depend on someone remembering them.
 - Treat the existing hosted Supabase project as staging (Story 1.1 relabels it, Story 1.10 records its plan and region), push the `supabase/config.toml` auth settings with the CLI and make CI diff them against the live settings. Provision Upstash Redis and QStash in us-east-1 and the Railway project, and deploy the staging application as its own Vercel project whose production branch is `staging`, so QStash has a signed staging endpoint to call; Vercel previews stay synthetic.
 - Run periodic work from QStash schedules that invoke idempotent routes verified with the provider-native signature check and the stored instance identity; every run writes an immutable receipt. This story ships the schedule registry, the signed route framework and the first two tasks: the dormant-identity purge (daily) and the ledger relay retry (every 5 minutes while an event is pending). Later stories register their own tasks on it: the outbox sweep with lease and deadline expiry (Story 2.7, every minute), staging cleanup (Story 1.12, hourly), purge deadlines (Story 8.3, hourly) and the backup monitor (Story 8.9, every 30 minutes). Each firing carries its schedule ID and scheduled time as an idempotency key. The first task is the dormant-identity purge: delete Auth identities that have no Account, claim or registration attempt 30 days after their last sign-in or registration attempt, in one transaction that locks the identity row as registration does (Story 1.3), with Account foreign keys to the Auth identity restricting deletion. The purge is a Postgres function that deletes from `auth.users` inside that transaction, since the Auth Admin API cannot join it.
 - Apply migrations from CI with the Supabase CLI to staging when the `staging` branch deploys, and to production only from a manually dispatched workflow that Josh runs. QStash runs pay-as-you-go from this story (about 1,700 messages a day). Production projects are created in Story 8.7 and receive no real private data before Story 8.4 passes its drill.
+- Set up the worker image pipeline: CI builds each `workers/*` Dockerfile, pushes the image to GitHub Container Registry by digest and deploys that digest to Railway with a project token; the worker registry of Story 2.7 records the digests, older generator images stay in the registry, and only one version of a worker runs at a time.
 
 ## Acceptance Criteria
 
@@ -59,6 +60,12 @@ So that housekeeping and recovery do not depend on someone remembering them.
 **Given** the Upstash and Railway accounts
 **When** this story is accepted
 **Then** QStash is in us-east-1 on pay-as-you-go, the Railway project exists and the provisioning ledger records the actual plans and regions
+
+### AC-7
+
+**Given** a change to a worker Dockerfile
+**When** CI runs
+**Then** an image is pushed to the registry by digest and deployed to Railway by digest
 
 ## Engineering Gates
 

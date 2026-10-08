@@ -47,7 +47,7 @@ So that sync does not duplicate or discard versions.
 
 **Given** a local draft from a disabled or tombstoned Account, or for a tombstoned Project
 **When** sync is attempted
-**Then** the import is refused before anything attaches and the client keeps its locked or purged state
+**Then** the import is refused before anything attaches and the server returns the refusal reason (the client lock and purge states are Story 7.5)
 
 ## Engineering Gates
 

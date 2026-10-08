@@ -12,6 +12,8 @@ The FAIL comes from missing recorded decisions, missing fallbacks, and stories i
 
 **Re-run 2026-10-08 (after the fixes above): still FAIL.** Four independent audits found four critical and about ten high problems; several were introduced by the 2026-10-08 restructure. They are listed in the last section, "Re-run 2026-10-08". The findings above are kept as history.
 
+**Update (2026-10-08, later): four further audit rounds were run and their findings applied; the plan is now at CONCERNS pending your decision.** See "Audit rounds 2 to 4" at the end of this file.
+
 ## How this was produced
 
 Three parallel read-only audits (dependencies/independence, requirements traceability, unrecorded decisions/plan-vs-reality), plus my own reading of `specs/spec-nova3D/SPEC.md` and `scope-and-readiness.md`.
@@ -241,3 +243,29 @@ Invitation races (1.3), live authorization and step-up binding (1.4), recovery (
 | R8 formats and records, R9 key custody and alarm routing | `bmad-architecture` (small update), then epics | Some: alarm owner, key custody |
 
 **Process lesson:** the nine stories added on 2026-10-08 went in with only a scripted parity check, and the independent review found five problems in them (R1 first item, R5, R6, R12 first item, parts of R10). New stories need independent review before they are propagated.
+
+## Audit rounds 2 to 4 (2026-10-08, after the fixes to R1 to R12)
+
+Each round used fresh agents that were told not to read this file, the memlogs or any resolution note. Findings were applied to the Spine and `RATIFIED-DECISIONS.md` first, then `epics.md`, then regenerated into the story inputs, specs, index, validation report and manifest (73 stories; scripted parity: 0 mismatches; manifest verified).
+
+| Round | Lanes and verdicts | Critical | High | What changed |
+| --- | --- | --- | --- | --- |
+| 2 | Dependencies CONCERNS, decisions CONCERNS, implementability **FAIL**, traceability CONCERNS | 5 (all in implementability) | about 25 | Session grants moved into Story 1.4; Story 1.13 (alarms) added; 1.10 made just-in-time; 1.11 mints the general code on demand; gateway target resolver; lineage created at the first profile pin; stored ZIP; encrypted Storage mirror; canary; AC gaps for fresh authentication, audit, approvals, caching, notifications and phone parity |
+| 3 | Dependencies **FAIL** (strict), decisions CONCERNS, implementability **FAIL** | 2 | about 25 | Storage credential holders recorded; backup abort guard tolerates ledgered deletions; allowlist replacement moved into 1.3; QStash pay-as-you-go; session lifetime; offline shell route; image-derived scale formula; plan-to-recipe contract |
+| 4 (Critical and High only) | Dependencies CONCERNS, decisions CONCERNS, implementability **FAIL** (two one-clause Criticals) | 2 (both fixed) | 20 | Per-issuer Ed25519 keys; manifest family and RFC 8785 form in 1.12; Storage deletion only through the gateway; Project revision; status handle for offline deletion; restore rule for paid work; CI credentials and worker image pipeline; spend history survives Project deletion; ZIP built at export |
+
+**Verdict now: CONCERNS.** No Critical finding is open that the last round reported, and every High it reported has a recorded fix. The fixes from round 4 have not been re-audited. Remaining known weaknesses are the Medium items that were not reported in round 4 and stories that are large but cohesive (1.2, 1.9, 2.7, 3.1, 3.3, 3.7, 4.2, 6.3, 8.9) with cut lines recorded in the Planning Assumptions.
+
+### Decisions taken on your behalf (all revisable; listed in the architecture memlog as A12 to A15)
+
+- The general invitation code is retired by a successful registration, and you mint the next one on demand (hashes cannot be shown again). This changes FR-1's wording and is recorded in `scope-and-readiness.md`.
+- Offline access to local drafts needs only the identity cached by the last sign-in, with no passcode; a shared device must sign out.
+- Personalization is not offered on image-derived models (they have no declared surfaces).
+- The gateway and the backup service each hold a project-wide Supabase Storage key on Railway; CAD and engine workers hold none.
+- QStash runs pay-as-you-go from Story 1.9 (about 1,700 messages a day, roughly a dollar a month).
+- Sessions last 30 days with a 7-day inactivity timeout; the transfer-handle URL is a bearer capability valid for 30 minutes.
+- You are the named reviewer for the first free-mode omission pass and the Story 7.1 qualification report, and you approve the alias list, the amah/tefach unit table (with Mishnah Kelim 17 as the unit source, to be confirmed) and the first personalization surface with the G-1 corpus.
+
+### What you must do first (Story 1.10)
+
+Before Story 1.3: one Google OAuth client per environment, consent screen set to In production. Before Story 1.4: the staging Vercel project linked to a `staging` branch with the seed app deployed, the Supabase organization on Pro, and a Supabase access token with the staging database password stored as protected GitHub secrets. The later items (Resend, Upstash, Railway, Anthropic and Brave limits, VAPID, Backblaze and the age key) are tagged with the story that needs them.

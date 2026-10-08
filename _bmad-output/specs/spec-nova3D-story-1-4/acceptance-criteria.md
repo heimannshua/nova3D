@@ -23,6 +23,7 @@ So that my projects and files stay private.
 - Authorization fails closed: when Postgres or the live-authorization lookup is unreachable, private requests are denied with a retryable state and no cached grant is honored. Create the Account-owned Preferences record and migrate the device-local choices of Story 1.2 on first sign-in.
 - Create the Identity-owned session-grant record: every sign-in, including step-up and recovery sessions, issues one grant tied to its Auth session_id; each private request verifies it; and revocation by session, by Account and by epoch is a single primitive that Stories 1.5 and 1.6 reuse.
 - Sessions last at most 30 days and expire after 7 days of inactivity (declared in `supabase/config.toml`), and Settings offers "sign out my other sessions", which revokes their grants.
+- Push `supabase/config.toml` and the migrations to staging by hand with the Supabase CLI, following `docs/staging.md`, until the CI of Story 1.9 does it.
 
 ## Acceptance Criteria
 

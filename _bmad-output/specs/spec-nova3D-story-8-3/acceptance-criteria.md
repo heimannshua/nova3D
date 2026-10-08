@@ -19,6 +19,7 @@ So that retained data does not outlive the adopted limits.
 
 - Purge database, files, models, exports, staging, notifications, private usage/adoption associations and operational traces under the deletion manifest.
 - Apply the Story 8.9 backup lifecycle to deletions: deleted targets leave dumps within 14 days and deleted-at-source objects within 7 days. Run a monthly canary on a synthetic Account with an internal system-actor deletion (the interactive step-up applies to humans only), proving the deletion reaches the database, Storage and backups within 15 days from manifests and bucket listings, since dumps are encrypted. Account purge also deletes the Auth identity and its Auth audit-log entries and sessions. Register the missed-purge-deadline condition with the Story 1.13 alarm channel.
+- Project deletion de-links its settlements, unresolved reservations and overrun incidents from Project, Job and request identity and keeps amounts, category and period, so deletion never restores spending headroom; Account deletion removes them.
 
 ## Acceptance Criteria
 
@@ -45,6 +46,12 @@ So that retained data does not outlive the adopted limits.
 **Given** a synthetic Account and Project in the monthly canary
 **When** an internal system-actor deletion runs
 **Then** the Project is absent from the database and Storage, its mirrored objects are gone within 7 days, every dump created before the purge has expired within 14 days (judged from manifests and bucket listings, with an injected clock in tests), and a miss raises an alarm
+
+### AC-5
+
+**Given** a Project with settled usage in the current period
+**When** it is deleted
+**Then** the period's settled and reserved totals are unchanged and no Project, Job or request identity remains on those rows
 
 ## Engineering Gates
 

@@ -51,6 +51,11 @@
         "given": "provider usage above an operation's reservation",
         "when": "the incident is recorded",
         "then": "it settles at the evidence, counts against every limit, blocks that provider's admissions, and only the freshly authenticated Administrator can review and clear it on the usage page; a clear attempt without a fresh administration marker is refused"
+      },
+      {
+        "given": "an ambiguous charge past its 24-hour deadline",
+        "when": "the Story 2.7 minute sweep runs",
+        "then": "it settles at the reservation exactly once, a repeated sweep changes nothing, and the settlement keeps its ambiguous classification"
       }
     ],
     "gates": [

@@ -18,7 +18,8 @@ So that only the people I choose can register.
 ## Scope
 
 - Add the Administrator invitation page (AD-01): create named single-use codes (a name is a label, not bound to an email), revoke any unused code, and mint the next general code on demand, which is the only way a general code appears after a registration retires its predecessor. A code's value is shown once, at creation, with a copy action; afterwards only its identifier, label and status are listed.
-- Issuance and revocation require the fresh-authentication marker of Story 1.4 (action class administration), call the same issuance function the audited seed uses and append an immutable audit event holding the actor, action and code identifier but never the code value. This story creates the Identity-owned append-only audit-event family (actor, action, opaque target, time, no content) that Stories 1.5, 1.6 and 2.4 also use.
+- Issuance and revocation require the fresh-authentication marker of Story 1.4 (action class administration), call the same issuance function the audited seed uses and append an immutable audit event holding the actor, action and code identifier but never the code value. Stories 1.5, 1.6 and 2.4 write to the same audit family.
+- The audit events it writes use the family created in Story 1.3.
 
 ## Acceptance Criteria
 
