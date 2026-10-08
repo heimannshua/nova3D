@@ -10,6 +10,8 @@ The FAIL comes from missing recorded decisions, missing fallbacks, and stories i
 
 **Resolution status (2026-10-07):** findings 1, 3 and 8 are addressed by `sprint-change-proposal-2026-10-07.md`, approved and applied to `epics.md`, the Spine, R-8, the UX inventory, `scope-and-readiness.md` and the five affected story specs. **Update (2026-10-08):** finding 2 and the architecture-owned items of finding 6 are resolved in the Spine and R-2/R-5/R-6/R-9 (architecture update run; reviews in `architecture/architecture-nova3D-2026-09-14/reviews/`). The change was propagated to `epics.md` and 20 story specs on 2026-10-08 (scripted parity check: 58/58 stories, 457/457 source lines, manifest 307/307; the full multi-agent validation was not re-run). Placements of newly required work are provisional and listed in the `epics.md` Planning Assumptions. **Update (2026-10-08, epics update):** findings 4, 5, 7 and 9 and the epics-owned items of finding 6 are resolved in `epics.md` and the derived artifacts: 9 stories were added (1.8, 1.9, 2.11, 2.12, 2.13, 4.7, 6.10, 7.8, 8.8), the build order changed and 49 existing stories were edited; 67 stories now carry 120 scope clauses and 211 acceptance criteria. The nine new stories have only a scripted parity check, not the independent review the original 58 received. Finding 10 housekeeping was also addressed (PRD and addendum scope notices, design-handoff supersession note, deferred-work story citations and Supabase restore status, AR-8 Python wording); the Supabase restore status remains unverified. Open: Josh's remaining decisions (phone and Safari device coverage, Vercel plan, Anthropic org key, Brave terms) and the missing independent review of the nine new stories. Answered 2026-10-08: Administrator is heimannshua@gmail.com, no sending domain (recovery mails through the Resend test sender), cloud sign-ups are on, and only the Windows laptop is available for G-5. Still open: how to cover phone/Safari qualification, Vercel plan, Anthropic org key, Brave terms. The gate verdict stays FAIL until they are resolved and sprint planning is re-run.
 
+**Re-run 2026-10-08 (after the fixes above): still FAIL.** Four independent audits found four critical and about ten high problems; several were introduced by the 2026-10-08 restructure. They are listed in the last section, "Re-run 2026-10-08". The findings above are kept as history.
+
 ## How this was produced
 
 Three parallel read-only audits (dependencies/independence, requirements traceability, unrecorded decisions/plan-vs-reality), plus my own reading of `specs/spec-nova3D/SPEC.md` and `scope-and-readiness.md`.
@@ -169,3 +171,73 @@ All 58 stories have exactly three ACs, but they are dense. 14 have five or more 
 | 10 Housekeeping | manual edits | No |
 
 **Suggested order:** run `bmad-correct-course` first with this file, since findings 1, 3 and 8 are cross-cutting. Then run `bmad-architecture` for 2 and 6, then `bmad-create-epics-and-stories` for 4, 5, 7 and 9. Then re-run `bmad-sprint-planning`.
+
+## Re-run 2026-10-08
+
+**Verdict: FAIL.** Four fresh-eyes audits (new stories, dependency order, traceability, unrecorded decisions and conflicts) were told not to read this file or the resolution notes. Mechanical checks are clean: 67 stories, 120 scope bullets, 211 acceptance criteria, 506 requirement occurrences, coverage maps matching the Requirements lines, dependencies identical across `epics.md`, the index and the story inputs, no cycles in the declared graph, every dependency preceding its story. The problems are in what the stories need to exist, not in the bookkeeping. `sprint-status.yaml` was not generated.
+
+Tags: [verified] means the auditor re-read the cited text; [inferred] means judgment. Line numbers are in `epics.md`. **(new)** marks a problem introduced by the 2026-10-08 restructure.
+
+### Critical
+
+**R1. Four stories cannot pass their own acceptance criteria with their listed dependencies [verified].**
+- **6.1 and 6.10 are circular in substance (new).** 6.1 takes the default print scale from the bounding box of "the oriented manufacturing mesh" (L3024). 6.10 builds that mesh at 6.1's scale (L3062) and depends on 6.1. No story creates the validation lineage record that stores the scale (Spine AD-8); 6.5 only "owns" it (L3215). Both stories also own the never-rescale rule.
+- **1.3 uses a step-up that 1.4 creates.** 1.3 needs fresh-authenticated invitation issuance and audit (L1481, L1504). Step-up and markers are defined in 1.4 (L1522), which depends on 1.3.
+- **6.8 AC-2 "package download works" (L3345)** needs the gateway of 6.9, which depends on 6.8.
+- **8.3's backup lifecycle, post-restore scrub, monthly canary and AC-2 (L3800, L3812)** need the backup service and restore built in 8.4, which depends on 8.3.
+- Fix: `bmad-create-epics-and-stories` (re-cut these seams; for 6.1/6.10 take the scale from the canonical solid's bounding box or move the lineage record into its own earlier story).
+
+**R2. The file gateway is built after the stories that need it [verified].** AD-13 and AR-19 route large transfers through the Railway gateway because of Vercel's 4.5 MB body limit. It first appears in 6.9 (L3369), but 2.2 accepts 12 MiB images and 60 MiB requests (L1813), and 2.12, 4.6 and 4.7 serve or retain large files. Fix: `bmad-create-epics-and-stories` (move the gateway to an early story).
+
+**R3. Story 7.8 has no execution venue [verified].** The reconversion commits a "successor Job/outbox" (L3649-51), but the direct engine runs only in the browser with no cloud fallback (7.1 AC-3, 7.3 AC-3). An online worker path is the undecided G-8 checkpoint option (L4025). The engine port has no input for print constraints, and nothing retains pictures for models created offline. The old 7.6 AC-2 had the same gap. Fix: a decision from Josh, then `bmad-create-epics-and-stories`.
+
+**R4. Binding money and authorization rules have no acceptance criterion [verified].**
+- Permission for one category or Project must not authorize another, and is re-matched at every operation (PRD:126, AD-11). It is mapped to 2.5, whose ACs do not test it.
+- Authorization fails closed on infrastructure outage (Spine AD-19, AR-26).
+- Service-key rotation and compromise revocation (Spine L177, AR-15): 2.7 AC-3 tests only expiry and skew.
+- Fix: `bmad-create-epics-and-stories`.
+
+### High
+
+**R5. Story 2.13 is contradictory (new) [verified].** Vision permission is offered only after scope confirmation (2.5 AC-1, 2.9, UX-DR8), but 2.13 needs it before the confirmed subject is recorded. The request revision is immutable, so recording the subject means a successor revision. The identification call has no parent research Job for the $5 cap. "Registered domain package" has no owner before Epics 3 and 4. 2.13 does not depend on 2.9, and 3.1 does not depend on 2.13, so "no research starts" is unenforced. Its UX-DR34 is the wrong requirement (UX-DR36 fits), and FR-4, AR-7, AR-14, AR-16 and NFR-9 are missing.
+
+**R6. Story 1.9 (new) [verified].** AC-3 tests an in-flight registration for a different identity, not the purge-versus-registration race on the same identity. It silently amends 1.3 (row lock, persisted attempt time). It says "create the staging project" while 1.1 says the existing project becomes staging, and 1.6 needs staging before 1.9 exists. The existing project looks Free and paused against R-9's Pro, with no upgrade story. AC-4 has no interval or alarm channel. Nothing deploys a staging app or Google OAuth client for QStash to call. AR-18 is missing from its requirements.
+
+**R7. External accounts and provisioning have no owner [verified].** Three Google OAuth clients and their consent-screen status, the Anthropic and Brave accounts and spend backstops, where the Brave terms review is recorded, the Resend key, the Vercel plan, the VAPID keys and the Before User Created hook appear in no story.
+
+**R8. Records and formats nothing defines [verified].** The environment identifier (format, table, value; `check-env.mjs` checks labels only); the store for the registration rate limiter (1.3 needs it before Upstash exists); the validation lineage record; the domain-package registry; the money constants (per-image maximum, margin, bytes-to-token rule) and the reviewer of an overrun incident; the intake clarification mechanism of 2.1 and the subject mapping of 2.13, both needed before any paid permission is possible.
+
+**R9. Backup and restore gaps [verified].** Restoring a state that reverts disables, invitation consumption and recovery revocations is in 8.4 scope only; its ACs test deletion replay only (L3843-3859). Encryption-key custody, alarm routing and owner, and the B2 region are unrecorded. The canary, abort rule and alarm have no ACs. Backups are "daily" in RD:95 and AR-21 but every 12 hours elsewhere.
+
+**R10. Stories needing things from later epics [verified].** 3.6 AC-3 needs private associations deleted (deletion commands are 8.1 to 8.3). 4.3, 4.4 and 5.2 need the print frame and profile from 6.1. 4.1 AC-3, 4.6 AC-4, 5.4 AC-3 and 5.5 AC-3 describe consumers that come later without saying fixture. 4.7 has no trigger (4.2, 4.4, 5.2 and 6.4 never mention it) and 7.3 has no on-device GLB path. 2.11, 2.7 and 2.10 omit 1.7 and 1.8 from their declared closures.
+
+**R11. Rules mapped to a story but verified by no criterion [verified unless noted].** The free-mode completeness gate (seeded-omission fixture plus an independent pass); a Research Plan reject path (FR-13, UX-DR48); notification producers in Epics 3 to 6 (FR-7); FR-3 "disable cancels active Jobs" and audit events for limit changes; the 8.2 step-up rules (marker consumed by use, step-up after the confirmation is shown) and the action class for Project/Export deletion; direct-mode provenance, PDF and repair (7.6 has two ACs); failed print constraints as input in 6.5; offline local intake (Spine AD-16: local images, camera, coverage checks, stable UUIDs, service-worker scope) which no story scopes [inferred]; AR-3 same-ID-different-payload rejection.
+
+**R12. Device and phone parity wording.** 8.5 AC-1's When clause (L3884) still lists macOS, iOS and Android though 8.5 is Windows-only (new). 8.8 has no completion rule if devices are never procured, which blocks 8.6 and 8.7. The Then clauses of 8.5 and 8.8 AC-1 say only "recorded", with no pass criterion. 11 stories (2.1, 2.3, 2.9, 2.10, 2.13, 3.3, 3.7, 4.5, 5.1, 5.3, 5.4) have no phone clause. 8.7 AC-3 cannot pass while G-8 is BLOCKED.
+
+### Medium
+
+- Fresh authentication, tombstones, deletion and the scheduler reach back into earlier stories: the 1.3 allowlist gate is removed only in 1.4; 1.2 AC-2 persists Account preferences before Accounts exist; the 1.9 scheduler is not in the closure of 2.2, 2.6 or 2.12 though lease expiry and the 24-hour deadline need it.
+- 2.11 has an unused dependency on 2.4 and undefined "potentially chargeable" and "reconciled"; 2.12 and 4.1 both define the manifest fields; 2.12 omits AR-2 and AR-5.
+- 7.3 and 7.6 under-specify image-derived models (no canonical solid, no capture record for the real-world dimension); 7.7 push needs a service worker no story owns.
+- 7.2's public bucket conflicts with "private buckets" in the Spine; FR-8 "wider internet" conflicts with free mode having no open web (override missing from scope-and-readiness.md).
+- A user-chosen scale as a "new validation identity" may rearm the single regeneration slot (R-11).
+- Unrecorded numbers: lease TTL, outbox relay, fetch limits, task intervals, EXIF handling, retained-picture quota. Free-tier fit is unproven (Vercel body limit, Hobby terms, QStash quota, Railway's $5 across worker, gateway and backup) [inferred].
+- Repo versus Story 1.1: `scripts/restore-supabase.mjs` is required by `check-repository.mjs`; the LAN redirect in `docs/auth-setup.md`; an exact Node pin conflicts with Vercel-managed patches; 1.4's removal list omits `.env*.example`, `test-env.mjs` and `lib/auth.ts`.
+- Numeric defaults in ACs (2.2 limits, 2.3 thresholds, 2.4 80%, 1.3 limits) trace only to an [ASSUMPTION] in the architecture memlog, not to the Spine or Ratified Decisions.
+
+### What is sound
+
+Invitation races (1.3), live authorization and step-up binding (1.4), recovery (1.6), atomic reservation and calculator (2.6), ambiguous charges (2.8), fencing (2.7 AC-3), source-policy epochs (3.2), cache admission (3.6), equivalence comparator and corpus (4.3), repair classes (6.4), the shared lineage slot (6.5/7.8), chunk-level revocation (6.9), learned offline revocation (7.5), the tombstone contract (1.8, 8.1). Fixtures are labelled where earlier stories look ahead (1.5, 2.4, 2.9, 2.10, 3.2, 4.4, 5.3, 5.4). The 7.1 BLOCKED-report rule is explicit. The splits 2.11/2.7, 7.8/7.6 and 8.8/8.5 moved acceptance criteria cleanly, apart from stale wording. Epic 2 still delivers no standalone value, only intake, settings and a test workload, and deletion arrives only in Epic 8; both are design choices, not defects.
+
+### Fix routing
+
+| Finding | Skill | Needs Josh? |
+| --- | --- | --- |
+| R1 seams, R2 gateway placement, R4, R10, R11, R12 | `bmad-create-epics-and-stories` (update) | No, except the device rule in R12 |
+| R3 reconversion venue | decision, then `bmad-create-epics-and-stories` | Yes: where reconversion runs |
+| R5, R6 | `bmad-create-epics-and-stories` | No |
+| R7 provisioning ownership | `bmad-create-epics-and-stories`, tasks that only Josh can do | Yes: the accounts are his |
+| R8 formats and records, R9 key custody and alarm routing | `bmad-architecture` (small update), then epics | Some: alarm owner, key custody |
+
+**Process lesson:** the nine stories added on 2026-10-08 went in with only a scripted parity check, and the independent review found five problems in them (R1 first item, R5, R6, R12 first item, parts of R10). New stories need independent review before they are propagated.
