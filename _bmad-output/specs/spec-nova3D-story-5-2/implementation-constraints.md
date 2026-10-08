@@ -29,7 +29,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 332 in the captured inp
 
 ### AR-8
 
-**AR-8: Canonical native geometry.** Evidence-backed authority is a versioned declarative recipe with typed finite parameters, source-unit conversions, acyclic operation/dependency graph, stable feature IDs and trusted generator identity. Retain generator/dependency-lock/image digests, execution settings, recipe and BREP/STEP snapshots. CadQuery 2.8.0 uses the qualified Python 3.12.14/OCP closure; STEP alone is not the recipe. Unsupported geometry requires extending the trusted generator through code review. Direct inference retains exact immutable mesh/input/model/settings snapshots with no identical-reinference claim.
+**AR-8: Canonical native geometry.** Evidence-backed authority is a versioned declarative recipe with typed finite parameters, source-unit conversions, acyclic operation/dependency graph, stable feature IDs and trusted generator identity. Retain generator/dependency-lock/image digests, execution settings, recipe and BREP/STEP snapshots. CadQuery 2.8.0 uses the Python 3.12 patch and OCP closure locked at G-1 (the qualification probe used 3.12.14); STEP alone is not the recipe. Unsupported geometry requires extending the trusted generator through code review. Direct inference retains exact immutable mesh/input/model/settings snapshots with no identical-reinference claim.
 
 Source: AD-6; R-1; G-1.
 

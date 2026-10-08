@@ -7,6 +7,8 @@ updated: 2026-09-14
 
 # PRD: nova3D
 
+> **Notice (2026-10-08):** the approved August 30 scope changes (UX-SCOPE-CHANGES.md, SC-1 to SC-7) bring direct and research-assisted picture workflows, offline direct conversion and complete phone support into the first version. Where this document defers pictures, `specs/spec-nova3D/scope-and-readiness.md` and `planning-artifacts/epics.md` govern. Other requirements remain as written.
+
 ## 0. Document Purpose
 
 This PRD defines the first implementable nova3D milestone for Josh, its Administrator, first user, and developer, plus controlled invited Accounts. It translates the approved product brief into grouped features, stable functional requirements, cross-cutting quality requirements, explicit non-goals, testable success metrics, and a gated decision register. Technical context and supporting architecture constraints belong in `addendum.md`.

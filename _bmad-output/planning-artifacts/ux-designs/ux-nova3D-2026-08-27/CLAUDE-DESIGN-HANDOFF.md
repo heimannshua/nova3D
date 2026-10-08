@@ -154,7 +154,7 @@ For each direction, show:
 
 Use the example Project name **Outer Altar and Ramp — Middot 3**. Do not fabricate Sources or geometry claims.
 
-Stop after Round 1. Ask Josh to select one direction, combine named aspects, or request another exploration. Do not produce the complete design system or mockup set before approval.
+Stop after Round 1. Ask Josh to select one direction, combine named aspects, or request another exploration. Do not produce the complete design system or mockup set before approval. *(Superseded 2026-09-14 by R-10 in RATIFIED-DECISIONS.md: do not pause for direction selection; the ratified baseline applies.)*
 
 ## Round 2 — after direction approval
 

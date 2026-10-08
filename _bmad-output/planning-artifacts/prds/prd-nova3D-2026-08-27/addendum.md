@@ -1,5 +1,8 @@
 # PRD Addendum: Technical Context and Deferred Decisions
 
+> **Notice (2026-10-08):** the approved August 30 scope changes (UX-SCOPE-CHANGES.md, SC-1 to SC-7) bring direct and research-assisted picture workflows, offline direct conversion and complete phone support into the first version. Where this document defers pictures, `specs/spec-nova3D/scope-and-readiness.md` and `planning-artifacts/epics.md` govern. Other requirements remain as written.
+
+
 ## Intended Platform Choices
 
 The approved product direction intends to use React and Tailwind for the browser experience, Vercel for deployment, Supabase for persistent Project, evidence, approval, and Version data, Upstash where queued background work is justified, and GitHub for source control. These are constraints for architecture to evaluate, not product behavior. Each service should be used only where it fits the required capability.
