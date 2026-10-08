@@ -16,7 +16,7 @@ So that structural defects cannot reach qualified export.
 
 ## Scope
 
-- Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on manufacturing authority.
+- Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on manufacturing authority, using the tessellation settings of Story 4.3 in the print frame.
 
 ## Acceptance Criteria
 

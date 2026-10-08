@@ -26,7 +26,8 @@
       "2-9"
     ],
     "scope": [
-      "Discover public sources through constrained acquisition; pin exact Middot editions and permitted evidence retention."
+      "In free mode, discover sources only from the domain package's pinned registry (initially Middot chapter 3 Hebrew Torat Emet 357 and English Mishnah Yomit via Sefaria; Sefaria-linked commentaries only if verified free and license-permitted) and keyless allowlisted public endpoints; there is no open-web search.",
+      "Open-web discovery exists only under the paid search category, and only passages nova3D itself fetches from a cited page are pinned. Pin exact Middot editions and permitted evidence retention."
     ],
     "acceptance_criteria": [
       {

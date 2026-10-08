@@ -16,7 +16,8 @@ So that backups restore geometry and enforce every intervening deletion.
 
 ## Scope
 
-- Back up database daily and objects independently; keep the restricted deletion ledger outside rollback and drill actual provisioned restore paths.
+- Run the dedicated backup service every 12 hours: stream an encrypted logical dump to the backup store without persisting it on Railway, then run an incremental deletion-mirroring Storage sync that records the dump's cutoff; abort without hiding anything on a failed listing or a sharp object-count drop; scope credentials to one bucket per environment.
+- Keep the restricted deletion ledger in a separate append-only store outside every restore set; it also carries Account disables, invitation consumption and rotation, recovery revocations and the highest authorization epoch. No backup runs during a restore; after any restore all session grants and Auth sessions are revoked and the ledger replays before access opens. Drill restores into a dedicated restore project and alarm when the newest completed snapshot is older than 18 hours.
 
 ## Acceptance Criteria
 
@@ -36,7 +37,7 @@ So that backups restore geometry and enforce every intervening deletion.
 
 **Given** the provisioned recovery setup
 **When** a measured drill completes
-**Then** RPO and RTO are each ≤24 hours and active-purge/backup-expiry settings and provider plans are evidenced
+**Then** RPO (the age of the newest completed snapshot) and RTO are each ≤24 hours and active-purge/backup-expiry settings and provider plans are evidenced
 
 ## Engineering Gates
 

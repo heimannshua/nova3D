@@ -17,7 +17,8 @@ So that I can regain control without bypassing workspace privacy.
 
 ## Scope
 
-- Use a short-lived single-use verified-email recovery link and fresh authentication for sensitive actions. The link is the only non-Google sign-in path and exists only for the sole Administrator.
+- Recovery serves a lost or failed Google sign-in for the sole Administrator. A no-input server route mints a single-use token (only its hash stored in Postgres, one outstanding, issuance rate-limited globally), and the application emails its own link to the configured Administrator address through Resend using the `resend.dev` sender, because no domain is owned and the Resend account must be registered with that address. The link is the only non-Google sign-in path and exists only for the sole Administrator.
+- The application enforces the 15-minute lifetime on its own clock. Redemption needs a POST confirmation, then mints the session through the Auth Admin API, revokes all prior Administrator sessions and writes a fresh-authentication marker for that session only. Staging must confirm the Admin link API and `verifyOtp` work with the Email provider disabled; if not, keep the provider on and restrict creation to the Administrator address in the Before User Created hook.
 
 ## Acceptance Criteria
 
@@ -30,14 +31,14 @@ So that I can regain control without bypassing workspace privacy.
 ### AC-2
 
 **Given** an expired, used or replayed link
-**When** redemption is attempted
+**When** redemption is attempted, including a mail scanner's GET request
 **Then** access is denied without partial recovery
 
 ### AC-3
 
 **Given** a valid recovery link
 **When** redemption succeeds
-**Then** all prior Administrator sessions are revoked and an immutable recovery audit event is recorded
+**Then** all prior Administrator sessions are revoked, the new session holds a fresh-authentication marker and an immutable recovery audit event is recorded
 
 ## Engineering Gates
 

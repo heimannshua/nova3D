@@ -646,11 +646,11 @@ Source: AD-10; service authentication and delivery conventions.
 
 Source: AD-11; R-6; G-6.
 
-**AR-17: Provider boundary and uncertain charges.** Adopt Anthropic Messages claude-sonnet-5 for evidence synthesis/vision and Brave Web Search v1 for discovery behind adapters, with version/rate/account-term verification before enablement. Search receives normalized public subjects only; vision receives only permissioned purpose-required data. No paid external 3D provider, Files/Batch/Managed Agents storage, private raw prompts in search, or billable free-credit fallback in free-only mode. Own hosting/storage/worker/local inference is instance overhead. Persist external identity before dispatch; uncertain charge retains full reservation until evidence, conservative maximum settlement or proven noncharge; corrections append ledger entries without replacement calls.
+**AR-17: Provider boundary and uncertain charges.** Adopt Anthropic Messages claude-sonnet-5-5 for evidence synthesis/vision and Brave Web Search v1 for discovery behind adapters, with version/rate/account-term verification before enablement; the Brave adapter stays disabled until its terms are reviewed, and a Brave result is transient discovery input only. Search receives normalized public subjects only; vision receives only permissioned purpose-required data. No paid external 3D provider, Files/Batch/Managed Agents storage, private raw prompts in search, or billable free-credit fallback in free-only mode. Own hosting/storage/worker/local inference is instance overhead. The reservation is a calculator-computed bound over a provider-independent input bound and the output limit actually sent; the per-call ceilings (200,000 input tokens, 16,000 output tokens, 20 search requests per step) are admission limits, and cache, batch, server-tool, fallback and speed options are unsupported. Persist external identity before dispatch; an ambiguous outcome (transport loss, timeout, 5xx, aborted stream) retains its full reservation until usage evidence or a 24-hour reconciliation deadline and then settles at the reservation, a definitive pre-processing rejection with a request ID is documented noncharge, and evidence above a reservation settles at the evidence and blocks further admissions for that provider until reviewed; corrections append ledger entries without replacement calls.
 
 Source: R-6; AD-11; G-6.
 
-**AR-18: Identity and administrative enforcement.** Google is the only credential and an Auth identity without an activated Account has no access (no public Account creation); hash/atomically claim invitations for the signed-in verified Google identity and idempotently provision the Account plus Workspace with unusable partial activation. Rate-limit guessing; rotate shared codes only after success. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication and immutable audit; verified-email single-use short-lived recovery revokes prior sessions.
+**AR-18: Identity and administrative enforcement.** Google is the only credential and an Auth identity without an activated Account has no access (no public Account creation); hash/atomically claim invitations for the signed-in verified Google identity and idempotently provision the Account plus Workspace with unusable partial activation. Rate-limit guessing by network origin plus a global budget, never by Auth identity alone; use codes of at least 128 bits; rotate shared codes only after success. Only the Google provider is enabled (email, phone, anonymous and magic-link sign-in off, asserted in CI) while Supabase sign-ups stay on; registration, invitation and recovery run only in server routes with no database object executable by `anon` or `authenticated`. Delete an Auth identity with no Account 30 days after its last sign-in or registration attempt, under a lock shared with registration. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication (a server-controlled step-up with a 5-minute Postgres marker, consumed by use for Account deletion and close-instance) and immutable audit; recovery is a single-use 15-minute link emailed by the application to the configured Administrator address, and its redemption revokes prior sessions.
 
 Source: AD-12; FR-1–FR-4.
 
@@ -682,7 +682,7 @@ Source: AD-7, AD-17; R-5; G-5.
 
 Source: AD-18; SC-5.
 
-**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify immutable environment IDs at CI/startup/dispatch; prevent preview/production mixing. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and nearest available Upstash with actual paid plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity and purge deadlines with redacted IDs; outages fail authorization closed.
+**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify immutable environment IDs at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects, with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge and the Auth identity count with redacted IDs; outages fail authorization closed.
 
 Source: AD-19; R-9; G-9.
 
@@ -1405,6 +1405,7 @@ So that implementation starts from the qualified runtime.
 - Adopt the existing root Next.js App Router application (Next 16.3.5, React 19.3.0, TypeScript 5.9.3, Tailwind 4.3.3, Supabase SSR, interim Google sign-in) as the qualified seed and bring it to the pinned contract.
 - Verify the environment at startup and in the deployment build, and exercise the check in CI. Label the mock dashboard a synthetic shell that later stories replace.
 - Define module ownership and environment boundaries; later stories introduce their own entities.
+- Run local development on the Supabase CLI stack, not the hosted project: add the `[auth]` block (Google only, sign-ups on, redirect URLs, OTP expiry) and `[auth.external.google]` to `supabase/config.toml`, re-point `.env.local`, and make `APP_ENV=local` valid only against a loopback Supabase URL. The existing hosted project becomes staging, Vercel Production deploys stay disabled until a production project exists, and the environment check requires an Administrator email setting.
 
 **Acceptance Criteria:**
 
@@ -1479,7 +1480,8 @@ So that my account starts in its own private workspace.
 
 - Implement fresh-authenticated Administrator invitation issuance/revocation and narrow idempotent registration: a user signs in with Google, then redeems an invitation code to activate an Account. No code, no Account.
 - Named and current general codes are hashed, single-use and nonexpiring until used or revoked; partial Auth provisioning is unusable.
-- Provision the Administrator and the other currently allowlisted identity once through a documented, audited seed rather than code redemption.
+- Provision the Administrator (heimannshua@gmail.com, Google subject pinned at first sign-in) and the other currently allowlisted identity once through a documented, audited seed that calls the same provisioning function as registration, rather than code redemption.
+- Registration runs only in a server route using the service role: no registration or invitation database object is executable by `anon` or `authenticated`, attempts are limited by network origin plus a global budget, and codes carry at least 128 bits of entropy.
 
 **Acceptance Criteria:**
 
@@ -1499,7 +1501,7 @@ So that my account starts in its own private workspace.
 
 **Given** invalid, used, revoked or guessed codes
 **When** registration is attempted repeatedly
-**Then** generic failures and rate limits prevent guessing, code values are not logged, and fresh-authenticated administration records an audit event
+**Then** generic failures and rate limits (keyed on network origin plus a global budget, including direct calls to the database API) prevent guessing, code values are not logged, and fresh-authenticated administration records an audit event
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-3/SPEC.md).
 
@@ -1517,8 +1519,9 @@ So that my projects and files stay private.
 
 - Enforce JWT plus live Account and session grant on every currently implemented private API and direct database/storage path.
 - Carry ownership-scoped IDs, foreign keys and denial behavior into every subsequent module.
-- Sign in uses Google OAuth through Supabase. Fresh authentication for sensitive actions means Google re-authentication within the fresh-authentication window.
+- Sign in uses Google OAuth through Supabase; only the Google provider is enabled while sign-ups stay on, and the live-Account check is the gate. Fresh authentication for sensitive actions is a server-controlled step-up: a Postgres nonce bound to the initiating browser and the OAuth state, `prompt=select_account` without `login_hint`, and acceptance only of a new session whose `amr` shows an `oauth` entry after the nonce start for the same verified email and Google subject. It writes a 5-minute marker (Postgres, never a JWT claim or Redis) for that new session only, revokes the initiating session's grant and records an action class; Account deletion and close-instance markers are consumed by use. It proves a deliberate new sign-in, not a Google credential re-check.
 - Replace the interim `AUTH_ALLOWED_EMAILS` gate with the live-Account check in the same change, and remove the variable from the proxy, callback, health route, environment checks and docs.
+- Delete Auth identities that have no Account, claim or registration attempt 30 days after their last sign-in or registration attempt, in one transaction that shares registration's row lock; Account foreign keys to the Auth identity restrict deletion.
 
 **Acceptance Criteria:**
 
@@ -1539,6 +1542,18 @@ So that my projects and files stay private.
 **Given** a failed Google sign-in, a Google identity with no activated Account, or an Administrator session
 **When** sign-in or private browsing is attempted
 **Then** generic failure states are usable and the Administrator cannot impersonate, browse another Workspace or grant administrators
+
+**AC-4**
+
+**Given** a sensitive action and a step-up started from a stolen session
+**When** the step-up is completed in another browser, or a different Google account signs in during it
+**Then** the initiating session does not become fresh, the marker belongs only to the newly minted session, a mismatch revokes only that new session without a global sign-out, and an expired or replaced nonce is rejected
+
+**AC-5**
+
+**Given** an Auth identity with no Account older than 30 days and a registration in flight for another identity
+**When** the dormant-identity purge runs
+**Then** only the dormant identity is deleted and no in-flight or activated Account, Workspace or claim is removed or orphaned
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-4/SPEC.md).
 
@@ -1591,7 +1606,8 @@ So that I can regain control without bypassing workspace privacy.
 
 **Scope:**
 
-- Use a short-lived single-use verified-email recovery link and fresh authentication for sensitive actions. The link is the only non-Google sign-in path and exists only for the sole Administrator.
+- Recovery serves a lost or failed Google sign-in for the sole Administrator. A no-input server route mints a single-use token (only its hash stored in Postgres, one outstanding, issuance rate-limited globally), and the application emails its own link to the configured Administrator address through Resend using the `resend.dev` sender, because no domain is owned and the Resend account must be registered with that address. The link is the only non-Google sign-in path and exists only for the sole Administrator.
+- The application enforces the 15-minute lifetime on its own clock. Redemption needs a POST confirmation, then mints the session through the Auth Admin API, revokes all prior Administrator sessions and writes a fresh-authentication marker for that session only. Staging must confirm the Admin link API and `verifyOtp` work with the Email provider disabled; if not, keep the provider on and restrict creation to the Administrator address in the Before User Created hook.
 
 **Acceptance Criteria:**
 
@@ -1604,14 +1620,14 @@ So that I can regain control without bypassing workspace privacy.
 **AC-2**
 
 **Given** an expired, used or replayed link
-**When** redemption is attempted
+**When** redemption is attempted, including a mail scanner's GET request
 **Then** access is denied without partial recovery
 
 **AC-3**
 
 **Given** a valid recovery link
 **When** redemption succeeds
-**Then** all prior Administrator sessions are revoked and an immutable recovery audit event is recorded
+**Then** all prior Administrator sessions are revoked, the new session holds a fresh-authentication marker and an immutable recovery audit event is recorded
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-6/SPEC.md).
 
@@ -1813,7 +1829,7 @@ So that paid work uses only the data and maximum I permitted.
 
 **Scope:**
 
-- Implement provider-neutral Anthropic/Brave adapters and permission snapshots; provider terms/rates must be verified before enablement.
+- Implement provider-neutral Anthropic (claude-sonnet-5-5) and Brave adapters and permission snapshots; provider terms/rates must be verified before enablement, and the Brave adapter ships disabled until a terms review is recorded.
 - Use no paid external 3D provider or billable free-credit fallback; instance hosting/local inference remains overhead.
 
 **Acceptance Criteria:**
@@ -1854,6 +1870,7 @@ So that concurrent requests cannot overspend.
 
 - Use one Usage-owned checked integer/rational calculator and immutable request/options/rate snapshots.
 - Reserve against Account period, $5 parent research-Job lifetime across all attempts, and $1 external-operation ceilings in one transaction.
+- The reservation is input rate × a provider-independent input bound (serialized request length plus a documented per-image maximum, with a stated margin) plus output rate × the output limit actually sent; the 200,000-input-token, 16,000-output-token and 20-search-request ceilings are admission limits. An external operation is one provider request. Treat transport loss, timeout, 5xx and aborted streams as ambiguous (hold the reservation until usage evidence or a 24-hour deadline, then settle at the reservation) and definitive pre-processing rejections with a request ID as noncharge; evidence above a reservation settles at the evidence, counts against every limit and blocks the provider until reviewed.
 
 **Acceptance Criteria:**
 
@@ -1867,7 +1884,7 @@ So that concurrent requests cannot overspend.
 
 **Given** pinned billing increments and rational rates
 **When** the calculator evaluates bounded requests
-**Then** it rounds upward once per operation to microdollars and rejects overflow, unknown/foreign rates and unsupported parameters
+**Then** it rounds upward once per operation to microdollars and rejects overflow, unknown/foreign rates and unsupported parameters (cache, batch, server tools, fallbacks, speed)
 
 **AC-3**
 
@@ -1967,6 +1984,7 @@ So that scope, cost and freshness stay explicit.
 **Scope:**
 
 - After scope confirmation present independent payment and cache/fresh choices; dispatch pins these choices.
+- The payment choice has two states, Free (governing sources only) and Paid expansion. Choosing Paid expansion reveals the search and synthesis/vision permissions of Story 2.5 as separate, default-off disclosures; with neither granted the Project behaves as free mode. Free mode always runs first, and paid categories apply to its unresolved items.
 
 **Acceptance Criteria:**
 
@@ -2042,7 +2060,8 @@ So that I need not locate or upload the texts myself.
 
 **Scope:**
 
-- Discover public sources through constrained acquisition; pin exact Middot editions and permitted evidence retention.
+- In free mode, discover sources only from the domain package's pinned registry (initially Middot chapter 3 Hebrew Torat Emet 357 and English Mishnah Yomit via Sefaria; Sefaria-linked commentaries only if verified free and license-permitted) and keyless allowlisted public endpoints; there is no open-web search.
+- Open-web discovery exists only under the paid search category, and only passages nova3D itself fetches from a cited page are pinned. Pin exact Middot editions and permitted evidence retention.
 
 **Acceptance Criteria:**
 
@@ -2117,6 +2136,7 @@ So that I do not approve a reconstruction with hidden omissions.
 **Scope:**
 
 - Build the finite subject-specific detail checklist, statuses and independent omission review; product FRs are not physical detail records.
+- Implement the research-engine port with deterministic domain-package extractors that map governing text to checklist items, and the separate omission scan driven by a versioned grammar of quantity, relational, material and placement phrases. Free mode counts as complete only for domain-registered subjects, only after the scan finds omissions seeded into a fixture and an independent human or other-engine pass covers the first registry subject.
 
 **Acceptance Criteria:**
 
@@ -2260,7 +2280,7 @@ So that background research stays understandable and controlled.
 
 **Scope:**
 
-- Render recorded searching/opened/lead/accepted/rejected/replacement events and permitted escalation.
+- Render recorded searching (paid search only)/opened/lead/accepted/rejected/replacement events and permitted escalation; in free mode show governing-source reads, not web searches.
 
 **Acceptance Criteria:**
 
@@ -2375,6 +2395,7 @@ So that regeneration and minor repair cannot silently alter the model.
 **Scope:**
 
 - Implement a certified comparator and deliberate negative corpus independently of preview meshes.
+- Tessellate the oriented, scaled solid at the print-frame deflection (0.002 mm linear, 0.1 rad angular) on both sides. The approximation bound is twice the deflection plus comparator and floating-point error; until G-2 verifies achieved deviation, use the larger of nominal and measured maximum deviation.
 
 **Acceptance Criteria:**
 
@@ -2392,7 +2413,7 @@ So that regeneration and minor repair cannot silently alter the model.
 
 **AC-3**
 
-**Given** dimensional, thin-feature, hole, rotation, unit, scale or tiny/zero/ill-conditioned fixtures
+**Given** dimensional, thin-feature, hole, rotation, unit, scale or tiny/zero/ill-conditioned fixtures, or a uniform 0.1% shrink repair of a metre-scale source
 **When** the regression corpus runs
 **Then** inconclusive or violating results fail closed; coarse bounds/volume alone and preview LOD cannot certify equivalence
 
@@ -2714,6 +2735,7 @@ So that validation applies to the intended output.
 **Scope:**
 
 - Pin the complete manufacturer profile inheritance plus explicit application overrides and print transform.
+- Compute the default print scale once per validation lineage at its first validation (largest uniform scale, never above 1:1, that fits the exact vertex bounding box of the oriented manufacturing mesh inside the profile cube minus 1 mm per side, stored as an exact rational) and inherit it unchanged through every repair and regeneration child. Default the orientation to the domain package's declared base face on the plate, Z-up. An image-derived model has no print scale until the user confirms a real-world dimension, and its default orientation is the largest planar face, user-confirmed.
 
 **Acceptance Criteria:**
 
@@ -2727,7 +2749,7 @@ So that validation applies to the intended output.
 
 **Given** profile, scale or orientation changes
 **When** validation identity is computed
-**Then** a new revision makes incompatible prior results stale
+**Then** a new revision makes incompatible prior results stale, a user-chosen smaller scale is a new validation identity, and a successor that no longer fits fails validation instead of being rescaled
 
 **AC-3**
 
@@ -2751,7 +2773,7 @@ So that structural defects cannot reach qualified export.
 
 **Scope:**
 
-- Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on manufacturing authority.
+- Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on manufacturing authority, using the tessellation settings of Story 4.3 in the print frame.
 
 **Acceptance Criteria:**
 
@@ -3373,6 +3395,7 @@ So that all authorized private targets enter the deletion process.
 **Scope:**
 
 - Implement Account deletion, sole-Administrator safeguards and the separate global close-instance flow without private browsing.
+- Account deletion and close-instance each require a step-up completed after their destructive confirmation is shown, and the fresh-authentication marker is consumed by use.
 
 **Acceptance Criteria:**
 
@@ -3411,6 +3434,7 @@ So that retained data does not outlive the adopted limits.
 **Scope:**
 
 - Purge database, files, models, exports, staging, notifications, private usage/adoption associations and operational traces under the deletion manifest.
+- Apply the backup lifecycle (dumps removed within 14 days, deleted-at-source objects within 7 days, object lock of at most 7 days); after any restore a scrub removes ledgered targets from live and hidden backup copies, and a monthly canary proves a deletion reaches the database, Storage and backups within 15 days.
 
 **Acceptance Criteria:**
 
@@ -3448,7 +3472,8 @@ So that backups restore geometry and enforce every intervening deletion.
 
 **Scope:**
 
-- Back up database daily and objects independently; keep the restricted deletion ledger outside rollback and drill actual provisioned restore paths.
+- Run the dedicated backup service every 12 hours: stream an encrypted logical dump to the backup store without persisting it on Railway, then run an incremental deletion-mirroring Storage sync that records the dump's cutoff; abort without hiding anything on a failed listing or a sharp object-count drop; scope credentials to one bucket per environment.
+- Keep the restricted deletion ledger in a separate append-only store outside every restore set; it also carries Account disables, invitation consumption and rotation, recovery revocations and the highest authorization epoch. No backup runs during a restore; after any restore all session grants and Auth sessions are revoked and the ledger replays before access opens. Drill restores into a dedicated restore project and alarm when the newest completed snapshot is older than 18 hours.
 
 **Acceptance Criteria:**
 
@@ -3468,7 +3493,7 @@ So that backups restore geometry and enforce every intervening deletion.
 
 **Given** the provisioned recovery setup
 **When** a measured drill completes
-**Then** RPO and RTO are each ≤24 hours and active-purge/backup-expiry settings and provider plans are evidenced
+**Then** RPO (the age of the newest completed snapshot) and RTO are each ≤24 hours and active-purge/backup-expiry settings and provider plans are evidenced
 
 **Engineering gates:** G-9; planning completion does not change their qualification status.
 
@@ -3597,6 +3622,7 @@ So that release decisions reflect the complete application.
 - Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.
 - Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question.
 - G-8 product-decision checkpoint: when Epic 6 is complete, or Story 7.1 has evaluated every available candidate (whichever comes first), and G-8 is still BLOCKED, Josh records one of: keep waiting, defer offline direct conversion to a later release, or add an online worker path. Until that record exists, scope and limits are unchanged and full first-version release stays blocked.
+- Architecture update 2026-10-08: placements of newly required work are provisional until `bmad-create-epics-and-stories` runs. The periodic-job scheduler (dormant-identity purge, backup, orphan cleanup) and the Resend recovery mailer have no owning story before Stories 2.7 and 1.6; the backup service of Story 8.4 must exist before the first production private data (Story 2.2); the research-engine port sits in Story 3.3 only as the nearest story; staging and production project provisioning is owned only by Story 8.7 acceptance.
 
 Per-story spec folders carry their own stable capability IDs and canonical append-only memory. The project-wide SPEC retains CAP-1–CAP-17. Implementation dispatch checkpoints are not assigned by this planning run.
 

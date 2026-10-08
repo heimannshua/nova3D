@@ -1,6 +1,6 @@
 # nova3D Story Specification Validation — September 14, 2026
 
-**PASS for the planning artifact set: 8 epics, 58 story specs and 88 stable local capability IDs.** *(Verdict as of 2026-09-14; see [Amendment 2026-10-07](#amendment-2026-10-07).)* [Browse the specs](../specs/story-specs-index.md) or the [epic breakdown](epics.md).
+**PASS for the planning artifact set: 8 epics, 58 story specs and 88 stable local capability IDs.** *(Verdict as of 2026-09-14; see [Amendment 2026-10-07](#amendment-2026-10-07) and [Amendment 2026-10-08](#amendment-2026-10-08).)* [Browse the specs](../specs/story-specs-index.md) or the [epic breakdown](epics.md).
 
 The unchanged project-wide SPEC retains CAP-1–CAP-17. Local capability IDs are unique within each story folder; the 15 batch-B stories retain their original CAP-1–CAP-3 identities and AC correspondence. The other 43 stories use CAP-1. Spec completion does not mean implementation or release acceptance.
 
@@ -15,8 +15,8 @@ The unchanged project-wide SPEC retains CAP-1–CAP-17. Local capability IDs are
 | UX requirements and screen/state coverage | 73/73 requirements; all 53 source surfaces retained |
 | Total extracted requirement identities | 150/150 mapped |
 | Full mapped requirement occurrences in story companions | 457/457 exact-text matches |
-| Story scope clauses | 75/75 preserved (70/70 on 2026-09-14) |
-| Given/When/Then acceptance criteria | 175/175 preserved (174/174 on 2026-09-14) |
+| Story scope clauses | 88/88 preserved (75/75 after 2026-10-07; 70/70 on 2026-09-14) |
+| Given/When/Then acceptance criteria | 177/177 preserved (175/175 after 2026-10-07; 174/174 on 2026-09-14) |
 | Story dependency graph | 58 unique IDs; every dependency exists earlier in the proposed order |
 | Capability IDs and original meanings | 88/88 retained; no unrecorded retirement or reassignment |
 | Required story artifacts | 58 kernels, 116 local companions, 58 canonical memory logs |
@@ -53,3 +53,17 @@ Applies the approved [Sprint Change Proposal](sprint-change-proposal-2026-10-07.
 - **Links:** all 581 relative links and companion/source paths in the story specs, the index and this report resolve.
 
 **Not done:** the full multi-agent validation was NOT re-run. The per-story coherence and preservation verdicts in the JSON for 1.1, 1.3, 1.4, 1.6 and 7.1 remain the 2026-09-14 verdicts on the earlier text, and the PASS at the top of this report is not re-affirmed for the amended text. Descriptive prose above, such as the sentence that the first story initializes only the qualified starter, describes the 2026-09-14 text. Gate statuses are unchanged and nothing here was implemented or deployed.
+
+## Amendment 2026-10-08
+
+Applies the architecture update (Spine AD-5, AD-8, AD-11, AD-12, AD-15, AD-18, AD-19 and `RATIFIED-DECISIONS.md` R-2, R-5, R-6, R-9) to the derived story artifacts. `epics.md` was amended first and is the source of truth.
+
+**Stories changed (scope and/or acceptance criteria):** 1.1, 1.3, 1.4 (new AC-4 step-up binding and AC-5 purge versus registration), 1.6, 2.5, 2.6, 2.9, 3.1, 3.3, 3.7, 4.3, 6.1, 6.2, 8.2, 8.3 and 8.4. **Quoted constraint text only:** AR-17 in 2.5, 2.8 and 3.7; AR-18 in 1.3, 1.4, 1.5, 1.6 and 8.2; AR-26 in 1.1, 2.7, 8.4 and 8.7. A Planning Assumptions bullet in `epics.md` records which placements of newly required work are provisional until `bmad-create-epics-and-stories` runs.
+
+**Re-verified mechanically on 2026-10-08 (scripted comparison, not a new review):**
+
+- **Hashes:** every manifest SHA-256 and byte count was recomputed and matches the file on disk.
+- **Counts:** acceptance criteria 175 to 177 (Story 1.4 gained AC-4 and AC-5) and scope clauses 75 to 88 (+1 each in 1.1, 1.3, 1.4, 1.6, 2.6, 2.9, 3.1, 3.3, 4.3, 6.1, 8.2, 8.3 and 8.4). The 58 stories, 88 local capability IDs, 150 requirement identities and 457 mapped occurrences are unchanged.
+- **Source parity:** for all 58 stories the scope and Given/When/Then text in the story input and in `acceptance-criteria.md` equal `epics.md`, and every captured AR text in the inputs and constraints matches its `epics.md` line. All 457 source lines in `epics.md` still match their recorded line numbers.
+- **Not re-run:** the full multi-agent validation, the link check (no links were added) and the SPEC kernels, whose capability text did not change. The 2026-09-14 PASS is still dated as of that day.
+- **Open:** findings 4, 5, 7, 9 and 10 of `implementation-readiness.md` are not addressed by this amendment; the placements flagged in `epics.md` Planning Assumptions need `bmad-create-epics-and-stories`.

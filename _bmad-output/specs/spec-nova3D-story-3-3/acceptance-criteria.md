@@ -18,6 +18,7 @@ So that I do not approve a reconstruction with hidden omissions.
 ## Scope
 
 - Build the finite subject-specific detail checklist, statuses and independent omission review; product FRs are not physical detail records.
+- Implement the research-engine port with deterministic domain-package extractors that map governing text to checklist items, and the separate omission scan driven by a versioned grammar of quantity, relational, material and placement phrases. Free mode counts as complete only for domain-registered subjects, only after the scan finds omissions seeded into a fixture and an independent human or other-engine pass covers the first registry subject.
 
 ## Acceptance Criteria
 

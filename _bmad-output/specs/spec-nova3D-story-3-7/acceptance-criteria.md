@@ -20,7 +20,7 @@ So that background research stays understandable and controlled.
 
 ## Scope
 
-- Render recorded searching/opened/lead/accepted/rejected/replacement events and permitted escalation.
+- Render recorded searching (paid search only)/opened/lead/accepted/rejected/replacement events and permitted escalation; in free mode show governing-source reads, not web searches.
 
 ## Acceptance Criteria
 

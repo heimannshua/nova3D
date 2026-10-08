@@ -22,7 +22,8 @@
       "4-2"
     ],
     "scope": [
-      "Implement a certified comparator and deliberate negative corpus independently of preview meshes."
+      "Implement a certified comparator and deliberate negative corpus independently of preview meshes.",
+      "Tessellate the oriented, scaled solid at the print-frame deflection (0.002 mm linear, 0.1 rad angular) on both sides. The approximation bound is twice the deflection plus comparator and floating-point error; until G-2 verifies achieved deviation, use the larger of nominal and measured maximum deviation."
     ],
     "acceptance_criteria": [
       {
@@ -36,7 +37,7 @@
         "then": "bidirectional distance upper bound and bounds delta are ≤0.01 mm and relative volume delta ≤0.1% using reference absolute volume"
       },
       {
-        "given": "dimensional, thin-feature, hole, rotation, unit, scale or tiny/zero/ill-conditioned fixtures",
+        "given": "dimensional, thin-feature, hole, rotation, unit, scale or tiny/zero/ill-conditioned fixtures, or a uniform 0.1% shrink repair of a metre-scale source",
         "when": "the regression corpus runs",
         "then": "inconclusive or violating results fail closed; coarse bounds/volume alone and preview LOD cannot certify equivalence"
       }

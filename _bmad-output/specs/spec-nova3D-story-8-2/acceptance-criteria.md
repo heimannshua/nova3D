@@ -18,6 +18,7 @@ So that all authorized private targets enter the deletion process.
 ## Scope
 
 - Implement Account deletion, sole-Administrator safeguards and the separate global close-instance flow without private browsing.
+- Account deletion and close-instance each require a step-up completed after their destructive confirmation is shown, and the fresh-authentication marker is consumed by use.
 
 ## Acceptance Criteria
 

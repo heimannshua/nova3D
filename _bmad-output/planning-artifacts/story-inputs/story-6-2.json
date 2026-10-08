@@ -22,7 +22,7 @@
       "6-1"
     ],
     "scope": [
-      "Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on manufacturing authority."
+      "Validate units, closure/manifoldness, outward orientation, positive/nondegenerate geometry and physical bounds on manufacturing authority, using the tessellation settings of Story 4.3 in the print frame."
     ],
     "acceptance_criteria": [
       {

@@ -19,6 +19,7 @@ So that concurrent requests cannot overspend.
 
 - Use one Usage-owned checked integer/rational calculator and immutable request/options/rate snapshots.
 - Reserve against Account period, $5 parent research-Job lifetime across all attempts, and $1 external-operation ceilings in one transaction.
+- The reservation is input rate × a provider-independent input bound (serialized request length plus a documented per-image maximum, with a stated margin) plus output rate × the output limit actually sent; the 200,000-input-token, 16,000-output-token and 20-search-request ceilings are admission limits. An external operation is one provider request. Treat transport loss, timeout, 5xx and aborted streams as ambiguous (hold the reservation until usage evidence or a 24-hour deadline, then settle at the reservation) and definitive pre-processing rejections with a request ID as noncharge; evidence above a reservation settles at the evidence, counts against every limit and blocks the provider until reviewed.
 
 ## Acceptance Criteria
 
@@ -32,7 +33,7 @@ So that concurrent requests cannot overspend.
 
 **Given** pinned billing increments and rational rates
 **When** the calculator evaluates bounded requests
-**Then** it rounds upward once per operation to microdollars and rejects overflow, unknown/foreign rates and unsupported parameters
+**Then** it rounds upward once per operation to microdollars and rejects overflow, unknown/foreign rates and unsupported parameters (cache, batch, server tools, fallbacks, speed)
 
 ### AC-3
 

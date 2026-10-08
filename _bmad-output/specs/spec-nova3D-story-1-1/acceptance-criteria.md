@@ -19,6 +19,7 @@ None.
 - Adopt the existing root Next.js App Router application (Next 16.3.5, React 19.3.0, TypeScript 5.9.3, Tailwind 4.3.3, Supabase SSR, interim Google sign-in) as the qualified seed and bring it to the pinned contract.
 - Verify the environment at startup and in the deployment build, and exercise the check in CI. Label the mock dashboard a synthetic shell that later stories replace.
 - Define module ownership and environment boundaries; later stories introduce their own entities.
+- Run local development on the Supabase CLI stack, not the hosted project: add the `[auth]` block (Google only, sign-ups on, redirect URLs, OTP expiry) and `[auth.external.google]` to `supabase/config.toml`, re-point `.env.local`, and make `APP_ENV=local` valid only against a loopback Supabase URL. The existing hosted project becomes staging, Vercel Production deploys stay disabled until a production project exists, and the environment check requires an Administrator email setting.
 
 ## Acceptance Criteria
 

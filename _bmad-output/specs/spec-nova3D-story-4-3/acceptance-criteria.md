@@ -17,6 +17,7 @@ So that regeneration and minor repair cannot silently alter the model.
 ## Scope
 
 - Implement a certified comparator and deliberate negative corpus independently of preview meshes.
+- Tessellate the oriented, scaled solid at the print-frame deflection (0.002 mm linear, 0.1 rad angular) on both sides. The approximation bound is twice the deflection plus comparator and floating-point error; until G-2 verifies achieved deviation, use the larger of nominal and measured maximum deviation.
 
 ## Acceptance Criteria
 
@@ -34,7 +35,7 @@ So that regeneration and minor repair cannot silently alter the model.
 
 ### AC-3
 
-**Given** dimensional, thin-feature, hole, rotation, unit, scale or tiny/zero/ill-conditioned fixtures
+**Given** dimensional, thin-feature, hole, rotation, unit, scale or tiny/zero/ill-conditioned fixtures, or a uniform 0.1% shrink repair of a metre-scale source
 **When** the regression corpus runs
 **Then** inconclusive or violating results fail closed; coarse bounds/volume alone and preview LOD cannot certify equivalence
 

@@ -17,6 +17,7 @@ So that retained data does not outlive the adopted limits.
 ## Scope
 
 - Purge database, files, models, exports, staging, notifications, private usage/adoption associations and operational traces under the deletion manifest.
+- Apply the backup lifecycle (dumps removed within 14 days, deleted-at-source objects within 7 days, object lock of at most 7 days); after any restore a scrub removes ledgered targets from live and hidden backup copies, and a monthly canary proves a deletion reaches the database, Storage and backups within 15 days.
 
 ## Acceptance Criteria
 

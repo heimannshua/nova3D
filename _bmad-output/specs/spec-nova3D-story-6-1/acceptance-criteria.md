@@ -17,6 +17,7 @@ So that validation applies to the intended output.
 ## Scope
 
 - Pin the complete manufacturer profile inheritance plus explicit application overrides and print transform.
+- Compute the default print scale once per validation lineage at its first validation (largest uniform scale, never above 1:1, that fits the exact vertex bounding box of the oriented manufacturing mesh inside the profile cube minus 1 mm per side, stored as an exact rational) and inherit it unchanged through every repair and regeneration child. Default the orientation to the domain package's declared base face on the plate, Z-up. An image-derived model has no print scale until the user confirms a real-world dimension, and its default orientation is the largest planar face, user-confirmed.
 
 ## Acceptance Criteria
 
@@ -30,7 +31,7 @@ So that validation applies to the intended output.
 
 **Given** profile, scale or orientation changes
 **When** validation identity is computed
-**Then** a new revision makes incompatible prior results stale
+**Then** a new revision makes incompatible prior results stale, a user-chosen smaller scale is a new validation identity, and a successor that no longer fits fails validation instead of being rescaled
 
 ### AC-3
 

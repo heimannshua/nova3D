@@ -19,7 +19,8 @@ So that my account starts in its own private workspace.
 
 - Implement fresh-authenticated Administrator invitation issuance/revocation and narrow idempotent registration: a user signs in with Google, then redeems an invitation code to activate an Account. No code, no Account.
 - Named and current general codes are hashed, single-use and nonexpiring until used or revoked; partial Auth provisioning is unusable.
-- Provision the Administrator and the other currently allowlisted identity once through a documented, audited seed rather than code redemption.
+- Provision the Administrator (heimannshua@gmail.com, Google subject pinned at first sign-in) and the other currently allowlisted identity once through a documented, audited seed that calls the same provisioning function as registration, rather than code redemption.
+- Registration runs only in a server route using the service role: no registration or invitation database object is executable by `anon` or `authenticated`, attempts are limited by network origin plus a global budget, and codes carry at least 128 bits of entropy.
 
 ## Acceptance Criteria
 
@@ -39,7 +40,7 @@ So that my account starts in its own private workspace.
 
 **Given** invalid, used, revoked or guessed codes
 **When** registration is attempted repeatedly
-**Then** generic failures and rate limits prevent guessing, code values are not logged, and fresh-authenticated administration records an audit event
+**Then** generic failures and rate limits (keyed on network origin plus a global budget, including direct calls to the database API) prevent guessing, code values are not logged, and fresh-authenticated administration records an audit event
 
 ## Engineering Gates
 

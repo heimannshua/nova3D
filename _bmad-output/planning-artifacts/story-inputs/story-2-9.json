@@ -24,7 +24,8 @@
       "2-7"
     ],
     "scope": [
-      "After scope confirmation present independent payment and cache/fresh choices; dispatch pins these choices."
+      "After scope confirmation present independent payment and cache/fresh choices; dispatch pins these choices.",
+      "The payment choice has two states, Free (governing sources only) and Paid expansion. Choosing Paid expansion reveals the search and synthesis/vision permissions of Story 2.5 as separate, default-off disclosures; with neither granted the Project behaves as free mode. Free mode always runs first, and paid categories apply to its unresolved items."
     ],
     "acceptance_criteria": [
       {

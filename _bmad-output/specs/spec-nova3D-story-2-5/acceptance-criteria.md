@@ -18,7 +18,7 @@ So that paid work uses only the data and maximum I permitted.
 
 ## Scope
 
-- Implement provider-neutral Anthropic/Brave adapters and permission snapshots; provider terms/rates must be verified before enablement.
+- Implement provider-neutral Anthropic (claude-sonnet-5-5) and Brave adapters and permission snapshots; provider terms/rates must be verified before enablement, and the Brave adapter ships disabled until a terms review is recorded.
 - Use no paid external 3D provider or billable free-credit fallback; instance hosting/local inference remains overhead.
 
 ## Acceptance Criteria
