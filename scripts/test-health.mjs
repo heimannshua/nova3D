@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 import {spawn} from 'node:child_process';
+import {createRequire} from 'node:module';
 
 const port = process.env.PORT || '4174';
-const server = spawn('npm', ['start', '--', '--hostname', '127.0.0.1', '--port', port], {stdio: 'ignore'});
+// Start Next.js directly, not through npm, so SIGTERM reaches the server and the captured pipes close.
+const nextBin = createRequire(import.meta.url).resolve('next/dist/bin/next');
+const server = spawn(process.execPath, [nextBin, 'start', '--hostname', '127.0.0.1', '--port', port], {stdio: ['ignore', 'pipe', 'pipe']});
+let output = '';
+server.stdout.on('data', (chunk) => { output += chunk; });
+server.stderr.on('data', (chunk) => { output += chunk; });
 const stop = () => server.kill('SIGTERM');
 process.on('exit', stop);
 process.on('SIGINT', () => { stop(); process.exit(130); });
@@ -13,9 +19,9 @@ try {
     try { response = await fetch(`http://127.0.0.1:${port}/api/health`); if (response.ok) break; } catch {}
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  if (!response?.ok) throw new Error('health endpoint did not become ready');
+  if (!response?.ok) throw new Error(`health endpoint did not become ready. Server output:\n${output}`);
   const payload = await response.json();
-  for (const [key, expected] of Object.entries({ok: true, providerCall: false, appMode: 'mock', syntheticData: true})) {
+  for (const [key, expected] of Object.entries({ok: true, providerCall: false, appMode: 'synthetic-shell', syntheticData: true})) {
     if (payload[key] !== expected) throw new Error(`health.${key} expected ${expected}, received ${payload[key]}`);
   }
   if (Object.hasOwn(payload, 'interimGateConfigured')) throw new Error('health must not expose the removed interim gate');

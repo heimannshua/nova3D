@@ -1,4 +1,4 @@
-export type ProjectStatus = 'Researching' | 'Ready for review' | 'Saved locally';
+export type ProjectStatus = 'Researching' | 'Ready for review' | 'Sample draft';
 
 export type MockProject = {
   id: string;
@@ -25,8 +25,8 @@ export const mockProjects: MockProject[] = [
   {
     id: 'garden-arch',
     title: 'Garden arch study',
-    subtitle: 'Image-derived · local draft',
-    status: 'Saved locally',
+    subtitle: 'Image-derived · sample draft',
+    status: 'Sample draft',
     updated: 'Updated yesterday',
     mode: 'Image-derived',
     tone: 'blue',
@@ -43,8 +43,9 @@ export const mockProjects: MockProject[] = [
   },
 ];
 
+// The shell is synthetic: every project below is sample data and nothing is persisted.
 export const healthSummary = {
-  appMode: 'mock',
+  appMode: 'synthetic-shell',
   providerCall: false,
   authConfigured: false,
   syntheticData: true,

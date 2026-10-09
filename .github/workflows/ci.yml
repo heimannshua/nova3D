@@ -7,16 +7,21 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same ref supersedes a run that is still going.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   baseline:
     name: Baseline checks
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 24.21.0
           cache: npm
       - name: Install root dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
@@ -24,14 +29,13 @@ jobs:
         run: npm run typecheck
       - name: Lint application
         run: npm run lint
-      - name: Build application
+      # No environment variables are set for this step on purpose: a credential-free build must succeed.
+      - name: Build application (credential-free)
         run: npm run build
-      - name: Smoke test application health
-        run: npm run test:health
       - name: Check repository metadata and local links
         run: node scripts/ci/check-repository.mjs
-      - name: Test deployment environment guardrails
-        run: node scripts/test-env.mjs
+      - name: Test environment identity checks against fixture environments
+        run: npm run test:env
       - name: Test local development origin configuration
         run: npm run test:dev-origins
       - name: Validate shell scripts
@@ -45,6 +49,38 @@ jobs:
           python3 tools/qualification/recovery/probe.py --report "$report"
           test -s "$report"
           rm -f "$report"
+
+      # Everything below runs against the Supabase CLI stack, never a hosted project.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+      - name: Start the local Supabase stack and point .env.local at it
+        id: stack
+        run: |
+          supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+          node scripts/setup-env.mjs local
+      - name: Verify the stack's instance identity (check-env --live)
+        run: npm run check:env -- --live
+      - name: Unit and integration tests (Postgres tests run against the stack)
+        run: npm test
+      - name: Smoke test application health
+        run: npm run test:health
+      - name: Install the Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Browser tests
+        run: npm run test:e2e
+      - name: Upload the browser report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+      - name: Stop the local Supabase stack
+        if: ${{ always() && steps.stack.conclusion != 'skipped' }}
+        run: supabase stop --no-backup
 
   optional-qualification:
     name: Optional qualification probes (blocked without local dependencies)

@@ -12,3 +12,7 @@ __pycache__/
 .playwright-mcp/
 state.lock
 supabase/.temp/
+supabase/.branches/
+test-results/
+playwright-report/
+.env.local.bak*

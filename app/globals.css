@@ -63,3 +63,6 @@ button:focus-visible, [role="button"]:focus-visible, input:focus-visible { outli
 .auth-hint, .auth-footnote { color: #9298a8; font-size: 10px; line-height: 1.5; }
 .auth-hint { margin: 9px 0 0; }
 .auth-footnote { margin: 22px 0 0; text-align: center; }
+.synthetic-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 9px 45px; border-bottom: 1px solid #dddef7; background: #f3f2ff; color: #4a4b73; font-size: 12px; line-height: 1.5; }
+.synthetic-badge { padding: 2px 8px; border: 1px solid #b9b7f0; border-radius: 99px; background: white; color: #3f3b9f; font-size: 11px; font-weight: 750; letter-spacing: .02em; white-space: nowrap; }
+@media (max-width: 760px) { .synthetic-banner { padding: 9px 18px; } }
