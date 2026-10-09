@@ -70,27 +70,27 @@
     "FR-29": {
       "text": "#### FR-29: Model and provenance export\n\nThe user can download an Export for a Model Version that has Model Approval and a passing validation result.\n\n**Consequences:**\n- The Export contains a 3MF file as its primary print-ready model, offers an optional STL compatibility copy, and includes a readable PDF Source Record.\n- The Source Record identifies the Project, Research Plan, Consequential Details, Claims, Sources, reasoning, options, approvals, Personalization, Canonical Model identity, Model Version, Target Print Profile, validations, and repairs.\n- The PDF uses stable identifiers and cross-references so the user can trace Claims to Model Features and Model Features back to Claims; it is generated from the same immutable structured provenance used by the app.\n- The Export remains linked to its Source Record and structured provenance even though the print file may not contain editable parametric history.\n\nSource: PRD §4, FR-29.\n\n**Ratified application:** The immutable export carries mode-appropriate provenance, never a fabricated historical plan for direct images. R-4 defines shared structured provenance plus PDF; R-8 requires connection for qualified export.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 430
+      "line": 431
     },
     "AR-19": {
       "text": "**AR-19: Revocable artifact transfer.** Keep user-data buckets private (the only public bucket holds public, digest-pinned assets) and use ownership-scoped immutable keys and quota/lease-bounded upload staging. Verify checksums/content before attachment. The container gateway, which exists before the first feature that accepts a user file, streams all user uploads/downloads/ranges through application-signed single-use transfer tickets, and no user file crosses a Vercel function; authorize each range and every chunk of at most 1 MiB against live Account/session/Project/artifact state. Do not expose reusable signed download URLs or cache private responses/authorization; stop future chunks on revocation. CAD and engine workers receive no Storage credentials and use the gateway with attempt-scoped tickets; only the gateway and the backup service hold a Storage credential. Delivered or in-flight bytes cannot be recalled. Cleanup respects active leases.\n\nSource: AD-13; file authorization.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 657
+      "line": 690
     },
     "NFR-1": {
       "text": "**NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 541
+      "line": 574
     },
     "NFR-2": {
       "text": "**NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 543
+      "line": 576
     },
     "UX-DR63": {
       "text": "**UX-DR63: Export download (V-06).** Primary 3MF, optional STL, readable PDF Source Record.\n\nRequired states/variants: Preparing, ready, individual/package download, failed, phone file handling.\n\nSource: SCREEN-INVENTORY V-06; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 1111
+      "line": 1144
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

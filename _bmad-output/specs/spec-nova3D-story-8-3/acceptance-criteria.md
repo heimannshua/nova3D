@@ -20,6 +20,7 @@ So that retained data does not outlive the adopted limits.
 - Purge database, files, models, exports, staging, notifications, private usage/adoption associations and operational traces under the deletion manifest.
 - Apply the Story 8.9 backup lifecycle to deletions: deleted targets leave dumps within 14 days and deleted-at-source objects within 7 days. Run a monthly canary on a synthetic Account with an internal system-actor deletion (the interactive step-up applies to humans only), proving the deletion reaches the database, Storage and backups within 15 days from manifests and bucket listings, since dumps are encrypted. Account purge also deletes the Auth identity and its Auth audit-log entries and sessions. Register the missed-purge-deadline condition with the Story 1.13 alarm channel.
 - Project deletion de-links its settlements, unresolved reservations and overrun incidents from Project, Job and request identity and keeps amounts, category and period, so deletion never restores spending headroom; Account deletion removes them.
+- Purge the Account's payment requests, payments and credit entries (non-identifying aggregate totals may remain) and expire any open Checkout Session through Stripe; the application discloses that Stripe keeps its own records under its terms and the law.
 
 ## Acceptance Criteria
 
@@ -52,6 +53,12 @@ So that retained data does not outlive the adopted limits.
 **Given** a Project with settled usage in the current period
 **When** it is deleted
 **Then** the period's settled and reserved totals are unchanged and no Project, Job or request identity remains on those rows
+
+### AC-6
+
+**Given** an Account deleted with payment data and an open Checkout Session
+**When** the purge runs
+**Then** its payment requests, payments and credit entries are gone, only non-identifying totals remain, and the open session is expired
 
 ## Engineering Gates
 

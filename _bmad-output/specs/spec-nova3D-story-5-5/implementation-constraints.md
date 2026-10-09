@@ -23,7 +23,7 @@ The user can approve or reject a specific inspected Model Version.
 
 Source: PRD §4, FR-23.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 359 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 360 in the captured input.
 
 ### FR-27
 
@@ -37,7 +37,7 @@ If a repair changes visible geometry, historical dimensions, or Personalization,
 
 Source: PRD §4, FR-27.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 407 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 408 in the captured input.
 
 ### AR-4
 
@@ -45,7 +45,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 407 in the captured inp
 
 Source: AD-3; R-8, R-11; scope-and-readiness.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 587 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 620 in the captured input.
 
 ### AR-5
 
@@ -53,13 +53,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 587 in the captured inp
 
 Source: AD-4, AD-13; shared artifact identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 624 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ### UX-DR16
 
@@ -67,7 +67,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured inp
 
 Source: FR-12/FR-13/FR-20–FR-23/FR-27.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 839 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 872 in the captured input.
 
 ### UX-DR57
 
@@ -77,7 +77,7 @@ Required states/variants: Not inspected, ready, approved, rejected, invalidated 
 
 Source: SCREEN-INVENTORY M-09; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1075 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1108 in the captured input.
 
 ## Planning Assumptions
 

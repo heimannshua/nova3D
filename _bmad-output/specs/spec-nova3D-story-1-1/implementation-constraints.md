@@ -16,7 +16,7 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 Source: Architecture Stack; R-1; qualification stack report.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 575 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 608 in the captured input.
 
 ### AR-2
 
@@ -24,7 +24,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 575 in the captured inp
 
 Source: AD-1, AD-2; Structural Seed.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 579 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 612 in the captured input.
 
 ### AR-26
 
@@ -32,13 +32,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 579 in the captured inp
 
 Source: AD-19; R-9; G-9.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 685 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 718 in the captured input.
 
 ### NFR-2
 
 **NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 543 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 576 in the captured input.
 
 ## Planning Assumptions
 

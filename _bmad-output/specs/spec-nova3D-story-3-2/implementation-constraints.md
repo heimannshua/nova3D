@@ -25,7 +25,7 @@ nova3D distinguishes research leads from evidence used in recommendations.
 
 Source: PRD §4, FR-9.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 180 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 181 in the captured input.
 
 ### FR-14
 
@@ -46,7 +46,7 @@ The user can choose per Project whether research may use paid services or must r
 
 Source: PRD §4, FR-14.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 243 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 244 in the captured input.
 
 ### AR-6
 
@@ -54,7 +54,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 243 in the captured inp
 
 Source: AD-5; evidence-policy identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 595 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 628 in the captured input.
 
 ### AR-20
 
@@ -62,7 +62,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 595 in the captured inp
 
 Source: AD-14; R-7; G-7.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 661 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 694 in the captured input.
 
 ### SC-6
 
@@ -75,7 +75,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 661 in the captured inp
 
 Source: UX-SCOPE-CHANGES SC-6; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 522 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 555 in the captured input.
 
 ### UX-DR12
 
@@ -83,7 +83,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 522 in the captured inp
 
 Source: SC-6; UX-3.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 823 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 856 in the captured input.
 
 ### UX-DR43
 
@@ -93,7 +93,7 @@ Required states/variants: Confirmation, affected Claims rechecking, replacement 
 
 Source: SCREEN-INVENTORY J-05; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 991 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1024 in the captured input.
 
 ### UX-DR66
 
@@ -103,7 +103,7 @@ Required states/variants: Enabled, disabled, search/list empty, active Job affec
 
 Source: SCREEN-INVENTORY S-03; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1129 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1162 in the captured input.
 
 ### UX-DR67
 
@@ -113,7 +113,7 @@ Required states/variants: On by default, off, explanatory confirmation.
 
 Source: SCREEN-INVENTORY S-04; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1135 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1168 in the captured input.
 
 ## Planning Assumptions
 

@@ -23,7 +23,7 @@ nova3D can identify the confirmed subject and locate relevant Sources without re
 
 Source: PRD §4, FR-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 169 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 170 in the captured input.
 
 ### FR-9
 
@@ -40,7 +40,7 @@ nova3D distinguishes research leads from evidence used in recommendations.
 
 Source: PRD §4, FR-9.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 180 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 181 in the captured input.
 
 ### FR-14
 
@@ -61,7 +61,7 @@ The user can choose per Project whether research may use paid services or must r
 
 Source: PRD §4, FR-14.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 243 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 244 in the captured input.
 
 ### FR-30
 
@@ -92,6 +92,7 @@ An Account owner can permanently delete individual Projects and Exports or the c
 
 - Whole-Account deletion immediately disables access and applies the shared guarantees to every Project, Job, Notification, Export, upload, Personalization item, usage-linked identifier, temporary artifact, and private operational record in that Workspace.
 - Only Cached Research Revisions allowed above may remain, and they cannot reveal that the deleted Account requested or used them.
+- Payment Requests, payments and Credit entries are private records deleted with the Account; the only payment data that may remain is non-identifying aggregate totals, and the payment provider's own retention is disclosed before the first payment.
 - Because the Administrator role is unique and non-transferable in the MVP, ordinary Administrator self-deletion is blocked while an invited Account exists.
 - A separate close-instance action remains available after fresh Administrator authentication and explicit destructive confirmation. It tombstones every Account and Workspace without exposing their contents, revokes all sessions and Invitation Codes, cancels all Jobs, rejects late writes, and applies the shared deletion guarantees.
 - When no invited Account remains, Administrator self-deletion performs the same close-instance action.
@@ -100,7 +101,7 @@ Source: PRD §4, FR-30.
 
 **Ratified application:** R-9 sets active purge at no more than 24 hours and controlled-backup expiry at no more than 30 days from deletion, with deletion-ledger replay before reopening restored access. R-8 excludes disconnected/downloaded copies from remote erasure promises and requires learned tombstones to purge before sync.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 444 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 445 in the captured input.
 
 ### AR-6
 
@@ -108,7 +109,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 444 in the captured inp
 
 Source: AD-5; evidence-policy identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 595 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 628 in the captured input.
 
 ### AR-20
 
@@ -116,13 +117,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 595 in the captured inp
 
 Source: AD-14; R-7; G-7.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 661 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 694 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ### NFR-12
 
@@ -130,7 +131,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured inp
 
 Source: PRD §7. All twelve NFRs apply across the capability set, with the explicit mode distinction above. Architecture requirements below supply measurable limits and enforcement contracts.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 565 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 598 in the captured input.
 
 ## Planning Assumptions
 

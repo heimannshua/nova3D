@@ -1,8 +1,8 @@
 # nova3D Story Specification Validation — September 14, 2026
 
-**PASS for the planning artifact set: 8 epics, 73 story specs and 130 stable local capability IDs.** *(Verdict as of 2026-09-14; see [Amendment 2026-10-07](#amendment-2026-10-07) and [Amendment 2026-10-08](#amendment-2026-10-08).)* [Browse the specs](../specs/story-specs-index.md) or the [epic breakdown](epics.md).
+**PASS for the planning artifact set: 8 epics, 77 story specs and 135 stable local capability IDs.** *(Verdict as of 2026-09-14; see [Amendment 2026-10-07](#amendment-2026-10-07) and [Amendment 2026-10-08](#amendment-2026-10-08).)* [Browse the specs](../specs/story-specs-index.md) or the [epic breakdown](epics.md).
 
-The unchanged project-wide SPEC retains CAP-1–CAP-17. Local capability IDs are unique within each story folder; the 15 batch-B stories retain their original CAP-1–CAP-3 identities and AC correspondence. Stories 2.7, 3.1 and 4.6 gained CAP-4 (and 2.7 CAP-5) for their new criteria, Story 7.6 keeps CAP-1 and CAP-2 and passed its former CAP-2 and CAP-3 to Story 7.8 (which carries them as CAP-1 and CAP-2), the second 2026-10-08 pass added CAP-6 to Story 2.7, CAP-5 to Story 3.1, CAP-4 to Stories 3.5, 4.2, 6.3 and 8.3, CAP-3 and CAP-4 to Story 7.6 and CAP-3 to Story 7.8, later passes on 2026-10-08 added capabilities for new criteria in Stories 1.6, 2.7, 3.1, 3.5, 4.2, 6.3, 7.2, 7.6, 7.8 and 8.3 (see the dated sections), and the other 57 stories use CAP-1. Spec completion does not mean implementation or release acceptance.
+The unchanged project-wide SPEC retains CAP-1–CAP-17. Local capability IDs are unique within each story folder; the 15 batch-B stories retain their original CAP-1–CAP-3 identities and AC correspondence. Stories 2.7, 3.1 and 4.6 gained CAP-4 (and 2.7 CAP-5) for their new criteria, Story 7.6 keeps CAP-1 and CAP-2 and passed its former CAP-2 and CAP-3 to Story 7.8 (which carries them as CAP-1 and CAP-2), the second 2026-10-08 pass added CAP-6 to Story 2.7, CAP-5 to Story 3.1, CAP-4 to Stories 3.5, 4.2, 6.3 and 8.3, CAP-3 and CAP-4 to Story 7.6 and CAP-3 to Story 7.8, later passes on 2026-10-08 added capabilities for new criteria in Stories 1.6, 2.7, 3.1, 3.5, 4.2, 6.3, 7.2, 7.6, 7.8 and 8.3 (see the dated sections), and the other 61 stories use CAP-1. Spec completion does not mean implementation or release acceptance.
 
 ## Coverage and preservation
 
@@ -12,14 +12,14 @@ The unchanged project-wide SPEC retains CAP-1–CAP-17. Local capability IDs are
 | NFRs | 12/12 retained and mapped |
 | Approved scope changes | 7/7 retained and mapped |
 | Architecture requirements | 28/28 mapped by meaning |
-| UX requirements and screen/state coverage | 73/73 requirements; all 53 source surfaces retained |
+| UX requirements and screen/state coverage | 74/74 requirements; all 54 surfaces retained (the 53 source surfaces plus S-06 Credit and payments, added 2026-10-09) |
 | Total extracted requirement identities | 150/150 mapped |
-| Full mapped requirement occurrences in story companions | 556/556 exact-text matches (506/506 after the first 2026-10-08 pass; 457/457 on 2026-09-14) |
-| Story scope clauses | 214/214 preserved (120/120 after the first 2026-10-08 pass; 88/88 after the architecture propagation; 75/75 after 2026-10-07; 70/70 on 2026-09-14) |
-| Given/When/Then acceptance criteria | 322/322 preserved (211/211 after the first 2026-10-08 pass; 177/177 after the architecture propagation; 175/175 after 2026-10-07; 174/174 on 2026-09-14) |
-| Story dependency graph | 73 unique IDs; every dependency exists earlier in the build order shown in the index |
-| Capability IDs and original meanings | 87/88 original retained; the former Story 7.6 CAP-3 moved to Story 7.8 and is recorded in both memlogs; 130 local IDs in total; no unrecorded retirement or reassignment |
-| Required story artifacts | 73 kernels, 146 local companions, 73 canonical memory logs |
+| Full mapped requirement occurrences in story companions | 585/585 exact-text matches (506/506 after the first 2026-10-08 pass; 457/457 on 2026-09-14) |
+| Story scope clauses | 228/228 preserved (120/120 after the first 2026-10-08 pass; 88/88 after the architecture propagation; 75/75 after 2026-10-07; 70/70 on 2026-09-14) |
+| Given/When/Then acceptance criteria | 345/345 preserved (211/211 after the first 2026-10-08 pass; 177/177 after the architecture propagation; 175/175 after 2026-10-07; 174/174 on 2026-09-14) |
+| Story dependency graph | 77 unique IDs; every dependency exists earlier in the build order shown in the index |
+| Capability IDs and original meanings | 87/88 original retained; the former Story 7.6 CAP-3 moved to Story 7.8 and is recorded in both memlogs; 135 local IDs in total; no unrecorded retirement or reassignment |
+| Required story artifacts | 77 kernels, 154 local companions, 77 canonical memory logs |
 | Companion/source paths and recursive parent contract | Resolved |
 | Kernel structure | Five fields, intent/success per capability, explicit non-goals, concrete success signal |
 | Source requirement locations | All captured requirement text and current source lines match |
@@ -133,3 +133,16 @@ Applies `bmad-create-epics-and-stories` (update run) to the fourth round of inde
 - **Source parity:** for every story the scope, Given/When/Then text, dependencies and requirement list in the story input, `acceptance-criteria.md` and `epics.md` agree, and `implementation-constraints.md` was regenerated from the inputs.
 - **Dependencies:** every dependency precedes its story in the build order, no dependency is duplicated, and a scan of story references found none outside a story's dependency closure other than explicit fixtures and "see" pointers.
 - **Independent review:** the audits of this set are recorded in `implementation-readiness.md`; a further audit after this pass is recorded there when it has run.
+
+## Payments change 2026-10-09
+
+Applies the approved [Sprint Change Proposal 2026-10-09](sprint-change-proposal-2026-10-09.md): Josh decided that Administrator payment requests and prepaid credit for invited Accounts belong to the first version. The PRD (FR-31, FR-32; FR-4 and FR-30 amended), brief, project SPEC, scope-and-readiness, UX inventory (S-06, AD-03), RATIFIED-DECISIONS (R-12) and Spine were amended first; `epics.md` is the source of truth and the derived artifacts were regenerated from the story inputs.
+
+**New stories (4):** 2.14 prepaid credit beside the allowance, 2.15 payment requests, 2.16 hosted checkout and webhook fulfilment, 2.17 refunds, disputes and reconciliation. **Edited:** Stories 1.1, 1.10, 2.6, 8.2, 8.3, 8.5 and 8.7, plus the quoted FR-4, FR-30 and UX-DR71 text in every story that carries it. Source line numbers moved in every story because the requirement inventory grew; those stories received no memlog entry. FR-31 and FR-32 join Epic 2's FR list.
+
+**Re-verified mechanically on 2026-10-08 (scripted comparison, not a review):**
+
+- **Counts:** 77 stories, 228 scope clauses, 345 acceptance criteria, 585 mapped requirement occurrences, 150 requirement identities (unchanged), 135 local capability IDs.
+- **Source parity:** for every story the scope, Given/When/Then text, dependencies and requirement list in the story input, `acceptance-criteria.md` and `epics.md` agree, and `implementation-constraints.md` was regenerated from the inputs.
+- **Dependencies:** every dependency precedes its story in the build order, no dependency is duplicated, and a scan of story references found none outside a story's dependency closure other than explicit fixtures and "see" pointers.
+- **Independent review:** the four payment stories are audited separately; the result is recorded in `implementation-readiness.md`.

@@ -25,7 +25,7 @@ Source: PRD §4, FR-19.
 
 **Ratified application:** For direct-image features expose image/inference provenance and uncertainty, with user-added features distinct. Do not invent historical claims to fill evidence navigation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 307 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 308 in the captured input.
 
 ### FR-29
 
@@ -43,7 +43,7 @@ Source: PRD §4, FR-29.
 
 **Ratified application:** The immutable export carries mode-appropriate provenance, never a fabricated historical plan for direct images. R-4 defines shared structured provenance plus PDF; R-8 requires connection for qualified export.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 430 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 431 in the captured input.
 
 ### AR-5
 
@@ -51,7 +51,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 430 in the captured inp
 
 Source: AD-4, AD-13; shared artifact identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 624 in the captured input.
 
 ### AR-13
 
@@ -69,13 +69,13 @@ The shared schema must preserve these architecture-defined groups:
 | Geometry | Canonical recipe or image-derived snapshot kind, units/conversions, feature/parameter/dependency links and artifact digests. |
 | Manufacturing | Target profile, scale/orientation, validator/tool versions, each check result, repairs, regenerated versions and qualified export manifest. |
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 623 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 656 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ## Planning Assumptions
 

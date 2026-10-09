@@ -23,7 +23,7 @@ The user can approve or reject a specific inspected Model Version.
 
 Source: PRD §4, FR-23.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 359 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 360 in the captured input.
 
 ### FR-24
 
@@ -38,7 +38,7 @@ Before validation, the user selects the intended printer, material, and physical
 
 Source: PRD §4, FR-24.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 370 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 371 in the captured input.
 
 ### FR-25
 
@@ -56,7 +56,7 @@ Source: PRD §4, FR-25.
 
 **Ratified application:** R-3 / AR-11 makes unsupported or unknown required checks export-blocking; passing a limited synthetic fixture is not acceptance of general printability.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 381 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 382 in the captured input.
 
 ### FR-26
 
@@ -72,7 +72,7 @@ Source: PRD §4, FR-26.
 
 **Ratified application:** R-3 / AR-12 permits only the listed bounded repair classes. A byte change always creates a new artifact; retaining the Model Version requires certified nonconsequential equivalence under R-2.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 395 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 396 in the captured input.
 
 ### FR-27
 
@@ -86,7 +86,7 @@ If a repair changes visible geometry, historical dimensions, or Personalization,
 
 Source: PRD §4, FR-27.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 407 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 408 in the captured input.
 
 ### FR-29
 
@@ -104,7 +104,7 @@ Source: PRD §4, FR-29.
 
 **Ratified application:** The immutable export carries mode-appropriate provenance, never a fabricated historical plan for direct images. R-4 defines shared structured provenance plus PDF; R-8 requires connection for qualified export.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 430 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 431 in the captured input.
 
 ### AR-4
 
@@ -112,7 +112,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 430 in the captured inp
 
 Source: AD-3; R-8, R-11; scope-and-readiness.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 587 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 620 in the captured input.
 
 ### AR-13
 
@@ -130,7 +130,7 @@ The shared schema must preserve these architecture-defined groups:
 | Geometry | Canonical recipe or image-derived snapshot kind, units/conversions, feature/parameter/dependency links and artifact digests. |
 | Manufacturing | Target profile, scale/orientation, validator/tool versions, each check result, repairs, regenerated versions and qualified export manifest. |
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 623 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 656 in the captured input.
 
 ### AR-22
 
@@ -138,7 +138,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 623 in the captured inp
 
 Source: AD-16; R-8; G-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 669 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 702 in the captured input.
 
 ### SC-1
 
@@ -153,7 +153,7 @@ Picture intake supports existing images, phone camera capture, and multiple imag
 
 Source: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 516 in the captured input.
 
 ### SC-2
 
@@ -165,7 +165,7 @@ Research-assisted reconstruction remains online-only. R-8 adopts on-device limit
 
 Source: UX-SCOPE-CHANGES SC-2; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 494 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 527 in the captured input.
 
 ### UX-DR17
 
@@ -173,7 +173,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 494 in the captured inp
 
 Source: FR-24–FR-28; R-3/R-11.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 843 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 876 in the captured input.
 
 ### UX-DR57
 
@@ -183,7 +183,7 @@ Required states/variants: Not inspected, ready, approved, rejected, invalidated 
 
 Source: SCREEN-INVENTORY M-09; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1075 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1108 in the captured input.
 
 ### UX-DR62
 
@@ -193,7 +193,7 @@ Required states/variants: Blocked by approval, blocked by validation, ready.
 
 Source: SCREEN-INVENTORY V-05; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1105 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1138 in the captured input.
 
 ### UX-DR63
 
@@ -203,7 +203,7 @@ Required states/variants: Preparing, ready, individual/package download, failed,
 
 Source: SCREEN-INVENTORY V-06; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1111 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1144 in the captured input.
 
 ## Planning Assumptions
 

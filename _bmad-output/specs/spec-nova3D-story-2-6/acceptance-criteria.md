@@ -2,7 +2,7 @@
 
 **Story 2.6: Reserve bounded costs atomically**
 
-**Epic 2: Confirm requests and control background spending.** Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state.
+**Epic 2: Confirm requests and control background spending.** Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state, and invited users can pay for extra spending credit.
 
 As an Account owner,
 I want to start only work with an enforceable maximum,
@@ -22,6 +22,7 @@ So that concurrent requests cannot overspend.
 - Reserve against Account period, $5 parent research-Job lifetime across all attempts, and $1 external-operation ceilings in one transaction.
 - The reservation is input rate × a provider-independent input bound (the UTF-8 byte length of the serialized request with image data excluded plus 2,000 tokens of fixed overhead and 5,000 tokens per image, all raised by 10%, as the Spine fixes) plus output rate × the output limit actually sent; the 200,000-input-token, 16,000-output-token and 20-search-request ceilings are admission limits. An external operation is one provider request. Treat transport loss, timeout, 5xx and aborted streams as ambiguous (hold the reservation until usage evidence or a 24-hour deadline, then settle at the reservation) and definitive pre-processing rejections with a request ID as noncharge; evidence above a reservation settles at the evidence, counts against every limit and blocks the provider until reviewed.
 - Pin the provider API version, requested and returned model identity and rate schedule in each operation receipt; rate schedules are versioned records, so this story needs only fixture rates until Story 2.5 adds the provider adapters.
+- Credit funding arrives with Story 2.14; until then admission headroom is the period allowance alone.
 
 ## Acceptance Criteria
 

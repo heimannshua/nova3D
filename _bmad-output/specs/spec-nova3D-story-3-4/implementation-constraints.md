@@ -25,7 +25,7 @@ nova3D distinguishes research leads from evidence used in recommendations.
 
 Source: PRD §4, FR-9.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 180 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 181 in the captured input.
 
 ### FR-11
 
@@ -40,7 +40,7 @@ For each uncertain Consequential Detail, nova3D presents its recommendation and 
 
 Source: PRD §4, FR-11.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 206 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 207 in the captured input.
 
 ### AR-5
 
@@ -48,7 +48,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 206 in the captured inp
 
 Source: AD-4, AD-13; shared artifact identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 624 in the captured input.
 
 ### UX-DR5
 
@@ -56,7 +56,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured inp
 
 Source: SC-4; UX-3/UX-5; AD-17.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 795 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 828 in the captured input.
 
 ### UX-DR6
 
@@ -64,7 +64,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 795 in the captured inp
 
 Source: UX-1/UX-5; design handoff.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 799 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 832 in the captured input.
 
 ### UX-DR11
 
@@ -72,7 +72,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 799 in the captured inp
 
 Source: UX-3; AD-18.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 819 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 852 in the captured input.
 
 ### UX-DR42
 
@@ -82,7 +82,7 @@ Required states/variants: Hebrew/English, RTL/LTR, excerpt unavailable/digest on
 
 Source: SCREEN-INVENTORY J-04; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 985 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1018 in the captured input.
 
 ### UX-DR46
 
@@ -92,7 +92,7 @@ Required states/variants: `sourced`, `inferred`, `disputed`, `unknown`, `user-ad
 
 Source: SCREEN-INVENTORY R-03; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1009 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1042 in the captured input.
 
 ### UX-DR47
 
@@ -102,7 +102,7 @@ Required states/variants: Recommendation, no settled recommendation, required ch
 
 Source: SCREEN-INVENTORY R-04; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1015 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1048 in the captured input.
 
 ## Planning Assumptions
 

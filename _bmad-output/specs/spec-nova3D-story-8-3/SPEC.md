@@ -37,6 +37,10 @@ An Account owner needs to have deletion remove controlled copies. Retained data 
   - **intent:** Keep spending totals unchanged when a Project is deleted.
   - **success:** Given a Project with settled usage in the current period, when it is deleted, then the period's settled and reserved totals are unchanged and no Project, Job or request identity remains on those rows.
 
+- **CAP-6**
+  - **intent:** Purge payment data and expire open checkout sessions when an Account is deleted.
+  - **success:** Given an Account deleted with payment data and an open Checkout Session, when the purge runs, then its payment requests, payments and credit entries are gone, only non-identifying totals remain, and the open session is expired.
+
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Constraints

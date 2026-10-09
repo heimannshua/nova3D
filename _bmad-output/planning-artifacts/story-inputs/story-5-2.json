@@ -64,47 +64,47 @@
     "FR-21": {
       "text": "#### FR-21: Dependency-aware regeneration\n\nnova3D can regenerate every Model Feature affected by an approved correction.\n\n**Consequences:**\n- All dependent geometry is rebuilt.\n- Unrelated geometry remains geometrically unchanged within the defined reproducibility tolerance.\n- The regenerated output is a new Model Version with intact provenance.\n\nSource: PRD §4, FR-21.\n\n**Ratified application:** R-2 equivalence and dependency-closure guarantees apply to evidence recipes. Direct-image changes preserve exact version/snapshot history and do not promise identical re-inference.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 332
+      "line": 333
     },
     "AR-8": {
       "text": "**AR-8: Canonical native geometry.** Evidence-backed authority is a versioned declarative recipe with typed finite parameters, source-unit conversions, acyclic operation/dependency graph, stable feature IDs and trusted generator identity. Retain generator/dependency-lock/image digests, execution settings, recipe and BREP/STEP snapshots. CadQuery 2.8.0 uses the Python 3.12 patch and OCP closure locked at G-1 (the qualification probe used 3.12.14); STEP alone is not the recipe. Unsupported geometry requires extending the trusted generator through code review. Direct inference retains exact immutable mesh/input/model/settings snapshots with no identical-reinference claim.\n\nSource: AD-6; R-1; G-1.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 603
+      "line": 636
     },
     "AR-9": {
       "text": "**AR-9: Coordinate frames, measurement and versions.** Canonical content uses millimetres, right-handed coordinates and Z-up, retaining approved historical unit conversions. GLB explicitly converts to metres/Y-up; final-print scale/orientation is separately versioned. Every LOD preserves semantic feature IDs independently of triangles. Measurements use canonical geometry or labelled exact dimensions. Corrections rebuild dependency closure; restoration appends history and rechecks approval/profile validity without erasing successors.\n\nSource: AD-7; FR-18–FR-22.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 607
+      "line": 640
     },
     "AR-10": {
       "text": "**AR-10: Certified equivalence.** Compare corresponding semantic features under the same original pinned final-print scale/orientation, tessellator/settings and comparator version, with no best-fit or independent rescaling. Require matching feature/component/closed-solid topology, conservative bidirectional surface-distance upper bound ≤0.01 mm, bounds delta ≤0.01 mm and relative volume delta ≤0.1% using reference absolute volume. Tiny/zero/ill-conditioned or inconclusive results block acceptance. Cover dimensions, thin features, holes, rotations, units and scale; coarse bounds/volume probes are not the certified comparator.\n\nSource: R-2; AD-6, AD-7; G-2.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 611
+      "line": 644
     },
     "AR-15": {
       "text": "**AR-15: Fencing and authenticated service calls.** Each attempt binds input digest, Project revision, live Account authorization/evidence-policy epochs, lease and unique fencing token. Recheck before claim, each external step and publication. Cancel/disable/delete revoke commit authority before best-effort cancellation; stage output by attempt and clean it without publishing late results. Signed service requests bind environment, audience, Job/attempt, payload digest and nonce, expire within five minutes and allow at most 60 seconds skew. Verify native callback signatures and stored dispatch receipts; never infer callback identity from Project ID alone. Keys are Ed25519 pairs per issuer, with receivers holding public keys only. Accept only the active signing key and one explicitly retiring key for the issuer during the outstanding-request window; suspected compromise immediately revokes the key and affected leases. Reject replay mutations.\n\nSource: AD-10; service authentication and delivery conventions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 641
+      "line": 674
     },
     "NFR-3": {
       "text": "**NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 545
+      "line": 578
     },
     "NFR-5": {
       "text": "**NFR-5: Safe concurrency.** Concurrent Jobs remain isolated and cannot overwrite newer approved Project state. Results generated from stale inputs cannot silently become current.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 549
+      "line": 582
     },
     "NFR-6": {
       "text": "**NFR-6: Reproducibility.** Given fixed approved inputs, tool versions, and settings, nova3D reproduces geometrically equivalent Canonical Models within the tolerance ratified through AD-2.\n\nRatified application: this is evidence-recipe equivalence under R-2 / AR-10. The PRD's AD-2 means PRD:AD-2, not architecture AD-2. Direct inference preserves exact snapshots/provenance without an identical-reinference guarantee.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 551
+      "line": 584
     },
     "FR-7": {
       "text": "#### FR-7: Actionable notifications\n\nThe app displays an app-wide Notification bar for Jobs and approval events.\n\n**Consequences:**\n- Notifications cover research readiness, generation completion or failure, Export readiness, and later printer events.\n- Selecting a Notification opens the exact Project, approval item, failed Job, Export, or later printer event requiring attention.\n\nSource: PRD §4, FR-7.\n\n**Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 157
+      "line": 158
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

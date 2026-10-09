@@ -25,7 +25,7 @@ Source: PRD §4, FR-16.
 
 **Ratified application:** Deterministic equivalence applies to evidence-backed recipes under R-2. Direct inference instead preserves exact input/activity/output identities and restorable snapshots; identical re-inference is not promised.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 273 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 274 in the captured input.
 
 ### FR-21
 
@@ -42,7 +42,7 @@ Source: PRD §4, FR-21.
 
 **Ratified application:** R-2 equivalence and dependency-closure guarantees apply to evidence recipes. Direct-image changes preserve exact version/snapshot history and do not promise identical re-inference.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 332 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 333 in the captured input.
 
 ### FR-26
 
@@ -58,7 +58,7 @@ Source: PRD §4, FR-26.
 
 **Ratified application:** R-3 / AR-12 permits only the listed bounded repair classes. A byte change always creates a new artifact; retaining the Model Version requires certified nonconsequential equivalence under R-2.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 395 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 396 in the captured input.
 
 ### AR-10
 
@@ -66,7 +66,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 395 in the captured inp
 
 Source: R-2; AD-6, AD-7; G-2.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 611 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 644 in the captured input.
 
 ### NFR-6
 
@@ -74,7 +74,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 611 in the captured inp
 
 Ratified application: this is evidence-recipe equivalence under R-2 / AR-10. The PRD's AD-2 means PRD:AD-2, not architecture AD-2. Direct inference preserves exact snapshots/provenance without an identical-reinference guarantee.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 551 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 584 in the captured input.
 
 ## Planning Assumptions
 

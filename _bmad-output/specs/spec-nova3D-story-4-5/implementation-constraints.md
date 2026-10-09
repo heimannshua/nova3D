@@ -25,7 +25,7 @@ Source: PRD §4, FR-19.
 
 **Ratified application:** For direct-image features expose image/inference provenance and uncertainty, with user-added features distinct. Do not invent historical claims to fill evidence navigation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 307 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 308 in the captured input.
 
 ### AR-5
 
@@ -33,7 +33,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 307 in the captured inp
 
 Source: AD-4, AD-13; shared artifact identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 624 in the captured input.
 
 ### AR-9
 
@@ -41,13 +41,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured inp
 
 Source: AD-7; FR-18–FR-22.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 607 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 640 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ### UX-DR7
 
@@ -55,7 +55,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured inp
 
 Source: Screen inventory cross-surface states; UX-3; AD-3/AD-4.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 803 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 836 in the captured input.
 
 ### UX-DR50
 
@@ -65,7 +65,7 @@ Required states/variants: Sourced, disputed, user-added Personalization, now-dis
 
 Source: SCREEN-INVENTORY M-02; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1033 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1066 in the captured input.
 
 ### UX-DR51
 
@@ -75,7 +75,7 @@ Required states/variants: One-to-one, one-to-many, unavailable preview but intac
 
 Source: SCREEN-INVENTORY M-03; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1039 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1072 in the captured input.
 
 ## Planning Assumptions
 

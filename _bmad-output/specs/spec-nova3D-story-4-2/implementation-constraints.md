@@ -25,7 +25,7 @@ Source: PRD §4, FR-15.
 
 **Ratified application:** This approved-plan generation contract applies to evidence-backed geometry. Direct conversion uses pinned image/scope/engine provenance and retains the same model-inspection, exact-model approval and print-validation obligations.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 260 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 261 in the captured input.
 
 ### FR-16
 
@@ -42,7 +42,7 @@ Source: PRD §4, FR-16.
 
 **Ratified application:** Deterministic equivalence applies to evidence-backed recipes under R-2. Direct inference instead preserves exact input/activity/output identities and restorable snapshots; identical re-inference is not promised.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 273 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 274 in the captured input.
 
 ### AR-2
 
@@ -50,7 +50,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 273 in the captured inp
 
 Source: AD-1, AD-2; Structural Seed.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 579 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 612 in the captured input.
 
 ### AR-8
 
@@ -58,7 +58,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 579 in the captured inp
 
 Source: AD-6; R-1; G-1.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 603 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 636 in the captured input.
 
 ### AR-9
 
@@ -66,13 +66,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 603 in the captured inp
 
 Source: AD-7; FR-18–FR-22.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 607 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 640 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ### NFR-6
 
@@ -80,7 +80,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured inp
 
 Ratified application: this is evidence-recipe equivalence under R-2 / AR-10. The PRD's AD-2 means PRD:AD-2, not architecture AD-2. Direct inference preserves exact snapshots/provenance without an identical-reinference guarantee.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 551 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 584 in the captured input.
 
 ### FR-7
 
@@ -96,7 +96,7 @@ Source: PRD §4, FR-7.
 
 **Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 157 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 158 in the captured input.
 
 ## Planning Assumptions
 

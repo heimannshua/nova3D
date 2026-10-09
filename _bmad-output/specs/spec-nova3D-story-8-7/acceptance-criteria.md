@@ -16,6 +16,7 @@ So that release decisions reflect the complete application.
 - [8.5](../spec-nova3D-story-8-5/SPEC.md)
 - [8.6](../spec-nova3D-story-8-6/SPEC.md)
 - [8.8](../spec-nova3D-story-8-8/SPEC.md)
+- [2.17](../spec-nova3D-story-2-17/SPEC.md)
 
 ## Scope
 
@@ -34,7 +35,7 @@ So that release decisions reflect the complete application.
 
 **Given** the complete evidence altar/ramp and direct/offline regression suites
 **When** integrated acceptance runs
-**Then** all original PRD metrics, two-account isolation, invitations, cost/retry races, stale approvals, source-policy/cache privacy, repair lineage and deletion-aware restore have required evidence
+**Then** all original PRD metrics, two-account isolation, invitations, cost/retry races, stale approvals, source-policy/cache privacy, repair lineage, deletion-aware restore and the payment seams (webhook replay, tampered amount, late payment and refund after spend) have required evidence
 
 ### AC-3
 

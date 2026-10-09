@@ -24,7 +24,7 @@ Source: PRD §4, FR-5.
 
 **Ratified application:** SC-1 also requires ordered multi-view picture intake and the two explicit picture modes; natural-language intake does not defer them.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 133 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 134 in the captured input.
 
 ### FR-12
 
@@ -41,7 +41,7 @@ Source: PRD §4, FR-12.
 
 **Ratified application:** Whole-plan completeness and approval govern evidence_text and evidence_images. image_direct uses confirmed scope, ordered images and explicit uncertainty acknowledgment; it never fabricates a Research Plan.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 217 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 218 in the captured input.
 
 ### FR-13
 
@@ -58,7 +58,7 @@ Source: PRD §4, FR-13.
 
 **Ratified application:** Plan Approval gates only the two evidence modes. Direct conversion has its own immutable confirmed-input/uncertainty gate, followed by exact-model approval and validation for qualified export.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 230 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 231 in the captured input.
 
 ### AR-4
 
@@ -66,7 +66,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 230 in the captured inp
 
 Source: AD-3; R-8, R-11; scope-and-readiness.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 587 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 620 in the captured input.
 
 ### SC-1
 
@@ -81,7 +81,7 @@ Picture intake supports existing images, phone camera capture, and multiple imag
 
 Source: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 516 in the captured input.
 
 ### UX-DR8
 
@@ -89,7 +89,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured inp
 
 Source: UX-2; FR-4/FR-5/FR-14.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 807 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 840 in the captured input.
 
 ### UX-DR10
 
@@ -97,7 +97,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 807 in the captured inp
 
 Source: SC-1; UX-2.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 815 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 848 in the captured input.
 
 ### UX-DR34
 
@@ -107,7 +107,7 @@ Required states/variants: Sufficient, insufficient, additional view requested, *
 
 Source: SCREEN-INVENTORY C-04; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 937 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 970 in the captured input.
 
 ### UX-DR35
 
@@ -117,7 +117,7 @@ Required states/variants: Plain explanation of accuracy difference, online/offli
 
 Source: SCREEN-INVENTORY C-05; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 943 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 976 in the captured input.
 
 ### UX-DR36
 
@@ -127,7 +127,7 @@ Required states/variants: Clear, ambiguous with clarification questions, edit re
 
 Source: SCREEN-INVENTORY C-06; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 949 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 982 in the captured input.
 
 ### UX-DR38
 
@@ -137,7 +137,7 @@ Required states/variants: Ready, offline direct conversion, provider disclosure 
 
 Source: SCREEN-INVENTORY C-08; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 961 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 994 in the captured input.
 
 ## Planning Assumptions
 

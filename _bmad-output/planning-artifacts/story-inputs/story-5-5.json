@@ -62,37 +62,37 @@
     "FR-23": {
       "text": "#### FR-23: Version-bound model approval\n\nThe user can approve or reject a specific inspected Model Version.\n\n**Consequences:**\n- Export is blocked until Model Approval exists for the exact Model Version.\n- Geometry or Personalization changes invalidate Model Approval for the changed Version.\n- Model Approval records the approver and time.\n\nSource: PRD §4, FR-23.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 359
+      "line": 360
     },
     "FR-27": {
       "text": "#### FR-27: Approval after substantive repair\n\nIf a repair changes visible geometry, historical dimensions, or Personalization, nova3D creates a new Model Version and requires inspection and Model Approval again.\n\n**Consequences:**\n- Export remains blocked until the repaired Version is approved and passes validation.\n- Repairs that do not change those properties still remain in the validation audit history.\n\nSource: PRD §4, FR-27.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 407
+      "line": 408
     },
     "AR-4": {
       "text": "**AR-4: Explicit request modes.** Persist immutable evidence_text, evidence_images or image_direct revisions. Evidence modes need complete whole-plan approval of the exact digest. Direct mode needs confirmed scope, ordered image digests and acknowledged uncertainty, and never gains historical status. Changing modes creates a successor request. Every qualified export still requires exact-model approval and compatible validation.\n\nSource: AD-3; R-8, R-11; scope-and-readiness.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 587
+      "line": 620
     },
     "AR-5": {
       "text": "**AR-5: Provenance and immutable publication.** Preserve SourceRevision → ClaimRevision → Detail/Option → PlanRevision/PlanApproval → Parameter → Feature → ModelVersion → ModelApproval/Validation → Export links, including reverse navigation, competing choices, actors and times. Stable logical features have version-specific geometry/claim bindings. Artifacts owns one canonical JSON manifest-root/digest family with immutable ID, ownership, size, kind, byte digest, canonical serialization version, producing activity and child references. Approval, gateway access, restore, cleanup and deletion resolve the same manifest roots; object keys cannot redefine them. Staged output becomes usable/restorable only through verified coordinated publication.\n\nSource: AD-4, AD-13; shared artifact identity.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 591
+      "line": 624
     },
     "NFR-3": {
       "text": "**NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 545
+      "line": 578
     },
     "UX-DR16": {
       "text": "**UX-DR16: Immutable approvals and comparison.** Show exact plan/model version and readiness before approval. Compare geometry, parameters, evidence/choices, personalization, approvals and validation; restoration preserves later history and does not silently authorize an export. Changed interpretations, substantive repair and personalization route to the relevant successor approval.\n\nSource: FR-12/FR-13/FR-20–FR-23/FR-27.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 839
+      "line": 872
     },
     "UX-DR57": {
       "text": "**UX-DR57: Model Approval (M-09).** Approve or reject the exact inspected Model Version.\n\nRequired states/variants: Not inspected, ready, approved, rejected, invalidated by later change.\n\nSource: SCREEN-INVENTORY M-09; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 1075
+      "line": 1108
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

@@ -26,7 +26,7 @@ Source: PRD §4, FR-22.
 
 **Ratified application:** Restore mode-appropriate provenance: exact plan/approvals for evidence models; exact inputs, activity, uncertainty and snapshots for direct models. A new qualified export still checks current exact-model approval and validation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 345 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 346 in the captured input.
 
 ### AR-5
 
@@ -34,7 +34,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 345 in the captured inp
 
 Source: AD-4, AD-13; shared artifact identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 624 in the captured input.
 
 ### AR-9
 
@@ -42,19 +42,19 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured inp
 
 Source: AD-7; FR-18–FR-22.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 607 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 640 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ### NFR-7
 
 **NFR-7: Version durability.** Every Version presented as restorable must restore its geometry and provenance successfully. Deletion under FR-30 is the explicit exception.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 555 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 588 in the captured input.
 
 ### UX-DR16
 
@@ -62,7 +62,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 555 in the captured inp
 
 Source: FR-12/FR-13/FR-20–FR-23/FR-27.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 839 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 872 in the captured input.
 
 ### UX-DR54
 
@@ -72,7 +72,7 @@ Required states/variants: Current, older, restored, deleted exception.
 
 Source: SCREEN-INVENTORY M-06; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1057 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1090 in the captured input.
 
 ### UX-DR55
 
@@ -82,7 +82,7 @@ Required states/variants: Geometry change, evidence-only change, Personalization
 
 Source: SCREEN-INVENTORY M-07; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1063 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1096 in the captured input.
 
 ## Planning Assumptions
 

@@ -9,6 +9,8 @@ updated: 2026-09-14
 
 > **Notice (2026-10-08):** the approved August 30 scope changes (UX-SCOPE-CHANGES.md, SC-1 to SC-7) bring direct and research-assisted picture workflows, offline direct conversion and complete phone support into the first version. Where this document defers pictures, `specs/spec-nova3D/scope-and-readiness.md` and `planning-artifacts/epics.md` govern. Other requirements remain as written.
 
+> **Notice (2026-10-09):** Josh decided that Administrator payment requests and prepaid credit for invited Accounts (FR-31, FR-32) belong to the first version. Public billing, self-service purchasing, storefronts and marketplaces remain out of scope. `specs/spec-nova3D/scope-and-readiness.md` and `planning-artifacts/epics.md` govern where this document says otherwise.
+
 ## 0. Document Purpose
 
 This PRD defines the first implementable nova3D milestone for Josh, its Administrator, first user, and developer, plus controlled invited Accounts. It translates the approved product brief into grouped features, stable functional requirements, cross-cutting quality requirements, explicit non-goals, testable success metrics, and a gated decision register. Technical context and supporting architecture constraints belong in `addendum.md`.
@@ -68,6 +70,8 @@ The first milestone does not serve customers, collaborators inside a shared proj
 - **Target Print Profile** — The selected printer, material, physical size, and relevant print constraints used for validation.
 - **Export** — An approved 3MF print file, an optional STL compatibility copy, and the PDF Source Record.
 - **Usage Limit** — An Administrator-configured paid-usage or spending boundary for an Account.
+- **Payment Request** — An Administrator-created, immutable request for one Account to pay a stated USD price for a stated amount of Credit.
+- **Credit** — A prepaid USD balance, separate from the monthly Usage Limit, that is spent only after the allowance is used.
 
 ## 4. Features and Functional Requirements
 
@@ -126,6 +130,7 @@ The Administrator can view per-Account paid usage or spending and configure a Us
 - Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.
 - Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.
 - Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.
+- Available headroom is the remaining period allowance plus the Account's unfrozen Credit balance (FR-32).
 
 #### FR-5: Natural-language project intake
 
@@ -407,9 +412,39 @@ An Account owner can permanently delete individual Projects and Exports or the c
 
 - Whole-Account deletion immediately disables access and applies the shared guarantees to every Project, Job, Notification, Export, upload, Personalization item, usage-linked identifier, temporary artifact, and private operational record in that Workspace.
 - Only Cached Research Revisions allowed above may remain, and they cannot reveal that the deleted Account requested or used them.
+- Payment Requests, payments and Credit entries are private records deleted with the Account; the only payment data that may remain is non-identifying aggregate totals, and the payment provider's own retention is disclosed before the first payment.
 - Because the Administrator role is unique and non-transferable in the MVP, ordinary Administrator self-deletion is blocked while an invited Account exists.
 - A separate close-instance action remains available after fresh Administrator authentication and explicit destructive confirmation. It tombstones every Account and Workspace without exposing their contents, revokes all sessions and Invitation Codes, cancels all Jobs, rejects late writes, and applies the shared deletion guarantees.
 - When no invited Account remains, Administrator self-deletion performs the same close-instance action.
+
+### 4.7 Payments and Prepaid Credit
+
+#### FR-31: Payment requests and hosted payment
+
+The Administrator can ask a specific invited Account to pay a stated price in USD for a stated amount of credit. The Account owner can pay by card on the payment provider's hosted page. A confirmed payment adds exactly the agreed credit to that Account.
+
+**Consequences:**
+- Only the Administrator creates or cancels payment requests, with fresh authentication and an audit event; price and credit are fixed when the request is created.
+- Card details never reach nova3D.
+- Credit is granted once per payment and only after the provider confirms the exact price and currency; repeated or out-of-order notifications grant nothing extra.
+- A request can expire or be cancelled; a payment that arrives for one grants nothing and is flagged for refund.
+- Refunds and disputes reduce credit by the affected share, up to the unspent balance, and any shortfall is reported to the Administrator.
+- Differences between the provider's records and recorded credit are detected and reported to the Administrator.
+- nova3D computes no tax. The owner sees the price, the credit and the refund policy before paying.
+
+Source: Josh decision 2026-10-09 (sprint change proposal).
+
+#### FR-32: Prepaid credit
+
+An Account's credit is a separate balance that the owner and the Administrator can see. It is spent only after the monthly allowance, does not expire while the Account exists, and follows the same reservation, ceiling and ambiguous-charge rules as the allowance.
+
+**Consequences:**
+- The Administrator can grant credit without a payment, with a stated reason and an audit event.
+- Credit that is frozen because of a dispute is not available to spend; running Jobs keep their reservations.
+- Credit carries over when the monthly allowance resets.
+- Deleting an Account removes its identifiable payment and credit records; only non-identifying aggregates may remain, and the provider's own retention is disclosed before the first payment.
+
+Source: Josh decision 2026-10-09 (sprint change proposal).
 
 ## 5. Non-Goals
 
@@ -419,7 +454,7 @@ An Account owner can permanently delete individual Projects and Exports or the c
 - Direct printer connection, job submission, printer queues, filament tracking, settings, or cameras in the MVP.
 - Direct picture-to-model or research-assisted picture reconstruction in the MVP.
 - Support for unrelated research domains in the MVP.
-- Shared Projects, real-time collaboration, teams, public registration, billing, storefronts, marketplace functions, or sales-listing generation.
+- Shared Projects, real-time collaboration, teams, public registration, public billing or self-service purchasing, storefronts, marketplace functions, or sales-listing generation.
 - Commercial source-licensing assessment; nova3D records provenance, while users remain responsible for licensing decisions.
 - Structural, safety, or universal manufacturability certification.
 - Using probabilistic text-to-mesh output as the authoritative Canonical Model.
@@ -429,6 +464,7 @@ An Account owner can permanently delete individual Projects and Exports or the c
 ### 6.1 In Scope
 
 - Controlled Accounts, private Workspaces, Administrator controls, and Usage Limits.
+- Administrator payment requests and prepaid Credit for invited Accounts, paid by card on a hosted page.
 - Natural-language Project creation for the outer altar and ramp from Middot chapter 3.
 - Clarification of ambiguous requests before paid work begins.
 - Per-Project free-only or paid research choice and cache-reuse or fresh-research choice.

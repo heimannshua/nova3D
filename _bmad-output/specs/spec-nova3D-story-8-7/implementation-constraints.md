@@ -16,7 +16,7 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 Source: AD-19; R-9; G-9.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 685 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 718 in the captured input.
 
 ### AR-27
 
@@ -24,37 +24,37 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 685 in the captured inp
 
 Source: Qualification REPORT; architecture implementation gates.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 689 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 722 in the captured input.
 
 ### NFR-1
 
 **NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 541 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 574 in the captured input.
 
 ### NFR-2
 
 **NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 543 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 576 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ### NFR-4
 
 **NFR-4: Durable job state.** Closing the browser, navigating to another Project, or a worker restart cannot lose an accepted Job, corrupt its Project, or misreport its final state.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 547 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 580 in the captured input.
 
 ### NFR-5
 
 **NFR-5: Safe concurrency.** Concurrent Jobs remain isolated and cannot overwrite newer approved Project state. Results generated from stale inputs cannot silently become current.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 549 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 582 in the captured input.
 
 ### NFR-6
 
@@ -62,37 +62,37 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 549 in the captured inp
 
 Ratified application: this is evidence-recipe equivalence under R-2 / AR-10. The PRD's AD-2 means PRD:AD-2, not architecture AD-2. Direct inference preserves exact snapshots/provenance without an identical-reinference guarantee.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 551 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 584 in the captured input.
 
 ### NFR-7
 
 **NFR-7: Version durability.** Every Version presented as restorable must restore its geometry and provenance successfully. Deletion under FR-30 is the explicit exception.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 555 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 588 in the captured input.
 
 ### NFR-8
 
 **NFR-8: Explainable failures.** User-facing failures identify the failed stage, known cause, preserved state, cost impact where known, and permitted next action in beginner-friendly language.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 557 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 590 in the captured input.
 
 ### NFR-9
 
 **NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 559 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 592 in the captured input.
 
 ### NFR-10
 
 **NFR-10: Responsive workspace.** Research, generation, validation, repair, and export run without blocking navigation or ordinary Project inspection. Browser preview degradation or failure cannot damage manufacturing geometry.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 561 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 594 in the captured input.
 
 ### NFR-11
 
 **NFR-11: Honest print qualification.** Validation labels always identify the Target Print Profile, warnings, failures, unknowns, and last validation time; nova3D never presents validation as safety or universal manufacturability certification.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 563 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 596 in the captured input.
 
 ### NFR-12
 
@@ -100,7 +100,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 563 in the captured inp
 
 Source: PRD §7. All twelve NFRs apply across the capability set, with the explicit mode distinction above. Architecture requirements below supply measurable limits and enforcement contracts.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 565 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 598 in the captured input.
 
 ## Planning Assumptions
 

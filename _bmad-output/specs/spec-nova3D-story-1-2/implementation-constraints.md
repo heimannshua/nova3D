@@ -16,7 +16,7 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 Source: AD-17; R-10; canonical UX contract.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 693 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 726 in the captured input.
 
 ### SC-3
 
@@ -26,7 +26,7 @@ The first version supports the complete workflow on desktop, laptop, and phone. 
 
 Source: UX-SCOPE-CHANGES SC-3; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 502 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 535 in the captured input.
 
 ### SC-4
 
@@ -36,7 +36,7 @@ The interface supports any configured language, including full right-to-left lay
 
 Source: UX-SCOPE-CHANGES SC-4; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 508 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 541 in the captured input.
 
 ### SC-7
 
@@ -48,7 +48,7 @@ R-10 adopts the light neutral/slate/indigo baseline and delegates detailed respo
 
 Source: UX-SCOPE-CHANGES SC-7; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 531 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 564 in the captured input.
 
 ### UX-DR1
 
@@ -56,7 +56,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 531 in the captured inp
 
 Source: R-10; UX-7; design handoff.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 779 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 812 in the captured input.
 
 ### UX-DR2
 
@@ -64,7 +64,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 779 in the captured inp
 
 Source: SC-3; UX-1/UX-5/UX-7.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 783 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 816 in the captured input.
 
 ### UX-DR3
 
@@ -72,7 +72,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 783 in the captured inp
 
 Source: SC-7; UX-5; AD-17.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 787 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 820 in the captured input.
 
 ### UX-DR4
 
@@ -80,7 +80,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 787 in the captured inp
 
 Source: SC-7; UX-5; design handoff.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 791 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 824 in the captured input.
 
 ### UX-DR5
 
@@ -88,7 +88,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 791 in the captured inp
 
 Source: SC-4; UX-3/UX-5; AD-17.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 795 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 828 in the captured input.
 
 ### UX-DR6
 
@@ -96,7 +96,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 795 in the captured inp
 
 Source: UX-1/UX-5; design handoff.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 799 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 832 in the captured input.
 
 ### UX-DR7
 
@@ -104,7 +104,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 799 in the captured inp
 
 Source: Screen inventory cross-surface states; UX-3; AD-3/AD-4.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 803 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 836 in the captured input.
 
 ### UX-DR20
 
@@ -112,7 +112,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 803 in the captured inp
 
 Source: R-10; UX-7; screen inventory/design handoff.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 855 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 888 in the captured input.
 
 ### UX-DR24
 
@@ -122,7 +122,7 @@ Required states/variants: Desktop/laptop, phone, LTR, RTL, light, dark.
 
 Source: SCREEN-INVENTORY G-01; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 877 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 910 in the captured input.
 
 ### UX-DR26
 
@@ -132,7 +132,7 @@ Required states/variants: First use, dismissed, reopened from Settings.
 
 Source: SCREEN-INVENTORY G-03; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 889 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 922 in the captured input.
 
 ### UX-DR64
 
@@ -142,7 +142,7 @@ Required states/variants: Device-language default, manual override, RTL preview,
 
 Source: SCREEN-INVENTORY S-01; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1117 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1150 in the captured input.
 
 ## Planning Assumptions
 

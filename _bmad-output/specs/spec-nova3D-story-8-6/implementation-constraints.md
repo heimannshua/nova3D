@@ -16,7 +16,7 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 Source: AD-16; R-8; G-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 669 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 702 in the captured input.
 
 ### AR-23
 
@@ -24,7 +24,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 669 in the captured inp
 
 Source: AD-16; R-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 673 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 706 in the captured input.
 
 ### AR-27
 
@@ -32,25 +32,25 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 673 in the captured inp
 
 Source: Qualification REPORT; architecture implementation gates.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 689 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 722 in the captured input.
 
 ### NFR-4
 
 **NFR-4: Durable job state.** Closing the browser, navigating to another Project, or a worker restart cannot lose an accepted Job, corrupt its Project, or misreport its final state.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 547 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 580 in the captured input.
 
 ### NFR-5
 
 **NFR-5: Safe concurrency.** Concurrent Jobs remain isolated and cannot overwrite newer approved Project state. Results generated from stale inputs cannot silently become current.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 549 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 582 in the captured input.
 
 ### NFR-10
 
 **NFR-10: Responsive workspace.** Research, generation, validation, repair, and export run without blocking navigation or ordinary Project inspection. Browser preview degradation or failure cannot damage manufacturing geometry.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 561 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 594 in the captured input.
 
 ### SC-2
 
@@ -62,7 +62,7 @@ Research-assisted reconstruction remains online-only. R-8 adopts on-device limit
 
 Source: UX-SCOPE-CHANGES SC-2; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 494 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 527 in the captured input.
 
 ### SC-3
 
@@ -72,7 +72,7 @@ The first version supports the complete workflow on desktop, laptop, and phone. 
 
 Source: UX-SCOPE-CHANGES SC-3; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 502 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 535 in the captured input.
 
 ### UX-DR13
 
@@ -80,7 +80,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 502 in the captured inp
 
 Source: SC-2; UX-4; R-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 827 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 860 in the captured input.
 
 ### UX-DR14
 
@@ -88,7 +88,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 827 in the captured inp
 
 Source: UX-4; R-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 831 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 864 in the captured input.
 
 ## Planning Assumptions
 

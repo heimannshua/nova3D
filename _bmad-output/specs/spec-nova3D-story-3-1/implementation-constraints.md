@@ -23,7 +23,7 @@ nova3D can identify the confirmed subject and locate relevant Sources without re
 
 Source: PRD §4, FR-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 169 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 170 in the captured input.
 
 ### FR-9
 
@@ -40,7 +40,7 @@ nova3D distinguishes research leads from evidence used in recommendations.
 
 Source: PRD §4, FR-9.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 180 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 181 in the captured input.
 
 ### AR-6
 
@@ -48,7 +48,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 180 in the captured inp
 
 Source: AD-5; evidence-policy identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 595 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 628 in the captured input.
 
 ### AR-7
 
@@ -56,7 +56,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 595 in the captured inp
 
 Source: AD-1, AD-5.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 599 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 632 in the captured input.
 
 ### AR-20
 
@@ -64,19 +64,19 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 599 in the captured inp
 
 Source: AD-14; R-7; G-7.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 661 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 694 in the captured input.
 
 ### NFR-2
 
 **NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 543 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 576 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ### NFR-12
 
@@ -84,7 +84,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured inp
 
 Source: PRD §7. All twelve NFRs apply across the capability set, with the explicit mode distinction above. Architecture requirements below supply measurable limits and enforcement contracts.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 565 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 598 in the captured input.
 
 ## Planning Assumptions
 

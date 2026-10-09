@@ -25,7 +25,7 @@ Source: PRD §4, FR-28.
 
 **Ratified application:** R-11 also allows at most one constrained full direct-image reconversion from the original pinned images/scope/engine and failed print constraints. Both modes atomically share the unresettable lineage slot across retries/children; a new Model Version requires inspection, approval and validation. An incapable engine or failed allowed attempt stops.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 417 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 418 in the captured input.
 
 ### AR-12
 
@@ -33,7 +33,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 417 in the captured inp
 
 Source: AD-8; R-3, R-11; G-3/G-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 619 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 652 in the captured input.
 
 ### AR-22
 
@@ -41,7 +41,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 619 in the captured inp
 
 Source: AD-16; R-8; G-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 669 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 702 in the captured input.
 
 ### SC-1
 
@@ -56,7 +56,7 @@ Picture intake supports existing images, phone camera capture, and multiple imag
 
 Source: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 516 in the captured input.
 
 ### SC-2
 
@@ -68,7 +68,7 @@ Research-assisted reconstruction remains online-only. R-8 adopts on-device limit
 
 Source: UX-SCOPE-CHANGES SC-2; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 494 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 527 in the captured input.
 
 ### UX-DR17
 
@@ -76,7 +76,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 494 in the captured inp
 
 Source: FR-24–FR-28; R-3/R-11.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 843 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 876 in the captured input.
 
 ### UX-DR61
 
@@ -86,7 +86,7 @@ Required states/variants: Running, new Version awaiting inspection/approval, fai
 
 Source: SCREEN-INVENTORY V-04; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1099 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1132 in the captured input.
 
 ### AR-14
 
@@ -94,7 +94,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 1099 in the captured in
 
 Source: AD-9; work/billing identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 637 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 670 in the captured input.
 
 ### AR-15
 
@@ -102,7 +102,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 637 in the captured inp
 
 Source: AD-10; service authentication and delivery conventions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 641 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 674 in the captured input.
 
 ### FR-7
 
@@ -118,7 +118,7 @@ Source: PRD §4, FR-7.
 
 **Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 157 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 158 in the captured input.
 
 ## Planning Assumptions
 

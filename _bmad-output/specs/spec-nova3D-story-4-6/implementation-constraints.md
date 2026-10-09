@@ -22,7 +22,7 @@ The user can inspect a Model Version without manual geometry editing.
 
 Source: PRD §4, FR-18.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 297 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 298 in the captured input.
 
 ### AR-9
 
@@ -30,7 +30,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 297 in the captured inp
 
 Source: AD-7; FR-18–FR-22.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 607 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 640 in the captured input.
 
 ### AR-24
 
@@ -38,13 +38,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 607 in the captured inp
 
 Source: AD-7, AD-17; R-5; G-5.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 677 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 710 in the captured input.
 
 ### NFR-10
 
 **NFR-10: Responsive workspace.** Research, generation, validation, repair, and export run without blocking navigation or ordinary Project inspection. Browser preview degradation or failure cannot damage manufacturing geometry.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 561 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 594 in the captured input.
 
 ### SC-3
 
@@ -54,7 +54,7 @@ The first version supports the complete workflow on desktop, laptop, and phone. 
 
 Source: UX-SCOPE-CHANGES SC-3; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 502 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 535 in the captured input.
 
 ### SC-7
 
@@ -66,7 +66,7 @@ R-10 adopts the light neutral/slate/indigo baseline and delegates detailed respo
 
 Source: UX-SCOPE-CHANGES SC-7; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 531 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 564 in the captured input.
 
 ### UX-DR2
 
@@ -74,7 +74,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 531 in the captured inp
 
 Source: SC-3; UX-1/UX-5/UX-7.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 783 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 816 in the captured input.
 
 ### UX-DR3
 
@@ -82,7 +82,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 783 in the captured inp
 
 Source: SC-7; UX-5; AD-17.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 787 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 820 in the captured input.
 
 ### UX-DR4
 
@@ -90,7 +90,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 787 in the captured inp
 
 Source: SC-7; UX-5; design handoff.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 791 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 824 in the captured input.
 
 ### UX-DR15
 
@@ -98,7 +98,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 791 in the captured inp
 
 Source: FR-18/FR-19; AD-7; R-5.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 835 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 868 in the captured input.
 
 ### UX-DR49
 
@@ -108,7 +108,7 @@ Required states/variants: Loading, ready, degraded preview, WebGL/GPU failure, p
 
 Source: SCREEN-INVENTORY M-01; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1027 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1060 in the captured input.
 
 ## Planning Assumptions
 

@@ -64,27 +64,27 @@
     "FR-16": {
       "text": "#### FR-16: Reproducible canonical model\n\nnova3D preserves a Canonical Model representation from which approved geometry can be regenerated reproducibly.\n\n**Consequences:**\n- Identical approved inputs, governing tool versions, and generation settings must produce geometrically equivalent output within a defined tolerance.\n- Probabilistic research or drafting output is not itself the Canonical Model.\n- Exported print files do not replace or erase the Canonical Model history.\n\nSource: PRD §4, FR-16.\n\n**Ratified application:** Deterministic equivalence applies to evidence-backed recipes under R-2. Direct inference instead preserves exact input/activity/output identities and restorable snapshots; identical re-inference is not promised.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 273
+      "line": 274
     },
     "FR-21": {
       "text": "#### FR-21: Dependency-aware regeneration\n\nnova3D can regenerate every Model Feature affected by an approved correction.\n\n**Consequences:**\n- All dependent geometry is rebuilt.\n- Unrelated geometry remains geometrically unchanged within the defined reproducibility tolerance.\n- The regenerated output is a new Model Version with intact provenance.\n\nSource: PRD §4, FR-21.\n\n**Ratified application:** R-2 equivalence and dependency-closure guarantees apply to evidence recipes. Direct-image changes preserve exact version/snapshot history and do not promise identical re-inference.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 332
+      "line": 333
     },
     "FR-26": {
       "text": "#### FR-26: Immediate automatic repair\n\nWhen validation finds a fixable blocking failure, nova3D attempts an immediate repair and reruns all affected validation checks.\n\n**Consequences:**\n- Every repair records the detected problem, action taken, affected Model Features, and before-and-after result.\n- If local repair fails, nova3D proceeds to FR-28 rather than looping indefinitely.\n\nSource: PRD §4, FR-26.\n\n**Ratified application:** R-3 / AR-12 permits only the listed bounded repair classes. A byte change always creates a new artifact; retaining the Model Version requires certified nonconsequential equivalence under R-2.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 395
+      "line": 396
     },
     "AR-10": {
       "text": "**AR-10: Certified equivalence.** Compare corresponding semantic features under the same original pinned final-print scale/orientation, tessellator/settings and comparator version, with no best-fit or independent rescaling. Require matching feature/component/closed-solid topology, conservative bidirectional surface-distance upper bound ≤0.01 mm, bounds delta ≤0.01 mm and relative volume delta ≤0.1% using reference absolute volume. Tiny/zero/ill-conditioned or inconclusive results block acceptance. Cover dimensions, thin features, holes, rotations, units and scale; coarse bounds/volume probes are not the certified comparator.\n\nSource: R-2; AD-6, AD-7; G-2.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 611
+      "line": 644
     },
     "NFR-6": {
       "text": "**NFR-6: Reproducibility.** Given fixed approved inputs, tool versions, and settings, nova3D reproduces geometrically equivalent Canonical Models within the tolerance ratified through AD-2.\n\nRatified application: this is evidence-recipe equivalence under R-2 / AR-10. The PRD's AD-2 means PRD:AD-2, not architecture AD-2. Direct inference preserves exact snapshots/provenance without an identical-reinference guarantee.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 551
+      "line": 584
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

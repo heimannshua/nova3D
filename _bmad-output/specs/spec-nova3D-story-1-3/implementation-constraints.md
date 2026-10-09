@@ -49,19 +49,19 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 85 in the captured inpu
 
 Source: AD-12; FR-1–FR-4.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 653 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 686 in the captured input.
 
 ### NFR-1
 
 **NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 541 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 574 in the captured input.
 
 ### NFR-2
 
 **NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 543 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 576 in the captured input.
 
 ### UX-DR22
 
@@ -71,7 +71,7 @@ Required states/variants: Valid, invalid/revoked/used code, rate-limited, succes
 
 Source: SCREEN-INVENTORY A-02; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 865 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 898 in the captured input.
 
 ## Planning Assumptions
 

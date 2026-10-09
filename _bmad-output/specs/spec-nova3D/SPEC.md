@@ -31,8 +31,8 @@ Josh needs to turn difficult historical evidence into defensible printable model
   - **success:** Single-use invitation races create at most one Account; cross-Account reads/writes/downloads are denied; disable/re-enable, scoped administration and verified-email recovery follow the adopted access rules.
 
 - **CAP-2 — Permissioned spending**
-  - **intent:** Accounts can choose research payment mode and Josh can control each Account's paid usage.
-  - **success:** Zero paid operations start without the required Project/category/provider disclosure, permission and sufficient reservation; concurrent/replayed operations cannot exceed allowance or double-charge; uncertain costs remain reconcilable.
+  - **intent:** Accounts can choose research payment mode, Josh can control each Account's paid usage, and Josh can ask a chosen Account to pay for extra credit.
+  - **success:** Zero paid operations start without the required Project/category/provider disclosure, permission and sufficient reservation; concurrent/replayed operations cannot exceed allowance or double-charge; uncertain costs remain reconcilable; credit is granted once, only after a verified payment or an audited grant, and the card number never reaches nova3D.
 
 - **CAP-3 — Confirmed text or picture requests**
   - **intent:** Accounts can describe a model or submit images and choose direct conversion or research-assisted reconstruction.
@@ -104,14 +104,14 @@ Josh needs to turn difficult historical evidence into defensible printable model
 - Failed research/generation awaits user retry. Cancellation and stale-result rejection preserve approved state; the explicitly bounded mode-specific print-recovery path cannot reset its allowance through a new repair or validation child.
 - Cloud deletion takes effect before cleanup and cannot be undone by late Jobs or restore. Controlled backup removal is bounded by 30 days. Already-local offline data follows revocation on reconnect; no disconnected erasure deadline is promised.
 - The entire workflow must work on qualified phones, laptops and desktops with RTL/localization, themes and WCAG 2.2 AA. Offline direct conversion remains required; preparation and qualified export require connectivity.
-- Adopt architecture AD-1–AD-19 and ratified R-1–R-11, including the React/Tailwind, Vercel, Supabase, Upstash and GitHub direction. Technical seed and measurable defaults live in the architecture and ratified-decisions companions.
+- Adopt architecture AD-1–AD-19 and ratified R-1–R-12, including the React/Tailwind, Vercel, Supabase, Upstash and GitHub direction. Technical seed and measurable defaults live in the architecture and ratified-decisions companions.
 - Product approval is complete for the ratified defaults. Engineering may implement and qualify them now; G-1–G-9 remain open acceptance/release checks with partial local evidence, as recorded in the readiness companion. Document approval cannot prove feasibility or silently remove first-version scope.
 
 ## Non-goals
 
 - Manual geometry/mesh editing, guaranteed historical truth, universal manufacturability or safety certification.
 - Complete Temple/utensil generation, unrelated evidence-research domains and printer connection/control/fleet operation in the first version.
-- Shared Projects, real-time collaboration, teams, public sign-up, customer billing, storefronts, sales tooling and marketplaces.
+- Shared Projects, real-time collaboration, teams, public sign-up, public billing and self-service purchasing, storefronts, sales tooling and marketplaces.
 - Commercial source-licensing assessment; recording provenance does not decide permission to sell a model.
 - Physical print completion as a requirement for the altar/ramp integrity demonstration.
 

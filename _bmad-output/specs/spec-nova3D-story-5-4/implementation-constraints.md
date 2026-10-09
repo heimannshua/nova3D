@@ -26,7 +26,7 @@ Source: PRD §4, FR-22.
 
 **Ratified application:** Restore mode-appropriate provenance: exact plan/approvals for evidence models; exact inputs, activity, uncertainty and snapshots for direct models. A new qualified export still checks current exact-model approval and validation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 345 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 346 in the captured input.
 
 ### AR-5
 
@@ -34,7 +34,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 345 in the captured inp
 
 Source: AD-4, AD-13; shared artifact identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 624 in the captured input.
 
 ### AR-9
 
@@ -42,7 +42,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured inp
 
 Source: AD-7; FR-18–FR-22.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 607 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 640 in the captured input.
 
 ### AR-19
 
@@ -50,13 +50,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 607 in the captured inp
 
 Source: AD-13; file authorization.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 657 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 690 in the captured input.
 
 ### NFR-7
 
 **NFR-7: Version durability.** Every Version presented as restorable must restore its geometry and provenance successfully. Deletion under FR-30 is the explicit exception.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 555 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 588 in the captured input.
 
 ### UX-DR16
 
@@ -64,7 +64,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 555 in the captured inp
 
 Source: FR-12/FR-13/FR-20–FR-23/FR-27.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 839 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 872 in the captured input.
 
 ### UX-DR56
 
@@ -74,7 +74,7 @@ Required states/variants: Confirmation, restored, approval required for new Expo
 
 Source: SCREEN-INVENTORY M-08; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1069 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1102 in the captured input.
 
 ## Planning Assumptions
 

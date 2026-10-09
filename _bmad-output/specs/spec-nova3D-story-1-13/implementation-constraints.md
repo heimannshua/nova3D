@@ -16,13 +16,13 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 Source: AD-19; R-9; G-9.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 685 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 718 in the captured input.
 
 ### NFR-4
 
 **NFR-4: Durable job state.** Closing the browser, navigating to another Project, or a worker restart cannot lose an accepted Job, corrupt its Project, or misreport its final state.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 547 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 580 in the captured input.
 
 ### UX-DR72
 
@@ -32,7 +32,7 @@ Required states/variants: Reauthentication, success, failure, session revoked.
 
 Source: SCREEN-INVENTORY AD-04; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1165 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1198 in the captured input.
 
 ## Planning Assumptions
 

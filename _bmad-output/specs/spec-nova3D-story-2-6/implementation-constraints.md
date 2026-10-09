@@ -28,6 +28,7 @@ The Administrator can view per-Account paid usage or spending and configure a Us
 - Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.
 - Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.
 - Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.
+- Available headroom is the remaining period allowance plus the Account's unfrozen Credit balance (FR-32).
 
 Source: PRD §4, FR-4.
 
@@ -39,7 +40,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 114 in the captured inp
 
 Source: AD-2; Consistency Conventions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 583 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 616 in the captured input.
 
 ### AR-16
 
@@ -47,19 +48,19 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 583 in the captured inp
 
 Source: AD-11; R-6; G-6.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 645 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 678 in the captured input.
 
 ### NFR-5
 
 **NFR-5: Safe concurrency.** Concurrent Jobs remain isolated and cannot overwrite newer approved Project state. Results generated from stale inputs cannot silently become current.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 549 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 582 in the captured input.
 
 ### NFR-9
 
 **NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 559 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 592 in the captured input.
 
 ## Planning Assumptions
 

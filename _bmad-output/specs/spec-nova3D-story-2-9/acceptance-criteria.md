@@ -2,7 +2,7 @@
 
 **Story 2.9: Select research payment and freshness separately**
 
-**Epic 2: Confirm requests and control background spending.** Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state.
+**Epic 2: Confirm requests and control background spending.** Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state, and invited users can pay for extra spending credit.
 
 As an Account owner,
 I want to choose free or paid work and reuse or fresh research,

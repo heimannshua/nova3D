@@ -39,7 +39,7 @@ Source: PRD §4, FR-5.
 
 **Ratified application:** SC-1 also requires ordered multi-view picture intake and the two explicit picture modes; natural-language intake does not defer them.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 133 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 134 in the captured input.
 
 ### AR-3
 
@@ -47,13 +47,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 133 in the captured inp
 
 Source: AD-2; Consistency Conventions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 583 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 616 in the captured input.
 
 ### NFR-1
 
 **NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 541 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 574 in the captured input.
 
 ### SC-3
 
@@ -63,7 +63,7 @@ The first version supports the complete workflow on desktop, laptop, and phone. 
 
 Source: UX-SCOPE-CHANGES SC-3; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 502 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 535 in the captured input.
 
 ### UX-DR24
 
@@ -73,7 +73,7 @@ Required states/variants: Desktop/laptop, phone, LTR, RTL, light, dark.
 
 Source: SCREEN-INVENTORY G-01; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 877 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 910 in the captured input.
 
 ### UX-DR27
 
@@ -83,7 +83,7 @@ Required states/variants: New Account/empty, active Jobs, unread Notification, d
 
 Source: SCREEN-INVENTORY H-01; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 895 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 928 in the captured input.
 
 ### UX-DR28
 
@@ -93,7 +93,7 @@ Required states/variants: Empty, populated, search/filter if needed, locally sav
 
 Source: SCREEN-INVENTORY H-02; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 901 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 934 in the captured input.
 
 ### UX-DR29
 
@@ -103,7 +103,7 @@ Required states/variants: Researching, awaiting Plan Approval, generating, await
 
 Source: SCREEN-INVENTORY H-03; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 907 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 940 in the captured input.
 
 ### UX-DR30
 
@@ -113,7 +113,7 @@ Required states/variants: Safe actions, destructive confirmation, tombstoned/cle
 
 Source: SCREEN-INVENTORY H-04; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 913 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 946 in the captured input.
 
 ## Planning Assumptions
 

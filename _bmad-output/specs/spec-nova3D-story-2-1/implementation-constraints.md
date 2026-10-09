@@ -24,7 +24,7 @@ Source: PRD §4, FR-5.
 
 **Ratified application:** SC-1 also requires ordered multi-view picture intake and the two explicit picture modes; natural-language intake does not defer them.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 133 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 134 in the captured input.
 
 ### FR-17
 
@@ -39,7 +39,7 @@ The user can include or change Personalization through ordinary language, such a
 
 Source: PRD §4, FR-17.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 286 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 287 in the captured input.
 
 ### AR-4
 
@@ -47,7 +47,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 286 in the captured inp
 
 Source: AD-3; R-8, R-11; scope-and-readiness.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 587 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 620 in the captured input.
 
 ### SC-1
 
@@ -62,7 +62,7 @@ Picture intake supports existing images, phone camera capture, and multiple imag
 
 Source: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 516 in the captured input.
 
 ### UX-DR8
 
@@ -70,7 +70,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured inp
 
 Source: UX-2; FR-4/FR-5/FR-14.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 807 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 840 in the captured input.
 
 ### UX-DR31
 
@@ -80,7 +80,7 @@ Required states/variants: Desktop, phone, offline availability indication.
 
 Source: SCREEN-INVENTORY C-01; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 919 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 952 in the captured input.
 
 ### UX-DR32
 
@@ -90,7 +90,7 @@ Required states/variants: Empty, writing, validation problem, example/help witho
 
 Source: SCREEN-INVENTORY C-02; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 925 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 958 in the captured input.
 
 ### UX-DR36
 
@@ -100,7 +100,7 @@ Required states/variants: Clear, ambiguous with clarification questions, edit re
 
 Source: SCREEN-INVENTORY C-06; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 949 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 982 in the captured input.
 
 ## Planning Assumptions
 

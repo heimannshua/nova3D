@@ -16,7 +16,7 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 Source: AD-16; R-8; G-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 669 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 702 in the captured input.
 
 ### AR-24
 
@@ -24,7 +24,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 669 in the captured inp
 
 Source: AD-7, AD-17; R-5; G-5.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 677 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 710 in the captured input.
 
 ### AR-27
 
@@ -32,13 +32,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 677 in the captured inp
 
 Source: Qualification REPORT; architecture implementation gates.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 689 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 722 in the captured input.
 
 ### NFR-10
 
 **NFR-10: Responsive workspace.** Research, generation, validation, repair, and export run without blocking navigation or ordinary Project inspection. Browser preview degradation or failure cannot damage manufacturing geometry.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 561 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 594 in the captured input.
 
 ### SC-1
 
@@ -53,7 +53,7 @@ Picture intake supports existing images, phone camera capture, and multiple imag
 
 Source: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 516 in the captured input.
 
 ### SC-2
 
@@ -65,7 +65,7 @@ Research-assisted reconstruction remains online-only. R-8 adopts on-device limit
 
 Source: UX-SCOPE-CHANGES SC-2; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 494 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 527 in the captured input.
 
 ## Planning Assumptions
 

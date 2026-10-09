@@ -2,7 +2,7 @@
 
 **Story 2.2: Stage ordered multi-view images privately**
 
-**Epic 2: Confirm requests and control background spending.** Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state.
+**Epic 2: Confirm requests and control background spending.** Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state, and invited users can pay for extra spending credit.
 
 As an Account owner,
 I want to choose images or take photos of one subject,

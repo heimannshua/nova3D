@@ -24,7 +24,7 @@ An Account can use other Projects while multiple research or generation Jobs run
 
 Source: PRD §4, FR-6.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 145 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 146 in the captured input.
 
 ### FR-7
 
@@ -40,7 +40,7 @@ Source: PRD §4, FR-7.
 
 **Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 157 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 158 in the captured input.
 
 ### FR-14
 
@@ -61,7 +61,7 @@ The user can choose per Project whether research may use paid services or must r
 
 Source: PRD §4, FR-14.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 243 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 244 in the captured input.
 
 ### AR-14
 
@@ -69,7 +69,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 243 in the captured inp
 
 Source: AD-9; work/billing identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 637 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 670 in the captured input.
 
 ### AR-15
 
@@ -77,7 +77,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 637 in the captured inp
 
 Source: AD-10; service authentication and delivery conventions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 641 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 674 in the captured input.
 
 ### AR-17
 
@@ -85,7 +85,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 641 in the captured inp
 
 Source: R-6; AD-11; G-6.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 649 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 682 in the captured input.
 
 ### AR-25
 
@@ -93,25 +93,25 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 649 in the captured inp
 
 Source: AD-18; SC-5.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 681 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 714 in the captured input.
 
 ### NFR-8
 
 **NFR-8: Explainable failures.** User-facing failures identify the failed stage, known cause, preserved state, cost impact where known, and permitted next action in beginner-friendly language.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 557 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 590 in the captured input.
 
 ### NFR-9
 
 **NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 559 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 592 in the captured input.
 
 ### NFR-10
 
 **NFR-10: Responsive workspace.** Research, generation, validation, repair, and export run without blocking navigation or ordinary Project inspection. Browser preview degradation or failure cannot damage manufacturing geometry.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 561 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 594 in the captured input.
 
 ### UX-DR11
 
@@ -119,7 +119,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 561 in the captured inp
 
 Source: UX-3; AD-18.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 819 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 852 in the captured input.
 
 ### UX-DR39
 
@@ -129,7 +129,7 @@ Required states/variants: No Jobs, several concurrent Jobs, mixed states, future
 
 Source: SCREEN-INVENTORY J-01; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 967 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1000 in the captured input.
 
 ### UX-DR40
 
@@ -139,7 +139,7 @@ Required states/variants: Waiting, running, completed, failed, cancelled, stale 
 
 Source: SCREEN-INVENTORY J-02; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 973 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1006 in the captured input.
 
 ### UX-DR41
 
@@ -149,7 +149,7 @@ Required states/variants: Searching, Source opened, lead, accepted evidence, rej
 
 Source: SCREEN-INVENTORY J-03; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 979 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1012 in the captured input.
 
 ## Planning Assumptions
 

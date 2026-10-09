@@ -2,7 +2,7 @@
   "epic": {
     "id": "2",
     "title": "Confirm requests and control background spending",
-    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state."
+    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state, and invited users can pay for extra spending credit."
   },
   "story": {
     "id": "2-1",
@@ -65,42 +65,42 @@
     "FR-5": {
       "text": "#### FR-5: Natural-language project intake\n\nAn Account can start a Project by describing the desired model in ordinary language without finding or uploading source texts.\n\n**Consequences:**\n- If the request permits materially different subjects, periods, scopes, or outcomes, nova3D asks clarifying questions before starting paid research.\n- The user sees and confirms nova3D's understanding of the Project scope.\n\nSource: PRD §4, FR-5.\n\n**Ratified application:** SC-1 also requires ordered multi-view picture intake and the two explicit picture modes; natural-language intake does not defer them.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 133
+      "line": 134
     },
     "FR-17": {
       "text": "#### FR-17: Plain-language personalization\n\nThe user can include or change Personalization through ordinary language, such as adding a name.\n\n**Consequences:**\n- Personalization is generated automatically without manual mesh editing.\n- Every personalized Model Feature is visibly classified as user-added and cannot inherit evidence-backed status.\n- Personalization must participate in inspection, versioning, Model Approval, and print validation.\n\nSource: PRD §4, FR-17.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 286
+      "line": 287
     },
     "AR-4": {
       "text": "**AR-4: Explicit request modes.** Persist immutable evidence_text, evidence_images or image_direct revisions. Evidence modes need complete whole-plan approval of the exact digest. Direct mode needs confirmed scope, ordered image digests and acknowledged uncertainty, and never gains historical status. Changing modes creates a successor request. Every qualified export still requires exact-model approval and compatible validation.\n\nSource: AD-3; R-8, R-11; scope-and-readiness.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 587
+      "line": 620
     },
     "SC-1": {
       "text": "##### SC-1: Picture workflows move into the first version\n\nThe PRD deferred picture workflows. The first version now includes both:\n\n- **Direct picture-to-model:** labelled image-derived and not historically verified.\n- **Research-assisted picture reconstruction:** identifies the subject, researches it, builds a complete Research Plan, and follows Plan Approval before evidence-backed generation.\n\nPicture intake supports existing images, phone camera capture, and multiple images of one subject from different angles. Before conversion, nova3D checks clarity and angle coverage and recommends additional views. The user may choose **Generate anyway** after an explicit warning that incomplete views can cause invented or inaccurate geometry.\n\nSource: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 483
+      "line": 516
     },
     "UX-DR8": {
       "text": "**UX-DR8: Intake sequence and paid consent.** Confirm subject, scope, outcome, picture mode and personalization after text/image intake. For research, separately select free/paid and cache/fresh afterward, before dispatch. Present provider/category/purpose, outbound-data/retention and maximum before paid permission. Scope confirmation, start confirmation, Plan Approval and Model Approval remain distinct.\n\nSource: UX-2; FR-4/FR-5/FR-14.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 807
+      "line": 840
     },
     "UX-DR31": {
       "text": "**UX-DR31: Create entry (C-01).** Two equal first-version choices: **Enter text** and **Upload picture**.\n\nRequired states/variants: Desktop, phone, offline availability indication.\n\nSource: SCREEN-INVENTORY C-01; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 919
+      "line": 952
     },
     "UX-DR32": {
       "text": "**UX-DR32: Text request (C-02).** Ordinary-language model description plus optional Personalization.\n\nRequired states/variants: Empty, writing, validation problem, example/help without pre-filling intent.\n\nSource: SCREEN-INVENTORY C-02; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 925
+      "line": 958
     },
     "UX-DR36": {
       "text": "**UX-DR36: Understood request (C-06).** Show subject, scope, intended outcome, picture mode, and Personalization; wait for confirmation.\n\nRequired states/variants: Clear, ambiguous with clarification questions, edit request, confirmed.\n\nSource: SCREEN-INVENTORY C-06; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 949
+      "line": 982
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

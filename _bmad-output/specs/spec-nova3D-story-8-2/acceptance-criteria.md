@@ -14,6 +14,7 @@ So that all authorized private targets enter the deletion process.
 
 - [8.1](../spec-nova3D-story-8-1/SPEC.md)
 - [1.6](../spec-nova3D-story-1-6/SPEC.md)
+- [2.17](../spec-nova3D-story-2-17/SPEC.md)
 
 ## Scope
 
@@ -26,7 +27,7 @@ So that all authorized private targets enter the deletion process.
 
 **Given** a normal Account with fresh authentication
 **When** whole-Account deletion is explicitly confirmed
-**Then** sessions revoke and all owned private targets, jobs and pending work enter the durable deletion manifest; the confirmation works on phone and desktop
+**Then** sessions revoke and all owned private targets, jobs, pending work, payment requests, payments and credit entries enter the durable deletion manifest; the confirmation works on phone and desktop
 
 ### AC-2
 

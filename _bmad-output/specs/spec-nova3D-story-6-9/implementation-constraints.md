@@ -63,7 +63,7 @@ Source: PRD §4, FR-29.
 
 **Ratified application:** The immutable export carries mode-appropriate provenance, never a fabricated historical plan for direct images. R-4 defines shared structured provenance plus PDF; R-8 requires connection for qualified export.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 430 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 431 in the captured input.
 
 ### AR-19
 
@@ -71,19 +71,19 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 430 in the captured inp
 
 Source: AD-13; file authorization.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 657 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 690 in the captured input.
 
 ### NFR-1
 
 **NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 541 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 574 in the captured input.
 
 ### NFR-2
 
 **NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 543 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 576 in the captured input.
 
 ### UX-DR63
 
@@ -93,7 +93,7 @@ Required states/variants: Preparing, ready, individual/package download, failed,
 
 Source: SCREEN-INVENTORY V-06; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1111 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1144 in the captured input.
 
 ## Planning Assumptions
 

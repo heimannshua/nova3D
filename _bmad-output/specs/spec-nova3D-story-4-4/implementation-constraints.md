@@ -23,7 +23,7 @@ The user can include or change Personalization through ordinary language, such a
 
 Source: PRD §4, FR-17.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 286 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 287 in the captured input.
 
 ### AR-5
 
@@ -31,7 +31,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 286 in the captured inp
 
 Source: AD-4, AD-13; shared artifact identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 624 in the captured input.
 
 ### AR-8
 
@@ -39,13 +39,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured inp
 
 Source: AD-6; R-1; G-1.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 603 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 636 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ### UX-DR7
 
@@ -53,7 +53,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured inp
 
 Source: Screen inventory cross-surface states; UX-3; AD-3/AD-4.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 803 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 836 in the captured input.
 
 ### UX-DR46
 
@@ -63,7 +63,7 @@ Required states/variants: `sourced`, `inferred`, `disputed`, `unknown`, `user-ad
 
 Source: SCREEN-INVENTORY R-03; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1009 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1042 in the captured input.
 
 ### UX-DR50
 
@@ -73,7 +73,7 @@ Required states/variants: Sourced, disputed, user-added Personalization, now-dis
 
 Source: SCREEN-INVENTORY M-02; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1033 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1066 in the captured input.
 
 ## Planning Assumptions
 

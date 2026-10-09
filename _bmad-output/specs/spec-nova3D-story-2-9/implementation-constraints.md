@@ -29,7 +29,7 @@ The user can choose per Project whether research may use paid services or must r
 
 Source: PRD §4, FR-14.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 243 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 244 in the captured input.
 
 ### AR-6
 
@@ -37,7 +37,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 243 in the captured inp
 
 Source: AD-5; evidence-policy identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 595 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 628 in the captured input.
 
 ### AR-20
 
@@ -45,7 +45,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 595 in the captured inp
 
 Source: AD-14; R-7; G-7.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 661 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 694 in the captured input.
 
 ### UX-DR8
 
@@ -53,7 +53,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 661 in the captured inp
 
 Source: UX-2; FR-4/FR-5/FR-14.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 807 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 840 in the captured input.
 
 ### UX-DR37
 
@@ -63,7 +63,7 @@ Required states/variants: Cached revision/date shown, fresh research, paid discl
 
 Source: SCREEN-INVENTORY C-07; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 955 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 988 in the captured input.
 
 ### UX-DR38
 
@@ -73,7 +73,7 @@ Required states/variants: Ready, offline direct conversion, provider disclosure 
 
 Source: SCREEN-INVENTORY C-08; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 961 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 994 in the captured input.
 
 ## Planning Assumptions
 

@@ -71,22 +71,22 @@
     "FR-18": {
       "text": "#### FR-18: Read-only model inspection\n\nThe user can inspect a Model Version without manual geometry editing.\n\n**Consequences:**\n- Inspection supports rotating, panning, zooming, fitting or resetting the view, selecting standard or section views, hiding or isolating features, and measuring dimensions.\n- Preview geometry is identified as a viewing representation and is not presented as proof of printability.\n\nSource: PRD §4, FR-18.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 297
+      "line": 298
     },
     "AR-9": {
       "text": "**AR-9: Coordinate frames, measurement and versions.** Canonical content uses millimetres, right-handed coordinates and Z-up, retaining approved historical unit conversions. GLB explicitly converts to metres/Y-up; final-print scale/orientation is separately versioned. Every LOD preserves semantic feature IDs independently of triangles. Measurements use canonical geometry or labelled exact dimensions. Corrections rebuild dependency closure; restoration appends history and rechecks approval/profile validity without erasing successors.\n\nSource: AD-7; FR-18–FR-22.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 607
+      "line": 640
     },
     "AR-24": {
       "text": "**AR-24: Viewer and device acceptance.** Qualify current/previous stable Chrome/Edge/Firefox, macOS/iOS Safari and Android Chrome on MacBook Air M2 16 GB, Windows 11 i5-1235U/Iris Xe 16 GB, iPhone 16 Pro and Pixel 9 Pro; freeze actual OS/browser builds. First-release scope (Josh, 2026-10-08): the Windows 11 class must pass; the other device classes are listed as not qualified until real-device evidence exists. Maximum preview fixture 100,000 triangles; ≤5 MB coarse first view and ≤20 MB full initial GLB. Cold model open-to-interactive ≤5 s at shaped 20 Mbps includes code, network, decode and working orbit/feature-evidence navigation; p95 frame time ≤33 ms after load. LOD swaps retain semantic selection/provenance. GPU loss keeps canonical data and semantic/static fallbacks without claiming a passed 3D benchmark.\n\nSource: AD-7, AD-17; R-5; G-5.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 677
+      "line": 710
     },
     "NFR-10": {
       "text": "**NFR-10: Responsive workspace.** Research, generation, validation, repair, and export run without blocking navigation or ordinary Project inspection. Browser preview degradation or failure cannot damage manufacturing geometry.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 561
+      "line": 594
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

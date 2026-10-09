@@ -28,6 +28,7 @@ The Administrator can view per-Account paid usage or spending and configure a Us
 - Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.
 - Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.
 - Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.
+- Available headroom is the remaining period allowance plus the Account's unfrozen Credit balance (FR-32).
 
 Source: PRD §4, FR-4.
 
@@ -52,7 +53,7 @@ The user can choose per Project whether research may use paid services or must r
 
 Source: PRD §4, FR-14.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 243 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 244 in the captured input.
 
 ### AR-17
 
@@ -60,19 +61,19 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 243 in the captured inp
 
 Source: R-6; AD-11; G-6.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 649 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 682 in the captured input.
 
 ### NFR-2
 
 **NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 543 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 576 in the captured input.
 
 ### NFR-9
 
 **NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 559 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 592 in the captured input.
 
 ### UX-DR8
 
@@ -80,7 +81,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 559 in the captured inp
 
 Source: UX-2; FR-4/FR-5/FR-14.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 807 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 840 in the captured input.
 
 ### UX-DR37
 
@@ -90,7 +91,7 @@ Required states/variants: Cached revision/date shown, fresh research, paid discl
 
 Source: SCREEN-INVENTORY C-07; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 955 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 988 in the captured input.
 
 ### UX-DR38
 
@@ -100,7 +101,7 @@ Required states/variants: Ready, offline direct conversion, provider disclosure 
 
 Source: SCREEN-INVENTORY C-08; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 961 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 994 in the captured input.
 
 ## Planning Assumptions
 

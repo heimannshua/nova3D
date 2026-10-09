@@ -19,7 +19,7 @@ So that phone, desktop and assistive access have measured evidence.
 
 ## Scope
 
-- Validate all 53 already-implemented surfaces and required states with a screen-to-implementation map on the devices available now (the Windows 11 laptop); this story is qualification, not a deferred UX implementation bucket. Story 8.8 repeats it on the remaining device classes.
+- Validate all 54 already-implemented surfaces and required states with a screen-to-implementation map on the devices available now (the Windows 11 laptop); this story is qualification, not a deferred UX implementation bucket. Story 8.8 repeats it on the remaining device classes.
 
 ## Acceptance Criteria
 

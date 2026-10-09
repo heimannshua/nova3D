@@ -16,13 +16,13 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 Source: AD-16; R-8; G-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 669 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 702 in the captured input.
 
 ### NFR-1
 
 **NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 541 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 574 in the captured input.
 
 ### SC-1
 
@@ -37,7 +37,7 @@ Picture intake supports existing images, phone camera capture, and multiple imag
 
 Source: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 516 in the captured input.
 
 ### SC-2
 
@@ -49,7 +49,7 @@ Research-assisted reconstruction remains online-only. R-8 adopts on-device limit
 
 Source: UX-SCOPE-CHANGES SC-2; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 494 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 527 in the captured input.
 
 ### SC-3
 
@@ -59,7 +59,7 @@ The first version supports the complete workflow on desktop, laptop, and phone. 
 
 Source: UX-SCOPE-CHANGES SC-3; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 502 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 535 in the captured input.
 
 ### UX-DR9
 
@@ -67,7 +67,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 502 in the captured inp
 
 Source: SC-1; UX-2.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 811 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 844 in the captured input.
 
 ### UX-DR13
 
@@ -75,7 +75,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 811 in the captured inp
 
 Source: SC-2; UX-4; R-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 827 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 860 in the captured input.
 
 ### UX-DR33
 
@@ -85,7 +85,7 @@ Required states/variants: Permission prompt, permission denied, image previews, 
 
 Source: SCREEN-INVENTORY C-03; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 931 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 964 in the captured input.
 
 ### UX-DR34
 
@@ -95,7 +95,7 @@ Required states/variants: Sufficient, insufficient, additional view requested, *
 
 Source: SCREEN-INVENTORY C-04; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 937 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 970 in the captured input.
 
 ### UX-DR35
 
@@ -105,7 +105,7 @@ Required states/variants: Plain explanation of accuracy difference, online/offli
 
 Source: SCREEN-INVENTORY C-05; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 943 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 976 in the captured input.
 
 ### UX-DR36
 
@@ -115,7 +115,7 @@ Required states/variants: Clear, ambiguous with clarification questions, edit re
 
 Source: SCREEN-INVENTORY C-06; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 949 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 982 in the captured input.
 
 ## Planning Assumptions
 

@@ -16,7 +16,7 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 Source: AD-1, AD-5.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 599 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 632 in the captured input.
 
 ### AR-19
 
@@ -24,19 +24,19 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 599 in the captured inp
 
 Source: AD-13; file authorization.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 657 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 690 in the captured input.
 
 ### NFR-1
 
 **NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 541 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 574 in the captured input.
 
 ### NFR-2
 
 **NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 543 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 576 in the captured input.
 
 ### SC-1
 
@@ -51,7 +51,7 @@ Picture intake supports existing images, phone camera capture, and multiple imag
 
 Source: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 516 in the captured input.
 
 ### SC-3
 
@@ -61,7 +61,7 @@ The first version supports the complete workflow on desktop, laptop, and phone. 
 
 Source: UX-SCOPE-CHANGES SC-3; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 502 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 535 in the captured input.
 
 ### UX-DR9
 
@@ -69,7 +69,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 502 in the captured inp
 
 Source: SC-1; UX-2.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 811 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 844 in the captured input.
 
 ### UX-DR33
 
@@ -79,7 +79,7 @@ Required states/variants: Permission prompt, permission denied, image previews, 
 
 Source: SCREEN-INVENTORY C-03; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 931 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 964 in the captured input.
 
 ## Planning Assumptions
 

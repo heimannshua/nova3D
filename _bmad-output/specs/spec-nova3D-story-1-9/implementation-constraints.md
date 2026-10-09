@@ -16,19 +16,19 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 Source: AD-19; R-9; G-9.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 685 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 718 in the captured input.
 
 ### NFR-2
 
 **NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 543 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 576 in the captured input.
 
 ### NFR-4
 
 **NFR-4: Durable job state.** Closing the browser, navigating to another Project, or a worker restart cannot lose an accepted Job, corrupt its Project, or misreport its final state.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 547 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 580 in the captured input.
 
 ### AR-18
 
@@ -36,7 +36,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 547 in the captured inp
 
 Source: AD-12; FR-1–FR-4.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 653 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 686 in the captured input.
 
 ## Planning Assumptions
 

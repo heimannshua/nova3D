@@ -1,6 +1,6 @@
 # nova3D Story Specifications
 
-**73 story contracts across 8 epics.** Each folder contains `SPEC.md`, `acceptance-criteria.md`, `implementation-constraints.md` and its canonical `.memlog.md`.
+**77 story contracts across 8 epics.** Each folder contains `SPEC.md`, `acceptance-criteria.md`, `implementation-constraints.md` and its canonical `.memlog.md`.
 
 The specs were produced with parallel Codex agents running Luna, then checked for source preservation, capability identity, dependencies and link integrity. These are planning contracts; engineering acceptance remains governed by the dated qualification evidence.
 
@@ -47,6 +47,10 @@ Users can submit text or ordered pictures, authorize the exact work and costs, a
 | 2.13 | [Identify the pictured subject for research-assisted mode](spec-nova3D-story-2-13/SPEC.md) | 2.3, 2.5, 2.7, 2.12, 2.1, 2.8 | G-6 |
 | 2.9 | [Select research payment and freshness separately](spec-nova3D-story-2-9/SPEC.md) | 2.5, 2.7, 2.13 | Inherited |
 | 2.10 | [Record actionable in-app notifications](spec-nova3D-story-2-10/SPEC.md) | 2.7 | Inherited |
+| 2.14 | [Hold prepaid credit beside the monthly allowance](spec-nova3D-story-2-14/SPEC.md) | 2.4, 2.6, 2.8, 1.3 | G-6 |
+| 2.15 | [Request a payment from an Account](spec-nova3D-story-2-15/SPEC.md) | 2.14, 2.10, 1.11, 1.4 | G-6 |
+| 2.16 | [Pay a request through hosted checkout](spec-nova3D-story-2-16/SPEC.md) | 2.15, 1.10, 1.13, 1.9 | G-6 |
+| 2.17 | [Handle refunds, disputes and payment reconciliation](spec-nova3D-story-2-17/SPEC.md) | 2.16, 1.13, 1.9 | G-6 |
 
 ## Epic 3: Research and approve a complete evidence plan
 
@@ -128,11 +132,11 @@ Users can remove their data, Josh can close the instance, and the complete produ
 | Story | Specification | Depends on | Engineering gates |
 | --- | --- | --- | --- |
 | 8.1 | [Tombstone Project and Export deletion before cleanup](spec-nova3D-story-8-1/SPEC.md) | 6.9, 7.5, 1.8 | G-9 |
-| 8.2 | [Delete an Account or close the instance](spec-nova3D-story-8-2/SPEC.md) | 8.1, 1.6 | G-9 |
+| 8.2 | [Delete an Account or close the instance](spec-nova3D-story-8-2/SPEC.md) | 8.1, 1.6, 2.17 | G-9 |
 | 8.9 | [Back up the database and Storage independently](spec-nova3D-story-8-9/SPEC.md) | 1.8, 1.9, 1.10, 4.1, 1.13 | G-9 |
 | 8.3 | [Purge private records and enforce backup expiry](spec-nova3D-story-8-3/SPEC.md) | 8.2, 8.9 | G-9 |
 | 8.4 | [Restore the service without resurrecting deleted data](spec-nova3D-story-8-4/SPEC.md) | 8.3, 1.9, 8.9 | G-9 |
 | 8.5 | [Qualify the complete accessible device workflow](spec-nova3D-story-8-5/SPEC.md) | 7.6, 7.7, 8.2, 7.8 | G-5 |
 | 8.8 | [Qualify the workflow on the remaining device classes](spec-nova3D-story-8-8/SPEC.md) | 8.5 | G-5 |
 | 8.6 | [Qualify offline execution and authoritative sync](spec-nova3D-story-8-6/SPEC.md) | 7.6, 8.5, 7.8, 8.8 | G-8 |
-| 8.7 | [Prove cross-provider and first-version acceptance](spec-nova3D-story-8-7/SPEC.md) | 8.4, 8.5, 8.6, 8.8 | G-1, G-2, G-3, G-4, G-5, G-6, G-7, G-8, G-9 |
+| 8.7 | [Prove cross-provider and first-version acceptance](spec-nova3D-story-8-7/SPEC.md) | 8.4, 8.5, 8.6, 8.8, 2.17 | G-1, G-2, G-3, G-4, G-5, G-6, G-7, G-8, G-9 |

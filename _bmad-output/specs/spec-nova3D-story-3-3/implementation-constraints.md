@@ -25,7 +25,7 @@ nova3D identifies every Consequential Detail needed for the complete requested M
 
 Source: PRD §4, FR-10.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 193 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 194 in the captured input.
 
 ### FR-11
 
@@ -40,7 +40,7 @@ For each uncertain Consequential Detail, nova3D presents its recommendation and 
 
 Source: PRD §4, FR-11.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 206 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 207 in the captured input.
 
 ### FR-12
 
@@ -57,7 +57,7 @@ Source: PRD §4, FR-12.
 
 **Ratified application:** Whole-plan completeness and approval govern evidence_text and evidence_images. image_direct uses confirmed scope, ordered images and explicit uncertainty acknowledgment; it never fabricates a Research Plan.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 217 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 218 in the captured input.
 
 ### AR-6
 
@@ -65,19 +65,19 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 217 in the captured inp
 
 Source: AD-5; evidence-policy identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 595 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 628 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ### NFR-8
 
 **NFR-8: Explainable failures.** User-facing failures identify the failed stage, known cause, preserved state, cost impact where known, and permitted next action in beginner-friendly language.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 557 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 590 in the captured input.
 
 ### UX-DR45
 
@@ -87,7 +87,7 @@ Required states/variants: Complete, missing detail, unresolved gap, newly invali
 
 Source: SCREEN-INVENTORY R-02; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1003 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1036 in the captured input.
 
 ### UX-DR46
 
@@ -97,7 +97,7 @@ Required states/variants: `sourced`, `inferred`, `disputed`, `unknown`, `user-ad
 
 Source: SCREEN-INVENTORY R-03; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1009 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1042 in the captured input.
 
 ## Planning Assumptions
 

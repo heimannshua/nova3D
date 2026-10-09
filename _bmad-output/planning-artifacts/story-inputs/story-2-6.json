@@ -2,7 +2,7 @@
   "epic": {
     "id": "2",
     "title": "Confirm requests and control background spending",
-    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state."
+    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state, and invited users can pay for extra spending credit."
   },
   "story": {
     "id": "2-6",
@@ -27,7 +27,8 @@
       "Use one Usage-owned checked integer/rational calculator and immutable request/options/rate snapshots.",
       "Reserve against Account period, $5 parent research-Job lifetime across all attempts, and $1 external-operation ceilings in one transaction.",
       "The reservation is input rate × a provider-independent input bound (the UTF-8 byte length of the serialized request with image data excluded plus 2,000 tokens of fixed overhead and 5,000 tokens per image, all raised by 10%, as the Spine fixes) plus output rate × the output limit actually sent; the 200,000-input-token, 16,000-output-token and 20-search-request ceilings are admission limits. An external operation is one provider request. Treat transport loss, timeout, 5xx and aborted streams as ambiguous (hold the reservation until usage evidence or a 24-hour deadline, then settle at the reservation) and definitive pre-processing rejections with a request ID as noncharge; evidence above a reservation settles at the evidence, counts against every limit and blocks the provider until reviewed.",
-      "Pin the provider API version, requested and returned model identity and rate schedule in each operation receipt; rate schedules are versioned records, so this story needs only fixture rates until Story 2.5 adds the provider adapters."
+      "Pin the provider API version, requested and returned model identity and rate schedule in each operation receipt; rate schedules are versioned records, so this story needs only fixture rates until Story 2.5 adds the provider adapters.",
+      "Credit funding arrives with Story 2.14; until then admission headroom is the period allowance alone."
     ],
     "acceptance_criteria": [
       {
@@ -64,29 +65,29 @@
   ],
   "source_requirements": {
     "FR-4": {
-      "text": "#### FR-4: Usage visibility and limits\n\nThe Administrator can view per-Account paid usage or spending and configure a Usage Limit.\n\n**Consequences:**\n- Reaching a Usage Limit blocks new paid Jobs with an explanation.\n- Already-running Jobs are allowed to finish.\n- The Administrator can raise or reset the Usage Limit.\n- Before a paid Job starts, nova3D atomically reserves its maximum estimated cost against settled usage and all outstanding reservations.\n- A Job cannot start when the available allowance cannot cover its reservation.\n- Duplicate submissions cannot create duplicate reservations, Jobs, or charges.\n- Completion or cancellation settles actual usage and releases unused reserved allowance.\n- Paid permission applies by category across all Paid Work. Before the first paid operation in a category, nova3D identifies the category, provider, purpose, and declared maximum charge and obtains permission for that Project.\n- Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.\n- Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.\n- Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.\n\nSource: PRD §4, FR-4.",
+      "text": "#### FR-4: Usage visibility and limits\n\nThe Administrator can view per-Account paid usage or spending and configure a Usage Limit.\n\n**Consequences:**\n- Reaching a Usage Limit blocks new paid Jobs with an explanation.\n- Already-running Jobs are allowed to finish.\n- The Administrator can raise or reset the Usage Limit.\n- Before a paid Job starts, nova3D atomically reserves its maximum estimated cost against settled usage and all outstanding reservations.\n- A Job cannot start when the available allowance cannot cover its reservation.\n- Duplicate submissions cannot create duplicate reservations, Jobs, or charges.\n- Completion or cancellation settles actual usage and releases unused reserved allowance.\n- Paid permission applies by category across all Paid Work. Before the first paid operation in a category, nova3D identifies the category, provider, purpose, and declared maximum charge and obtains permission for that Project.\n- Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.\n- Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.\n- Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.\n- Available headroom is the remaining period allowance plus the Account's unfrozen Credit balance (FR-32).\n\nSource: PRD §4, FR-4.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 114
     },
     "AR-3": {
       "text": "**AR-3: Transactional contracts.** Use auth-derived Account, UUID command/event/revision identities, expected revisions, SHA-256 content roots and UTC timestamps. Validate schema, ownership and idempotency; replay returns the original receipt and changed payload under the same ID is rejected. Commit business state, Job/reservation and outbox together. Sensitive tables deny browser DML; ownership-scoped foreign keys prevent cross-Workspace links. Redis, queues and client state cannot authorize transitions. Cookie-authenticated mutations require origin and CSRF checks.\n\nSource: AD-2; Consistency Conventions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 583
+      "line": 616
     },
     "AR-16": {
       "text": "**AR-16: Atomic money and paid permissions.** Paid categories independently disclose provider, purpose, outbound-data/retention categories and maximum, with Project permission off by default. Use one Usage-owned checked integer USD-microdollar/rational calculator: sum under immutable model/options/rates, apply billing increments, round upward once per operation, reject overflow/unknown rates/foreign currency/unsupported parameters. Atomically enforce Account-period allowance, $5 lifetime research-Job cap across attempts and $1 external-operation cap. Defaults are $25/invitee and $50/Administrator per UTC month. Preserve outstanding liabilities across resets; already-authorized work retains reservations while disable cancels it.\n\nSource: AD-11; R-6; G-6.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 645
+      "line": 678
     },
     "NFR-5": {
       "text": "**NFR-5: Safe concurrency.** Concurrent Jobs remain isolated and cannot overwrite newer approved Project state. Results generated from stale inputs cannot silently become current.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 549
+      "line": 582
     },
     "NFR-9": {
       "text": "**NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 559
+      "line": 592
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

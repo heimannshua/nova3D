@@ -61,6 +61,7 @@ An Account owner can permanently delete individual Projects and Exports or the c
 
 - Whole-Account deletion immediately disables access and applies the shared guarantees to every Project, Job, Notification, Export, upload, Personalization item, usage-linked identifier, temporary artifact, and private operational record in that Workspace.
 - Only Cached Research Revisions allowed above may remain, and they cannot reveal that the deleted Account requested or used them.
+- Payment Requests, payments and Credit entries are private records deleted with the Account; the only payment data that may remain is non-identifying aggregate totals, and the payment provider's own retention is disclosed before the first payment.
 - Because the Administrator role is unique and non-transferable in the MVP, ordinary Administrator self-deletion is blocked while an invited Account exists.
 - A separate close-instance action remains available after fresh Administrator authentication and explicit destructive confirmation. It tombstones every Account and Workspace without exposing their contents, revokes all sessions and Invitation Codes, cancels all Jobs, rejects late writes, and applies the shared deletion guarantees.
 - When no invited Account remains, Administrator self-deletion performs the same close-instance action.
@@ -69,7 +70,7 @@ Source: PRD §4, FR-30.
 
 **Ratified application:** R-9 sets active purge at no more than 24 hours and controlled-backup expiry at no more than 30 days from deletion, with deletion-ledger replay before reopening restored access. R-8 excludes disconnected/downloaded copies from remote erasure promises and requires learned tombstones to purge before sync.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 444 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 445 in the captured input.
 
 ### AR-23
 
@@ -77,13 +78,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 444 in the captured inp
 
 Source: AD-16; R-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 673 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 706 in the captured input.
 
 ### NFR-1
 
 **NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 541 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 574 in the captured input.
 
 ### NFR-12
 
@@ -91,7 +92,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 541 in the captured inp
 
 Source: PRD §7. All twelve NFRs apply across the capability set, with the explicit mode distinction above. Architecture requirements below supply measurable limits and enforcement contracts.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 565 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 598 in the captured input.
 
 ### SC-2
 
@@ -103,7 +104,7 @@ Research-assisted reconstruction remains online-only. R-8 adopts on-device limit
 
 Source: UX-SCOPE-CHANGES SC-2; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 494 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 527 in the captured input.
 
 ### UX-DR14
 
@@ -111,7 +112,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 494 in the captured inp
 
 Source: UX-4; R-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 831 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 864 in the captured input.
 
 ## Planning Assumptions
 

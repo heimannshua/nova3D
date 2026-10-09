@@ -16,7 +16,7 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 Source: R-6; AD-11; G-6.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 649 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 682 in the captured input.
 
 ### AR-26
 
@@ -24,19 +24,19 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 649 in the captured inp
 
 Source: AD-19; R-9; G-9.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 685 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 718 in the captured input.
 
 ### NFR-2
 
 **NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 543 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 576 in the captured input.
 
 ### NFR-9
 
 **NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 559 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 592 in the captured input.
 
 ## Planning Assumptions
 

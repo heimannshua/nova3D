@@ -47,7 +47,7 @@ The resulting parametric model preserves the relationships between approved clai
 
 The first milestone proves the complete outer altar-and-ramp workflow: research and approve the model before automatic generation, preserve evidence and approval history, support inspection and correction with dependent regeneration, add clearly distinguished plain-language personalization, and export a validated, print-ready file with its source record.
 
-This milestone excludes the complete Temple, autonomous printer control, multi-printer routing, cameras, physical-print completion, storefronts, sales tooling, collaboration, billing, and source-licensing assessment. Those concerns remain in the longer-term direction. The application records citations; the user remains responsible for commercial licensing decisions.
+This milestone excludes the complete Temple, autonomous printer control, multi-printer routing, cameras, physical-print completion, storefronts, sales tooling, collaboration, public billing, and source-licensing assessment. (Invited-user payment requests were added to the first version on 2026-10-09; see the PRD notice.) Those concerns remain in the longer-term direction. The application records citations; the user remains responsible for commercial licensing decisions.
 
 ## Success Criteria for the First Milestone
 

@@ -24,7 +24,7 @@ Source: PRD §4, FR-7.
 
 **Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 157 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 158 in the captured input.
 
 ### AR-25
 
@@ -32,7 +32,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 157 in the captured inp
 
 Source: AD-18; SC-5.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 681 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 714 in the captured input.
 
 ### SC-5
 
@@ -44,7 +44,7 @@ Printing notifications remain inactive/Coming later in this version.
 
 Source: UX-SCOPE-CHANGES SC-5; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 514 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 547 in the captured input.
 
 ### UX-DR18
 
@@ -52,7 +52,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 514 in the captured inp
 
 Source: SC-5; UX-6; AD-18.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 847 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 880 in the captured input.
 
 ### UX-DR65
 
@@ -62,7 +62,7 @@ Required states/variants: Permission allowed/denied, all off, mixed categories.
 
 Source: SCREEN-INVENTORY S-02; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1123 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1156 in the captured input.
 
 ## Planning Assumptions
 

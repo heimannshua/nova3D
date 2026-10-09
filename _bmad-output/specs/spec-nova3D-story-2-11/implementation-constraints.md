@@ -24,7 +24,7 @@ An Account can use other Projects while multiple research or generation Jobs run
 
 Source: PRD §4, FR-6.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 145 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 146 in the captured input.
 
 ### AR-3
 
@@ -32,7 +32,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 145 in the captured inp
 
 Source: AD-2; Consistency Conventions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 583 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 616 in the captured input.
 
 ### AR-14
 
@@ -40,19 +40,19 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 583 in the captured inp
 
 Source: AD-9; work/billing identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 637 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 670 in the captured input.
 
 ### NFR-4
 
 **NFR-4: Durable job state.** Closing the browser, navigating to another Project, or a worker restart cannot lose an accepted Job, corrupt its Project, or misreport its final state.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 547 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 580 in the captured input.
 
 ### NFR-5
 
 **NFR-5: Safe concurrency.** Concurrent Jobs remain isolated and cannot overwrite newer approved Project state. Results generated from stale inputs cannot silently become current.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 549 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 582 in the captured input.
 
 ## Planning Assumptions
 

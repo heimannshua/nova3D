@@ -24,7 +24,7 @@ Source: PRD §4, FR-26.
 
 **Ratified application:** R-3 / AR-12 permits only the listed bounded repair classes. A byte change always creates a new artifact; retaining the Model Version requires certified nonconsequential equivalence under R-2.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 395 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 396 in the captured input.
 
 ### FR-27
 
@@ -38,7 +38,7 @@ If a repair changes visible geometry, historical dimensions, or Personalization,
 
 Source: PRD §4, FR-27.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 407 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 408 in the captured input.
 
 ### AR-10
 
@@ -46,7 +46,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 407 in the captured inp
 
 Source: R-2; AD-6, AD-7; G-2.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 611 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 644 in the captured input.
 
 ### AR-12
 
@@ -54,13 +54,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 611 in the captured inp
 
 Source: AD-8; R-3, R-11; G-3/G-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 619 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 652 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ### UX-DR17
 
@@ -68,7 +68,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured inp
 
 Source: FR-24–FR-28; R-3/R-11.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 843 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 876 in the captured input.
 
 ### UX-DR60
 
@@ -78,7 +78,7 @@ Required states/variants: Local repair running/succeeded/failed, substantive ver
 
 Source: SCREEN-INVENTORY V-03; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1093 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1126 in the captured input.
 
 ## Planning Assumptions
 

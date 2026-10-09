@@ -23,7 +23,7 @@ A maintainer needs to see evidence that the integrated product meets its contrac
 
 - **CAP-2**
   - **intent:** Demonstrate the complete integrated acceptance contract.
-  - **success:** Given the complete evidence altar/ramp and direct/offline regression suites, when integrated acceptance runs, then all original PRD metrics, two-account isolation, invitations, cost/retry races, stale approvals, source-policy/cache privacy, repair lineage and deletion-aware restore have required evidence.
+  - **success:** Given the complete evidence altar/ramp and direct/offline regression suites, when integrated acceptance runs, then all original PRD metrics, two-account isolation, invitations, cost/retry races, stale approvals, source-policy/cache privacy, repair lineage, deletion-aware restore and the payment seams (webhook replay, tampered amount, late payment and refund after spend) have required evidence.
 
 - **CAP-3**
   - **intent:** Require qualifying evidence for every applicable release gate.

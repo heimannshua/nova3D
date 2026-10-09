@@ -16,7 +16,7 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 Source: AD-2; Consistency Conventions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 583 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 616 in the captured input.
 
 ### AR-19
 
@@ -24,25 +24,25 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 583 in the captured inp
 
 Source: AD-13; file authorization.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 657 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 690 in the captured input.
 
 ### NFR-1
 
 **NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 541 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 574 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ### NFR-7
 
 **NFR-7: Version durability.** Every Version presented as restorable must restore its geometry and provenance successfully. Deletion under FR-30 is the explicit exception.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 555 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 588 in the captured input.
 
 ### SC-1
 
@@ -57,7 +57,7 @@ Picture intake supports existing images, phone camera capture, and multiple imag
 
 Source: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 516 in the captured input.
 
 ### AR-2
 
@@ -65,7 +65,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured inp
 
 Source: AD-1, AD-2; Structural Seed.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 579 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 612 in the captured input.
 
 ### AR-5
 
@@ -73,7 +73,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 579 in the captured inp
 
 Source: AD-4, AD-13; shared artifact identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 624 in the captured input.
 
 ## Planning Assumptions
 

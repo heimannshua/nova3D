@@ -24,7 +24,7 @@ An Account can use other Projects while multiple research or generation Jobs run
 
 Source: PRD §4, FR-6.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 145 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 146 in the captured input.
 
 ### AR-3
 
@@ -32,7 +32,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 145 in the captured inp
 
 Source: AD-2; Consistency Conventions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 583 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 616 in the captured input.
 
 ### AR-14
 
@@ -40,7 +40,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 583 in the captured inp
 
 Source: AD-9; work/billing identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 637 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 670 in the captured input.
 
 ### AR-15
 
@@ -48,7 +48,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 637 in the captured inp
 
 Source: AD-10; service authentication and delivery conventions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 641 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 674 in the captured input.
 
 ### AR-26
 
@@ -56,31 +56,31 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 641 in the captured inp
 
 Source: AD-19; R-9; G-9.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 685 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 718 in the captured input.
 
 ### NFR-4
 
 **NFR-4: Durable job state.** Closing the browser, navigating to another Project, or a worker restart cannot lose an accepted Job, corrupt its Project, or misreport its final state.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 547 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 580 in the captured input.
 
 ### NFR-5
 
 **NFR-5: Safe concurrency.** Concurrent Jobs remain isolated and cannot overwrite newer approved Project state. Results generated from stale inputs cannot silently become current.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 549 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 582 in the captured input.
 
 ### NFR-8
 
 **NFR-8: Explainable failures.** User-facing failures identify the failed stage, known cause, preserved state, cost impact where known, and permitted next action in beginner-friendly language.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 557 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 590 in the captured input.
 
 ### NFR-10
 
 **NFR-10: Responsive workspace.** Research, generation, validation, repair, and export run without blocking navigation or ordinary Project inspection. Browser preview degradation or failure cannot damage manufacturing geometry.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 561 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 594 in the captured input.
 
 ### UX-DR19
 
@@ -88,7 +88,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 561 in the captured inp
 
 Source: NFR-8; FR-3/FR-6/FR-30; screen inventory.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 851 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 884 in the captured input.
 
 ### UX-DR39
 
@@ -98,7 +98,7 @@ Required states/variants: No Jobs, several concurrent Jobs, mixed states, future
 
 Source: SCREEN-INVENTORY J-01; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 967 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1000 in the captured input.
 
 ### UX-DR40
 
@@ -108,7 +108,7 @@ Required states/variants: Waiting, running, completed, failed, cancelled, stale 
 
 Source: SCREEN-INVENTORY J-02; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 973 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1006 in the captured input.
 
 ### FR-4
 
@@ -128,6 +128,7 @@ The Administrator can view per-Account paid usage or spending and configure a Us
 - Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.
 - Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.
 - Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.
+- Available headroom is the remaining period allowance plus the Account's unfrozen Credit balance (FR-32).
 
 Source: PRD §4, FR-4.
 

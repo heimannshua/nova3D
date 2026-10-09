@@ -28,6 +28,7 @@ The Administrator can view per-Account paid usage or spending and configure a Us
 - Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.
 - Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.
 - Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.
+- Available headroom is the remaining period allowance plus the Account's unfrozen Credit balance (FR-32).
 
 Source: PRD §4, FR-4.
 
@@ -39,23 +40,23 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 114 in the captured inp
 
 Source: AD-11; R-6; G-6.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 645 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 678 in the captured input.
 
 ### NFR-9
 
 **NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 559 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 592 in the captured input.
 
 ### UX-DR71
 
-**UX-DR71: Usage and limits (AD-03).** Per-Account paid usage, reservations, settlements, available allowance, set/reset limit.
+**UX-DR71: Usage and limits (AD-03).** Per-Account paid usage, reservations, settlements, available allowance, credit balance, set/reset limit, payment requests and credit grants.
 
-Required states/variants: Under limit, nearly reached, reached, running Job allowed, new paid Job blocked.
+Required states/variants: Under limit, nearly reached, reached, running Job allowed, new paid Job blocked, request pending/paid/expired/cancelled, credit frozen, payment mismatch.
 
 Source: SCREEN-INVENTORY AD-03; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1159 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1192 in the captured input.
 
 ## Planning Assumptions
 

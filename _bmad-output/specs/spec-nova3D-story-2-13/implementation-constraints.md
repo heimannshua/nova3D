@@ -24,7 +24,7 @@ Source: PRD §4, FR-5.
 
 **Ratified application:** SC-1 also requires ordered multi-view picture intake and the two explicit picture modes; natural-language intake does not defer them.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 133 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 134 in the captured input.
 
 ### FR-14
 
@@ -45,7 +45,7 @@ The user can choose per Project whether research may use paid services or must r
 
 Source: PRD §4, FR-14.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 243 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 244 in the captured input.
 
 ### AR-17
 
@@ -53,7 +53,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 243 in the captured inp
 
 Source: R-6; AD-11; G-6.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 649 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 682 in the captured input.
 
 ### SC-1
 
@@ -68,7 +68,7 @@ Picture intake supports existing images, phone camera capture, and multiple imag
 
 Source: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 516 in the captured input.
 
 ### UX-DR8
 
@@ -76,7 +76,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured inp
 
 Source: UX-2; FR-4/FR-5/FR-14.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 807 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 840 in the captured input.
 
 ### FR-4
 
@@ -96,6 +96,7 @@ The Administrator can view per-Account paid usage or spending and configure a Us
 - Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.
 - Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.
 - Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.
+- Available headroom is the remaining period allowance plus the Account's unfrozen Credit balance (FR-32).
 
 Source: PRD §4, FR-4.
 
@@ -107,7 +108,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 114 in the captured inp
 
 Source: AD-1, AD-5.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 599 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 632 in the captured input.
 
 ### AR-14
 
@@ -115,7 +116,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 599 in the captured inp
 
 Source: AD-9; work/billing identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 637 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 670 in the captured input.
 
 ### AR-16
 
@@ -123,13 +124,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 637 in the captured inp
 
 Source: AD-11; R-6; G-6.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 645 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 678 in the captured input.
 
 ### NFR-9
 
 **NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 559 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 592 in the captured input.
 
 ### UX-DR36
 
@@ -139,7 +140,7 @@ Required states/variants: Clear, ambiguous with clarification questions, edit re
 
 Source: SCREEN-INVENTORY C-06; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 949 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 982 in the captured input.
 
 ## Planning Assumptions
 

@@ -1,7 +1,7 @@
 ---
 title: nova3D First-Version Screen and State Inventory
 status: ready-for-handoff
-updated: 2026-08-30
+updated: 2026-10-09
 ---
 
 # First-Version Screen and State Inventory
@@ -97,9 +97,10 @@ Every first-version surface needs usable desktop/laptop and phone designs. Where
 | S-03 | Disabled Sources | Account-wide Source on/off list with provenance-safe history | Enabled, disabled, search/list empty, active Job affected, re-enabled |
 | S-04 | Disabled-Source warning setting | Show or hide warning on completed Projects without changing provenance or Source Record | On by default, off, explanatory confirmation |
 | S-05 | Account deletion | Fresh authentication, explicit consequences, immediate tombstone and 30-day backup removal | Confirmation, blocked/error, signed out/deletion underway |
+| S-06 | Credit and payments | Credit balance beside the monthly allowance, pending payment requests with a Pay action, payment history, terms and refund policy, notice that the payment provider processes the payment | No credit, request pending, paying (processing), credited, expired or cancelled, refunded, credit frozen |
 | AD-01 | Invitation Codes | Unique named codes plus rotating single-use general code | Unused, used, revoked, newly rotated, copy action |
 | AD-02 | Account administration | Account status, disable/re-enable, no private Workspace access | Enabled, disabling, disabled, re-enabled, active Jobs cancelled |
-| AD-03 | Usage and limits | Per-Account paid usage, reservations, settlements, available allowance, set/reset limit | Under limit, nearly reached, reached, running Job allowed, new paid Job blocked |
+| AD-03 | Usage and limits | Per-Account paid usage, reservations, settlements, available allowance, credit balance, set/reset limit, payment requests and credit grants | Under limit, nearly reached, reached, running Job allowed, new paid Job blocked, request pending/paid/expired/cancelled, credit frozen, payment mismatch |
 | AD-04 | Administrator recovery/security | Sensitive actions require fresh authentication and create audit events | Reauthentication, success, failure, session revoked |
 | AD-05 | Close instance | Destructive action without viewing private Workspace contents | Fresh authentication, explicit destructive confirmation, closing, complete |
 

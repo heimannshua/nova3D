@@ -23,7 +23,8 @@
     ],
     "depends_on": [
       "8-1",
-      "1-6"
+      "1-6",
+      "2-17"
     ],
     "scope": [
       "Implement Account deletion, sole-Administrator safeguards and the separate global close-instance flow without private browsing.",
@@ -33,7 +34,7 @@
       {
         "given": "a normal Account with fresh authentication",
         "when": "whole-Account deletion is explicitly confirmed",
-        "then": "sessions revoke and all owned private targets, jobs and pending work enter the durable deletion manifest; the confirmation works on phone and desktop"
+        "then": "sessions revoke and all owned private targets, jobs, pending work, payment requests, payments and credit entries enter the durable deletion manifest; the confirmation works on phone and desktop"
       },
       {
         "given": "the sole Administrator while invitees remain",
@@ -74,44 +75,44 @@
   ],
   "source_requirements": {
     "FR-30": {
-      "text": "#### FR-30: Private Project or Account deletion with non-user-visible research cache\n\nAn Account owner can permanently delete individual Projects and Exports or the complete Account and private Workspace after fresh authentication and explicit confirmation.\n\n**Shared deletion guarantees**\n\n- nova3D tombstones and hides the deletion target before cancellation or cleanup begins.\n- Deletion cancels affected Jobs and rejects late worker writes and cache promotion so deleted data cannot reappear.\n- Active private data is removed promptly. Remaining private copies in operational backups are removed within 30 days.\n- Deletion tombstones survive backup restoration and prevent restored private data from becoming active or accessible.\n- Any outside provider whose retention cannot satisfy these deletion guarantees must be disclosed before it receives private Project data.\n\n**Project and Export deletion**\n\n- Deletion removes Models, Exports, Personalization, approvals, private prompt wording beyond the normalized research subject, and private Project history from active private storage.\n\n**Permitted shared-cache retention**\n\n- nova3D may retain source-derived Claims and provenance in a shared research cache available to all Accounts.\n- A Cached Research Revision may contain only fields reproducible from identified non-private Sources. It cannot contain or reveal Account identity, private prompt wording beyond a normalized research subject, uploaded private material, Personalization, Project decisions, Models, deleted files, or which Account requested a subject.\n- Every cached Claim is pinned to immutable Source and Cached Research Revision identities. Corrections create linked successor revisions and cannot silently change evidence already approved by a Project.\n- No Account can browse another Account's deleted files or private history through the cache. Reuse cannot recreate a deleted Project or its private decisions.\n\n**Account deletion and instance closure**\n\n- Whole-Account deletion immediately disables access and applies the shared guarantees to every Project, Job, Notification, Export, upload, Personalization item, usage-linked identifier, temporary artifact, and private operational record in that Workspace.\n- Only Cached Research Revisions allowed above may remain, and they cannot reveal that the deleted Account requested or used them.\n- Because the Administrator role is unique and non-transferable in the MVP, ordinary Administrator self-deletion is blocked while an invited Account exists.\n- A separate close-instance action remains available after fresh Administrator authentication and explicit destructive confirmation. It tombstones every Account and Workspace without exposing their contents, revokes all sessions and Invitation Codes, cancels all Jobs, rejects late writes, and applies the shared deletion guarantees.\n- When no invited Account remains, Administrator self-deletion performs the same close-instance action.\n\nSource: PRD §4, FR-30.\n\n**Ratified application:** R-9 sets active purge at no more than 24 hours and controlled-backup expiry at no more than 30 days from deletion, with deletion-ledger replay before reopening restored access. R-8 excludes disconnected/downloaded copies from remote erasure promises and requires learned tombstones to purge before sync.",
+      "text": "#### FR-30: Private Project or Account deletion with non-user-visible research cache\n\nAn Account owner can permanently delete individual Projects and Exports or the complete Account and private Workspace after fresh authentication and explicit confirmation.\n\n**Shared deletion guarantees**\n\n- nova3D tombstones and hides the deletion target before cancellation or cleanup begins.\n- Deletion cancels affected Jobs and rejects late worker writes and cache promotion so deleted data cannot reappear.\n- Active private data is removed promptly. Remaining private copies in operational backups are removed within 30 days.\n- Deletion tombstones survive backup restoration and prevent restored private data from becoming active or accessible.\n- Any outside provider whose retention cannot satisfy these deletion guarantees must be disclosed before it receives private Project data.\n\n**Project and Export deletion**\n\n- Deletion removes Models, Exports, Personalization, approvals, private prompt wording beyond the normalized research subject, and private Project history from active private storage.\n\n**Permitted shared-cache retention**\n\n- nova3D may retain source-derived Claims and provenance in a shared research cache available to all Accounts.\n- A Cached Research Revision may contain only fields reproducible from identified non-private Sources. It cannot contain or reveal Account identity, private prompt wording beyond a normalized research subject, uploaded private material, Personalization, Project decisions, Models, deleted files, or which Account requested a subject.\n- Every cached Claim is pinned to immutable Source and Cached Research Revision identities. Corrections create linked successor revisions and cannot silently change evidence already approved by a Project.\n- No Account can browse another Account's deleted files or private history through the cache. Reuse cannot recreate a deleted Project or its private decisions.\n\n**Account deletion and instance closure**\n\n- Whole-Account deletion immediately disables access and applies the shared guarantees to every Project, Job, Notification, Export, upload, Personalization item, usage-linked identifier, temporary artifact, and private operational record in that Workspace.\n- Only Cached Research Revisions allowed above may remain, and they cannot reveal that the deleted Account requested or used them.\n- Payment Requests, payments and Credit entries are private records deleted with the Account; the only payment data that may remain is non-identifying aggregate totals, and the payment provider's own retention is disclosed before the first payment.\n- Because the Administrator role is unique and non-transferable in the MVP, ordinary Administrator self-deletion is blocked while an invited Account exists.\n- A separate close-instance action remains available after fresh Administrator authentication and explicit destructive confirmation. It tombstones every Account and Workspace without exposing their contents, revokes all sessions and Invitation Codes, cancels all Jobs, rejects late writes, and applies the shared deletion guarantees.\n- When no invited Account remains, Administrator self-deletion performs the same close-instance action.\n\nSource: PRD §4, FR-30.\n\n**Ratified application:** R-9 sets active purge at no more than 24 hours and controlled-backup expiry at no more than 30 days from deletion, with deletion-ledger replay before reopening restored access. R-8 excludes disconnected/downloaded copies from remote erasure promises and requires learned tombstones to purge before sync.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 444
+      "line": 445
     },
     "AR-18": {
       "text": "**AR-18: Identity and administrative enforcement.** Google is the only credential and an Auth identity without an activated Account has no access (no public Account creation); hash/atomically claim invitations for the signed-in verified Google identity and idempotently provision the Account plus Workspace with unusable partial activation. Rate-limit guessing by network origin plus a global budget counted in Postgres, never by Auth identity alone; use codes of at least 128 bits; rotate shared codes only after success. Only the Google provider is enabled (email, phone, anonymous and magic-link sign-in off, asserted in CI) while Supabase sign-ups stay on; registration, invitation and recovery run only in server routes with no database object executable by `anon` or `authenticated`. Delete an Auth identity with no Account 30 days after its last sign-in or registration attempt, under a lock shared with registration. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication (a server-controlled step-up with a 5-minute Postgres marker, consumed by use for Account deletion and close-instance) and immutable audit; recovery is a single-use 15-minute link emailed by the application to the configured Administrator address, and its redemption revokes prior sessions.\n\nSource: AD-12; FR-1–FR-4.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 653
+      "line": 686
     },
     "AR-21": {
       "text": "**AR-21: Deletion and tested recovery.** Tombstone/hide before cancellation/purge; cover database, images, models, exports, staging, notifications, usage associations and private operational records. Active purge ≤24 h; all controlled private backup copies expire ≤30 days from deletion, never extended by restore/rebackup. Back up the database and objects independently every 12 hours; target RPO/RTO ≤24 h. Persist the minimum restricted anti-resurrection ledger of opaque target identities outside restore rollback and replay before reopening access. Verify interrupted cross-store deletion and restore; apart from that minimum ledger, preserve only permitted public claims/nonidentifying aggregates. Apply sole-Administrator close-instance safeguards and disclose external retention exceptions.\n\nSource: AD-15; R-9; FR-30; G-9.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 665
+      "line": 698
     },
     "NFR-1": {
       "text": "**NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 541
+      "line": 574
     },
     "NFR-12": {
       "text": "**NFR-12: Privacy-preserving cache and deletion.** Shared cached research contains only fields reproducible from identified non-private Sources and cannot expose user identity, private inputs, decisions, or deleted artifacts. Admission rejects all user- and Project-derived fields. Project or whole-Account deletion takes effect immediately through durable tombstones. It blocks late writes and cache promotion, promptly removes active private data, removes remaining copies from operational backups within 30 days, and remains enforced after backup restoration.\n\nSource: PRD §7. All twelve NFRs apply across the capability set, with the explicit mode distinction above. Architecture requirements below supply measurable limits and enforcement contracts.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 565
+      "line": 598
     },
     "UX-DR19": {
       "text": "**UX-DR19: Failure and destructive-action clarity.** For failures show stage, known cause, preserved state, known cost impact and permitted next action, with no automatic retry implied. Sensitive/deletion/instance-closure flows show required fresh authentication, exact consequences and explicit confirmation; immediate hidden/tombstoned state remains distinct from cleanup completion.\n\nSource: NFR-8; FR-3/FR-6/FR-30; screen inventory.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 851
+      "line": 884
     },
     "UX-DR68": {
       "text": "**UX-DR68: Account deletion (S-05).** Fresh authentication, explicit consequences, immediate tombstone and 30-day backup removal.\n\nRequired states/variants: Confirmation, blocked/error, signed out/deletion underway.\n\nSource: SCREEN-INVENTORY S-05; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 1141
+      "line": 1174
     },
     "UX-DR73": {
       "text": "**UX-DR73: Close instance (AD-05).** Destructive action without viewing private Workspace contents.\n\nRequired states/variants: Fresh authentication, explicit destructive confirmation, closing, complete.\n\nSource: SCREEN-INVENTORY AD-05; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 1171
+      "line": 1204
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

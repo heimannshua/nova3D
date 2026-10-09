@@ -2,7 +2,7 @@
   "epic": {
     "id": "2",
     "title": "Confirm requests and control background spending",
-    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state."
+    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state, and invited users can pay for extra spending credit."
   },
   "story": {
     "id": "2-9",
@@ -63,32 +63,32 @@
     "FR-14": {
       "text": "#### FR-14: Research mode and paid escalation\n\nThe user can choose per Project whether research may use paid services or must remain free-only.\n\n**Consequences:**\n- nova3D cannot start paid research without explicit user permission.\n- Paid research is also subject to the Account's Usage Limit.\n- If free-only research cannot resolve complete Consequential Detail coverage, nova3D shows the remaining gaps and asks whether to switch the Project to paid research.\n- Declining paid escalation leaves the Project unready for Plan Approval while blocking gaps remain.\n- Before research begins, the user separately chooses whether to reuse available cached research or research the subject again from scratch.\n- Cached results show their original research date, immutable revision identity, and cached status; nova3D does not automatically re-verify them.\n- A correction creates a new Cached Research Revision linked to its predecessor; it never changes an existing revision in place.\n- An approved Project remains pinned to the revision it used. Adopting a successor revision creates a new Research Plan version and requires renewed Plan Approval before regeneration.\n- Paid research also follows the Paid Work permission, disclosure, Usage Limit, and reservation rules in FR-4.\n\nSource: PRD §4, FR-14.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 243
+      "line": 244
     },
     "AR-6": {
       "text": "**AR-6: Complete and eligible research.** Use the Middot package's finite checklist for shape, dimensions, materials, placement, printability and interpretation; require an independent omission review with no unresolved gap. Middot chapter 3 governs spatial reconstruction; low-authority pages remain leads. Project exclusions and Account toggles target stable source identities, increment effective policy epochs and invalidate/recheck affected active conclusions. Pin the Account-policy revision, Project-exclusion revision and explicit source set in attempts, private cache-adoption records and plan digests. Filtering is deterministic for those inputs; active changes create a successor draft and rerun affected conclusions and completeness before approval. Approved records stay immutable.\n\nSource: AD-5; evidence-policy identity.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 595
+      "line": 628
     },
     "AR-20": {
       "text": "**AR-20: Source editions and public-cache admission.** Initial editions are Sefaria Middot 3 Hebrew Torat Emet 357 and English Mishnah Yomit by Joshua Kulp. Capture exact edition metadata, attribution, URL, license and examined passage/digest before body retention. Allow only verified Public Domain/CC0/CC-BY with attribution; ambiguous/restricted sources retain metadata/digest and cannot support approved claims without inspectable authorized evidence. Public cache admits dedicated source-reproducible allowlisted records, never serialized plans or private IDs/prompts/uploads/personalization/decisions/geometry. Explicit reuse preserves immutable original dates; fresh research cannot substitute cached conclusions; adoption associations remain private/deletable.\n\nSource: AD-14; R-7; G-7.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 661
+      "line": 694
     },
     "UX-DR8": {
       "text": "**UX-DR8: Intake sequence and paid consent.** Confirm subject, scope, outcome, picture mode and personalization after text/image intake. For research, separately select free/paid and cache/fresh afterward, before dispatch. Present provider/category/purpose, outbound-data/retention and maximum before paid permission. Scope confirmation, start confirmation, Plan Approval and Model Approval remain distinct.\n\nSource: UX-2; FR-4/FR-5/FR-14.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 807
+      "line": 840
     },
     "UX-DR37": {
       "text": "**UX-DR37: Research and cache choices (C-07).** After scope confirmation, choose free/paid research and cache reuse/fresh research.\n\nRequired states/variants: Cached revision/date shown, fresh research, paid disclosure and maximum charge, limit blocked.\n\nSource: SCREEN-INVENTORY C-07; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 955
+      "line": 988
     },
     "UX-DR38": {
       "text": "**UX-DR38: Start confirmation (C-08).** Summarize the exact Job that will begin without duplicating Plan Approval.\n\nRequired states/variants: Ready, offline direct conversion, provider disclosure unresolved, insufficient allowance.\n\nSource: SCREEN-INVENTORY C-08; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 961
+      "line": 994
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

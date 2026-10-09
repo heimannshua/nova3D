@@ -75,52 +75,52 @@
     "FR-28": {
       "text": "#### FR-28: Constrained full regeneration\n\nIf local repair cannot resolve printability, nova3D performs at most one full regeneration from the approved Research Plan using the Target Print Profile and failed validation constraints.\n\n**Consequences:**\n- The original Model Version and evidence chain remain available.\n- The regenerated Model is a new Version requiring inspection, Model Approval, and validation.\n- If that Version still fails, nova3D stops, explains the remaining problems, preserves every Version, and waits for the user to decide; no further automatic loop occurs.\n\nSource: PRD §4, FR-28.\n\n**Ratified application:** R-11 also allows at most one constrained full direct-image reconversion from the original pinned images/scope/engine and failed print constraints. Both modes atomically share the unresettable lineage slot across retries/children; a new Model Version requires inspection, approval and validation. An incapable engine or failed allowed attempt stops.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 417
+      "line": 418
     },
     "AR-12": {
       "text": "**AR-12: Repair authority and one regeneration slot.** Every repaired byte representation gets a new artifact identity. Normals/winding fixes, duplicate/zero-area face removal or welding retain a Model Version only after R-2 proves nonconsequential equivalence. Hole filling, remeshing, thickening and dimension changes are consequential and require successor Model Version, inspection, approval and validation. Atomically consume unique (lineage_id, full_regeneration) with successor Job/outbox and any reservation; retries, cancellation, failure and children cannot rearm it. Evidence mode uses the approved plan; direct mode uses pinned original images/scope/engine, failed constraints and new settings digest, stopping if the engine cannot satisfy them.\n\nSource: AD-8; R-3, R-11; G-3/G-8.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 619
+      "line": 652
     },
     "AR-22": {
       "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. The one server run of the engine port is the user-requested pinned reconversion after failed print repair, a fenced Job from retained pictures with no provider charge. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 669
+      "line": 702
     },
     "SC-1": {
       "text": "##### SC-1: Picture workflows move into the first version\n\nThe PRD deferred picture workflows. The first version now includes both:\n\n- **Direct picture-to-model:** labelled image-derived and not historically verified.\n- **Research-assisted picture reconstruction:** identifies the subject, researches it, builds a complete Research Plan, and follows Plan Approval before evidence-backed generation.\n\nPicture intake supports existing images, phone camera capture, and multiple images of one subject from different angles. Before conversion, nova3D checks clarity and angle coverage and recommends additional views. The user may choose **Generate anyway** after an explicit warning that incomplete views can cause invented or inaccurate geometry.\n\nSource: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 483
+      "line": 516
     },
     "SC-2": {
       "text": "##### SC-2: Direct picture conversion works offline\n\nDirect image-derived conversion must work without internet on supported computer and phone devices. Offline-created Projects remain usable locally, show pending or failed sync state, and automatically sync into **My Projects** when connectivity returns without duplication or overwriting a newer Model Version.\n\nResearch-assisted reconstruction remains online-only. R-8 adopts on-device limits, preparation and revocation behavior; G-8 still requires a qualifying engine, actual offline/device execution and sync evidence.\n\nSource: UX-SCOPE-CHANGES SC-2; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 494
+      "line": 527
     },
     "UX-DR17": {
       "text": "**UX-DR17: Print-validation and bounded recovery states.** Expose exact profile/transform, check support, last-checked time, pass/warning/fail/unknown and stale results. Required unknowns block export. Show each repair and affected geometry; one full regeneration/reconversion is lineage-bound, preserves originals and returns to inspection/approval/validation. Failure after the allowed attempt stops with an actionable explanation.\n\nSource: FR-24–FR-28; R-3/R-11.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 843
+      "line": 876
     },
     "UX-DR61": {
       "text": "**UX-DR61: Full regeneration fallback (V-04).** At most one constrained attempt after local repair failure. R-11 applies the same one-attempt lineage rule to direct-image constrained reconversion.\n\nRequired states/variants: Running, new Version awaiting inspection/approval, failed and stopped.\n\nSource: SCREEN-INVENTORY V-04; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 1099
+      "line": 1132
     },
     "AR-14": {
       "text": "**AR-14: Durable Jobs and bounded retries.** Accept Jobs only with committed dispatch outbox; persist Job → JobAttempt → StepExecution → ExternalOperation identities and receipts. Upstash orchestrates bounded HTTP steps and worker completions; Postgres owns state. Configure workflow, explicit queue publishes and provider SDKs for zero failed-work retries, verifying effective behavior with a deliberately failing research step. Duplicate transport returns existing receipts without repeated side effects; terminal failed/cancelled attempts cannot be reclaimed. Lease loss becomes interrupted failure; user retries create new linked attempts under the same Job and wait for prior potentially chargeable work to reconcile. Logical step keys are unique per attempt, and operation ordinals per step; Jobs owns receipts while Usage owns their ledger entries. Preserve last approved state and actionable failure details.\n\nSource: AD-9; work/billing identity.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 637
+      "line": 670
     },
     "AR-15": {
       "text": "**AR-15: Fencing and authenticated service calls.** Each attempt binds input digest, Project revision, live Account authorization/evidence-policy epochs, lease and unique fencing token. Recheck before claim, each external step and publication. Cancel/disable/delete revoke commit authority before best-effort cancellation; stage output by attempt and clean it without publishing late results. Signed service requests bind environment, audience, Job/attempt, payload digest and nonce, expire within five minutes and allow at most 60 seconds skew. Verify native callback signatures and stored dispatch receipts; never infer callback identity from Project ID alone. Keys are Ed25519 pairs per issuer, with receivers holding public keys only. Accept only the active signing key and one explicitly retiring key for the issuer during the outstanding-request window; suspected compromise immediately revokes the key and affected leases. Reject replay mutations.\n\nSource: AD-10; service authentication and delivery conventions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 641
+      "line": 674
     },
     "FR-7": {
       "text": "#### FR-7: Actionable notifications\n\nThe app displays an app-wide Notification bar for Jobs and approval events.\n\n**Consequences:**\n- Notifications cover research readiness, generation completion or failure, Export readiness, and later printer events.\n- Selecting a Notification opens the exact Project, approval item, failed Job, Export, or later printer event requiring attention.\n\nSource: PRD §4, FR-7.\n\n**Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 157
+      "line": 158
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

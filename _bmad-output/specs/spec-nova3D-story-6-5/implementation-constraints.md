@@ -25,7 +25,7 @@ Source: PRD §4, FR-28.
 
 **Ratified application:** R-11 also allows at most one constrained full direct-image reconversion from the original pinned images/scope/engine and failed print constraints. Both modes atomically share the unresettable lineage slot across retries/children; a new Model Version requires inspection, approval and validation. An incapable engine or failed allowed attempt stops.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 417 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 418 in the captured input.
 
 ### AR-12
 
@@ -33,7 +33,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 417 in the captured inp
 
 Source: AD-8; R-3, R-11; G-3/G-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 619 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 652 in the captured input.
 
 ### AR-14
 
@@ -41,7 +41,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 619 in the captured inp
 
 Source: AD-9; work/billing identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 637 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 670 in the captured input.
 
 ### AR-16
 
@@ -49,19 +49,19 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 637 in the captured inp
 
 Source: AD-11; R-6; G-6.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 645 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 678 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ### NFR-9
 
 **NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 559 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 592 in the captured input.
 
 ### UX-DR17
 
@@ -69,7 +69,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 559 in the captured inp
 
 Source: FR-24–FR-28; R-3/R-11.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 843 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 876 in the captured input.
 
 ### UX-DR61
 
@@ -79,7 +79,7 @@ Required states/variants: Running, new Version awaiting inspection/approval, fai
 
 Source: SCREEN-INVENTORY V-04; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1099 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1132 in the captured input.
 
 ### FR-7
 
@@ -95,7 +95,7 @@ Source: PRD §4, FR-7.
 
 **Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 157 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 158 in the captured input.
 
 ## Planning Assumptions
 

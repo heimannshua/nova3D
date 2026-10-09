@@ -16,7 +16,7 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 
 Source: AD-15; R-9; FR-30; G-9.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 665 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 698 in the captured input.
 
 ### AR-26
 
@@ -24,13 +24,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 665 in the captured inp
 
 Source: AD-19; R-9; G-9.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 685 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 718 in the captured input.
 
 ### NFR-7
 
 **NFR-7: Version durability.** Every Version presented as restorable must restore its geometry and provenance successfully. Deletion under FR-30 is the explicit exception.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 555 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 588 in the captured input.
 
 ### NFR-12
 
@@ -38,7 +38,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 555 in the captured inp
 
 Source: PRD §7. All twelve NFRs apply across the capability set, with the explicit mode distinction above. Architecture requirements below supply measurable limits and enforcement contracts.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 565 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 598 in the captured input.
 
 ## Planning Assumptions
 

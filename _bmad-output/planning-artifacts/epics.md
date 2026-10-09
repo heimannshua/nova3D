@@ -23,12 +23,12 @@ inputDocuments:
   - "_bmad-output/planning-artifacts/ux-designs/ux-nova3D-2026-08-27/CLAUDE-DESIGN-HANDOFF.md"
   - "_bmad-output/implementation-artifacts/qualification-2026-09-14/REPORT.md"
 requirementCounts:
-  functional: 30
+  functional: 32
   approvedScopeChanges: 7
   nonFunctional: 12
   architecture: 28
-  uxDesign: 73
-  uxSurfaces: 53
+  uxDesign: 74
+  uxSurfaces: 54
   canonicalCapabilities: 17
   engineeringGates: 9
 ---
@@ -39,13 +39,13 @@ requirementCounts:
 
 This document provides nova3D's epic and story breakdown from the confirmed PRD, architecture, canonical spec, UX contract and qualification evidence.
 
-**Current stage: 8 epics and 73 stories specified.** The original 58 were validated on 2026-09-14; the 15 added on 2026-10-08 (nine, five and one in three passes) were checked by scripted parity and then by the independent audits recorded in implementation-readiness.md. Josh requested bmad-spec for each story using Codex agents running Luna. His fast-path direction is carried forward for decomposition and review. Story boundaries and dependency order are delegated planning choices, not newly claimed user approvals; all adopted product requirements remain binding. No source requirement, spec or local probe is treated as completed application functionality.
+**Current stage: 8 epics and 77 stories specified.** The original 58 were validated on 2026-09-14; the 15 added on 2026-10-08 (nine, five and one in three passes) were checked by scripted parity and then by the independent audits recorded in implementation-readiness.md. The four payment stories (2.14 to 2.17) were added on 2026-10-09. Josh requested bmad-spec for each story using Codex agents running Luna. His fast-path direction is carried forward for decomposition and review. Story boundaries and dependency order are delegated planning choices, not newly claimed user approvals; all adopted product requirements remain binding. No source requirement, spec or local probe is treated as completed application functionality.
 
 #### Inputs and authority
 
 Josh confirmed the 13 documents listed in frontmatter. Paths there resolve from the repository root. They include the ratified PRD/addendum; architecture spine/decisions; SPEC and its scope/readiness and UX companions; the complete UX handoff, scope changes and screen inventory; and the September 14 qualification report.
 
-Explicit user decisions, approved SC-1–SC-7 and ratified R-1–R-11 govern scope. The canonical spec/companions carry their overrides; remaining PRD consequences, definitions and metrics apply. Architecture AD-1–AD-19 govern implementation. PRD:AD-n identifies the older PRD decision register; AD-n identifies architecture decisions; screen AD-01 etc. identify administrative surfaces.
+Explicit user decisions, approved SC-1–SC-7 and ratified R-1–R-12 govern scope. The canonical spec/companions carry their overrides; remaining PRD consequences, definitions and metrics apply. Architecture AD-1–AD-19 govern implementation. PRD:AD-n identifies the older PRD decision register; AD-n identifies architecture decisions; screen AD-01 etc. identify administrative surfaces.
 
 DESIGN.md and EXPERIENCE.md contain metadata only. Their inclusion preserves the discovered UX source pair, while the canonical UX contract, screen inventory and handoff supply substantive requirements. R-10 supersedes the old mandatory external-design-tool and alternative-direction approval ceremony; detailed visual layouts/tokens still need implementation and verification.
 
@@ -57,7 +57,7 @@ DESIGN.md and EXPERIENCE.md contain metadata only. Their inclusion preserves the
 - Evidence recipes must satisfy R-2 deterministic equivalence. Direct inference preserves immutable input/activity/output identities and restorable snapshots without claiming historical verification or identical re-inference.
 - One constrained full fallback is bound to the validation lineage in both modes; retries, cancellation, failure and successor jobs cannot reset it. Direct reconversion uses pinned original images/scope/engine under R-11.
 - Offline access has no disconnected time lease. Server revocation is immediate; learned disable locks until a newer authoritative re-enable, and learned tombstones purge before sync. Network uncertainty is not deletion. Disconnected/downloaded copies are outside controlled-backup erasure promises.
-- Complete Temple/utensils, printer control/fleets, other research domains and commerce remain later work. Manual mesh editing, public registration, shared Workspaces, billing/storefront/marketplace are not implied. Printing status is an inactive Coming later placeholder.
+- Complete Temple/utensils, printer control/fleets, other research domains and commerce beyond invited-user payments remain later work. Manual mesh editing, public registration, shared Workspaces, public billing, self-service purchasing, storefront and marketplace are not implied; invited-user payment requests and prepaid credit are in the first version (FR-31, FR-32). Printing status is an inactive Coming later placeholder.
 - Ratification is complete; engineering qualification remains open. Story/spec drafting does not reopen adopted defaults or certify engineering gates.
 
 Source links: [PRD](prds/prd-nova3D-2026-08-27/prd.md), [addendum](prds/prd-nova3D-2026-08-27/addendum.md), [architecture](architecture/architecture-nova3D-2026-09-14/ARCHITECTURE-SPINE.md), [ratified decisions](architecture/architecture-nova3D-2026-09-14/RATIFIED-DECISIONS.md), [SPEC](../specs/spec-nova3D/SPEC.md), [scope/readiness](../specs/spec-nova3D/scope-and-readiness.md), [UX contract](../specs/spec-nova3D/ux-contract.md), [screen inventory](ux-designs/ux-nova3D-2026-08-27/SCREEN-INVENTORY.md), [scope changes](ux-designs/ux-nova3D-2026-08-27/UX-SCOPE-CHANGES.md), [design handoff](ux-designs/ux-nova3D-2026-08-27/CLAUDE-DESIGN-HANDOFF.md), [qualification](../implementation-artifacts/qualification-2026-09-14/REPORT.md).
@@ -127,6 +127,7 @@ The Administrator can view per-Account paid usage or spending and configure a Us
 - Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.
 - Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.
 - Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.
+- Available headroom is the remaining period allowance plus the Account's unfrozen Credit balance (FR-32).
 
 Source: PRD §4, FR-4.
 
@@ -468,6 +469,7 @@ An Account owner can permanently delete individual Projects and Exports or the c
 
 - Whole-Account deletion immediately disables access and applies the shared guarantees to every Project, Job, Notification, Export, upload, Personalization item, usage-linked identifier, temporary artifact, and private operational record in that Workspace.
 - Only Cached Research Revisions allowed above may remain, and they cannot reveal that the deleted Account requested or used them.
+- Payment Requests, payments and Credit entries are private records deleted with the Account; the only payment data that may remain is non-identifying aggregate totals, and the payment provider's own retention is disclosed before the first payment.
 - Because the Administrator role is unique and non-transferable in the MVP, ordinary Administrator self-deletion is blocked while an invited Account exists.
 - A separate close-instance action remains available after fresh Administrator authentication and explicit destructive confirmation. It tombstones every Account and Workspace without exposing their contents, revokes all sessions and Invitation Codes, cancels all Jobs, rejects late writes, and applies the shared deletion guarantees.
 - When no invited Account remains, Administrator self-deletion performs the same close-instance action.
@@ -476,9 +478,40 @@ Source: PRD §4, FR-30.
 
 **Ratified application:** R-9 sets active purge at no more than 24 hours and controlled-backup expiry at no more than 30 days from deletion, with deletion-ledger replay before reopening restored access. R-8 excludes disconnected/downloaded copies from remote erasure promises and requires learned tombstones to purge before sync.
 
+#### FR-31: Payment requests and hosted payment
+
+The Administrator can ask a specific invited Account to pay a stated price in USD for a stated amount of credit. The Account owner can pay by card on the payment provider's hosted page. A confirmed payment adds exactly the agreed credit to that Account.
+
+**Consequences:**
+- Only the Administrator creates or cancels payment requests, with fresh authentication and an audit event; price and credit are fixed when the request is created.
+- Card details never reach nova3D.
+- Credit is granted once per payment and only after the provider confirms the exact price and currency; repeated or out-of-order notifications grant nothing extra.
+- A request can expire or be cancelled; a payment that arrives for one grants nothing and is flagged for refund.
+- Refunds and disputes reduce credit by the affected share, up to the unspent balance, and any shortfall is reported to the Administrator.
+- Differences between the provider's records and recorded credit are detected and reported to the Administrator.
+- nova3D computes no tax. The owner sees the price, the credit and the refund policy before paying.
+
+Source: Josh decision 2026-10-09 (sprint change proposal).
+
+**Ratified application:** R-12 fixes the hosted-checkout flow, the amount limits, fulfilment only from signed webhooks, refunds, disputes and daily reconciliation.
+
+#### FR-32: Prepaid credit
+
+An Account's credit is a separate balance that the owner and the Administrator can see. It is spent only after the monthly allowance, does not expire while the Account exists, and follows the same reservation, ceiling and ambiguous-charge rules as the allowance.
+
+**Consequences:**
+- The Administrator can grant credit without a payment, with a stated reason and an audit event.
+- Credit that is frozen because of a dispute is not available to spend; running Jobs keep their reservations.
+- Credit carries over when the monthly allowance resets.
+- Deleting an Account removes its identifiable payment and credit records; only non-identifying aggregates may remain, and the provider's own retention is disclosed before the first payment.
+
+Source: Josh decision 2026-10-09 (sprint change proposal).
+
+**Ratified application:** R-12 fixes the funding split (allowance first, then credit), the Administrator grant limits and the freeze on dispute.
+
 #### Approved scope extensions
 
-These seven approved changes supplement FR-1–FR-30. R-8, R-10 and R-11 resolve the earlier ratification requests; qualification remains engineering work.
+These seven approved changes supplement FR-1–FR-32. R-8, R-10 and R-11 resolve the earlier ratification requests; qualification remains engineering work.
 
 ##### SC-1: Picture workflows move into the first version
 
@@ -568,7 +601,7 @@ Source: PRD §7. All twelve NFRs apply across the capability set, with the expli
 
 ### Additional Requirements
 
-The adopted architecture is an implementation contract. These work items retain all AD-1–AD-19 and R-1–R-11 obligations; referenced source detail remains binding.
+The adopted architecture is an implementation contract. These work items retain all AD-1–AD-19 and R-1–R-12 obligations; referenced source detail remains binding.
 
 **Starter requirement for Epic 1 Story 1:** AR-1 specifies the qualified greenfield seed. The first story below carries this bootstrap constraint.
 
@@ -1156,9 +1189,9 @@ Required states/variants: Enabled, disabling, disabled, re-enabled, active Jobs 
 
 Source: SCREEN-INVENTORY AD-02; canonical ux-contract; applicable ratified decisions.
 
-**UX-DR71: Usage and limits (AD-03).** Per-Account paid usage, reservations, settlements, available allowance, set/reset limit.
+**UX-DR71: Usage and limits (AD-03).** Per-Account paid usage, reservations, settlements, available allowance, credit balance, set/reset limit, payment requests and credit grants.
 
-Required states/variants: Under limit, nearly reached, reached, running Job allowed, new paid Job blocked.
+Required states/variants: Under limit, nearly reached, reached, running Job allowed, new paid Job blocked, request pending/paid/expired/cancelled, credit frozen, payment mismatch.
 
 Source: SCREEN-INVENTORY AD-03; canonical ux-contract; applicable ratified decisions.
 
@@ -1174,14 +1207,20 @@ Required states/variants: Fresh authentication, explicit destructive confirmatio
 
 Source: SCREEN-INVENTORY AD-05; canonical ux-contract; applicable ratified decisions.
 
+**UX-DR74: Credit and payments (S-06).** Credit balance beside the monthly allowance, pending payment requests with a Pay action, payment history, terms and refund policy, notice that the payment provider processes the payment.
+
+Required states/variants: No credit, request pending, paying (processing), credited, expired or cancelled, refunded, credit frozen.
+
+Source: SCREEN-INVENTORY S-06; canonical ux-contract; applicable ratified decisions.
+
 ### FR Coverage Map
 
 | Requirement | Stories |
 | --- | --- |
 | FR-1 | 1.3, 1.11 |
 | FR-2 | 1.3, 1.4, 1.7, 1.12, 6.9 |
-| FR-3 | 1.5, 1.6, 1.12, 6.9, 7.5 |
-| FR-4 | 2.4, 2.5, 2.6, 2.7, 2.8, 2.13 |
+| FR-3 | 1.5, 1.6, 1.12, 2.15, 6.9, 7.5 |
+| FR-4 | 2.4, 2.5, 2.6, 2.7, 2.8, 2.13, 2.14 |
 | FR-5 | 1.7, 2.1, 2.3, 2.13 |
 | FR-6 | 2.7, 2.8, 2.11, 3.7 |
 | FR-7 | 2.10, 3.7, 4.2, 5.2, 6.3, 6.5, 6.8, 7.7, 7.8 |
@@ -1207,7 +1246,9 @@ Source: SCREEN-INVENTORY AD-05; canonical ux-contract; applicable ratified decis
 | FR-27 | 5.5, 6.4, 7.6 |
 | FR-28 | 6.5, 7.8 |
 | FR-29 | 6.6, 6.7, 6.8, 6.9, 7.6 |
-| FR-30 | 1.8, 3.6, 7.5, 8.1, 8.2, 8.3, 8.4 |
+| FR-30 | 1.8, 2.17, 3.6, 7.5, 8.1, 8.2, 8.3, 8.4 |
+| FR-31 | 2.15, 2.16, 2.17 |
+| FR-32 | 2.14, 2.16, 2.17 |
 
 ### Additional Requirement Coverage
 
@@ -1222,21 +1263,21 @@ Every mapped requirement retains its detailed inventory conditions. Shared const
 | SC-5 | 2.10, 7.7 |
 | SC-6 | 3.2 |
 | SC-7 | 1.2, 4.6, 8.5, 8.8 |
-| NFR-1 | 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.11, 1.12, 2.2, 2.12, 4.1, 6.9, 7.4, 7.5, 7.9, 8.1, 8.2, 8.7 |
-| NFR-2 | 1.1, 1.3, 1.4, 1.5, 1.6, 1.9, 1.10, 1.11, 1.12, 2.2, 2.5, 3.1, 6.7, 6.9, 8.7 |
+| NFR-1 | 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.11, 1.12, 2.2, 2.12, 2.16, 4.1, 6.9, 7.4, 7.5, 7.9, 8.1, 8.2, 8.7 |
+| NFR-2 | 1.1, 1.3, 1.4, 1.5, 1.6, 1.9, 1.10, 1.11, 1.12, 2.2, 2.5, 2.16, 3.1, 6.7, 6.9, 8.7 |
 | NFR-3 | 2.12, 3.1, 3.3, 3.6, 4.1, 4.2, 4.4, 4.5, 5.2, 5.3, 5.5, 6.4, 6.5, 6.6, 6.7, 6.8, 8.7 |
 | NFR-4 | 1.9, 1.13, 2.7, 2.11, 8.6, 8.7 |
 | NFR-5 | 2.6, 2.7, 2.11, 4.1, 5.2, 7.4, 8.1, 8.6, 8.7 |
 | NFR-6 | 4.2, 4.3, 5.2, 8.7 |
 | NFR-7 | 2.12, 4.1, 5.3, 5.4, 7.4, 8.4, 8.7, 8.9 |
 | NFR-8 | 2.7, 3.3, 3.7, 8.7 |
-| NFR-9 | 1.10, 2.4, 2.5, 2.6, 2.8, 2.13, 3.7, 6.5, 8.7 |
+| NFR-9 | 1.10, 2.4, 2.5, 2.6, 2.8, 2.13, 2.14, 2.15, 2.16, 2.17, 3.7, 6.5, 8.7 |
 | NFR-10 | 2.7, 3.7, 4.6, 4.7, 7.1, 8.6, 8.7 |
 | NFR-11 | 6.1, 6.2, 6.3, 6.8, 6.10, 8.7 |
-| NFR-12 | 1.8, 3.1, 3.6, 7.5, 8.1, 8.2, 8.3, 8.4, 8.7, 8.9 |
+| NFR-12 | 1.8, 2.17, 3.1, 3.6, 7.5, 8.1, 8.2, 8.3, 8.4, 8.7, 8.9 |
 | AR-1 | 1.1 |
 | AR-2 | 1.1, 2.12, 4.1, 4.2 |
-| AR-3 | 1.4, 1.7, 2.6, 2.7, 2.11, 2.12, 4.1, 7.4 |
+| AR-3 | 1.4, 1.7, 2.6, 2.7, 2.11, 2.12, 2.16, 4.1, 7.4 |
 | AR-4 | 2.1, 2.3, 3.5, 5.5, 6.8, 7.3, 7.6 |
 | AR-5 | 2.12, 3.4, 3.5, 4.1, 4.4, 4.5, 5.1, 5.3, 5.4, 5.5, 6.6, 6.8, 7.3, 7.4 |
 | AR-6 | 2.9, 3.1, 3.2, 3.3, 3.5, 3.6, 5.1 |
@@ -1248,10 +1289,10 @@ Every mapped requirement retains its detailed inventory conditions. Shared const
 | AR-12 | 6.4, 6.5, 7.8 |
 | AR-13 | 6.6, 6.7, 6.8, 7.6 |
 | AR-14 | 2.7, 2.8, 2.11, 2.13, 3.7, 6.5, 7.8 |
-| AR-15 | 1.5, 1.8, 1.12, 2.7, 3.7, 5.2, 7.8, 8.1 |
-| AR-16 | 2.4, 2.6, 2.8, 2.13, 6.5 |
+| AR-15 | 1.5, 1.8, 1.12, 2.7, 2.16, 3.7, 5.2, 7.8, 8.1 |
+| AR-16 | 2.4, 2.6, 2.8, 2.13, 2.14, 6.5 |
 | AR-17 | 1.10, 2.5, 2.8, 2.13, 3.7 |
-| AR-18 | 1.3, 1.4, 1.5, 1.6, 1.9, 1.11, 8.2 |
+| AR-18 | 1.3, 1.4, 1.5, 1.6, 1.9, 1.11, 2.15, 8.2 |
 | AR-19 | 1.12, 2.2, 2.12, 4.1, 5.4, 6.9 |
 | AR-20 | 2.9, 3.1, 3.2, 3.6, 8.3 |
 | AR-21 | 1.8, 8.1, 8.2, 8.3, 8.4, 8.9 |
@@ -1259,7 +1300,7 @@ Every mapped requirement retains its detailed inventory conditions. Shared const
 | AR-23 | 7.2, 7.5, 8.6 |
 | AR-24 | 4.6, 4.7, 7.1, 8.5, 8.8 |
 | AR-25 | 2.10, 3.7, 7.7 |
-| AR-26 | 1.1, 1.9, 1.10, 1.13, 2.7, 8.4, 8.7, 8.9 |
+| AR-26 | 1.1, 1.9, 1.10, 1.13, 2.7, 2.16, 2.17, 8.4, 8.7, 8.9 |
 | AR-27 | 7.1, 8.5, 8.6, 8.7, 8.8 |
 | AR-28 | 1.2, 8.5, 8.8 |
 | UX-DR1 | 1.2 |
@@ -1332,9 +1373,10 @@ Every mapped requirement retains its detailed inventory conditions. Shared const
 | UX-DR68 | 8.2 |
 | UX-DR69 | 1.11 |
 | UX-DR70 | 1.5 |
-| UX-DR71 | 2.4 |
+| UX-DR71 | 2.4, 2.14, 2.15, 2.17 |
 | UX-DR72 | 1.5, 1.6, 1.11, 1.13 |
 | UX-DR73 | 8.2 |
+| UX-DR74 | 2.14, 2.15, 2.16, 2.17 |
 
 ## Epic List
 
@@ -1346,9 +1388,9 @@ Invited users can authenticate and use a responsive private workspace; Josh can 
 
 ### Epic 2: Confirm requests and control background spending
 
-Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state.
+Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state, and invited users can pay for extra spending credit.
 
-**FRs covered:** FR-4, FR-5, FR-6, FR-7, FR-12, FR-13, FR-14, FR-17
+**FRs covered:** FR-3, FR-4, FR-5, FR-6, FR-7, FR-12, FR-13, FR-14, FR-17, FR-30, FR-31, FR-32
 
 ### Epic 3: Research and approve a complete evidence plan
 
@@ -1408,7 +1450,7 @@ So that implementation starts from the qualified runtime.
 - Run local development on the Supabase CLI stack, not the hosted project: add the `[auth]` block (Google only, sign-ups on, redirect URLs, OTP expiry, a 30-day session time-box and a 7-day inactivity timeout) and `[auth.external.google]` to `supabase/config.toml` along with `[storage] file_size_limit = "100MiB"`, re-point `.env.local`, and make `APP_ENV=local` valid only against a loopback Supabase URL. The existing hosted project becomes staging (Story 1.10 records its plan and region), Vercel Production deploys stay disabled until a production project exists, and the environment check requires an Administrator email setting (`ADMINISTRATOR_EMAIL`). Create the Lifecycle `instance_identity` row (environment name and a random instance UUID) with its migration, the only table this story adds, and make `APP_ENV` and `INSTANCE_ID` mirror it.
 - Keep `scripts/restore-supabase.mjs` while `scripts/ci/check-repository.mjs` requires it, and change both together. Set `engines` to Node 24 with CI pinning 24.21.0 (Vercel supplies its own Node 24 patch). Replace the LAN-origin redirect instructions in `docs/auth-setup.md` with the local-stack callback of this story.
 - Replace the guard in `scripts/check-env.mjs` that rejects `VERCEL_ENV=production` unless `APP_ENV=production` with a comparison against the `instance_identity` row, so the staging Vercel project (whose production branch is `staging`) is valid. Change `vercel.json` so only the `staging` branch deploys to that project, with `main` promoted to `staging` by fast-forward, and give preview deployments no Supabase credentials.
-- Pin Vitest as the unit and integration runner (Postgres tests against the Supabase CLI stack) and Playwright for browser flows, with local stand-ins that implement the same ports: Inbucket for mail, a local OIDC provider for Google sign-in (issuing the `amr` `oauth` entries that step-up checks), and fakes for QStash, Backblaze, Resend and the Railway workers. Hosted-Auth behaviors are verified only on staging.
+- Pin Vitest as the unit and integration runner (Postgres tests against the Supabase CLI stack) and Playwright for browser flows, with local stand-ins that implement the same ports: Inbucket for mail, a local OIDC provider for Google sign-in (issuing the `amr` `oauth` entries that step-up checks), and fakes for QStash, Backblaze, Resend, Stripe and the Railway workers. Hosted-Auth behaviors are verified only on staging.
 
 **Acceptance Criteria:**
 
@@ -1449,6 +1491,7 @@ So that no later story stalls on an account only I can create.
 - Do the tasks only Josh can do, each tagged with the story that first needs it so none blocks earlier work than it must. Before Story 1.3: one Google OAuth client per environment with exact redirect URIs and the consent screen set to In production (Testing mode silently allowlists and expires grants). Before Story 1.4: the staging Vercel project linked to the repository's `staging` branch with the seed application deployed, the Supabase organization plan (Pro, since a Free project pauses) and the existing project's status and region, so hosted-Auth checks can run. Before Story 1.6: a Resend account registered with the Administrator address, and its API key. Before Story 1.9: the Upstash account (QStash pay-as-you-go) and the Railway account. Before Story 2.5: an Anthropic workspace with a dedicated spend limit and its API key (noting whether an organization Admin key exists), and a Brave account with prepaid credit and no auto-recharge. Before Story 7.2: the public model-asset bucket that Story 7.2 names. Before Story 7.7: a VAPID key pair per environment. Before Story 8.9: a Backblaze account with a backup bucket per environment in US East, a separate ledger bucket, a read-only manifest key and a ledger read-only key, and the age key pair (the private key only in the Administrator's password manager). Before the first Story 8.4 drill: permission to create and delete a restore project.
 - Add `scripts/check-provisioning.mjs --story <id>`, which reads the ledger and reports for one environment which items due by that story are present (secrets by presence, attestations by their dated entry), names each missing one and the story that needs it, and never prints a value. Record the Brave terms review (section 3(b) bars storing or caching results) in the ledger before Story 2.5 may enable that adapter.
 - Before Story 1.4 also: a Supabase personal access token for this organization, the staging database password and project reference, stored as secrets in a protected GitHub environment for staging (production gets its own later), so the CLI and CI can push configuration and migrations. Before Story 1.9: a GitHub Container Registry token and a Railway project token for the worker image pipeline.
+- Before Story 2.16: upgrade Vercel to Pro (taking payments is commercial use); open a Stripe account in the United Kingdom in test and live modes with a restricted API key, a webhook endpoint and secret per environment and receipts enabled; confirm Stripe's UK fees, the currency-conversion fee for charging in USD, and the tax and VAT position; and write the terms and refund policy text. Record all of these in the ledger.
 
 **Acceptance Criteria:**
 
@@ -2098,7 +2141,7 @@ So that I can resume the next required action.
 
 ## Epic 2: Confirm requests and control background spending
 
-Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state.
+Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state, and invited users can pay for extra spending credit.
 
 ### Story 2.1: Confirm natural-language intent and personalization
 
@@ -2365,6 +2408,7 @@ So that concurrent requests cannot overspend.
 - Reserve against Account period, $5 parent research-Job lifetime across all attempts, and $1 external-operation ceilings in one transaction.
 - The reservation is input rate × a provider-independent input bound (the UTF-8 byte length of the serialized request with image data excluded plus 2,000 tokens of fixed overhead and 5,000 tokens per image, all raised by 10%, as the Spine fixes) plus output rate × the output limit actually sent; the 200,000-input-token, 16,000-output-token and 20-search-request ceilings are admission limits. An external operation is one provider request. Treat transport loss, timeout, 5xx and aborted streams as ambiguous (hold the reservation until usage evidence or a 24-hour deadline, then settle at the reservation) and definitive pre-processing rejections with a request ID as noncharge; evidence above a reservation settles at the evidence, counts against every limit and blocks the provider until reviewed.
 - Pin the provider API version, requested and returned model identity and rate schedule in each operation receipt; rate schedules are versioned records, so this story needs only fixture rates until Story 2.5 adds the provider adapters.
+- Credit funding arrives with Story 2.14; until then admission headroom is the period allowance alone.
 
 **Acceptance Criteria:**
 
@@ -2699,6 +2743,225 @@ So that background progress remains usable across sessions.
 **Then** the exact live-authorized item opens or an unavailable state appears; Prints in Progress remains Coming later; empty, failure, permission-disabled and grouped states render
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-10/SPEC.md).
+
+### Story 2.14: Hold prepaid credit beside the monthly allowance
+
+As an Account owner,
+I want to have the credit I paid for kept apart from my monthly allowance,
+So that what I paid for is spent only on my work and never disappears at month end.
+
+**Requirements:** FR-4, FR-32, AR-16, NFR-9, UX-DR71, UX-DR74
+
+**Dependencies:** 2.4, 2.6, 2.8, 1.3
+
+**Scope:**
+
+- Create the Usage-owned immutable credit-entry ledger in USD microdollars: grants (from payments or from the Administrator), refund debits, spend and release entries, and freezes. An Account's credit balance is the sum of its entries and does not expire while the Account exists.
+- Admission headroom is the remaining period allowance plus unfrozen credit. A reservation draws from the allowance first and from credit for the rest and records that split; settlement, release and ambiguous holds follow the funding source; credit carries over when the allowance resets. The per-operation ($1) and per-Job ($5) ceilings and the permission matching of Story 2.5 are unchanged. This story extends the admission function of Story 2.6.
+- The Administrator can grant credit without a payment: a reason is required, each grant is at most $1,000, and it needs a fresh administration marker and appends an audit event. Show the allowance and the credit balance to the owner in the new Credit and payments page (S-06) and per Account to the Administrator in Usage and limits (AD-03).
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** $2 of allowance and $10 of credit left
+**When** a $3 reservation is admitted
+**Then** $2 comes from the allowance and $1 from credit, the split is recorded, and concurrent reservations cannot exceed allowance plus credit
+
+**AC-2**
+
+**Given** a credit-funded reservation
+**When** its operation settles lower, is cancelled or is ambiguous
+**Then** the unused part returns to the source that funded it, an ambiguous charge keeps its credit part held, and no entry is rewritten
+
+**AC-3**
+
+**Given** an Administrator credit grant
+**When** it is submitted without a fresh administration marker, without a reason, or above $1,000
+**Then** it is refused, and a valid grant appends an immutable entry and an audit event
+
+**AC-4**
+
+**Given** a new allowance period
+**When** the allowance resets
+**Then** the credit balance carries over unchanged and no credit entry is rewritten
+
+**AC-5**
+
+**Given** frozen credit (a fixture freeze until Story 2.17 creates real ones)
+**When** a reservation is admitted
+**Then** frozen credit is not counted as headroom and running Jobs keep their reservations
+
+**AC-6**
+
+**Given** the Credit and payments page and Usage and limits
+**When** they are viewed on phone and desktop
+**Then** settled, reserved and available allowance and the credit balance reconcile
+
+**Engineering gates:** G-6; planning completion does not change their qualification status.
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-14/SPEC.md).
+
+### Story 2.15: Request a payment from an Account
+
+As an Administrator,
+I want to ask a chosen user to pay a chosen amount for a chosen credit,
+So that I decide who pays and how much.
+
+**Requirements:** FR-31, FR-3, AR-18, NFR-9, UX-DR71, UX-DR74
+
+**Dependencies:** 2.14, 2.10, 1.11, 1.4
+
+**Scope:**
+
+- Add payment requests to Usage and limits (AD-03): choose an Account, a price ($1.00 to $500.00, whole cents), the credit it buys ($0.01 to $1,000.00, which may exceed the price) and an optional note of at most 200 characters. A request expires in 14 days or sooner, at most 3 are open per Account, and the Administrator can cancel an unpaid one. Creating and cancelling need a fresh administration marker and append an audit event.
+- A Usage-owned payment-request record has the states pending, paid (set by Story 2.16), expired and cancelled, with amounts immutable after creation. The owner sees pending requests in Credit and payments (S-06) and gets an in-app notification of a new type registered with Story 2.10. The Administrator sees every request and state but never card details or Workspace content. A disabled or deleted Account cannot receive a request.
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** a fresh administration marker
+**When** the Administrator creates a request with an Account, price, credit and note
+**Then** it is stored pending and immutable, an audit event is written and the owner is notified; without a marker it is refused
+
+**AC-2**
+
+**Given** a price or credit outside the bounds, a fourth open request, or a disabled or deleted Account
+**When** it is submitted
+**Then** it is rejected with the reason
+
+**AC-3**
+
+**Given** an expired or cancelled request
+**When** the owner opens it
+**Then** it shows that state and cannot be paid
+
+**AC-4**
+
+**Given** another Account's request
+**When** a different owner opens it
+**Then** it is unavailable and discloses nothing
+
+**AC-5**
+
+**Given** phone and desktop
+**When** requests are listed, created and cancelled
+**Then** the same actions work on both
+
+**Engineering gates:** G-6; planning completion does not change their qualification status.
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-15/SPEC.md).
+
+### Story 2.16: Pay a request through hosted checkout
+
+As an Account owner,
+I want to pay a request by card on a secure page,
+So that the credit is added without my card details touching nova3D.
+
+**Requirements:** FR-31, FR-32, AR-3, AR-15, AR-26, NFR-1, NFR-2, NFR-9, UX-DR74
+
+**Dependencies:** 2.15, 1.10, 1.13, 1.9
+
+**Scope:**
+
+- Build a Stripe adapter behind a payments port. Server-side only, create a Checkout Session in payment mode (card only, USD, one line at the request's price, the request ID as `client_reference_id`, the Account email prefilled, expiring with the request or after 24 hours, whichever is sooner); a new session for the same request expires the previous one. The success and cancel pages on the application origin only show status. Pin the Stripe SDK and API version, use a restricted key, limit session creation to 10 an hour per Account, and refuse a disabled or deleted Account.
+- A webhook route verifies Stripe's signature with the official library, records each processed event ID (unique) and accepts only a paid `checkout.session.completed`. It checks amount, currency, request and Account, then in one transaction records the payment (Stripe session and payment-intent IDs, amount, time), appends the credit grant of Story 2.14, marks the request paid, writes an audit event and notifies the owner. A mismatch, a payment for an expired or cancelled request, or one for a disabled or deleted Account grants nothing and raises a Story 1.13 alarm for a manual refund.
+- Local and staging use Stripe test mode (local webhooks are forwarded by the Stripe CLI or a fake implementing the same port); previews hold no Stripe keys; live mode is enabled only in production after the Stripe account is verified. Store Stripe IDs, amounts and times only, never card data.
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** a pending request and its owner
+**When** they choose Pay
+**Then** a Checkout Session for exactly the request's price in USD is created, any earlier open session is expired and the owner is redirected; another Account cannot create one and a disabled Account is refused
+
+**AC-2**
+
+**Given** a valid signed completed-session event
+**When** the webhook processes it
+**Then** exactly one payment, one credit grant of the request's credit, the paid state, an audit event and a notification commit together
+
+**AC-3**
+
+**Given** the same event delivered twice or concurrently, or a payment for a request that has expired or been cancelled
+**When** it is processed
+**Then** credit is granted at most once, and a late payment grants nothing and raises an alarm
+
+**AC-4**
+
+**Given** an invalid signature, a wrong amount or currency, an unknown request, or another Account's event
+**When** it is received
+**Then** nothing is granted, the route returns an error without detail, and a mismatch raises an alarm
+
+**AC-5**
+
+**Given** the success page opened before the webhook arrives
+**When** it is shown
+**Then** it says processing and never grants credit
+
+**AC-6**
+
+**Given** Stripe unreachable
+**When** the owner chooses Pay
+**Then** an actionable error is shown and nothing changes
+
+**AC-7**
+
+**Given** phone and desktop
+**When** the owner pays a request
+**Then** the same flow works on both
+
+**Engineering gates:** G-6; planning completion does not change their qualification status.
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-16/SPEC.md).
+
+### Story 2.17: Handle refunds, disputes and payment reconciliation
+
+As an Administrator,
+I want to have refunds, disputes and mismatches handled safely,
+So that credit always matches the money actually kept.
+
+**Requirements:** FR-31, FR-32, FR-30, AR-26, NFR-9, NFR-12, UX-DR71, UX-DR74
+
+**Dependencies:** 2.16, 1.13, 1.9
+
+**Scope:**
+
+- Refunds are issued in the Stripe Dashboard. On `charge.refunded` the webhook debits credit by the refunded share up to the unfrozen balance and records any shortfall as unrecovered with an alarm. On `charge.dispute.created` it freezes the credit from that payment; a won dispute unfreezes it and a lost one debits it.
+- A daily task on the Story 1.9 scheduler lists the successful Checkout Sessions of the last three days and compares them with recorded payments and credit, alarming (Story 1.13) on any difference in either direction. Show payment history to the owner (S-06) and the Administrator (AD-03).
+- Before the Pay button the owner sees the terms and refund policy (text written by Josh, English until he supplies a Hebrew version, with labels in both catalogs) and a notice that Stripe processes the payment and keeps its own records under its terms and the law. Stripe receipts are enabled in the Stripe account.
+
+**Acceptance Criteria:**
+
+**AC-1**
+
+**Given** a paid request that is partly spent
+**When** Josh refunds it in Stripe and the webhook arrives
+**Then** credit is debited by the refunded share up to the available balance, the remainder is recorded as unrecovered and alarmed, and no entry is rewritten
+
+**AC-2**
+
+**Given** a dispute that is created and then closed won or lost
+**When** the webhooks arrive
+**Then** the credit is frozen, then unfrozen or debited, the Administrator is alarmed and running Jobs keep their reservations
+
+**AC-3**
+
+**Given** a successful Stripe session with no recorded payment, or a recorded payment with no successful session
+**When** reconciliation runs
+**Then** an alarm names it
+
+**AC-4**
+
+**Given** the payment history and the terms
+**When** they are viewed on phone and desktop
+**Then** amounts reconcile with credit entries, and the terms, refund policy and Stripe notice show before the Pay button
+
+**Engineering gates:** G-6; planning completion does not change their qualification status.
+
+**Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-17/SPEC.md).
 
 ## Epic 3: Research and approve a complete evidence plan
 
@@ -4503,7 +4766,7 @@ So that all authorized private targets enter the deletion process.
 
 **Requirements:** FR-30, AR-18, AR-21, NFR-1, NFR-12, UX-DR19, UX-DR68, UX-DR73
 
-**Dependencies:** 8.1, 1.6
+**Dependencies:** 8.1, 1.6, 2.17
 
 **Scope:**
 
@@ -4516,7 +4779,7 @@ So that all authorized private targets enter the deletion process.
 
 **Given** a normal Account with fresh authentication
 **When** whole-Account deletion is explicitly confirmed
-**Then** sessions revoke and all owned private targets, jobs and pending work enter the durable deletion manifest; the confirmation works on phone and desktop
+**Then** sessions revoke and all owned private targets, jobs, pending work, payment requests, payments and credit entries enter the durable deletion manifest; the confirmation works on phone and desktop
 
 **AC-2**
 
@@ -4625,6 +4888,7 @@ So that retained data does not outlive the adopted limits.
 - Purge database, files, models, exports, staging, notifications, private usage/adoption associations and operational traces under the deletion manifest.
 - Apply the Story 8.9 backup lifecycle to deletions: deleted targets leave dumps within 14 days and deleted-at-source objects within 7 days. Run a monthly canary on a synthetic Account with an internal system-actor deletion (the interactive step-up applies to humans only), proving the deletion reaches the database, Storage and backups within 15 days from manifests and bucket listings, since dumps are encrypted. Account purge also deletes the Auth identity and its Auth audit-log entries and sessions. Register the missed-purge-deadline condition with the Story 1.13 alarm channel.
 - Project deletion de-links its settlements, unresolved reservations and overrun incidents from Project, Job and request identity and keeps amounts, category and period, so deletion never restores spending headroom; Account deletion removes them.
+- Purge the Account's payment requests, payments and credit entries (non-identifying aggregate totals may remain) and expire any open Checkout Session through Stripe; the application discloses that Stripe keeps its own records under its terms and the law.
 
 **Acceptance Criteria:**
 
@@ -4657,6 +4921,12 @@ So that retained data does not outlive the adopted limits.
 **Given** a Project with settled usage in the current period
 **When** it is deleted
 **Then** the period's settled and reserved totals are unchanged and no Project, Job or request identity remains on those rows
+
+**AC-6**
+
+**Given** an Account deleted with payment data and an open Checkout Session
+**When** the purge runs
+**Then** its payment requests, payments and credit entries are gone, only non-identifying totals remain, and the open session is expired
 
 **Engineering gates:** G-9; planning completion does not change their qualification status.
 
@@ -4739,7 +5009,7 @@ So that phone, desktop and assistive access have measured evidence.
 
 **Scope:**
 
-- Validate all 53 already-implemented surfaces and required states with a screen-to-implementation map on the devices available now (the Windows 11 laptop); this story is qualification, not a deferred UX implementation bucket. Story 8.8 repeats it on the remaining device classes.
+- Validate all 54 already-implemented surfaces and required states with a screen-to-implementation map on the devices available now (the Windows 11 laptop); this story is qualification, not a deferred UX implementation bucket. Story 8.8 repeats it on the remaining device classes.
 
 **Acceptance Criteria:**
 
@@ -4850,7 +5120,7 @@ So that release decisions reflect the complete application.
 
 **Requirements:** AR-26, AR-27, NFR-1, NFR-2, NFR-3, NFR-4, NFR-5, NFR-6, NFR-7, NFR-8, NFR-9, NFR-10, NFR-11, NFR-12
 
-**Dependencies:** 8.4, 8.5, 8.6, 8.8
+**Dependencies:** 8.4, 8.5, 8.6, 8.8, 2.17
 
 **Scope:**
 
@@ -4869,7 +5139,7 @@ So that release decisions reflect the complete application.
 
 **Given** the complete evidence altar/ramp and direct/offline regression suites
 **When** integrated acceptance runs
-**Then** all original PRD metrics, two-account isolation, invitations, cost/retry races, stale approvals, source-policy/cache privacy, repair lineage and deletion-aware restore have required evidence
+**Then** all original PRD metrics, two-account isolation, invitations, cost/retry races, stale approvals, source-policy/cache privacy, repair lineage, deletion-aware restore and the payment seams (webhook replay, tampered amount, late payment and refund after spend) have required evidence
 
 **AC-3**
 
@@ -4889,8 +5159,8 @@ So that release decisions reflect the complete application.
 - Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.
 - Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question.
 - G-8 product-decision checkpoint: when Epic 6 is complete, or Story 7.1 has evaluated every available candidate (whichever comes first), and G-8 is still BLOCKED, Josh records one of: keep waiting, defer offline direct conversion to a later release, or add an online worker path. Until that record exists, scope and limits are unchanged and full first-version release stays blocked. Josh decided on 2026-10-08 that pinned reconversion (Story 7.8) runs on a server engine worker; the checkpoint governs initial conversion.
-- Architecture and epics updates 2026-10-08 (two passes), placements settled: the periodic-job scheduler, dormant-identity purge, alarm channel and staging provisioning are Story 1.9; external accounts and credentials are Story 1.10; the file gateway and service-signing keys are Story 1.12; the restore ledger port is Story 1.8; the Resend recovery mailer is Story 1.6; the research-engine port and omission scan are Story 3.3; the backup service is Story 8.9 and its restore drill Story 8.4, and production receives no real private data before that drill passes; production provisioning is Story 8.7. Build order is the order stories appear in each epic and in the story index, which is not always numeric (for example 1.10 follows 1.1, 2.12 precedes 2.4, 2.13 precedes 2.9, 6.10 precedes 6.2 and 8.9 precedes 8.3). Phone parity: every user-facing story's acceptance criteria must hold on phone and desktop. First-release device scope (Josh, 2026-10-08): Story 8.5 must pass on the Windows 11 class; Story 8.8 qualifies the other classes or records them as not qualified, and that does not block release. Stories 1.2, 1.9, 2.7, 3.1, 3.3, 3.7, 4.2, 6.3 and 8.9 are large but cohesive and were not split; revisit at build time if any exceeds one agent's context, cutting 2.7 into dispatch and workers versus cancellation and settlement, 3.3 into the checklist and port, the extractors and omission scan, and the paid mode, 4.2 into the CAD worker and recipe executor versus the Model Version family and its commit, and 8.9 into the dump versus the Storage mirror and ledger adapter. UX-DR29 project-state variants stay owned by Story 1.7, with each later story supplying the transitions its own scope names.
+- Architecture and epics updates 2026-10-08 (two passes), placements settled: the periodic-job scheduler, dormant-identity purge, alarm channel and staging provisioning are Story 1.9; external accounts and credentials are Story 1.10; the file gateway and service-signing keys are Story 1.12; the restore ledger port is Story 1.8; the Resend recovery mailer is Story 1.6; the research-engine port and omission scan are Story 3.3; the backup service is Story 8.9 and its restore drill Story 8.4, and production receives no real private data before that drill passes; production provisioning is Story 8.7. Build order is the order stories appear in each epic and in the story index, which is not always numeric (for example 1.10 follows 1.1, 2.12 precedes 2.4, 2.13 precedes 2.9, 6.10 precedes 6.2 and 8.9 precedes 8.3). Phone parity: every user-facing story's acceptance criteria must hold on phone and desktop. First-release device scope (Josh, 2026-10-08): Story 8.5 must pass on the Windows 11 class; Story 8.8 qualifies the other classes or records them as not qualified, and that does not block release. Stories 1.2, 1.9, 2.7, 3.1, 3.3, 3.7, 4.2, 6.3 and 8.9 are large but cohesive and were not split; revisit at build time if any exceeds one agent's context, cutting 2.7 into dispatch and workers versus cancellation and settlement, 3.3 into the checklist and port, the extractors and omission scan, and the paid mode, 4.2 into the CAD worker and recipe executor versus the Model Version family and its commit, and 8.9 into the dump versus the Storage mirror and ledger adapter. UX-DR29 project-state variants stay owned by Story 1.7, with each later story supplying the transitions its own scope names. Payments (Josh, 2026-10-09): Stories 2.14 to 2.17 add prepaid credit, Administrator payment requests, Stripe hosted checkout, and refund, dispute and reconciliation handling; they do not block Epics 3 to 7, and Vercel Pro is needed before Story 2.16.
 
 Per-story spec folders carry their own stable capability IDs and canonical append-only memory. The project-wide SPEC retains CAP-1–CAP-17. Implementation dispatch checkpoints are not assigned by this planning run.
 
-[Browse all 73 story specifications](../specs/story-specs-index.md). Each spec has its own acceptance criteria, implementation constraints and canonical memory. See [validation results](story-specs-validation.md) for coverage and preservation checks.
+[Browse all 77 story specifications](../specs/story-specs-index.md). Each spec has its own acceptance criteria, implementation constraints and canonical memory. See [validation results](story-specs-validation.md) for coverage and preservation checks.

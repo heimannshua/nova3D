@@ -22,7 +22,7 @@ The user can inspect a Model Version without manual geometry editing.
 
 Source: PRD §4, FR-18.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 297 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 298 in the captured input.
 
 ### AR-9
 
@@ -30,7 +30,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 297 in the captured inp
 
 Source: AD-7; FR-18–FR-22.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 607 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 640 in the captured input.
 
 ### AR-24
 
@@ -38,13 +38,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 607 in the captured inp
 
 Source: AD-7, AD-17; R-5; G-5.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 677 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 710 in the captured input.
 
 ### NFR-10
 
 **NFR-10: Responsive workspace.** Research, generation, validation, repair, and export run without blocking navigation or ordinary Project inspection. Browser preview degradation or failure cannot damage manufacturing geometry.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 561 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 594 in the captured input.
 
 ## Planning Assumptions
 

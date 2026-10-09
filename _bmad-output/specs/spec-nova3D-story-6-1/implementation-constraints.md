@@ -23,7 +23,7 @@ Before validation, the user selects the intended printer, material, and physical
 
 Source: PRD §4, FR-24.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 370 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 371 in the captured input.
 
 ### AR-9
 
@@ -31,7 +31,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 370 in the captured inp
 
 Source: AD-7; FR-18–FR-22.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 607 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 640 in the captured input.
 
 ### AR-11
 
@@ -39,13 +39,13 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 607 in the captured inp
 
 Source: AD-8; R-3; G-3.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 615 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 648 in the captured input.
 
 ### NFR-11
 
 **NFR-11: Honest print qualification.** Validation labels always identify the Target Print Profile, warnings, failures, unknowns, and last validation time; nova3D never presents validation as safety or universal manufacturability certification.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 563 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 596 in the captured input.
 
 ### UX-DR17
 
@@ -53,7 +53,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 563 in the captured inp
 
 Source: FR-24–FR-28; R-3/R-11.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 843 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 876 in the captured input.
 
 ### UX-DR58
 
@@ -63,7 +63,7 @@ Required states/variants: Default fixture, changed profile, incomplete profile.
 
 Source: SCREEN-INVENTORY V-01; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1081 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1114 in the captured input.
 
 ## Planning Assumptions
 

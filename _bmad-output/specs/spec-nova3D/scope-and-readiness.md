@@ -4,9 +4,9 @@
 
 Read this companion, [ux-contract.md](ux-contract.md), the adopted [PRD](../../planning-artifacts/prds/prd-nova3D-2026-08-27/prd.md) and [architecture spine](../../planning-artifacts/architecture/architecture-nova3D-2026-09-14/ARCHITECTURE-SPINE.md) with SPEC.md and the adopted [ratified decisions](../../planning-artifacts/architecture/architecture-nova3D-2026-09-14/RATIFIED-DECISIONS.md). Detailed PRD consequences, glossary, quality rules and metrics remain contractual; the capability kernel is not a replacement for those details.
 
-1. Explicit user decisions, including September 14 fast-path ratification R-1–R-11 and the approved post-PRD UX changes, determine current product scope.
+1. Explicit user decisions, including September 14 fast-path ratification R-1–R-12 and the approved post-PRD UX changes, determine current product scope.
 2. This spec and its UX companion carry those changes forward; the override table below identifies the obsolete source statements.
-3. The final PRD governs remaining behavior, including all FR-1–FR-30, NFR-1–NFR-12 and its acceptance metrics.
+3. The final PRD governs remaining behavior, including all FR-1–FR-32, NFR-1–NFR-12 and its acceptance metrics.
 4. The architecture supplies ratified implementation invariants and diagrams with original AD IDs. G-1–G-9 now track engineering verification; adopted defaults do not certify tests passed.
 5. Briefs/addenda provide absorbed background and later direction; they cannot restore superseded sole-user, source-upload or picture-deferral behavior.
 
@@ -30,6 +30,7 @@ Read this companion, [ux-contract.md](ux-contract.md), the adopted [PRD](../../p
 | R-11 reconversion for direct images is silent on where it runs. | Josh decided on 2026-10-08 that it runs as a fenced Job on a server engine worker from the Project's retained pictures, by explicit user request, with no provider charge; it is never a fallback for failed local inference (AD-16, R-8 amendment). |
 | FR-1 says using the general code generates a different current code. | Hashes cannot be shown again, so a successful registration retires the general code and the freshly authenticated Administrator mints the next one on demand, shown once (AD-12, Story 1.11). |
 | FR-17 allows personalization on any model, and FR-5 asks for clarification of ambiguity. | Personalization applies to evidence modes only, because an image-derived model has no declared surfaces and is declined with that reason (AD-6, Story 2.1). Intake clarification is deterministic matching against the registered subjects, free of charge (Story 2.1). |
+| The PRD non-goals and the brief exclude billing. | Josh decided on 2026-10-09 that invited-user payment requests and prepaid credit are in the first version (FR-31, FR-32, R-12). Public billing, self-service purchasing, storefronts and marketplaces stay out. |
 
 The first evidence-backed development fixture remains the outer altar/ramp from Middot chapter 3 plus a clearly user-added personalization. Both picture modes are also first-version scope; unrelated evidence-research domains remain later work. Research uses clear governing descriptions directly, expands for missing/ambiguous/disputed consequential details, and stops when complete defensible options are ready for whole-plan review.
 
@@ -40,7 +41,7 @@ Each row inherits all consequences of the referenced requirements and the applic
 | Capability | Product requirements | Architecture decisions |
 | --- | --- | --- |
 | CAP-1 | FR-1, FR-2, FR-3 | AD-2, AD-10, AD-12, AD-13, AD-15 |
-| CAP-2 | FR-4, FR-14 | AD-2, AD-9, AD-10, AD-11 |
+| CAP-2 | FR-4, FR-14, FR-31, FR-32 | AD-2, AD-9, AD-10, AD-11 |
 | CAP-3 | FR-5; SC-1 | AD-3, AD-5, AD-6, AD-16 |
 | CAP-4 | FR-6, FR-7; SC-5 | AD-9, AD-10, AD-18 |
 | CAP-5 | FR-8, FR-9, FR-10, FR-11, FR-12 | AD-4, AD-5, AD-14 |

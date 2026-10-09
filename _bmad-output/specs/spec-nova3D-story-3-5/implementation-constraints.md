@@ -25,7 +25,7 @@ Source: PRD §4, FR-12.
 
 **Ratified application:** Whole-plan completeness and approval govern evidence_text and evidence_images. image_direct uses confirmed scope, ordered images and explicit uncertainty acknowledgment; it never fabricates a Research Plan.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 217 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 218 in the captured input.
 
 ### FR-13
 
@@ -42,7 +42,7 @@ Source: PRD §4, FR-13.
 
 **Ratified application:** Plan Approval gates only the two evidence modes. Direct conversion has its own immutable confirmed-input/uncertainty gate, followed by exact-model approval and validation for qualified export.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 230 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 231 in the captured input.
 
 ### AR-4
 
@@ -50,7 +50,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 230 in the captured inp
 
 Source: AD-3; R-8, R-11; scope-and-readiness.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 587 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 620 in the captured input.
 
 ### AR-5
 
@@ -58,7 +58,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 587 in the captured inp
 
 Source: AD-4, AD-13; shared artifact identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 624 in the captured input.
 
 ### AR-6
 
@@ -66,7 +66,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured inp
 
 Source: AD-5; evidence-policy identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 595 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 628 in the captured input.
 
 ### UX-DR16
 
@@ -74,7 +74,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 595 in the captured inp
 
 Source: FR-12/FR-13/FR-20–FR-23/FR-27.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 839 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 872 in the captured input.
 
 ### UX-DR44
 
@@ -84,7 +84,7 @@ Required states/variants: Incomplete, ready for review, approved, rejected, inva
 
 Source: SCREEN-INVENTORY R-01; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 997 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1030 in the captured input.
 
 ### UX-DR48
 
@@ -94,7 +94,7 @@ Required states/variants: Blocked/not ready, review complete, approval confirmat
 
 Source: SCREEN-INVENTORY R-05; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1021 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1054 in the captured input.
 
 ## Planning Assumptions
 

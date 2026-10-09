@@ -1,0 +1,120 @@
+{
+  "epic": {
+    "id": "2",
+    "title": "Confirm requests and control background spending",
+    "goal": "Users can submit text or ordered pictures, authorize the exact work and costs, and follow durable jobs without losing approved state, and invited users can pay for extra spending credit."
+  },
+  "story": {
+    "id": "2-14",
+    "epic_id": "2",
+    "title": "Hold prepaid credit beside the monthly allowance",
+    "user": "Account owner",
+    "want": "to have the credit I paid for kept apart from my monthly allowance",
+    "benefit": "what I paid for is spent only on my work and never disappears at month end",
+    "requirements": [
+      "FR-4",
+      "FR-32",
+      "AR-16",
+      "NFR-9",
+      "UX-DR71",
+      "UX-DR74"
+    ],
+    "depends_on": [
+      "2-4",
+      "2-6",
+      "2-8",
+      "1-3"
+    ],
+    "scope": [
+      "Create the Usage-owned immutable credit-entry ledger in USD microdollars: grants (from payments or from the Administrator), refund debits, spend and release entries, and freezes. An Account's credit balance is the sum of its entries and does not expire while the Account exists.",
+      "Admission headroom is the remaining period allowance plus unfrozen credit. A reservation draws from the allowance first and from credit for the rest and records that split; settlement, release and ambiguous holds follow the funding source; credit carries over when the allowance resets. The per-operation ($1) and per-Job ($5) ceilings and the permission matching of Story 2.5 are unchanged. This story extends the admission function of Story 2.6.",
+      "The Administrator can grant credit without a payment: a reason is required, each grant is at most $1,000, and it needs a fresh administration marker and appends an audit event. Show the allowance and the credit balance to the owner in the new Credit and payments page (S-06) and per Account to the Administrator in Usage and limits (AD-03)."
+    ],
+    "acceptance_criteria": [
+      {
+        "given": "$2 of allowance and $10 of credit left",
+        "when": "a $3 reservation is admitted",
+        "then": "$2 comes from the allowance and $1 from credit, the split is recorded, and concurrent reservations cannot exceed allowance plus credit"
+      },
+      {
+        "given": "a credit-funded reservation",
+        "when": "its operation settles lower, is cancelled or is ambiguous",
+        "then": "the unused part returns to the source that funded it, an ambiguous charge keeps its credit part held, and no entry is rewritten"
+      },
+      {
+        "given": "an Administrator credit grant",
+        "when": "it is submitted without a fresh administration marker, without a reason, or above $1,000",
+        "then": "it is refused, and a valid grant appends an immutable entry and an audit event"
+      },
+      {
+        "given": "a new allowance period",
+        "when": "the allowance resets",
+        "then": "the credit balance carries over unchanged and no credit entry is rewritten"
+      },
+      {
+        "given": "frozen credit (a fixture freeze until Story 2.17 creates real ones)",
+        "when": "a reservation is admitted",
+        "then": "frozen credit is not counted as headroom and running Jobs keep their reservations"
+      },
+      {
+        "given": "the Credit and payments page and Usage and limits",
+        "when": "they are viewed on phone and desktop",
+        "then": "settled, reserved and available allowance and the credit balance reconcile"
+      }
+    ],
+    "gates": [
+      "G-6"
+    ]
+  },
+  "planning_assumptions": [
+    "Story boundaries and the proposed order are delegated fast-path planning choices inferred from ratified requirements, not separately claimed user approvals.",
+    "Evidence-backed generation and export can be implemented without waiting for the direct reconstruction engine; full first-version release still requires both picture modes and qualified offline/device behavior.",
+    "Each story creates only the records and interfaces needed by its slice; later features inherit live authorization, immutable provenance, money, lifecycle and accessible UI contracts.",
+    "Per-story specs have local stable CAP IDs and adopt the unchanged project-wide contract. No implementation dispatch, spec_checkpoint or done_checkpoint defaults are set in this planning run.",
+    "Exact compatible patches, deployed resources, licensed font files and reconstruction weights remain delegated selections within adopted limits; missing qualifying evidence is engineering work, not a newly invented product question."
+  ],
+  "source_requirements": {
+    "FR-4": {
+      "text": "#### FR-4: Usage visibility and limits\n\nThe Administrator can view per-Account paid usage or spending and configure a Usage Limit.\n\n**Consequences:**\n- Reaching a Usage Limit blocks new paid Jobs with an explanation.\n- Already-running Jobs are allowed to finish.\n- The Administrator can raise or reset the Usage Limit.\n- Before a paid Job starts, nova3D atomically reserves its maximum estimated cost against settled usage and all outstanding reservations.\n- A Job cannot start when the available allowance cannot cover its reservation.\n- Duplicate submissions cannot create duplicate reservations, Jobs, or charges.\n- Completion or cancellation settles actual usage and releases unused reserved allowance.\n- Paid permission applies by category across all Paid Work. Before the first paid operation in a category, nova3D identifies the category, provider, purpose, and declared maximum charge and obtains permission for that Project.\n- Permission for one paid category does not authorize another category; every category remains subject to the Account's Usage Limit and atomic reservation rules.\n- Before an outside provider receives Project data, nova3D identifies the provider, the minimum data categories to be sent, and known retention or deletion limitations.\n- Outbound data is limited to content from the current Project that is necessary for the operation; credentials, unrelated Workspace content, and Personalization not approved for that operation are prohibited.\n- Available headroom is the remaining period allowance plus the Account's unfrozen Credit balance (FR-32).\n\nSource: PRD §4, FR-4.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 114
+    },
+    "FR-32": {
+      "text": "#### FR-32: Prepaid credit\n\nAn Account's credit is a separate balance that the owner and the Administrator can see. It is spent only after the monthly allowance, does not expire while the Account exists, and follows the same reservation, ceiling and ambiguous-charge rules as the allowance.\n\n**Consequences:**\n- The Administrator can grant credit without a payment, with a stated reason and an audit event.\n- Credit that is frozen because of a dispute is not available to spend; running Jobs keep their reservations.\n- Credit carries over when the monthly allowance resets.\n- Deleting an Account removes its identifiable payment and credit records; only non-identifying aggregates may remain, and the provider's own retention is disclosed before the first payment.\n\nSource: Josh decision 2026-10-09 (sprint change proposal).\n\n**Ratified application:** R-12 fixes the funding split (allowance first, then credit), the Administrator grant limits and the freeze on dispute.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 498
+    },
+    "AR-16": {
+      "text": "**AR-16: Atomic money and paid permissions.** Paid categories independently disclose provider, purpose, outbound-data/retention categories and maximum, with Project permission off by default. Use one Usage-owned checked integer USD-microdollar/rational calculator: sum under immutable model/options/rates, apply billing increments, round upward once per operation, reject overflow/unknown rates/foreign currency/unsupported parameters. Atomically enforce Account-period allowance, $5 lifetime research-Job cap across attempts and $1 external-operation cap. Defaults are $25/invitee and $50/Administrator per UTC month. Preserve outstanding liabilities across resets; already-authorized work retains reservations while disable cancels it.\n\nSource: AD-11; R-6; G-6.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 678
+    },
+    "NFR-9": {
+      "text": "**NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 592
+    },
+    "UX-DR71": {
+      "text": "**UX-DR71: Usage and limits (AD-03).** Per-Account paid usage, reservations, settlements, available allowance, credit balance, set/reset limit, payment requests and credit grants.\n\nRequired states/variants: Under limit, nearly reached, reached, running Job allowed, new paid Job blocked, request pending/paid/expired/cancelled, credit frozen, payment mismatch.\n\nSource: SCREEN-INVENTORY AD-03; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1192
+    },
+    "UX-DR74": {
+      "text": "**UX-DR74: Credit and payments (S-06).** Credit balance beside the monthly allowance, pending payment requests with a Pay action, payment history, terms and refund policy, notice that the payment provider processes the payment.\n\nRequired states/variants: No credit, request pending, paying (processing), credited, expired or cancelled, refunded, credit frozen.\n\nSource: SCREEN-INVENTORY S-06; canonical ux-contract; applicable ratified decisions.",
+      "path": "_bmad-output/planning-artifacts/epics.md",
+      "line": 1210
+    }
+  },
+  "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
+  "qualification_baseline": {
+    "G-1": "PARTIAL",
+    "G-2": "PARTIAL",
+    "G-3": "PARTIAL",
+    "G-4": "NOT RUN",
+    "G-5": "BLOCKED",
+    "G-6": "PARTIAL",
+    "G-7": "NOT RUN",
+    "G-8": "BLOCKED",
+    "G-9": "PARTIAL"
+  }
+}

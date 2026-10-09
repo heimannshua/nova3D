@@ -24,7 +24,7 @@ Source: PRD §4, FR-7.
 
 **Ratified application:** SC-5 adds first-version phone push for research, generation, validation and Export. Printing events remain inactive until later printer integration.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 157 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 158 in the captured input.
 
 ### AR-25
 
@@ -32,7 +32,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 157 in the captured inp
 
 Source: AD-18; SC-5.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 681 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 714 in the captured input.
 
 ### SC-5
 
@@ -44,7 +44,7 @@ Printing notifications remain inactive/Coming later in this version.
 
 Source: UX-SCOPE-CHANGES SC-5; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 514 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 547 in the captured input.
 
 ### UX-DR18
 
@@ -52,7 +52,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 514 in the captured inp
 
 Source: SC-5; UX-6; AD-18.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 847 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 880 in the captured input.
 
 ### UX-DR25
 
@@ -62,7 +62,7 @@ Required states/variants: Unread/read, empty, failure, permission disabled, grou
 
 Source: SCREEN-INVENTORY G-02; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 883 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 916 in the captured input.
 
 ### UX-DR39
 
@@ -72,7 +72,7 @@ Required states/variants: No Jobs, several concurrent Jobs, mixed states, future
 
 Source: SCREEN-INVENTORY J-01; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 967 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1000 in the captured input.
 
 ### UX-DR40
 
@@ -82,7 +82,7 @@ Required states/variants: Waiting, running, completed, failed, cancelled, stale 
 
 Source: SCREEN-INVENTORY J-02; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 973 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1006 in the captured input.
 
 ## Planning Assumptions
 

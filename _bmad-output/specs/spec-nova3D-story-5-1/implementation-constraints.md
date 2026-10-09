@@ -24,7 +24,7 @@ Source: PRD §4, FR-20.
 
 **Ratified application:** Evidence corrections require a successor Research Plan and renewed Plan Approval. Direct-image work preserves honest image provenance; mode changes create successor request revisions rather than retroactive evidence labels.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 320 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 321 in the captured input.
 
 ### AR-5
 
@@ -32,7 +32,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 320 in the captured inp
 
 Source: AD-4, AD-13; shared artifact identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 624 in the captured input.
 
 ### AR-6
 
@@ -40,7 +40,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured inp
 
 Source: AD-5; evidence-policy identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 595 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 628 in the captured input.
 
 ### UX-DR16
 
@@ -48,7 +48,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 595 in the captured inp
 
 Source: FR-12/FR-13/FR-20–FR-23/FR-27.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 839 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 872 in the captured input.
 
 ### UX-DR52
 
@@ -58,7 +58,7 @@ Required states/variants: Draft, affected dependencies preview, paid permission 
 
 Source: SCREEN-INVENTORY M-04; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1045 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1078 in the captured input.
 
 ### UX-DR53
 
@@ -68,7 +68,7 @@ Required states/variants: No change, evidence changed, Plan Approval required, g
 
 Source: SCREEN-INVENTORY M-05; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1051 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1084 in the captured input.
 
 ## Planning Assumptions
 

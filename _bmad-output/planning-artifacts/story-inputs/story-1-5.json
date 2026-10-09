@@ -68,32 +68,32 @@
     "AR-15": {
       "text": "**AR-15: Fencing and authenticated service calls.** Each attempt binds input digest, Project revision, live Account authorization/evidence-policy epochs, lease and unique fencing token. Recheck before claim, each external step and publication. Cancel/disable/delete revoke commit authority before best-effort cancellation; stage output by attempt and clean it without publishing late results. Signed service requests bind environment, audience, Job/attempt, payload digest and nonce, expire within five minutes and allow at most 60 seconds skew. Verify native callback signatures and stored dispatch receipts; never infer callback identity from Project ID alone. Keys are Ed25519 pairs per issuer, with receivers holding public keys only. Accept only the active signing key and one explicitly retiring key for the issuer during the outstanding-request window; suspected compromise immediately revokes the key and affected leases. Reject replay mutations.\n\nSource: AD-10; service authentication and delivery conventions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 641
+      "line": 674
     },
     "AR-18": {
       "text": "**AR-18: Identity and administrative enforcement.** Google is the only credential and an Auth identity without an activated Account has no access (no public Account creation); hash/atomically claim invitations for the signed-in verified Google identity and idempotently provision the Account plus Workspace with unusable partial activation. Rate-limit guessing by network origin plus a global budget counted in Postgres, never by Auth identity alone; use codes of at least 128 bits; rotate shared codes only after success. Only the Google provider is enabled (email, phone, anonymous and magic-link sign-in off, asserted in CI) while Supabase sign-ups stay on; registration, invitation and recovery run only in server routes with no database object executable by `anon` or `authenticated`. Delete an Auth identity with no Account 30 days after its last sign-in or registration attempt, under a lock shared with registration. Verify JWT plus live Account and session grant on every private path, including direct RLS/storage access. The sole Administrator cannot impersonate, inspect private Workspaces or grant more administrators. Sensitive actions require fresh authentication (a server-controlled step-up with a 5-minute Postgres marker, consumed by use for Account deletion and close-instance) and immutable audit; recovery is a single-use 15-minute link emailed by the application to the configured Administrator address, and its redemption revokes prior sessions.\n\nSource: AD-12; FR-1–FR-4.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 653
+      "line": 686
     },
     "NFR-1": {
       "text": "**NFR-1: Workspace privacy.** Every user-facing and background operation enforces Account ownership. Cross-Account access to private Workspace data must produce no data disclosure.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 541
+      "line": 574
     },
     "NFR-2": {
       "text": "**NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 543
+      "line": 576
     },
     "UX-DR70": {
       "text": "**UX-DR70: Account administration (AD-02).** Account status, disable/re-enable, no private Workspace access.\n\nRequired states/variants: Enabled, disabling, disabled, re-enabled, active Jobs cancelled.\n\nSource: SCREEN-INVENTORY AD-02; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 1153
+      "line": 1186
     },
     "UX-DR72": {
       "text": "**UX-DR72: Administrator recovery/security (AD-04).** Sensitive actions require fresh authentication and create audit events.\n\nRequired states/variants: Reauthentication, success, failure, session revoked.\n\nSource: SCREEN-INVENTORY AD-04; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 1165
+      "line": 1198
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",

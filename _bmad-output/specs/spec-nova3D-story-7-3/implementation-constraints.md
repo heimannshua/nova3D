@@ -25,7 +25,7 @@ Source: PRD §4, FR-16.
 
 **Ratified application:** Deterministic equivalence applies to evidence-backed recipes under R-2. Direct inference instead preserves exact input/activity/output identities and restorable snapshots; identical re-inference is not promised.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 273 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 274 in the captured input.
 
 ### AR-4
 
@@ -33,7 +33,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 273 in the captured inp
 
 Source: AD-3; R-8, R-11; scope-and-readiness.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 587 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 620 in the captured input.
 
 ### AR-5
 
@@ -41,7 +41,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 587 in the captured inp
 
 Source: AD-4, AD-13; shared artifact identity.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 624 in the captured input.
 
 ### AR-22
 
@@ -49,7 +49,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 591 in the captured inp
 
 Source: AD-16; R-8; G-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 669 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 702 in the captured input.
 
 ### SC-1
 
@@ -64,7 +64,7 @@ Picture intake supports existing images, phone camera capture, and multiple imag
 
 Source: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 483 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 516 in the captured input.
 
 ### SC-2
 
@@ -76,7 +76,7 @@ Research-assisted reconstruction remains online-only. R-8 adopts on-device limit
 
 Source: UX-SCOPE-CHANGES SC-2; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 494 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 527 in the captured input.
 
 ### SC-3
 
@@ -86,7 +86,7 @@ The first version supports the complete workflow on desktop, laptop, and phone. 
 
 Source: UX-SCOPE-CHANGES SC-3; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 502 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 535 in the captured input.
 
 ### UX-DR7
 
@@ -94,7 +94,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 502 in the captured inp
 
 Source: Screen inventory cross-surface states; UX-3; AD-3/AD-4.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 803 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 836 in the captured input.
 
 ### UX-DR13
 
@@ -102,7 +102,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 803 in the captured inp
 
 Source: SC-2; UX-4; R-8.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 827 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 860 in the captured input.
 
 ### UX-DR35
 
@@ -112,7 +112,7 @@ Required states/variants: Plain explanation of accuracy difference, online/offli
 
 Source: SCREEN-INVENTORY C-05; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 943 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 976 in the captured input.
 
 ### UX-DR50
 
@@ -122,7 +122,7 @@ Required states/variants: Sourced, disputed, user-added Personalization, now-dis
 
 Source: SCREEN-INVENTORY M-02; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1033 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1066 in the captured input.
 
 ### FR-18
 
@@ -136,7 +136,7 @@ The user can inspect a Model Version without manual geometry editing.
 
 Source: PRD §4, FR-18.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 297 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 298 in the captured input.
 
 ### AR-9
 
@@ -144,7 +144,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 297 in the captured inp
 
 Source: AD-7; FR-18–FR-22.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 607 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 640 in the captured input.
 
 ## Planning Assumptions
 

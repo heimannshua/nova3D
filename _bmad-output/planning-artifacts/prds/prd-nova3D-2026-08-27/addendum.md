@@ -1,5 +1,7 @@
 # PRD Addendum: Technical Context and Deferred Decisions
 
+> **Notice (2026-10-09):** invited-user payment requests and prepaid credit (FR-31, FR-32) are in the first version; public billing, self-service purchasing, storefronts and marketplaces remain out of scope. Where this addendum defers billing or commercial sale, `specs/spec-nova3D/scope-and-readiness.md` and `planning-artifacts/epics.md` govern.
+>
 > **Notice (2026-10-08):** the approved August 30 scope changes (UX-SCOPE-CHANGES.md, SC-1 to SC-7) bring direct and research-assisted picture workflows, offline direct conversion and complete phone support into the first version. Where this document defers pictures, `specs/spec-nova3D/scope-and-readiness.md` and `planning-artifacts/epics.md` govern. Other requirements remain as written.
 
 

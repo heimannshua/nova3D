@@ -26,7 +26,7 @@ Source: PRD §4, FR-29.
 
 **Ratified application:** The immutable export carries mode-appropriate provenance, never a fabricated historical plan for direct images. R-4 defines shared structured provenance plus PDF; R-8 requires connection for qualified export.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 430 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 431 in the captured input.
 
 ### AR-13
 
@@ -44,19 +44,19 @@ The shared schema must preserve these architecture-defined groups:
 | Geometry | Canonical recipe or image-derived snapshot kind, units/conversions, feature/parameter/dependency links and artifact digests. |
 | Manufacturing | Target profile, scale/orientation, validator/tool versions, each check result, repairs, regenerated versions and qualified export manifest. |
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 623 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 656 in the captured input.
 
 ### NFR-2
 
 **NFR-2: Secret protection.** Login, Invitation Code, recovery, provider, database, queue, signing, and callback-verification secrets are never stored or logged in readable form or exposed through browsers, URLs, prompts, Jobs, Notifications, Source Records, or Exports. Sensitive authentication actions require secure transport and protected sessions. Secrets support redaction, rotation, and revocation.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 543 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 576 in the captured input.
 
 ### NFR-3
 
 **NFR-3: Provenance integrity.** Sources, Cached Research Revisions, Claims, decisions, approvals, repairs, validations, and derivative artifacts retain immutable identity, timestamps, actor, and version relationships. Every Claim pins the exact Source edition or revision, passage, retrieval date, and captured excerpt or content digest examined. Corrections and changed Source content use successor versions rather than mutation. Later printer integration cannot alter the approved evidence-to-geometry record.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 578 in the captured input.
 
 ### UX-DR5
 
@@ -64,7 +64,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 545 in the captured inp
 
 Source: SC-4; UX-3/UX-5; AD-17.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 795 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 828 in the captured input.
 
 ### UX-DR63
 
@@ -74,7 +74,7 @@ Required states/variants: Preparing, ready, individual/package download, failed,
 
 Source: SCREEN-INVENTORY V-06; canonical ux-contract; applicable ratified decisions.
 
-Source: `_bmad-output/planning-artifacts/epics.md`, line 1111 in the captured input.
+Source: `_bmad-output/planning-artifacts/epics.md`, line 1144 in the captured input.
 
 ## Planning Assumptions
 

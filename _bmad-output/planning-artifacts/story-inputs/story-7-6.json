@@ -75,77 +75,77 @@
     "FR-23": {
       "text": "#### FR-23: Version-bound model approval\n\nThe user can approve or reject a specific inspected Model Version.\n\n**Consequences:**\n- Export is blocked until Model Approval exists for the exact Model Version.\n- Geometry or Personalization changes invalidate Model Approval for the changed Version.\n- Model Approval records the approver and time.\n\nSource: PRD §4, FR-23.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 359
+      "line": 360
     },
     "FR-24": {
       "text": "#### FR-24: Target print profile\n\nBefore validation, the user selects the intended printer, material, and physical model size as the Target Print Profile.\n\n**Consequences:**\n- The MVP fixture profile is a Bambu Lab A1 mini with its standard 0.4 mm nozzle, gold silk PLA, and a maximum 90 × 90 × 90 mm model envelope.\n- Validation results and the Source Record identify the exact Target Print Profile.\n- A change to the Target Print Profile requires validation to run again.\n\nSource: PRD §4, FR-24.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 370
+      "line": 371
     },
     "FR-25": {
       "text": "#### FR-25: Profile-qualified print validation\n\nnova3D validates the approved Model Version against geometric and Target Print Profile requirements.\n\n**Consequences:**\n- Geometric checks include explicit units, closed volume, manifold edges, outward orientation, positive volume, and nondegenerate geometry.\n- Profile checks include build envelope, minimum wall or feature size, clearances, material assumptions, and any supported orientation or support constraints.\n- Results distinguish passing checks, warnings, blocking failures, and unknowns.\n- A passing result is described as validated for the named Target Print Profile, not as a universal guarantee of manufacturability or safety.\n\nSource: PRD §4, FR-25.\n\n**Ratified application:** R-3 / AR-11 makes unsupported or unknown required checks export-blocking; passing a limited synthetic fixture is not acceptance of general printability.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 381
+      "line": 382
     },
     "FR-26": {
       "text": "#### FR-26: Immediate automatic repair\n\nWhen validation finds a fixable blocking failure, nova3D attempts an immediate repair and reruns all affected validation checks.\n\n**Consequences:**\n- Every repair records the detected problem, action taken, affected Model Features, and before-and-after result.\n- If local repair fails, nova3D proceeds to FR-28 rather than looping indefinitely.\n\nSource: PRD §4, FR-26.\n\n**Ratified application:** R-3 / AR-12 permits only the listed bounded repair classes. A byte change always creates a new artifact; retaining the Model Version requires certified nonconsequential equivalence under R-2.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 395
+      "line": 396
     },
     "FR-27": {
       "text": "#### FR-27: Approval after substantive repair\n\nIf a repair changes visible geometry, historical dimensions, or Personalization, nova3D creates a new Model Version and requires inspection and Model Approval again.\n\n**Consequences:**\n- Export remains blocked until the repaired Version is approved and passes validation.\n- Repairs that do not change those properties still remain in the validation audit history.\n\nSource: PRD §4, FR-27.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 407
+      "line": 408
     },
     "FR-29": {
       "text": "#### FR-29: Model and provenance export\n\nThe user can download an Export for a Model Version that has Model Approval and a passing validation result.\n\n**Consequences:**\n- The Export contains a 3MF file as its primary print-ready model, offers an optional STL compatibility copy, and includes a readable PDF Source Record.\n- The Source Record identifies the Project, Research Plan, Consequential Details, Claims, Sources, reasoning, options, approvals, Personalization, Canonical Model identity, Model Version, Target Print Profile, validations, and repairs.\n- The PDF uses stable identifiers and cross-references so the user can trace Claims to Model Features and Model Features back to Claims; it is generated from the same immutable structured provenance used by the app.\n- The Export remains linked to its Source Record and structured provenance even though the print file may not contain editable parametric history.\n\nSource: PRD §4, FR-29.\n\n**Ratified application:** The immutable export carries mode-appropriate provenance, never a fabricated historical plan for direct images. R-4 defines shared structured provenance plus PDF; R-8 requires connection for qualified export.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 430
+      "line": 431
     },
     "AR-4": {
       "text": "**AR-4: Explicit request modes.** Persist immutable evidence_text, evidence_images or image_direct revisions. Evidence modes need complete whole-plan approval of the exact digest. Direct mode needs confirmed scope, ordered image digests and acknowledged uncertainty, and never gains historical status. Changing modes creates a successor request. Every qualified export still requires exact-model approval and compatible validation.\n\nSource: AD-3; R-8, R-11; scope-and-readiness.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 587
+      "line": 620
     },
     "AR-13": {
       "text": "**AR-13: Shared export schema and PDF.** Implement provenance schema 1.0.0 in JSON Schema Draft 2020-12 with shared generated TypeScript/Python validation for header, evidence, approvals, geometry and manufacturing groups. Export primary 3MF, optional STL, PDF and structured provenance bound to one immutable manifest; the evidence group carries each cited edition's license identifier and link, required attribution and source URL. Container PDF rendering uses Playwright 1.63.0 Chromium with pinned/licensed Noto Sans and Noto Sans Hebrew, escaped content and no remote resources/scripts. Verify bilingual glyphs/order, pagination, reciprocal links and zero orphans.\n\nSource: AD-4, AD-8; R-4; G-4.\n\nThe shared schema must preserve these architecture-defined groups:\n\n| Group | Required identity and relationships |\n| --- | --- |\n| Header | Schema version, request mode, Project/Model Version, export identity and creation activity. |\n| Evidence | Source revisions with passage/content pins; claims; classifications; competing options; explanations; original/translated text distinction. |\n| Approvals | Exact plan/model digests, approver/time, choices and affected details; direct-mode scope/uncertainty acknowledgment where applicable. |\n| Geometry | Canonical recipe or image-derived snapshot kind, units/conversions, feature/parameter/dependency links and artifact digests. |\n| Manufacturing | Target profile, scale/orientation, validator/tool versions, each check result, repairs, regenerated versions and qualified export manifest. |",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 623
+      "line": 656
     },
     "AR-22": {
       "text": "**AR-22: Prepared offline inference and sync.** Direct conversion uses a verified cached public app/model bundle in a dedicated worker, Account-scoped IndexedDB metadata and OPFS binary artifacts. R-8 selects ONNX Runtime Web 1.29.0 as the first browser backend with supported WebGPU or WASM execution; no reconstruction engine or weights are yet qualified. Qualify licensed/digest-pinned multi-view weights and the full preparation bundle at ≤500 MiB preparation download, ≤1 GiB working memory and ≤120 s conversion on R-5 devices, with held-out shape/coverage, eviction and interruption checks. Online preparation/export are required; no silent upload/cloud fallback. The one server run of the engine port is the user-requested pinned reconversion after failed print repair, a fenced Job from retained pictures with no provider charge. Sync stable UUIDs into the original Account with live status, expected revision, digest verification and idempotent import; retain conflicting versions for explicit selection.\n\nSource: AD-16; R-8; G-8.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 669
+      "line": 702
     },
     "SC-1": {
       "text": "##### SC-1: Picture workflows move into the first version\n\nThe PRD deferred picture workflows. The first version now includes both:\n\n- **Direct picture-to-model:** labelled image-derived and not historically verified.\n- **Research-assisted picture reconstruction:** identifies the subject, researches it, builds a complete Research Plan, and follows Plan Approval before evidence-backed generation.\n\nPicture intake supports existing images, phone camera capture, and multiple images of one subject from different angles. Before conversion, nova3D checks clarity and angle coverage and recommends additional views. The user may choose **Generate anyway** after an explicit warning that incomplete views can cause invented or inaccurate geometry.\n\nSource: UX-SCOPE-CHANGES SC-1; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 483
+      "line": 516
     },
     "SC-2": {
       "text": "##### SC-2: Direct picture conversion works offline\n\nDirect image-derived conversion must work without internet on supported computer and phone devices. Offline-created Projects remain usable locally, show pending or failed sync state, and automatically sync into **My Projects** when connectivity returns without duplication or overwriting a newer Model Version.\n\nResearch-assisted reconstruction remains online-only. R-8 adopts on-device limits, preparation and revocation behavior; G-8 still requires a qualifying engine, actual offline/device execution and sync evidence.\n\nSource: UX-SCOPE-CHANGES SC-2; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 494
+      "line": 527
     },
     "UX-DR17": {
       "text": "**UX-DR17: Print-validation and bounded recovery states.** Expose exact profile/transform, check support, last-checked time, pass/warning/fail/unknown and stale results. Required unknowns block export. Show each repair and affected geometry; one full regeneration/reconversion is lineage-bound, preserves originals and returns to inspection/approval/validation. Failure after the allowed attempt stops with an actionable explanation.\n\nSource: FR-24–FR-28; R-3/R-11.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 843
+      "line": 876
     },
     "UX-DR57": {
       "text": "**UX-DR57: Model Approval (M-09).** Approve or reject the exact inspected Model Version.\n\nRequired states/variants: Not inspected, ready, approved, rejected, invalidated by later change.\n\nSource: SCREEN-INVENTORY M-09; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 1075
+      "line": 1108
     },
     "UX-DR62": {
       "text": "**UX-DR62: Export readiness (V-05).** Require Model Approval for the exact Version and passing validation.\n\nRequired states/variants: Blocked by approval, blocked by validation, ready.\n\nSource: SCREEN-INVENTORY V-05; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 1105
+      "line": 1138
     },
     "UX-DR63": {
       "text": "**UX-DR63: Export download (V-06).** Primary 3MF, optional STL, readable PDF Source Record.\n\nRequired states/variants: Preparing, ready, individual/package download, failed, phone file handling.\n\nSource: SCREEN-INVENTORY V-06; canonical ux-contract; applicable ratified decisions.",
       "path": "_bmad-output/planning-artifacts/epics.md",
-      "line": 1111
+      "line": 1144
     }
   },
   "project_contract": "_bmad-output/specs/spec-nova3D/SPEC.md",
