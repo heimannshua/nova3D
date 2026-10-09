@@ -15,8 +15,8 @@ The unchanged project-wide SPEC retains CAP-1–CAP-17. Local capability IDs are
 | UX requirements and screen/state coverage | 74/74 requirements; all 54 surfaces retained (the 53 source surfaces plus S-06 Credit and payments, added 2026-10-09) |
 | Total extracted requirement identities | 150/150 mapped |
 | Full mapped requirement occurrences in story companions | 585/585 exact-text matches (506/506 after the first 2026-10-08 pass; 457/457 on 2026-09-14) |
-| Story scope clauses | 228/228 preserved (120/120 after the first 2026-10-08 pass; 88/88 after the architecture propagation; 75/75 after 2026-10-07; 70/70 on 2026-09-14) |
-| Given/When/Then acceptance criteria | 345/345 preserved (211/211 after the first 2026-10-08 pass; 177/177 after the architecture propagation; 175/175 after 2026-10-07; 174/174 on 2026-09-14) |
+| Story scope clauses | 232/232 preserved (120/120 after the first 2026-10-08 pass; 88/88 after the architecture propagation; 75/75 after 2026-10-07; 70/70 on 2026-09-14) |
+| Given/When/Then acceptance criteria | 353/353 preserved (211/211 after the first 2026-10-08 pass; 177/177 after the architecture propagation; 175/175 after 2026-10-07; 174/174 on 2026-09-14) |
 | Story dependency graph | 77 unique IDs; every dependency exists earlier in the build order shown in the index |
 | Capability IDs and original meanings | 87/88 original retained; the former Story 7.6 CAP-3 moved to Story 7.8 and is recorded in both memlogs; 135 local IDs in total; no unrecorded retirement or reassignment |
 | Required story artifacts | 77 kernels, 154 local companions, 77 canonical memory logs |
@@ -146,3 +146,14 @@ Applies the approved [Sprint Change Proposal 2026-10-09](sprint-change-proposal-
 - **Source parity:** for every story the scope, Given/When/Then text, dependencies and requirement list in the story input, `acceptance-criteria.md` and `epics.md` agree, and `implementation-constraints.md` was regenerated from the inputs.
 - **Dependencies:** every dependency precedes its story in the build order, no dependency is duplicated, and a scan of story references found none outside a story's dependency closure other than explicit fixtures and "see" pointers.
 - **Independent review:** the four payment stories are audited separately; the result is recorded in `implementation-readiness.md`.
+
+## Payments audit fixes 2026-10-09
+
+Applies the findings of two independent audits of the payments change (story implementability and cross-artifact consistency; no Critical, 14 High). **Consistency:** allowance-only wording in FR-4, NFR-9, SM-9 and the AD-03 states now says headroom (allowance plus unfrozen credit); FR-3 and AD-12 list payment requests and credit grants among Administrator actions; the remaining "billing is out" statements are narrowed; AR-16, AR-21, AR-26 and the G-6 row carry the credit, deletion, alarm and test-mode text; the pre-payment disclosure moved from Story 2.17 into Story 2.16 so it ships with the Pay button. **Money handling:** every verified paid session becomes a granted or unfulfilled payment record, unique per session and payment intent; sessions are recorded at creation; the processed-event record joins the grant transaction; the 30-minute Stripe session floor, cancel-expires-session, refund and dispute arithmetic, reconciliation window and filter, deleted-Account handling, subject-keyed payment alarms and the overrun and $0-limit funding rules are recorded. **Edited:** Stories 1.10, 1.13, 2.14 to 2.17, 8.2 and 8.3 plus quoted requirement text; every companion file was regenerated because the constraints template now says R-1 to R-12.
+
+**Re-verified mechanically on 2026-10-08 (scripted comparison, not a review):**
+
+- **Counts:** 77 stories, 232 scope clauses, 353 acceptance criteria, 585 mapped requirement occurrences, 150 requirement identities (unchanged), 135 local capability IDs.
+- **Source parity:** for every story the scope, Given/When/Then text, dependencies and requirement list in the story input, `acceptance-criteria.md` and `epics.md` agree, and `implementation-constraints.md` was regenerated from the inputs.
+- **Dependencies:** every dependency precedes its story in the build order, no dependency is duplicated, and a scan of story references found none outside a story's dependency closure other than explicit fixtures and "see" pointers.
+- **Independent review:** both payments audits are recorded in `implementation-readiness.md`; the fixes above have not been re-audited.

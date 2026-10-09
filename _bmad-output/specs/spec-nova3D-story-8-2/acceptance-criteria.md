@@ -27,7 +27,7 @@ So that all authorized private targets enter the deletion process.
 
 **Given** a normal Account with fresh authentication
 **When** whole-Account deletion is explicitly confirmed
-**Then** sessions revoke and all owned private targets, jobs, pending work, payment requests, payments and credit entries enter the durable deletion manifest; the confirmation works on phone and desktop
+**Then** sessions revoke and all owned private targets, jobs, pending work, payment requests, checkout sessions, payments (including unfulfilled), processed event records, credit entries, freezes, unrecovered shortfalls and payment alarms enter the durable deletion manifest; the confirmation works on phone and desktop
 
 ### AC-2
 

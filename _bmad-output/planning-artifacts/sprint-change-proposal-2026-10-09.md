@@ -1,7 +1,7 @@
 # Sprint Change Proposal: 2026-10-09 — Payments
 
 **Project:** nova3D · **Prepared for:** Josh · **Trigger:** Josh asked to add payment to the app, with the Administrator choosing which user pays and how much.
-**Status:** PROPOSED. Nothing in the PRD, Spine, epics or specs has been changed yet.
+**Status:** APPROVED by Josh on 2026-10-09 (Stripe account in the United Kingdom) and applied to the PRD, brief, SPEC, R-12, Spine, UX inventory, epics and derived specs. Two independent audits followed; their fixes are applied.
 **Mode:** Batch (your choice). One review, then I apply everything.
 **Scope class:** Major. It moves "billing" from out of scope to in scope, adds two PRD requirements and an architecture decision, adds a UX surface and four stories, and touches six existing stories.
 

@@ -100,7 +100,7 @@ Every first-version surface needs usable desktop/laptop and phone designs. Where
 | S-06 | Credit and payments | Credit balance beside the monthly allowance, pending payment requests with a Pay action, payment history, terms and refund policy, notice that the payment provider processes the payment | No credit, request pending, paying (processing), credited, expired or cancelled, refunded, credit frozen |
 | AD-01 | Invitation Codes | Unique named codes plus rotating single-use general code | Unused, used, revoked, newly rotated, copy action |
 | AD-02 | Account administration | Account status, disable/re-enable, no private Workspace access | Enabled, disabling, disabled, re-enabled, active Jobs cancelled |
-| AD-03 | Usage and limits | Per-Account paid usage, reservations, settlements, available allowance, credit balance, set/reset limit, payment requests and credit grants | Under limit, nearly reached, reached, running Job allowed, new paid Job blocked, request pending/paid/expired/cancelled, credit frozen, payment mismatch |
+| AD-03 | Usage and limits | Per-Account paid usage, reservations, settlements, available allowance, credit balance, set/reset limit, payment requests and credit grants | Under limit, nearly reached, reached, running Job allowed, new paid Job blocked when no credit is left, request pending/paid/expired/cancelled, credit frozen, payment mismatch |
 | AD-04 | Administrator recovery/security | Sensitive actions require fresh authentication and create audit events | Reauthentication, success, failure, session revoked |
 | AD-05 | Close instance | Destructive action without viewing private Workspace contents | Fresh authentication, explicit destructive confirmation, closing, complete |
 

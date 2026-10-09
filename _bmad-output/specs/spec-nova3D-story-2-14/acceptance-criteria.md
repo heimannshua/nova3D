@@ -22,6 +22,7 @@ So that what I paid for is spent only on my work and never disappears at month e
 - Create the Usage-owned immutable credit-entry ledger in USD microdollars: grants (from payments or from the Administrator), refund debits, spend and release entries, and freezes. An Account's credit balance is the sum of its entries and does not expire while the Account exists.
 - Admission headroom is the remaining period allowance plus unfrozen credit. A reservation draws from the allowance first and from credit for the rest and records that split; settlement, release and ambiguous holds follow the funding source; credit carries over when the allowance resets. The per-operation ($1) and per-Job ($5) ceilings and the permission matching of Story 2.5 are unchanged. This story extends the admission function of Story 2.6.
 - The Administrator can grant credit without a payment: a reason is required, each grant is at most $1,000, and it needs a fresh administration marker and appends an audit event. Show the allowance and the credit balance to the owner in the new Credit and payments page (S-06) and per Account to the Administrator in Usage and limits (AD-03).
+- An overrun above a reservation settles from the allowance first and then credit, may exceed headroom and is recorded as an overrun incident (Story 2.8). The credit balance is net of credit held by reservations, so refund and dispute debits apply only to the unreserved balance. Credit stays spendable when the Administrator sets the allowance limit to $0.
 
 ## Acceptance Criteria
 
@@ -35,7 +36,7 @@ So that what I paid for is spent only on my work and never disappears at month e
 
 **Given** a credit-funded reservation
 **When** its operation settles lower, is cancelled or is ambiguous
-**Then** the unused part returns to the source that funded it, an ambiguous charge keeps its credit part held, and no entry is rewritten
+**Then** the unused part returns to the source that funded it, an ambiguous charge keeps its credit part held, and no entry is rewritten; an overrun above the reservation settles from the allowance first and then credit and is recorded as an overrun incident
 
 ### AC-3
 
@@ -60,6 +61,12 @@ So that what I paid for is spent only on my work and never disappears at month e
 **Given** the Credit and payments page and Usage and limits
 **When** they are viewed on phone and desktop
 **Then** settled, reserved and available allowance and the credit balance reconcile
+
+### AC-7
+
+**Given** an Administrator allowance limit of $0 and $10 of credit
+**When** a $3 reservation is admitted
+**Then** $3 comes from credit and the allowance is untouched
 
 ## Engineering Gates
 

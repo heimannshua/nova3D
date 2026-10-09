@@ -35,7 +35,7 @@ The primary user is Josh, a first-time developer and non-modeller building nova3
 
 ### 2.2 Non-Users for the First Milestone
 
-The first milestone does not serve customers, collaborators inside a shared project, teams, marketplace buyers, or manual modellers. Invited accounts use separate private workspaces rather than collaborating.
+The first milestone does not serve public customers (invited Accounts may pay for credit, FR-31), collaborators inside a shared project, teams, marketplace buyers, or manual modellers. Invited accounts use separate private workspaces rather than collaborating.
 
 ### 2.3 Key User Journey
 
@@ -109,7 +109,7 @@ The Administrator can view Account status and disable or re-enable an invited Ac
 - A disabled Account cannot authenticate, access its Workspace, or start operations or paid steps.
 - Disabling safely cancels active Jobs and rejects any late result so it cannot mutate Workspace or cache state.
 - Disabling an Account does not delete its Workspace.
-- Administrative capabilities are limited to issuing and revoking Invitation Codes, viewing account status and usage, setting Usage Limits, and disabling or re-enabling Accounts.
+- Administrative capabilities are limited to issuing and revoking Invitation Codes, viewing account status and usage, setting Usage Limits, requesting payments from Accounts and granting Credit, and disabling or re-enabling Accounts.
 - Invitation, Usage Limit, disable, re-enable, and recovery actions require fresh Administrator authentication and create immutable security audit events.
 - The unique Administrator can recover access only through a single-use, short-lived link sent to the Administrator's verified email address.
 - Successful Administrator recovery revokes all existing Administrator sessions and creates an immutable recovery audit event.
@@ -119,11 +119,11 @@ The Administrator can view Account status and disable or re-enable an invited Ac
 The Administrator can view per-Account paid usage or spending and configure a Usage Limit.
 
 **Consequences:**
-- Reaching a Usage Limit blocks new paid Jobs with an explanation.
+- Reaching a Usage Limit blocks new paid Jobs with an explanation unless the Account has available Credit (FR-32).
 - Already-running Jobs are allowed to finish.
 - The Administrator can raise or reset the Usage Limit.
 - Before a paid Job starts, nova3D atomically reserves its maximum estimated cost against settled usage and all outstanding reservations.
-- A Job cannot start when the available allowance cannot cover its reservation.
+- A Job cannot start when the available headroom (remaining allowance plus unfrozen Credit) cannot cover its reservation.
 - Duplicate submissions cannot create duplicate reservations, Jobs, or charges.
 - Completion or cancellation settles actual usage and releases unused reserved allowance.
 - Paid permission applies by category across all Paid Work. Before the first paid operation in a category, nova3D identifies the category, provider, purpose, and declared maximum charge and obtains permission for that Project.
@@ -484,7 +484,7 @@ Source: Josh decision 2026-10-09 (sprint change proposal).
 - Printer integration and fleet control — follows reliable model generation and validation.
 - Picture workflows — follow reliable text-led generation.
 - Other research domains and model categories — follow the Temple domain.
-- Commercial sales workflow — follows repeatable quality across multiple outputs.
+- Commercial sales workflow — follows repeatable quality across multiple outputs (invited-user payment requests, FR-31, are not a sales workflow).
 
 ## 7. Cross-Cutting Non-Functional Requirements
 
@@ -496,7 +496,7 @@ Source: Josh decision 2026-10-09 (sprint change proposal).
 - **NFR-6 — Reproducibility:** Given fixed approved inputs, tool versions, and settings, nova3D reproduces geometrically equivalent Canonical Models within the tolerance ratified through AD-2.
 - **NFR-7 — Version durability:** Every Version presented as restorable must restore its geometry and provenance successfully. Deletion under FR-30 is the explicit exception.
 - **NFR-8 — Explainable failures:** User-facing failures identify the failed stage, known cause, preserved state, cost impact where known, and permitted next action in beginner-friendly language.
-- **NFR-9 — Cost control:** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
+- **NFR-9 — Cost control:** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available headroom (remaining allowance plus unfrozen Credit). Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
 - **NFR-10 — Responsive workspace:** Research, generation, validation, repair, and export run without blocking navigation or ordinary Project inspection. Browser preview degradation or failure cannot damage manufacturing geometry.
 - **NFR-11 — Honest print qualification:** Validation labels always identify the Target Print Profile, warnings, failures, unknowns, and last validation time; nova3D never presents validation as safety or universal manufacturability certification.
 - **NFR-12 — Privacy-preserving cache and deletion:** Shared cached research contains only fields reproducible from identified non-private Sources and cannot expose user identity, private inputs, decisions, or deleted artifacts. Admission rejects all user- and Project-derived fields. Project or whole-Account deletion takes effect immediately through durable tombstones. It blocks late writes and cache promotion, promptly removes active private data, removes remaining copies from operational backups within 30 days, and remains enforced after backup restoration.
@@ -517,7 +517,7 @@ Source: Josh decision 2026-10-09 (sprint change proposal).
 - **SM-6 — Dependency correctness:** Correction tests rebuild all affected Model Features while unrelated geometry stays within the reproducibility tolerance. Validates FR-20 and FR-21.
 - **SM-7 — Recoverability:** Every non-deleted Version in the MVP test set restores its geometry and provenance successfully. Validates FR-22 and NFR-7.
 - **SM-8 — Account isolation:** In every authorization test, one Account's private Workspace content remains inaccessible to another Account. Validates FR-2, FR-30, NFR-1, and NFR-12.
-- **SM-9 — Controlled paid work:** Zero paid Jobs start without both Project permission and available Usage Limit. Validates FR-4 and FR-14.
+- **SM-9 — Controlled paid work:** Zero paid Jobs start without both Project permission and available headroom (remaining allowance plus unfrozen Credit). Validates FR-4 and FR-14.
 - **SM-10 — Bidirectional traceability:** Every Consequential Model Feature resolves to its governing Claims, and every approved Claim resolves to all affected Model Features, with no orphaned links in the MVP corpus. Validates FR-10, FR-15, and FR-19.
 
 **Counter-Metrics**

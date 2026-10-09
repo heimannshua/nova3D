@@ -19,9 +19,12 @@ So that the credit is added without my card details touching nova3D.
 
 ## Scope
 
-- Build a Stripe adapter behind a payments port. Server-side only, create a Checkout Session in payment mode (card only, USD, one line at the request's price, the request ID as `client_reference_id`, the Account email prefilled, expiring with the request or after 24 hours, whichever is sooner); a new session for the same request expires the previous one. The success and cancel pages on the application origin only show status. Pin the Stripe SDK and API version, use a restricted key, limit session creation to 10 an hour per Account, and refuse a disabled or deleted Account.
+- Build a Stripe adapter behind a payments port. Server-side only, create a Checkout Session in payment mode (card only, USD, one line at the request's price, the request ID as `client_reference_id`, the Account email prefilled, expiring at the request's expiry or 24 hours after creation, whichever is sooner, and Pay is refused when less than 30 minutes remain); a new session for the same request expires the previous one. The success and cancel pages on the application origin only show status. Pin the Stripe SDK and API version, use a restricted key, limit session creation to 10 an hour per Account, and refuse a disabled or deleted Account.
 - A webhook route verifies Stripe's signature with the official library, records each processed event ID (unique) and accepts only a paid `checkout.session.completed`. It checks amount, currency, request and Account, then in one transaction records the payment (Stripe session and payment-intent IDs, amount, time), appends the credit grant of Story 2.14, marks the request paid, writes an audit event and notifies the owner. A mismatch, a payment for an expired or cancelled request, or one for a disabled or deleted Account grants nothing and raises a Story 1.13 alarm for a manual refund.
 - Local and staging use Stripe test mode (local webhooks are forwarded by the Stripe CLI or a fake implementing the same port); previews hold no Stripe keys; live mode is enabled only in production after the Stripe account is verified. Store Stripe IDs, amounts and times only, never card data.
+- Record each session at creation in a Usage-owned checkout-session record (session ID, request, Account, price, currency, instance ID, API version); a webhook event must match a recorded session or it is a mismatch. Every verified paid session then becomes a payment record that is either granted or unfulfilled with its reason (late, cancelled, expired, disabled or deleted Account, duplicate session, amount or currency mismatch), unique per session and per payment intent and, when granted, per request. The processed-event record is written in the same transaction as the grant, so a failed transaction is retried by Stripe and not deduplicated. A second paid session for an already-paid request is unfulfilled and alarms.
+- Add the webhook path to the public routes of `proxy.ts`; the signature is its only authentication. Payment alarms are subject-keyed (Story 1.13), carry the Stripe session ID, are purged with the Account's data and otherwise expire after 30 days.
+- Before the Pay button the owner sees the terms and refund policy (text written by Josh, English until he supplies a Hebrew version, with labels in both catalogs) and a notice that Stripe processes the payment and keeps its own records under its terms and the law; the terms version shown is recorded with the payment. The terms also say what happens to unspent credit when an Account is deleted or the instance closes. Stripe receipts are enabled in the Stripe account.
 
 ## Acceptance Criteria
 
@@ -39,9 +42,9 @@ So that the credit is added without my card details touching nova3D.
 
 ### AC-3
 
-**Given** the same event delivered twice or concurrently, or a payment for a request that has expired or been cancelled
+**Given** the same event delivered twice or concurrently, a second paid session for an already-paid request, or a payment for a request that has expired or been cancelled
 **When** it is processed
-**Then** credit is granted at most once, and a late payment grants nothing and raises an alarm
+**Then** credit is granted at most once, and every other payment is recorded as unfulfilled with its reason, grants nothing and raises its own alarm
 
 ### AC-4
 
@@ -66,6 +69,24 @@ So that the credit is added without my card details touching nova3D.
 **Given** phone and desktop
 **When** the owner pays a request
 **Then** the same flow works on both
+
+### AC-8
+
+**Given** a request with less than 30 minutes left
+**When** the owner chooses Pay
+**Then** Pay is refused with that reason and no session is created
+
+### AC-9
+
+**Given** another Account's request, session, success page, cancel page or payment history
+**When** a different owner opens it
+**Then** it is unavailable and discloses nothing
+
+### AC-10
+
+**Given** a pending request
+**When** the owner opens it
+**Then** the price, credit, terms, refund policy and Stripe notice appear before the Pay button, and any payment records the terms version shown
 
 ## Engineering Gates
 

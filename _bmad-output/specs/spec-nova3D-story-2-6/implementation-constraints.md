@@ -4,7 +4,7 @@ Read the [project SPEC](../spec-nova3D/SPEC.md) and every companion it names rec
 
 ## Governing Interpretation
 
-Ratified R-1–R-11 and approved SC-1–SC-7 override conflicting older PRD wording. Whole-plan approval and deterministic recipe equivalence apply to evidence_text/evidence_images. Direct image work uses confirmed ordered images/scope and acknowledged uncertainty, with honest inference provenance and restorable snapshots; it has no synthetic Research Plan or identical-reinference guarantee. Exact-model approval and required profile checks gate qualified export in every mode.
+Ratified R-1–R-12 and approved SC-1–SC-7 override conflicting older PRD wording. Whole-plan approval and deterministic recipe equivalence apply to evidence_text/evidence_images. Direct image work uses confirmed ordered images/scope and acknowledged uncertainty, with honest inference provenance and restorable snapshots; it has no synthetic Research Plan or identical-reinference guarantee. Exact-model approval and required profile checks gate qualified export in every mode.
 
 Prepared offline work follows the adopted no-lease/reconnect policy: learned disable locks until newer authoritative re-enable, learned tombstones purge before import, and network uncertainty alone is not deletion. R-11 permits one atomically consumed full fallback slot per lineage. The parent contract supplies every detailed authority, money, geometry, lifecycle and UX invariant.
 
@@ -17,11 +17,11 @@ Prepared offline work follows the adopted no-lease/reconnect policy: learned dis
 The Administrator can view per-Account paid usage or spending and configure a Usage Limit.
 
 **Consequences:**
-- Reaching a Usage Limit blocks new paid Jobs with an explanation.
+- Reaching a Usage Limit blocks new paid Jobs with an explanation unless the Account has available Credit (FR-32).
 - Already-running Jobs are allowed to finish.
 - The Administrator can raise or reset the Usage Limit.
 - Before a paid Job starts, nova3D atomically reserves its maximum estimated cost against settled usage and all outstanding reservations.
-- A Job cannot start when the available allowance cannot cover its reservation.
+- A Job cannot start when the available headroom (remaining allowance plus unfrozen Credit) cannot cover its reservation.
 - Duplicate submissions cannot create duplicate reservations, Jobs, or charges.
 - Completion or cancellation settles actual usage and releases unused reserved allowance.
 - Paid permission applies by category across all Paid Work. Before the first paid operation in a category, nova3D identifies the category, provider, purpose, and declared maximum charge and obtains permission for that Project.
@@ -44,7 +44,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 616 in the captured inp
 
 ### AR-16
 
-**AR-16: Atomic money and paid permissions.** Paid categories independently disclose provider, purpose, outbound-data/retention categories and maximum, with Project permission off by default. Use one Usage-owned checked integer USD-microdollar/rational calculator: sum under immutable model/options/rates, apply billing increments, round upward once per operation, reject overflow/unknown rates/foreign currency/unsupported parameters. Atomically enforce Account-period allowance, $5 lifetime research-Job cap across attempts and $1 external-operation cap. Defaults are $25/invitee and $50/Administrator per UTC month. Preserve outstanding liabilities across resets; already-authorized work retains reservations while disable cancels it.
+**AR-16: Atomic money and paid permissions.** Paid categories independently disclose provider, purpose, outbound-data/retention categories and maximum, with Project permission off by default. Use one Usage-owned checked integer USD-microdollar/rational calculator: sum under immutable model/options/rates, apply billing increments, round upward once per operation, reject overflow/unknown rates/foreign currency/unsupported parameters. Atomically enforce Account-period allowance, $5 lifetime research-Job cap across attempts and $1 external-operation cap. Defaults are $25/invitee and $50/Administrator per UTC month. Preserve outstanding liabilities across resets; already-authorized work retains reservations while disable cancels it. Prepaid credit is a separate immutable ledger spent after the allowance (R-12): a reservation draws from the allowance first and then credit and records the split, and credit is granted only from a verified payment or an audited Administrator grant.
 
 Source: AD-11; R-6; G-6.
 
@@ -58,7 +58,7 @@ Source: `_bmad-output/planning-artifacts/epics.md`, line 582 in the captured inp
 
 ### NFR-9
 
-**NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
+**NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available headroom (remaining allowance plus unfrozen Credit). Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
 
 Source: `_bmad-output/planning-artifacts/epics.md`, line 592 in the captured input.
 

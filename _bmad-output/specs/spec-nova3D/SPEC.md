@@ -97,7 +97,7 @@ Josh needs to turn difficult historical evidence into defensible printable model
 ## Constraints
 
 - Preserve every PRD functional requirement, non-functional requirement and acceptance metric, subject to the explicit scope/mode and September 14 ratification overrides recorded in the companions.
-- Public registration and cross-Account private access are forbidden; Administrator authority is an explicit allowlist, not permission to inspect or impersonate invited Workspaces.
+- Public registration and cross-Account private access are forbidden; Administrator authority is an explicit allowlist (invitations, Account status, usage limits, payment requests, credit grants and instance closure), not permission to inspect or impersonate invited Workspaces.
 - Evidence-backed generation requires complete research and exact-plan approval, followed by exact-model approval before qualified export. Direct image-derived output must never claim historically verified or deterministic evidence-backed reconstruction.
 - Every consequential detail is sourced, inferred, disputed, unknown or user-added, with the required evidence or explicit uncertainty; personalization cannot inherit historical authority.
 - Paid research is opt-in. Every paid-work category requires its own disclosed Project permission and enforceable reservation; unknown charges, transport duplicates and budget resets cannot bypass spending limits. Ratifying the provider/budget defaults does not grant those in-app permissions.

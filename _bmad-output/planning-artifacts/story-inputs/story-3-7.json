@@ -115,7 +115,7 @@
       "line": 590
     },
     "NFR-9": {
-      "text": "**NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.",
+      "text": "**NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available headroom (remaining allowance plus unfrozen Credit). Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 592
     },

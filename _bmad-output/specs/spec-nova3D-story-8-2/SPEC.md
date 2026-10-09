@@ -19,7 +19,7 @@ An Account owner or sole Administrator within the applicable authority needs to 
 
 - **CAP-1**
   - **intent:** An Account owner or sole Administrator within the applicable authority can remove their Workspace or close the service.
-  - **success:** Sessions revoke and all owned private targets, jobs, pending work, payment requests, payments and credit entries enter the durable deletion manifest; the confirmation works on phone and desktop.
+  - **success:** Sessions revoke and all owned private targets, jobs, pending work, payment requests, checkout sessions, payments (including unfulfilled), processed event records, credit entries, freezes, unrecovered shortfalls and payment alarms enter the durable deletion manifest; the confirmation works on phone and desktop.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Sessions revoke and all owned private targets, jobs, pending work, payment requests, payments and credit entries enter the durable deletion manifest; the confirmation works on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Sessions revoke and all owned private targets, jobs, pending work, payment requests, checkout sessions, payments (including unfulfilled), processed event records, credit entries, freezes, unrecovered shortfalls and payment alarms enter the durable deletion manifest; the confirmation works on phone and desktop. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

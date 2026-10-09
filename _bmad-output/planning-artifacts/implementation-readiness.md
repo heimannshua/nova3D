@@ -273,3 +273,9 @@ Before Story 1.3: one Google OAuth client per environment, consent screen set to
 ### Sprint tracking generated (2026-10-09)
 
 Under your standing instruction (generate `sprint-status.yaml` when the verdict is not FAIL) the file was generated at CONCERNS: `_bmad-output/implementation-artifacts/sprint-status.yaml`, 8 epics, 73 stories and 8 optional retrospectives, all `backlog`, validated by the script. The round-4 fixes were not re-audited. Rerun `bmad-sprint-planning` after any change to `epics.md` to refresh it.
+
+### Payments added (2026-10-09)
+
+You asked for payments and approved [sprint-change-proposal-2026-10-09.md](sprint-change-proposal-2026-10-09.md) (Administrator payment requests with a chosen price and credit, Stripe hosted checkout, UK account). It adds FR-31 and FR-32, R-12, surface S-06 and Stories 2.14 to 2.17 (77 stories). Two independent audits of the change found no Critical and 14 High findings (story implementability: 8; cross-artifact consistency: 6). All were applied: allowance-only wording now says headroom, the Administrator capability list includes payment requests and credit grants, the disclosure moved into the story that builds the Pay button, and the money edge cases (unfulfilled payments, duplicate sessions, session lifetime, refund and dispute arithmetic, reconciliation window, deleted Accounts, subject-keyed alarms) are recorded. The fixes were not re-audited. `sprint-status.yaml` now lists 77 stories.
+
+**What you owe before Story 2.16:** Vercel Pro, a UK Stripe account (test and live) with a restricted key and a webhook secret, and the terms and refund policy text. Advisory, not legal advice: check UK VAT on digital credit, consumer cancellation rights for digital content, a privacy notice naming Stripe, and HMRC's record-keeping duty, which can conflict with the plan's rule that deleting an Account removes its billing history. The terms must also say what happens to unspent credit on deletion.

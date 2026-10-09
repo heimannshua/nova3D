@@ -4,7 +4,7 @@ Read the [project SPEC](../spec-nova3D/SPEC.md) and every companion it names rec
 
 ## Governing Interpretation
 
-Ratified R-1–R-11 and approved SC-1–SC-7 override conflicting older PRD wording. Whole-plan approval and deterministic recipe equivalence apply to evidence_text/evidence_images. Direct image work uses confirmed ordered images/scope and acknowledged uncertainty, with honest inference provenance and restorable snapshots; it has no synthetic Research Plan or identical-reinference guarantee. Exact-model approval and required profile checks gate qualified export in every mode.
+Ratified R-1–R-12 and approved SC-1–SC-7 override conflicting older PRD wording. Whole-plan approval and deterministic recipe equivalence apply to evidence_text/evidence_images. Direct image work uses confirmed ordered images/scope and acknowledged uncertainty, with honest inference provenance and restorable snapshots; it has no synthetic Research Plan or identical-reinference guarantee. Exact-model approval and required profile checks gate qualified export in every mode.
 
 Prepared offline work follows the adopted no-lease/reconnect policy: learned disable locks until newer authoritative re-enable, learned tombstones purge before import, and network uncertainty alone is not deletion. R-11 permits one atomically consumed full fallback slot per lineage. The parent contract supplies every detailed authority, money, geometry, lifecycle and UX invariant.
 
@@ -21,7 +21,7 @@ The Administrator can view Account status and disable or re-enable an invited Ac
 - A disabled Account cannot authenticate, access its Workspace, or start operations or paid steps.
 - Disabling safely cancels active Jobs and rejects any late result so it cannot mutate Workspace or cache state.
 - Disabling an Account does not delete its Workspace.
-- Administrative capabilities are limited to issuing and revoking Invitation Codes, viewing account status and usage, setting Usage Limits, and disabling or re-enabling Accounts.
+- Administrative capabilities are limited to issuing and revoking Invitation Codes, viewing account status and usage, setting Usage Limits, requesting payments from Accounts and granting Credit, and disabling or re-enabling Accounts.
 - Invitation, Usage Limit, disable, re-enable, and recovery actions require fresh Administrator authentication and create immutable security audit events.
 - The unique Administrator can recover access only through a single-use, short-lived link sent to the Administrator's verified email address.
 - Successful Administrator recovery revokes all existing Administrator sessions and creates an immutable recovery audit event.

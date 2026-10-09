@@ -18,9 +18,8 @@ So that credit always matches the money actually kept.
 
 ## Scope
 
-- Refunds are issued in the Stripe Dashboard. On `charge.refunded` the webhook debits credit by the refunded share up to the unfrozen balance and records any shortfall as unrecovered with an alarm. On `charge.dispute.created` it freezes the credit from that payment; a won dispute unfreezes it and a lost one debits it.
-- A daily task on the Story 1.9 scheduler lists the successful Checkout Sessions of the last three days and compares them with recorded payments and credit, alarming (Story 1.13) on any difference in either direction. Show payment history to the owner (S-06) and the Administrator (AD-03).
-- Before the Pay button the owner sees the terms and refund policy (text written by Josh, English until he supplies a Hebrew version, with labels in both catalogs) and a notice that Stripe processes the payment and keeps its own records under its terms and the law. Stripe receipts are enabled in the Stripe account.
+- Refunds are issued in the Stripe Dashboard. On `charge.refunded` the webhook debits the cumulative refunded share of the amount paid times the credit that payment granted, rounded up to the microdollar, less debits already applied; the debit comes first from any frozen part and then from the unreserved balance, and any shortfall is recorded as unrecovered with an alarm. On `charge.dispute.created` it freezes the lesser of the unspent credit from that payment and the unfrozen balance; `charge.dispute.closed` with status won or warning_closed unfreezes it and lost debits it. An event that arrives before its payment is recorded waits and is applied when the payment is recorded, or is alarmed by reconciliation if it never is.
+- A daily task on the Story 1.9 scheduler lists the Checkout Sessions of this instance (filtered by the instance ID on each session, paginated) that completed and were paid between 3 days and 30 minutes ago and compares them with payment records of any status (a refunded session still counts as recorded), alarming (Story 1.13) on a paid session with no payment record or a granted payment with no paid session. Reconciliation, webhook handlers and alarms skip tombstoned Accounts using the opaque ledger. Show payment history to the owner (S-06) and the Administrator (AD-03).
 
 ## Acceptance Criteria
 
@@ -28,25 +27,37 @@ So that credit always matches the money actually kept.
 
 **Given** a paid request that is partly spent
 **When** Josh refunds it in Stripe and the webhook arrives
-**Then** credit is debited by the refunded share up to the available balance, the remainder is recorded as unrecovered and alarmed, and no entry is rewritten
+**Then** credit is debited by the refunded share up to the unreserved balance, the remainder is recorded as unrecovered and alarmed, and no entry is rewritten
 
 ### AC-2
 
-**Given** a dispute that is created and then closed won or lost
+**Given** a dispute that is created and then closed won, lost or warning_closed
 **When** the webhooks arrive
-**Then** the credit is frozen, then unfrozen or debited, the Administrator is alarmed and running Jobs keep their reservations
+**Then** the credit is frozen, then unfrozen (won or warning_closed) or debited (lost), the Administrator is alarmed and running Jobs keep their reservations
 
 ### AC-3
 
-**Given** a successful Stripe session with no recorded payment, or a recorded payment with no successful session
-**When** reconciliation runs
-**Then** an alarm names it
+**Given** two partial refunds, and a refund event that arrives before its payment is recorded
+**When** the webhooks are processed
+**Then** the debits sum to the cumulative refunded share times the credit granted (rounded up once), the early event is applied after the payment is recorded, and no debit is applied twice
 
 ### AC-4
 
-**Given** the payment history and the terms
-**When** they are viewed on phone and desktop
-**Then** amounts reconcile with credit entries, and the terms, refund policy and Stripe notice show before the Pay button
+**Given** a paid session with no payment record, a granted payment with no paid session, an unfulfilled payment, and a session completed 10 minutes ago
+**When** reconciliation runs
+**Then** only the first two alarm, the unfulfilled payment is already recorded and is not alarmed again, and the recent session is ignored
+
+### AC-5
+
+**Given** a refund, dispute or reconciliation event for a deleted Account
+**When** it is processed
+**Then** it changes nothing, raises an alarm that carries only the Stripe reference for manual handling, and leaves no identifying record after the alarm's 30 days
+
+### AC-6
+
+**Given** the payment history
+**When** it is viewed on phone and desktop
+**Then** amounts reconcile with credit entries and the same actions work on both
 
 ## Engineering Gates
 

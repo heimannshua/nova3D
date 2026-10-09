@@ -23,7 +23,7 @@
       "1-12"
     ],
     "scope": [
-      "Create the Lifecycle-owned alarm record family and an Administrator operations page (phone and desktop) listing open alarms with condition, first and latest time and last receipt. Each alarm is emailed to the Administrator address through the application mailer of Story 1.6 once per condition per 24 hours.",
+      "Create the Lifecycle-owned alarm record family and an Administrator operations page (phone and desktop) listing open alarms with condition, first and latest time and last receipt. Each alarm is emailed to the Administrator address through the application mailer of Story 1.6 once per condition per 24 hours. An alarm has a condition and an optional subject key: a threshold condition raises one alarm per 24 hours, while a subject-keyed condition (such as a payment exception) raises one alarm per subject immediately.",
       "Register the conditions this story can observe: a periodic task with no receipt within twice its interval, a ledger event pending over 15 minutes, and more than 25 Auth identities without an Account. Later stories register the others from the Spine's threshold list when their data exists: outbox age and expired leases (Story 2.7), unknown-cost operations (Story 2.8), storage integrity (Story 4.1), missed purge deadlines (Story 8.3) and backup snapshot age (Story 8.9).",
       "Watch the schedulers against each other: a small Railway cron task, which holds only its own Ed25519 signing key, posts a signed heartbeat to the application every 30 minutes and asks a signed application route for the latest QStash receipt time. The application raises the alarm and sends the email in either direction when the other scheduler's latest receipt is more than two hours old."
     ],
@@ -52,6 +52,11 @@
         "given": "the mailer failing when an alarm is raised",
         "when": "the alarm is recorded",
         "then": "the alarm record and operations page still show it, and the email is retried at the next evaluation"
+      },
+      {
+        "given": "a subject-keyed condition (a fixture here)",
+        "when": "two different subjects raise within 24 hours and one of them raises again",
+        "then": "each subject has its own alarm and email, and the repeat creates no further alarm"
       }
     ],
     "gates": []
@@ -65,7 +70,7 @@
   ],
   "source_requirements": {
     "AR-26": {
-      "text": "**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify the immutable environment ID (one Lifecycle `instance_identity` row mirrored by `APP_ENV` and `INSTANCE_ID`) at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects (staging is also its own Vercel project on the `staging` branch), with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis in its nearest available region and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge and the Auth identity count with redacted IDs; outages fail authorization closed.\n\nSource: AD-19; R-9; G-9.",
+      "text": "**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify the immutable environment ID (one Lifecycle `instance_identity` row mirrored by `APP_ENV` and `INSTANCE_ID`) at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects (staging is also its own Vercel project on the `staging` branch), with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis in its nearest available region and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge, payment mismatches and the Auth identity count with redacted IDs; local and staging use Stripe test mode and previews hold no Stripe keys; outages fail authorization closed.\n\nSource: AD-19; R-9; G-9.",
       "path": "_bmad-output/planning-artifacts/epics.md",
       "line": 718
     },

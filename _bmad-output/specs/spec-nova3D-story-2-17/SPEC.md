@@ -19,7 +19,7 @@ An Administrator needs to have refunds, disputes and mismatches handled safely. 
 
 - **CAP-1**
   - **intent:** An Administrator can have refunds, disputes and mismatches handled safely.
-  - **success:** Credit is debited by the refunded share up to the available balance, the remainder is recorded as unrecovered and alarmed, and no entry is rewritten.
+  - **success:** Credit is debited by the refunded share up to the unreserved balance, the remainder is recorded as unrecovered and alarmed, and no entry is rewritten.
 
 All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
@@ -36,7 +36,7 @@ All [acceptance criteria](acceptance-criteria.md) apply to the complete story.
 
 ## Success signal
 
-Credit is debited by the refunded share up to the available balance, the remainder is recorded as unrecovered and alarmed, and no entry is rewritten. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
+Credit is debited by the refunded share up to the unreserved balance, the remainder is recorded as unrecovered and alarmed, and no entry is rewritten. The exact criteria demonstrate the complete story outcome and its failure boundaries; any gate-status change requires actual qualification evidence.
 
 ## Assumptions
 

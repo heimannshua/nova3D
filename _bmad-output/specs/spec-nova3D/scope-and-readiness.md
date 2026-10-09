@@ -81,7 +81,7 @@ Josh's “ratify all fast path” closes A-1–A-3, Q-1–Q-11 and the product-a
 | G-3 | R-3, R-11 | PARTIAL | Profile closure, three-perimeter override, fixtures and one BambuStudio slice passed. General validation/support, repair and lineage integration remain unimplemented. | CAP-12, CAP-13 |
 | G-4 | R-4 | NOT RUN | Cross-runtime schema, linked immutable export and bilingual PDF remain unrun. | CAP-9, CAP-13 and provenance consumers |
 | G-5 | R-5, R-10 | BLOCKED | Headless Linux API/storage probes passed. Real named devices, viewer timing, accessibility and GPU-loss recovery remain unqualified. | CAP-9, CAP-10, CAP-11, CAP-17 |
-| G-6 | R-6 | PARTIAL | Local integer budget/concurrency probes passed. Provider terms, permission enforcement and ambiguous-charge reconciliation remain unqualified. | CAP-2 and every billable operation |
+| G-6 | R-6 | PARTIAL | Local integer budget/concurrency probes passed. Provider terms, permission enforcement and ambiguous-charge reconciliation remain unqualified, as do payment fulfilment, webhook replay, tampered amounts, late payments and refund-after-spend (R-12). | CAP-2 and every billable operation |
 | G-7 | R-7 | NOT RUN | Exact edition/rights ingestion and permitted retention paths remain unrun. | CAP-5, CAP-6, CAP-13, CAP-15 |
 | G-8 | R-8, R-11 | BLOCKED | Storage/runtime primitives passed. No reviewed reconstruction model meets the adopted phone target; offline inference, device quality and authoritative sync remain unqualified. A product-decision checkpoint (R-8) is opened when Epic 6 is complete or Story 7.1 has evaluated every available candidate, whichever comes first. | CAP-16 and offline CAP-1/CAP-3/CAP-8/CAP-14/CAP-17 |
 | G-9 | R-9 | PARTIAL | Local database/object restore with intervening deletion passed. Full app/cloud restore, live fencing, retention and RPO/RTO remain unqualified. | All production private-data capabilities |
@@ -92,7 +92,7 @@ Implementation and qualification work may proceed now. An affected capability ca
 
 ## Later sequence and inherited limits
 
-After proving the altar/ramp integrity chain and satisfying the approved first-version scope, expand to the complete Temple and utensils, then printer control/fleet management, then reusable packages for other research domains/model types. Commercial sale follows repeatable output quality; storefront/billing features are not implied.
+After proving the altar/ramp integrity chain and satisfying the approved first-version scope, expand to the complete Temple and utensils, then printer control/fleet management, then reusable packages for other research domains/model types. Commercial sale follows repeatable output quality; public storefront and billing features are not implied (invited-user payment requests, FR-31, are in the first version).
 
 The later printer direction retains printer/device/filament state, authenticated integration, configuration, camera feeds, safe queues and explainable selection without interrupting active jobs. Upload, printer selection and print start remain separate gates with explicit final confirmation, live progress/errors/pause/cancel, duplicate-start prevention and an audit trail that cannot alter approved provenance.
 

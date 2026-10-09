@@ -5,8 +5,8 @@
   "stories": 77,
   "unique_requirement_ids": 150,
   "requirement_occurrences": 585,
-  "scope_clauses": 228,
-  "acceptance_criteria": 345,
+  "scope_clauses": 232,
+  "acceptance_criteria": 353,
   "local_capability_ids": 135,
   "source_preservation": "PASS",
   "dependencies": "PASS",
@@ -145,7 +145,7 @@
         "CAP-1"
       ],
       "source_scope_items": 3,
-      "acceptance_criteria": 5,
+      "acceptance_criteria": 6,
       "mapped_requirements": 3,
       "coherence": "PASS (scripted parity only)",
       "preservation": "PASS (scripted parity only)"
@@ -317,8 +317,8 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 3,
-      "acceptance_criteria": 6,
+      "source_scope_items": 4,
+      "acceptance_criteria": 7,
       "mapped_requirements": 6,
       "coherence": "PASS (scripted parity only)",
       "preservation": "PASS (scripted parity only)"
@@ -328,8 +328,8 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 2,
-      "acceptance_criteria": 5,
+      "source_scope_items": 3,
+      "acceptance_criteria": 6,
       "mapped_requirements": 6,
       "coherence": "PASS (scripted parity only)",
       "preservation": "PASS (scripted parity only)"
@@ -339,8 +339,8 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 3,
-      "acceptance_criteria": 7,
+      "source_scope_items": 6,
+      "acceptance_criteria": 10,
       "mapped_requirements": 9,
       "coherence": "PASS (scripted parity only)",
       "preservation": "PASS (scripted parity only)"
@@ -350,8 +350,8 @@
       "capability_ids": [
         "CAP-1"
       ],
-      "source_scope_items": 3,
-      "acceptance_criteria": 4,
+      "source_scope_items": 2,
+      "acceptance_criteria": 6,
       "mapped_requirements": 8,
       "coherence": "PASS (scripted parity only)",
       "preservation": "PASS (scripted parity only)"

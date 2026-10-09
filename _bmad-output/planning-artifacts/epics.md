@@ -102,7 +102,7 @@ The Administrator can view Account status and disable or re-enable an invited Ac
 - A disabled Account cannot authenticate, access its Workspace, or start operations or paid steps.
 - Disabling safely cancels active Jobs and rejects any late result so it cannot mutate Workspace or cache state.
 - Disabling an Account does not delete its Workspace.
-- Administrative capabilities are limited to issuing and revoking Invitation Codes, viewing account status and usage, setting Usage Limits, and disabling or re-enabling Accounts.
+- Administrative capabilities are limited to issuing and revoking Invitation Codes, viewing account status and usage, setting Usage Limits, requesting payments from Accounts and granting Credit, and disabling or re-enabling Accounts.
 - Invitation, Usage Limit, disable, re-enable, and recovery actions require fresh Administrator authentication and create immutable security audit events.
 - The unique Administrator can recover access only through a single-use, short-lived link sent to the Administrator's verified email address.
 - Successful Administrator recovery revokes all existing Administrator sessions and creates an immutable recovery audit event.
@@ -116,11 +116,11 @@ Source: PRD §4, FR-3.
 The Administrator can view per-Account paid usage or spending and configure a Usage Limit.
 
 **Consequences:**
-- Reaching a Usage Limit blocks new paid Jobs with an explanation.
+- Reaching a Usage Limit blocks new paid Jobs with an explanation unless the Account has available Credit (FR-32).
 - Already-running Jobs are allowed to finish.
 - The Administrator can raise or reset the Usage Limit.
 - Before a paid Job starts, nova3D atomically reserves its maximum estimated cost against settled usage and all outstanding reservations.
-- A Job cannot start when the available allowance cannot cover its reservation.
+- A Job cannot start when the available headroom (remaining allowance plus unfrozen Credit) cannot cover its reservation.
 - Duplicate submissions cannot create duplicate reservations, Jobs, or charges.
 - Completion or cancellation settles actual usage and releases unused reserved allowance.
 - Paid permission applies by category across all Paid Work. Before the first paid operation in a category, nova3D identifies the category, provider, purpose, and declared maximum charge and obtains permission for that Project.
@@ -589,7 +589,7 @@ Ratified application: this is evidence-recipe equivalence under R-2 / AR-10. The
 
 **NFR-8: Explainable failures.** User-facing failures identify the failed stage, known cause, preserved state, cost impact where known, and permitted next action in beginner-friendly language.
 
-**NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available Usage Limit. Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
+**NFR-9: Cost control.** Paid Work cannot begin without category-specific Project permission, a disclosed maximum charge, and an atomic cost reservation within the available headroom (remaining allowance plus unfrozen Credit). Usage records, reservations, settlements, and releases must reconcile with each idempotent Job. nova3D must present the resulting spending record clearly enough for Josh to understand and control spending.
 
 **NFR-10: Responsive workspace.** Research, generation, validation, repair, and export run without blocking navigation or ordinary Project inspection. Browser preview degradation or failure cannot damage manufacturing geometry.
 
@@ -675,7 +675,7 @@ Source: AD-9; work/billing identity.
 
 Source: AD-10; service authentication and delivery conventions.
 
-**AR-16: Atomic money and paid permissions.** Paid categories independently disclose provider, purpose, outbound-data/retention categories and maximum, with Project permission off by default. Use one Usage-owned checked integer USD-microdollar/rational calculator: sum under immutable model/options/rates, apply billing increments, round upward once per operation, reject overflow/unknown rates/foreign currency/unsupported parameters. Atomically enforce Account-period allowance, $5 lifetime research-Job cap across attempts and $1 external-operation cap. Defaults are $25/invitee and $50/Administrator per UTC month. Preserve outstanding liabilities across resets; already-authorized work retains reservations while disable cancels it.
+**AR-16: Atomic money and paid permissions.** Paid categories independently disclose provider, purpose, outbound-data/retention categories and maximum, with Project permission off by default. Use one Usage-owned checked integer USD-microdollar/rational calculator: sum under immutable model/options/rates, apply billing increments, round upward once per operation, reject overflow/unknown rates/foreign currency/unsupported parameters. Atomically enforce Account-period allowance, $5 lifetime research-Job cap across attempts and $1 external-operation cap. Defaults are $25/invitee and $50/Administrator per UTC month. Preserve outstanding liabilities across resets; already-authorized work retains reservations while disable cancels it. Prepaid credit is a separate immutable ledger spent after the allowance (R-12): a reservation draws from the allowance first and then credit and records the split, and credit is granted only from a verified payment or an audited Administrator grant.
 
 Source: AD-11; R-6; G-6.
 
@@ -695,7 +695,7 @@ Source: AD-13; file authorization.
 
 Source: AD-14; R-7; G-7.
 
-**AR-21: Deletion and tested recovery.** Tombstone/hide before cancellation/purge; cover database, images, models, exports, staging, notifications, usage associations and private operational records. Active purge ≤24 h; all controlled private backup copies expire ≤30 days from deletion, never extended by restore/rebackup. Back up the database and objects independently every 12 hours; target RPO/RTO ≤24 h. Persist the minimum restricted anti-resurrection ledger of opaque target identities outside restore rollback and replay before reopening access. Verify interrupted cross-store deletion and restore; apart from that minimum ledger, preserve only permitted public claims/nonidentifying aggregates. Apply sole-Administrator close-instance safeguards and disclose external retention exceptions.
+**AR-21: Deletion and tested recovery.** Tombstone/hide before cancellation/purge; cover database, images, models, exports, staging, notifications, usage associations, payment requests, payments, credit entries and private operational records. Active purge ≤24 h; all controlled private backup copies expire ≤30 days from deletion, never extended by restore/rebackup. Back up the database and objects independently every 12 hours; target RPO/RTO ≤24 h. Persist the minimum restricted anti-resurrection ledger of opaque target identities outside restore rollback and replay before reopening access. Verify interrupted cross-store deletion and restore; apart from that minimum ledger, preserve only permitted public claims/nonidentifying aggregates. Apply sole-Administrator close-instance safeguards and disclose external retention exceptions.
 
 Source: AD-15; R-9; FR-30; G-9.
 
@@ -715,7 +715,7 @@ Source: AD-7, AD-17; R-5; G-5.
 
 Source: AD-18; SC-5.
 
-**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify the immutable environment ID (one Lifecycle `instance_identity` row mirrored by `APP_ENV` and `INSTANCE_ID`) at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects (staging is also its own Vercel project on the `staging` branch), with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis in its nearest available region and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge and the Auth identity count with redacted IDs; outages fail authorization closed.
+**AR-26: Deployment and operations.** Separate local/staging/production Supabase, queues, storage, secrets and callback origins in one repo; previews use synthetic data and disabled paid adapters. Verify the immutable environment ID (one Lifecycle `instance_identity` row mirrored by `APP_ENV` and `INSTANCE_ID`) at CI/startup/dispatch; prevent preview/production mixing. Local runs the Supabase CLI stack (`APP_ENV=local` only against a loopback URL); staging and production are separate cloud projects (staging is also its own Vercel project on the `staging` branch), with auth configuration declared in `supabase/config.toml` and diffed against live settings in CI. Adopt Vercel iad1, Supabase us-east-1, Railway Virginia us-east4-eqdc4a and Upstash Redis in its nearest available region and QStash in us-east-1 (set explicitly) on the tiers in R-9, with actual plans/topology recorded before acceptance. Pin command/result schemas, generator versions and worker images at Job acceptance; an unavailable compatible worker leaves the Job waiting with a reason. Declare and validate additive compatibility; major changes use separate workers/endpoints. Deploy consumers before producers, retain old consumers until their Jobs terminate, and retain generator images/locks needed by non-deleted reproducible Versions. Use expand/migrate/contract with rollback preserving money/provenance/deletion. Monitor outbox age, leases, failures, unknown costs, storage integrity, purge deadlines, the newest completed backup snapshot, the last dormant-identity purge, payment mismatches and the Auth identity count with redacted IDs; local and staging use Stripe test mode and previews hold no Stripe keys; outages fail authorization closed.
 
 Source: AD-19; R-9; G-9.
 
@@ -771,7 +771,7 @@ This source-to-source crosswalk complements the story coverage map below.
 - **SM-6 — Dependency correctness:** Correction tests rebuild all affected Model Features while unrelated geometry stays within the reproducibility tolerance. Validates FR-20 and FR-21.
 - **SM-7 — Recoverability:** Every non-deleted Version in the MVP test set restores its geometry and provenance successfully. Validates FR-22 and NFR-7.
 - **SM-8 — Account isolation:** In every authorization test, one Account's private Workspace content remains inaccessible to another Account. Validates FR-2, FR-30, NFR-1, and NFR-12.
-- **SM-9 — Controlled paid work:** Zero paid Jobs start without both Project permission and available Usage Limit. Validates FR-4 and FR-14.
+- **SM-9 — Controlled paid work:** Zero paid Jobs start without both Project permission and available headroom (remaining allowance plus unfrozen Credit). Validates FR-4 and FR-14.
 - **SM-10 — Bidirectional traceability:** Every Consequential Model Feature resolves to its governing Claims, and every approved Claim resolves to all affected Model Features, with no orphaned links in the MVP corpus. Validates FR-10, FR-15, and FR-19.
 
 **Counter-Metrics**
@@ -796,7 +796,7 @@ Local synthetic probes establish component feasibility only. Application accepta
 | G-3 — Print qualification | **PARTIAL** | Profile closure and override, independent fixtures, one successful official-slicer run; SQL unique-slot primitive from recovery. | General required geometric/support checks that fail closed on unknown; consequential/nonconsequential repair handling; successor Job/outbox/lineage atomicity, retry and renewed approval. Physical printing is a separate unverified claim and is not required for the adopted altar/ramp demonstration. |
 | G-4 — Provenance/export | **NOT RUN** | No qualifying schema/PDF/export-package run. | Cross-runtime schema, reciprocal feature/evidence links and readable Hebrew/English PDF from the same immutable export. |
 | G-5 — Supported devices | **BLOCKED** | Headless Linux API/storage/fixture feasibility. | Real MacBook Air M2, Windows/Iris Xe, iPhone 16 Pro and Pixel 9 Pro browser matrix; full workflow accessibility; progressive semantic viewer and ≤5 s/≤33 ms timing; GPU-loss recovery. |
-| G-6 — Paid-operation control | **PARTIAL** | Synthetic integer/rational arithmetic and concurrent Account/parent-Job ceilings. | Actual account terms/rates and permission/disclosure; bounded request calculator, ambiguous-charge settlement/reconciliation, cancellation and authenticated application enforcement. |
+| G-6 — Paid-operation control | **PARTIAL** | Synthetic integer/rational arithmetic and concurrent Account/parent-Job ceilings. | Actual account terms/rates and permission/disclosure; bounded request calculator, ambiguous-charge settlement/reconciliation, cancellation and authenticated application enforcement; payment fulfilment, webhook replay, tampered amounts, late payments and refund-after-spend (R-12). |
 | G-7 — Evidence rights | **NOT RUN** | No edition-ingestion or retention-path qualification. | Pinned edition rights, inspectable source records and permitted private/shared retention. |
 | G-8 — Offline conversion/sync | **BLOCKED** | Storage/API/runtime primitives and import deduplication prototype; four candidate source reviews. | A compliant pinned reconstruction model; offline bundle preparation and execution on real devices; quality/coverage, eviction/interruption, authoritative reconnect revocation and conflict sync. |
 | G-9 — Recovery/deletion | **PARTIAL** | Local Postgres/object restore with intervening deletion and external ledger replay. | Provisioned provider plans/regions, private-file and callback path, full app deletion/fencing, active purge ≤24 h, controlled backup expiry ≤30 d and measured RPO/RTO ≤24 h. |
@@ -1191,7 +1191,7 @@ Source: SCREEN-INVENTORY AD-02; canonical ux-contract; applicable ratified decis
 
 **UX-DR71: Usage and limits (AD-03).** Per-Account paid usage, reservations, settlements, available allowance, credit balance, set/reset limit, payment requests and credit grants.
 
-Required states/variants: Under limit, nearly reached, reached, running Job allowed, new paid Job blocked, request pending/paid/expired/cancelled, credit frozen, payment mismatch.
+Required states/variants: Under limit, nearly reached, reached, running Job allowed, new paid Job blocked when no credit is left, request pending/paid/expired/cancelled, credit frozen, payment mismatch.
 
 Source: SCREEN-INVENTORY AD-03; canonical ux-contract; applicable ratified decisions.
 
@@ -1491,7 +1491,7 @@ So that no later story stalls on an account only I can create.
 - Do the tasks only Josh can do, each tagged with the story that first needs it so none blocks earlier work than it must. Before Story 1.3: one Google OAuth client per environment with exact redirect URIs and the consent screen set to In production (Testing mode silently allowlists and expires grants). Before Story 1.4: the staging Vercel project linked to the repository's `staging` branch with the seed application deployed, the Supabase organization plan (Pro, since a Free project pauses) and the existing project's status and region, so hosted-Auth checks can run. Before Story 1.6: a Resend account registered with the Administrator address, and its API key. Before Story 1.9: the Upstash account (QStash pay-as-you-go) and the Railway account. Before Story 2.5: an Anthropic workspace with a dedicated spend limit and its API key (noting whether an organization Admin key exists), and a Brave account with prepaid credit and no auto-recharge. Before Story 7.2: the public model-asset bucket that Story 7.2 names. Before Story 7.7: a VAPID key pair per environment. Before Story 8.9: a Backblaze account with a backup bucket per environment in US East, a separate ledger bucket, a read-only manifest key and a ledger read-only key, and the age key pair (the private key only in the Administrator's password manager). Before the first Story 8.4 drill: permission to create and delete a restore project.
 - Add `scripts/check-provisioning.mjs --story <id>`, which reads the ledger and reports for one environment which items due by that story are present (secrets by presence, attestations by their dated entry), names each missing one and the story that needs it, and never prints a value. Record the Brave terms review (section 3(b) bars storing or caching results) in the ledger before Story 2.5 may enable that adapter.
 - Before Story 1.4 also: a Supabase personal access token for this organization, the staging database password and project reference, stored as secrets in a protected GitHub environment for staging (production gets its own later), so the CLI and CI can push configuration and migrations. Before Story 1.9: a GitHub Container Registry token and a Railway project token for the worker image pipeline.
-- Before Story 2.16: upgrade Vercel to Pro (taking payments is commercial use); open a Stripe account in the United Kingdom in test and live modes with a restricted API key, a webhook endpoint and secret per environment and receipts enabled; confirm Stripe's UK fees, the currency-conversion fee for charging in USD, and the tax and VAT position; and write the terms and refund policy text. Record all of these in the ledger.
+- Before Story 2.16: upgrade Vercel to Pro (taking payments is commercial use); open a Stripe account in the United Kingdom in test and live modes with a restricted API key (Checkout Sessions: write; Charges and PaymentIntents: read), a webhook endpoint and secret per environment and receipts enabled; confirm Stripe's UK fees, the currency-conversion fee for charging in USD, and the tax and VAT position, including consumer cancellation rights, privacy-notice duties and any record-keeping duty that conflicts with deleting billing history; and write the terms and refund policy text. Record all of these in the ledger.
 
 **Acceptance Criteria:**
 
@@ -2056,7 +2056,7 @@ So that failures and silent stalls do not go unnoticed.
 
 **Scope:**
 
-- Create the Lifecycle-owned alarm record family and an Administrator operations page (phone and desktop) listing open alarms with condition, first and latest time and last receipt. Each alarm is emailed to the Administrator address through the application mailer of Story 1.6 once per condition per 24 hours.
+- Create the Lifecycle-owned alarm record family and an Administrator operations page (phone and desktop) listing open alarms with condition, first and latest time and last receipt. Each alarm is emailed to the Administrator address through the application mailer of Story 1.6 once per condition per 24 hours. An alarm has a condition and an optional subject key: a threshold condition raises one alarm per 24 hours, while a subject-keyed condition (such as a payment exception) raises one alarm per subject immediately.
 - Register the conditions this story can observe: a periodic task with no receipt within twice its interval, a ledger event pending over 15 minutes, and more than 25 Auth identities without an Account. Later stories register the others from the Spine's threshold list when their data exists: outbox age and expired leases (Story 2.7), unknown-cost operations (Story 2.8), storage integrity (Story 4.1), missed purge deadlines (Story 8.3) and backup snapshot age (Story 8.9).
 - Watch the schedulers against each other: a small Railway cron task, which holds only its own Ed25519 signing key, posts a signed heartbeat to the application every 30 minutes and asks a signed application route for the latest QStash receipt time. The application raises the alarm and sends the email in either direction when the other scheduler's latest receipt is more than two hours old.
 
@@ -2091,6 +2091,12 @@ So that failures and silent stalls do not go unnoticed.
 **Given** the mailer failing when an alarm is raised
 **When** the alarm is recorded
 **Then** the alarm record and operations page still show it, and the email is retried at the next evaluation
+
+**AC-6**
+
+**Given** a subject-keyed condition (a fixture here)
+**When** two different subjects raise within 24 hours and one of them raises again
+**Then** each subject has its own alarm and email, and the repeat creates no further alarm
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-1-13/SPEC.md).
 
@@ -2759,6 +2765,7 @@ So that what I paid for is spent only on my work and never disappears at month e
 - Create the Usage-owned immutable credit-entry ledger in USD microdollars: grants (from payments or from the Administrator), refund debits, spend and release entries, and freezes. An Account's credit balance is the sum of its entries and does not expire while the Account exists.
 - Admission headroom is the remaining period allowance plus unfrozen credit. A reservation draws from the allowance first and from credit for the rest and records that split; settlement, release and ambiguous holds follow the funding source; credit carries over when the allowance resets. The per-operation ($1) and per-Job ($5) ceilings and the permission matching of Story 2.5 are unchanged. This story extends the admission function of Story 2.6.
 - The Administrator can grant credit without a payment: a reason is required, each grant is at most $1,000, and it needs a fresh administration marker and appends an audit event. Show the allowance and the credit balance to the owner in the new Credit and payments page (S-06) and per Account to the Administrator in Usage and limits (AD-03).
+- An overrun above a reservation settles from the allowance first and then credit, may exceed headroom and is recorded as an overrun incident (Story 2.8). The credit balance is net of credit held by reservations, so refund and dispute debits apply only to the unreserved balance. Credit stays spendable when the Administrator sets the allowance limit to $0.
 
 **Acceptance Criteria:**
 
@@ -2772,7 +2779,7 @@ So that what I paid for is spent only on my work and never disappears at month e
 
 **Given** a credit-funded reservation
 **When** its operation settles lower, is cancelled or is ambiguous
-**Then** the unused part returns to the source that funded it, an ambiguous charge keeps its credit part held, and no entry is rewritten
+**Then** the unused part returns to the source that funded it, an ambiguous charge keeps its credit part held, and no entry is rewritten; an overrun above the reservation settles from the allowance first and then credit and is recorded as an overrun incident
 
 **AC-3**
 
@@ -2798,6 +2805,12 @@ So that what I paid for is spent only on my work and never disappears at month e
 **When** they are viewed on phone and desktop
 **Then** settled, reserved and available allowance and the credit balance reconcile
 
+**AC-7**
+
+**Given** an Administrator allowance limit of $0 and $10 of credit
+**When** a $3 reservation is admitted
+**Then** $3 comes from credit and the allowance is untouched
+
 **Engineering gates:** G-6; planning completion does not change their qualification status.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-14/SPEC.md).
@@ -2814,8 +2827,9 @@ So that I decide who pays and how much.
 
 **Scope:**
 
-- Add payment requests to Usage and limits (AD-03): choose an Account, a price ($1.00 to $500.00, whole cents), the credit it buys ($0.01 to $1,000.00, which may exceed the price) and an optional note of at most 200 characters. A request expires in 14 days or sooner, at most 3 are open per Account, and the Administrator can cancel an unpaid one. Creating and cancelling need a fresh administration marker and append an audit event.
+- Add payment requests to Usage and limits (AD-03): choose an Account, a price ($1.00 to $500.00, whole cents), the credit it buys ($0.01 to $1,000.00, which may exceed the price) and an optional note of at most 200 characters. The Administrator sets an expiry of 1 to 14 days (14 by default), at most 3 are open per Account, and the Administrator can cancel an unpaid one. Creating and cancelling need a fresh administration marker and append an audit event.
 - A Usage-owned payment-request record has the states pending, paid (set by Story 2.16), expired and cancelled, with amounts immutable after creation. The owner sees pending requests in Credit and payments (S-06) and gets an in-app notification of a new type registered with Story 2.10. The Administrator sees every request and state but never card details or Workspace content. A disabled or deleted Account cannot receive a request.
+- Expired is derived: a pending request past its expiry time reads as expired and no longer counts as open. Cancelling a request expires its open Checkout Session through Story 2.16; if Stripe reports that session already completed, the payment is handled as a late payment.
 
 **Acceptance Criteria:**
 
@@ -2849,6 +2863,12 @@ So that I decide who pays and how much.
 **When** requests are listed, created and cancelled
 **Then** the same actions work on both
 
+**AC-6**
+
+**Given** a request with an open Checkout Session
+**When** the Administrator cancels it
+**Then** the session is expired, and any payment that still arrives grants nothing and raises an alarm
+
 **Engineering gates:** G-6; planning completion does not change their qualification status.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-15/SPEC.md).
@@ -2865,9 +2885,12 @@ So that the credit is added without my card details touching nova3D.
 
 **Scope:**
 
-- Build a Stripe adapter behind a payments port. Server-side only, create a Checkout Session in payment mode (card only, USD, one line at the request's price, the request ID as `client_reference_id`, the Account email prefilled, expiring with the request or after 24 hours, whichever is sooner); a new session for the same request expires the previous one. The success and cancel pages on the application origin only show status. Pin the Stripe SDK and API version, use a restricted key, limit session creation to 10 an hour per Account, and refuse a disabled or deleted Account.
+- Build a Stripe adapter behind a payments port. Server-side only, create a Checkout Session in payment mode (card only, USD, one line at the request's price, the request ID as `client_reference_id`, the Account email prefilled, expiring at the request's expiry or 24 hours after creation, whichever is sooner, and Pay is refused when less than 30 minutes remain); a new session for the same request expires the previous one. The success and cancel pages on the application origin only show status. Pin the Stripe SDK and API version, use a restricted key, limit session creation to 10 an hour per Account, and refuse a disabled or deleted Account.
 - A webhook route verifies Stripe's signature with the official library, records each processed event ID (unique) and accepts only a paid `checkout.session.completed`. It checks amount, currency, request and Account, then in one transaction records the payment (Stripe session and payment-intent IDs, amount, time), appends the credit grant of Story 2.14, marks the request paid, writes an audit event and notifies the owner. A mismatch, a payment for an expired or cancelled request, or one for a disabled or deleted Account grants nothing and raises a Story 1.13 alarm for a manual refund.
 - Local and staging use Stripe test mode (local webhooks are forwarded by the Stripe CLI or a fake implementing the same port); previews hold no Stripe keys; live mode is enabled only in production after the Stripe account is verified. Store Stripe IDs, amounts and times only, never card data.
+- Record each session at creation in a Usage-owned checkout-session record (session ID, request, Account, price, currency, instance ID, API version); a webhook event must match a recorded session or it is a mismatch. Every verified paid session then becomes a payment record that is either granted or unfulfilled with its reason (late, cancelled, expired, disabled or deleted Account, duplicate session, amount or currency mismatch), unique per session and per payment intent and, when granted, per request. The processed-event record is written in the same transaction as the grant, so a failed transaction is retried by Stripe and not deduplicated. A second paid session for an already-paid request is unfulfilled and alarms.
+- Add the webhook path to the public routes of `proxy.ts`; the signature is its only authentication. Payment alarms are subject-keyed (Story 1.13), carry the Stripe session ID, are purged with the Account's data and otherwise expire after 30 days.
+- Before the Pay button the owner sees the terms and refund policy (text written by Josh, English until he supplies a Hebrew version, with labels in both catalogs) and a notice that Stripe processes the payment and keeps its own records under its terms and the law; the terms version shown is recorded with the payment. The terms also say what happens to unspent credit when an Account is deleted or the instance closes. Stripe receipts are enabled in the Stripe account.
 
 **Acceptance Criteria:**
 
@@ -2885,9 +2908,9 @@ So that the credit is added without my card details touching nova3D.
 
 **AC-3**
 
-**Given** the same event delivered twice or concurrently, or a payment for a request that has expired or been cancelled
+**Given** the same event delivered twice or concurrently, a second paid session for an already-paid request, or a payment for a request that has expired or been cancelled
 **When** it is processed
-**Then** credit is granted at most once, and a late payment grants nothing and raises an alarm
+**Then** credit is granted at most once, and every other payment is recorded as unfulfilled with its reason, grants nothing and raises its own alarm
 
 **AC-4**
 
@@ -2913,6 +2936,24 @@ So that the credit is added without my card details touching nova3D.
 **When** the owner pays a request
 **Then** the same flow works on both
 
+**AC-8**
+
+**Given** a request with less than 30 minutes left
+**When** the owner chooses Pay
+**Then** Pay is refused with that reason and no session is created
+
+**AC-9**
+
+**Given** another Account's request, session, success page, cancel page or payment history
+**When** a different owner opens it
+**Then** it is unavailable and discloses nothing
+
+**AC-10**
+
+**Given** a pending request
+**When** the owner opens it
+**Then** the price, credit, terms, refund policy and Stripe notice appear before the Pay button, and any payment records the terms version shown
+
 **Engineering gates:** G-6; planning completion does not change their qualification status.
 
 **Story contract:** [SPEC.md](../specs/spec-nova3D-story-2-16/SPEC.md).
@@ -2929,9 +2970,8 @@ So that credit always matches the money actually kept.
 
 **Scope:**
 
-- Refunds are issued in the Stripe Dashboard. On `charge.refunded` the webhook debits credit by the refunded share up to the unfrozen balance and records any shortfall as unrecovered with an alarm. On `charge.dispute.created` it freezes the credit from that payment; a won dispute unfreezes it and a lost one debits it.
-- A daily task on the Story 1.9 scheduler lists the successful Checkout Sessions of the last three days and compares them with recorded payments and credit, alarming (Story 1.13) on any difference in either direction. Show payment history to the owner (S-06) and the Administrator (AD-03).
-- Before the Pay button the owner sees the terms and refund policy (text written by Josh, English until he supplies a Hebrew version, with labels in both catalogs) and a notice that Stripe processes the payment and keeps its own records under its terms and the law. Stripe receipts are enabled in the Stripe account.
+- Refunds are issued in the Stripe Dashboard. On `charge.refunded` the webhook debits the cumulative refunded share of the amount paid times the credit that payment granted, rounded up to the microdollar, less debits already applied; the debit comes first from any frozen part and then from the unreserved balance, and any shortfall is recorded as unrecovered with an alarm. On `charge.dispute.created` it freezes the lesser of the unspent credit from that payment and the unfrozen balance; `charge.dispute.closed` with status won or warning_closed unfreezes it and lost debits it. An event that arrives before its payment is recorded waits and is applied when the payment is recorded, or is alarmed by reconciliation if it never is.
+- A daily task on the Story 1.9 scheduler lists the Checkout Sessions of this instance (filtered by the instance ID on each session, paginated) that completed and were paid between 3 days and 30 minutes ago and compares them with payment records of any status (a refunded session still counts as recorded), alarming (Story 1.13) on a paid session with no payment record or a granted payment with no paid session. Reconciliation, webhook handlers and alarms skip tombstoned Accounts using the opaque ledger. Show payment history to the owner (S-06) and the Administrator (AD-03).
 
 **Acceptance Criteria:**
 
@@ -2939,25 +2979,37 @@ So that credit always matches the money actually kept.
 
 **Given** a paid request that is partly spent
 **When** Josh refunds it in Stripe and the webhook arrives
-**Then** credit is debited by the refunded share up to the available balance, the remainder is recorded as unrecovered and alarmed, and no entry is rewritten
+**Then** credit is debited by the refunded share up to the unreserved balance, the remainder is recorded as unrecovered and alarmed, and no entry is rewritten
 
 **AC-2**
 
-**Given** a dispute that is created and then closed won or lost
+**Given** a dispute that is created and then closed won, lost or warning_closed
 **When** the webhooks arrive
-**Then** the credit is frozen, then unfrozen or debited, the Administrator is alarmed and running Jobs keep their reservations
+**Then** the credit is frozen, then unfrozen (won or warning_closed) or debited (lost), the Administrator is alarmed and running Jobs keep their reservations
 
 **AC-3**
 
-**Given** a successful Stripe session with no recorded payment, or a recorded payment with no successful session
-**When** reconciliation runs
-**Then** an alarm names it
+**Given** two partial refunds, and a refund event that arrives before its payment is recorded
+**When** the webhooks are processed
+**Then** the debits sum to the cumulative refunded share times the credit granted (rounded up once), the early event is applied after the payment is recorded, and no debit is applied twice
 
 **AC-4**
 
-**Given** the payment history and the terms
-**When** they are viewed on phone and desktop
-**Then** amounts reconcile with credit entries, and the terms, refund policy and Stripe notice show before the Pay button
+**Given** a paid session with no payment record, a granted payment with no paid session, an unfulfilled payment, and a session completed 10 minutes ago
+**When** reconciliation runs
+**Then** only the first two alarm, the unfulfilled payment is already recorded and is not alarmed again, and the recent session is ignored
+
+**AC-5**
+
+**Given** a refund, dispute or reconciliation event for a deleted Account
+**When** it is processed
+**Then** it changes nothing, raises an alarm that carries only the Stripe reference for manual handling, and leaves no identifying record after the alarm's 30 days
+
+**AC-6**
+
+**Given** the payment history
+**When** it is viewed on phone and desktop
+**Then** amounts reconcile with credit entries and the same actions work on both
 
 **Engineering gates:** G-6; planning completion does not change their qualification status.
 
@@ -4779,7 +4831,7 @@ So that all authorized private targets enter the deletion process.
 
 **Given** a normal Account with fresh authentication
 **When** whole-Account deletion is explicitly confirmed
-**Then** sessions revoke and all owned private targets, jobs, pending work, payment requests, payments and credit entries enter the durable deletion manifest; the confirmation works on phone and desktop
+**Then** sessions revoke and all owned private targets, jobs, pending work, payment requests, checkout sessions, payments (including unfulfilled), processed event records, credit entries, freezes, unrecovered shortfalls and payment alarms enter the durable deletion manifest; the confirmation works on phone and desktop
 
 **AC-2**
 
@@ -4888,7 +4940,7 @@ So that retained data does not outlive the adopted limits.
 - Purge database, files, models, exports, staging, notifications, private usage/adoption associations and operational traces under the deletion manifest.
 - Apply the Story 8.9 backup lifecycle to deletions: deleted targets leave dumps within 14 days and deleted-at-source objects within 7 days. Run a monthly canary on a synthetic Account with an internal system-actor deletion (the interactive step-up applies to humans only), proving the deletion reaches the database, Storage and backups within 15 days from manifests and bucket listings, since dumps are encrypted. Account purge also deletes the Auth identity and its Auth audit-log entries and sessions. Register the missed-purge-deadline condition with the Story 1.13 alarm channel.
 - Project deletion de-links its settlements, unresolved reservations and overrun incidents from Project, Job and request identity and keeps amounts, category and period, so deletion never restores spending headroom; Account deletion removes them.
-- Purge the Account's payment requests, payments and credit entries (non-identifying aggregate totals may remain) and expire any open Checkout Session through Stripe; the application discloses that Stripe keeps its own records under its terms and the law.
+- Purge the Account's payment requests, checkout sessions, payments (including unfulfilled), processed event records, credit entries, freezes, unrecovered shortfalls and payment alarms, writing at purge one non-identifying aggregate per allowance period (total paid and total credited, with no Account, request or Stripe identifier) and expire any open Checkout Session through Stripe; the application discloses that Stripe keeps its own records under its terms and the law.
 
 **Acceptance Criteria:**
 

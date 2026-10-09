@@ -26,4 +26,4 @@ The PRD and architecture work must resolve:
 
 The longer-term printer layer should connect to multiple personal printers across brands and protocols, integrate slicers, and handle authentication. It should track each device's state, capabilities, and loaded filament type and colour; avoid interrupting active jobs; queue work safely; choose the best-suited printer; provide configuration settings; and show camera feeds. It is intentionally excluded from the first milestone.
 
-Commercial sale is an outcome of proven reliability, not a first-release workflow. nova3D will retain source citations but will not determine whether source material may legally be reused in a commercial model; the licensing review remains the user's responsibility.
+Commercial sale is an outcome of proven reliability, not a first-release workflow. (Josh added invited-user payment requests and prepaid credit to the first version on 2026-10-09; public sale, storefronts and marketplaces remain later.) nova3D will retain source citations but will not determine whether source material may legally be reused in a commercial model; the licensing review remains the user's responsibility.
