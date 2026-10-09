@@ -1,0 +1,824 @@
+{
+  "version": 1,
+  "notice": "Names, dates and evidence references only. Never put a key, token, password or private key in this file. Render with `npm run render:provisioning`; check with `node scripts/check-provisioning.mjs --story <id> --env <name>`.",
+  "environments": ["local", "staging", "production"],
+  "services": [
+    {
+      "id": "google-oauth",
+      "name": "Google sign-in (Google Cloud OAuth clients)",
+      "owner": "Josh (Administrator)",
+      "plan": "No charge. One OAuth web client per environment (local, staging, production); the consent screen is published In production.",
+      "region": "Not region-bound.",
+      "spendBackstop": "Not billable, so there is no spend to cap.",
+      "firstNeeded": "1-3",
+      "limits": []
+    },
+    {
+      "id": "supabase",
+      "name": "Supabase (Postgres, Auth, Storage)",
+      "owner": "Josh (Administrator)",
+      "plan": "Pro in one organization, with staging and production as separate projects (Pro is $25 a month including a $10 credit; staging adds about $10). Local runs the Supabase CLI stack at no charge.",
+      "region": "us-east-1",
+      "spendBackstop": "The organization's spend cap, left on in the billing settings. Fixed cost is about $35-40 a month; each restore drill adds a temporary project whose hourly cost is recorded at the first drill.",
+      "firstNeeded": "1-4",
+      "limits": [
+        {
+          "relied": "A Free project pauses, so staging and production never run on the Free plan.",
+          "upgradeTrigger": "Pro before Story 1.4, so hosted-Auth checks can run."
+        },
+        {
+          "relied": "Built-in backups cover Postgres only (daily, 7 days) and exclude Storage objects.",
+          "upgradeTrigger": "Not an upgrade: the independent backup service of Story 8.9 backs up Postgres and Storage every 12 hours."
+        }
+      ]
+    },
+    {
+      "id": "vercel",
+      "name": "Vercel (Next.js hosting)",
+      "owner": "Josh (Administrator)",
+      "plan": "Hobby ($0) until Story 2.16, then Pro (about $20 a month). Staging is its own project whose production branch is `staging`; production deploys stay disabled until a production project exists.",
+      "region": "iad1",
+      "spendBackstop": "Hobby is free and cannot incur charges. When Pro starts, set a monthly spend limit in the team's billing settings and record the figure.",
+      "firstNeeded": "1-4",
+      "limits": [
+        {
+          "relied": "Function request and response bodies are capped at 4.5 MB, so no user file crosses a Vercel function; uploads and downloads go through the Railway gateway.",
+          "upgradeTrigger": "Not an upgrade trigger. If a feature needs larger bodies, move that transfer to the gateway (Story 1.12)."
+        },
+        {
+          "relied": "Hobby terms allow non-commercial use only.",
+          "upgradeTrigger": "Upgrade to Pro before Story 2.16, because taking payments is commercial use."
+        }
+      ]
+    },
+    {
+      "id": "github",
+      "name": "GitHub (Actions environments and Container Registry)",
+      "owner": "Josh (Administrator)",
+      "plan": "The repository's existing GitHub plan, a protected `staging` environment for CI secrets (production gets its own later), and Container Registry for worker images.",
+      "region": "Not region-bound (GitHub-hosted).",
+      "spendBackstop": "No paid add-on or metered billing enabled; watch container storage in the billing page.",
+      "firstNeeded": "1-4",
+      "limits": [
+        {
+          "relied": "Older generator images stay in the registry so reproducible Versions can still be rebuilt.",
+          "upgradeTrigger": "Review when retained image storage nears the allowance the GitHub billing page shows."
+        }
+      ]
+    },
+    {
+      "id": "resend",
+      "name": "Resend (application mailer)",
+      "owner": "Josh (Administrator)",
+      "plan": "Free, with no payment method on file.",
+      "region": "Not region-bound.",
+      "spendBackstop": "Free plan without a payment method, so nothing can be charged.",
+      "firstNeeded": "1-6",
+      "limits": [
+        {
+          "relied": "With no verified sending domain, the `resend.dev` sender reaches only the Resend account owner's address, which must be the Administrator's. Recovery and alarm mail go to that address only.",
+          "upgradeTrigger": "Verify a sending domain (none is owned today) before any mail goes to another recipient."
+        }
+      ]
+    },
+    {
+      "id": "upstash",
+      "name": "Upstash (Redis and QStash)",
+      "owner": "Josh (Administrator)",
+      "plan": "Redis on the free tier, moving to pay-as-you-go on need. QStash pay-as-you-go from Story 1.9.",
+      "region": "QStash us-east-1, set explicitly because the SDK default is EU. Redis in the nearest available region to Virginia, with the actual placement recorded at provisioning.",
+      "spendBackstop": "A monthly budget limit set in the Upstash console and recorded in the evidence export. QStash is expected to cost on the order of a dollar a month (confirm the price at provisioning).",
+      "firstNeeded": "1-9",
+      "limits": [
+        {
+          "relied": "QStash's free tier allows roughly 1,000 messages a day; the periodic tasks need about 1,700 a day plus per-Job steps.",
+          "upgradeTrigger": "Pay-as-you-go from Story 1.9."
+        },
+        {
+          "relied": "Redis on the free tier carries only rate limiting and disposable coordination or cache; the free-tier quotas shown in the Upstash console at provisioning are recorded in the evidence export.",
+          "upgradeTrigger": "Move Redis to pay-as-you-go when its usage nears any of those quotas."
+        }
+      ]
+    },
+    {
+      "id": "railway",
+      "name": "Railway (workers, gateway and backup service)",
+      "owner": "Josh (Administrator)",
+      "plan": "Hobby ($5 a month), holding disposable scratch only: no authoritative data.",
+      "region": "Virginia (us-east4-eqdc4a)",
+      "spendBackstop": "A usage limit set in Railway at the Hobby plan's monthly amount and recorded in the evidence export.",
+      "firstNeeded": "1-9",
+      "limits": [
+        {
+          "relied": "The Hobby plan's monthly credit is shared by the CAD worker, the reconversion engine worker, the gateway and the backup service; the first deployment records actual usage against it.",
+          "upgradeTrigger": "Move to Pro when recorded usage nears the credit or a service needs more than Hobby resources."
+        },
+        {
+          "relied": "Volume backups stay disabled because their monthly retention (89 days) would breach the 30-day deletion limit.",
+          "upgradeTrigger": "Never enable Railway volume backups for private data; nothing authoritative lives on Railway."
+        }
+      ]
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic (evidence synthesis and vision)",
+      "owner": "Josh (Administrator)",
+      "plan": "API pay-as-you-go with a dedicated workspace for each environment, each with its own spend limit. The adapter uses claude-sonnet-5-5.",
+      "region": "Not region-bound; no residency promise extends to AI providers.",
+      "spendBackstop": "The workspace spend limit set in the Anthropic Console. The application's own ceilings ($1 an operation, $5 a Job) and Account allowances apply on top and are not a substitute.",
+      "firstNeeded": "2-5",
+      "limits": []
+    },
+    {
+      "id": "brave",
+      "name": "Brave Search API (discovery)",
+      "owner": "Josh (Administrator)",
+      "plan": "Web Search v1 with prepaid credit and auto-recharge off. The plan and rate are recorded at provisioning.",
+      "region": "Not region-bound; no residency promise extends to search providers.",
+      "spendBackstop": "Prepaid credit with no auto-recharge, so spend cannot exceed the balance.",
+      "firstNeeded": "2-5",
+      "limits": [
+        {
+          "relied": "Section 3(b) of the Brave terms bars storing or caching results, so a Brave result is transient discovery input only and the adapter ships disabled until the review is recorded.",
+          "upgradeTrigger": "Record the terms review (`brave-terms-review`) before Story 2.5 enables the adapter, and review again if Brave changes its terms or the account moves to another plan."
+        }
+      ]
+    },
+    {
+      "id": "stripe",
+      "name": "Stripe (hosted Checkout payments)",
+      "owner": "Josh (Administrator)",
+      "plan": "A United Kingdom account with standard per-payment fees (confirm UK pricing at provisioning), used in test mode for local and staging and in live mode for production only.",
+      "region": "United Kingdom account, settling to a GBP bank account; payments are charged in USD, which may incur a currency-conversion fee.",
+      "spendBackstop": "No spend of its own: Stripe's fees come out of payments. Exposure is bounded by the payment rules (a price of $1.00 to $500.00 and at most 3 open requests per Account) and by a restricted API key.",
+      "firstNeeded": "2-16",
+      "limits": [
+        {
+          "relied": "Test mode serves local and staging, previews hold no Stripe keys, and live mode is enabled only in production after the account is verified.",
+          "upgradeTrigger": "Enable live mode only when production exists and Stripe has verified the account."
+        }
+      ]
+    },
+    {
+      "id": "public-model-assets",
+      "name": "Public model-asset bucket",
+      "owner": "Josh (Administrator)",
+      "plan": "A public bucket on Backblaze B2 or Supabase Storage, chosen in Story 7.2 once Story 7.1 knows the weight size.",
+      "region": "US East (Backblaze) or us-east-1 (Supabase), matching the host chosen.",
+      "spendBackstop": "Public, versioned, digest-pinned files only. Set a download or transaction cap on the host (a B2 cap, or the Supabase spend cap) and record the figure.",
+      "firstNeeded": "7-2",
+      "limits": []
+    },
+    {
+      "id": "web-push",
+      "name": "Web Push (VAPID keys)",
+      "owner": "Josh (Administrator)",
+      "plan": "No account: standard Web Push through each browser's push service with one VAPID key pair per environment and no third-party notification provider.",
+      "region": "Not region-bound.",
+      "spendBackstop": "Not billable, so there is no spend to cap.",
+      "firstNeeded": "7-7",
+      "limits": []
+    },
+    {
+      "id": "backblaze",
+      "name": "Independent backups (Backblaze B2 and age encryption)",
+      "owner": "Josh (Administrator)",
+      "plan": "B2 pay-as-you-go with a private backup bucket for each environment and a separate private ledger bucket. Every dump and mirrored object is encrypted with age, using a separate key pair for each environment, before upload; age needs no account.",
+      "region": "US East",
+      "spendBackstop": "Daily storage, download and transaction caps set in the B2 account and recorded in the evidence export. Lifecycle keeps dumps 14 days and deleted-at-source objects 7 days.",
+      "firstNeeded": "8-9",
+      "limits": [
+        {
+          "relied": "Object lock of at most 7 days and lifecycle rules through the S3-compatible API; their behaviour is not yet confirmed (gate G-9).",
+          "upgradeTrigger": "Confirm lifecycle and object-lock behaviour in Story 8.9 before relying on them."
+        }
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "google-oauth-client",
+      "service": "google-oauth",
+      "title": "One Google OAuth client per environment, consent screen In production",
+      "kind": "attestation",
+      "due": "1-3",
+      "environments": ["local", "staging", "production"],
+      "secrets": ["SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID", "SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET"],
+      "howto": [
+        "In Google Cloud Console open the nova3D project's OAuth consent screen and set its publishing status to In production. Testing mode silently allowlists users and expires grants.",
+        "Create one OAuth client of type Web application for each environment: local, staging and production. Never reuse a client across environments.",
+        "Set each client's authorized redirect URI exactly: `http://127.0.0.1:54321/auth/v1/callback` for local, and `https://<project-ref>.supabase.co/auth/v1/callback` with the staging project's ref for staging. Create the production client now and add its redirect URI, built the same way, when the production Supabase project exists (Story 8.7), then record production again.",
+        "Keep each client ID and secret in your password manager and enter them where `docs/auth-setup.md` says (the local shell for `supabase start`, the Supabase Auth provider settings for a hosted environment). They are never committed.",
+        "Save an export or screenshot of the consent screen status and the client list, without secrets, outside the repository, and record its file name as evidence for each environment."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "supabase-organization-plan",
+      "service": "supabase",
+      "title": "Organization on Pro; the existing project's status and region recorded",
+      "kind": "attestation",
+      "due": "1-4",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "In the Supabase dashboard confirm the organization is on the Pro plan (a Free project pauses) and that its spend cap is the setting you want.",
+        "Open the existing hosted project, the one the earlier mock-first deployment used and now staging. Confirm it is active and not paused, that its region is us-east-1, and note its database major version. If it is paused, resume it as `docs/deployment-setup.md` describes.",
+        "Confirm the plan allows the settings `supabase/config.toml` declares that may be paid-plan features: the 30-day session time-box, the 7-day inactivity timeout and the 100MiB Storage file-size limit. Note the result in your export.",
+        "Save an export of the organization's billing page and the project's general settings outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "supabase-cli-credentials",
+      "service": "supabase",
+      "title": "Personal access token, staging database password and project reference stored in the protected `staging` GitHub environment",
+      "kind": "attestation",
+      "due": "1-4",
+      "environments": ["staging"],
+      "secrets": ["SUPABASE_ACCESS_TOKEN", "SUPABASE_DB_PASSWORD", "SUPABASE_PROJECT_REF"],
+      "howto": [
+        "In the Supabase dashboard create a personal access token for this organization, named for nova3D CI, so the CLI and CI can push configuration and migrations.",
+        "Have the staging database password and the project reference ready from the project's settings. Reset the database password only if you do not have it, and update anything that uses the old one.",
+        "In the repository's `staging` GitHub environment (see `github-staging-environment`) add the three secrets named here. Production gets its own environment later.",
+        "Save an export of the environment's secret names (GitHub shows names, never values) outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "github-staging-environment",
+      "service": "github",
+      "title": "Protected GitHub environment `staging`",
+      "kind": "attestation",
+      "due": "1-4",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "In the repository settings create an environment named `staging`.",
+        "Protect it: limit its deployment branches to `staging`, and add yourself as a required reviewer if you want a manual approval before a workflow can use its secrets.",
+        "Save an export of the environment's protection rules outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "vercel-staging-project",
+      "service": "vercel",
+      "title": "Staging Vercel project linked to the `staging` branch with the seed application deployed",
+      "kind": "attestation",
+      "due": "1-4",
+      "environments": ["staging"],
+      "secrets": ["NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"],
+      "howto": [
+        "Create a Vercel project for this repository for staging and set Settings, Git, Production Branch to `staging`, as `docs/deployment-setup.md` describes.",
+        "Set the Production-scope variables listed in `docs/deployment-setup.md`, including the two named here. Keep the Preview and Development scopes free of any Supabase, database or Stripe variable.",
+        "Fast-forward `main` into `staging` (`git push origin main:staging`) and confirm the seed application deploys and `/api/health` answers.",
+        "Save an export of the project's Git settings and its deployment list outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "resend-account",
+      "service": "resend",
+      "title": "Resend account registered with the Administrator address",
+      "kind": "attestation",
+      "due": "1-6",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Sign up at Resend with the Administrator's address (the value of `ADMINISTRATOR_EMAIL`). The `resend.dev` sender reaches only the account owner's address, so the account must be registered with that address.",
+        "Stay on the free plan and add no payment method. No sending domain is owned today.",
+        "Save an export of the account page outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "resend-api-key",
+      "service": "resend",
+      "title": "Resend API key for staging",
+      "kind": "secret-present",
+      "due": "1-6",
+      "environments": ["staging"],
+      "secrets": ["RESEND_API_KEY"],
+      "howto": [
+        "In Resend create an API key for staging, with sending access only.",
+        "Store it as `RESEND_API_KEY` in the staging Vercel project's Production-scope variables and in your git-ignored `.env.staging`, so the check can see it. Never commit it."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "resend-api-key-production",
+      "service": "resend",
+      "title": "Resend API key for production, stored in Vercel",
+      "kind": "attestation",
+      "due": "1-6",
+      "environments": ["production"],
+      "secrets": ["RESEND_API_KEY"],
+      "howto": [
+        "In Resend create a separate API key for production, with sending access only.",
+        "Store it as `RESEND_API_KEY` in the production Vercel project's variables, once that project exists. Production values never go in a local file, an env file or the repository, so this is an attestation and not a presence check.",
+        "Save an export of the production variable names outside the repository (the console shows variable names, never values), and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "upstash-account",
+      "service": "upstash",
+      "title": "Upstash account with Redis and QStash in the adopted regions",
+      "kind": "attestation",
+      "due": "1-9",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Create an Upstash account. Create a Redis database on the free tier in the nearest available region to Virginia and note the region. It holds only rate limiting and disposable coordination.",
+        "Move QStash to pay-as-you-go (about 1,700 messages a day exceed the free tier) and use the us-east-1 endpoint explicitly: the SDK default is EU, and the token and signing keys are region-specific.",
+        "Set a monthly budget limit in the console if the plan offers one, and confirm the QStash price. Note the figures and the Redis free-tier quotas in your export.",
+        "Save an export of the account, the database region and the QStash plan outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "upstash-credentials",
+      "service": "upstash",
+      "title": "Redis and QStash credentials for staging",
+      "kind": "secret-present",
+      "due": "1-9",
+      "environments": ["staging"],
+      "secrets": [
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN",
+        "QSTASH_URL",
+        "QSTASH_TOKEN",
+        "QSTASH_CURRENT_SIGNING_KEY",
+        "QSTASH_NEXT_SIGNING_KEY"
+      ],
+      "howto": [
+        "Copy staging's Redis REST URL and token, and its QStash URL (the us-east-1 endpoint), token and both signing keys, from the Upstash console.",
+        "Store them under these names in the staging Vercel project's Production-scope variables and in your git-ignored `.env.staging`. Each environment has its own queue and credentials."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "upstash-credentials-production",
+      "service": "upstash",
+      "title": "Redis and QStash credentials for production, stored in Vercel",
+      "kind": "attestation",
+      "due": "1-9",
+      "environments": ["production"],
+      "secrets": [
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN",
+        "QSTASH_URL",
+        "QSTASH_TOKEN",
+        "QSTASH_CURRENT_SIGNING_KEY",
+        "QSTASH_NEXT_SIGNING_KEY"
+      ],
+      "howto": [
+        "Copy production's own Redis REST URL and token, and its own QStash URL (the us-east-1 endpoint), token and both signing keys, from the Upstash console. Production has its own database and queue.",
+        "Store them under these names in the production Vercel project's variables, once that project exists. Production values never go in a local file, an env file or the repository, so this is an attestation and not a presence check.",
+        "Save an export of the production variable names outside the repository (the console shows variable names, never values), and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "railway-account",
+      "service": "railway",
+      "title": "Railway account and project on the Hobby plan in Virginia",
+      "kind": "attestation",
+      "due": "1-9",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Create the Railway account on the Hobby plan and a project for nova3D.",
+        "Set the project's region to Virginia (`us-east4-eqdc4a`) and a usage limit at the plan's monthly amount. Keep volume backups off: their monthly retention (89 days) would breach the 30-day deletion limit.",
+        "Note that the CAD worker, the engine worker, the gateway and the backup service share the monthly credit. The first deployment records actual usage against it.",
+        "Save an export of the plan, region and usage limit outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "ghcr-token",
+      "service": "github",
+      "title": "GitHub Container Registry token for the worker image pipeline",
+      "kind": "attestation",
+      "due": "1-9",
+      "environments": ["staging"],
+      "secrets": ["GHCR_TOKEN"],
+      "howto": [
+        "Create a GitHub token that can push container images to GitHub Container Registry (a classic token with the `write:packages` scope) and name it for the worker pipeline.",
+        "Add it as `GHCR_TOKEN` to the `staging` GitHub environment's secrets.",
+        "Save an export of the environment's secret names outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "railway-project-token",
+      "service": "railway",
+      "title": "Railway project token for deploying worker images",
+      "kind": "attestation",
+      "due": "1-9",
+      "environments": ["staging"],
+      "secrets": ["RAILWAY_TOKEN"],
+      "howto": [
+        "In the Railway project's settings create a project token for the staging environment.",
+        "Add it as `RAILWAY_TOKEN` to the `staging` GitHub environment's secrets.",
+        "Save an export of the environment's secret names outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "anthropic-workspace-spend-limit",
+      "service": "anthropic",
+      "title": "Dedicated Anthropic workspace with a spend limit for each environment",
+      "kind": "attestation",
+      "due": "2-5",
+      "environments": ["staging", "production"],
+      "secrets": [],
+      "howto": [
+        "In the Anthropic Console create a workspace dedicated to nova3D for this environment.",
+        "Set the workspace's spend limit to the amount you accept as the provider-side backstop. The application's own reservation limits apply on top and are not a substitute.",
+        "Note in your export whether an organization Admin key exists.",
+        "Save an export of the workspace and its limit outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "anthropic-api-key",
+      "service": "anthropic",
+      "title": "Anthropic API key for staging",
+      "kind": "secret-present",
+      "due": "2-5",
+      "environments": ["staging"],
+      "secrets": ["ANTHROPIC_API_KEY"],
+      "howto": [
+        "Create an API key inside the staging environment's dedicated workspace, so the workspace spend limit applies to it.",
+        "Store it as `ANTHROPIC_API_KEY` in the staging Vercel project's Production-scope variables and in your git-ignored `.env.staging`. Paid adapters stay disabled until the story that enables them."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "anthropic-api-key-production",
+      "service": "anthropic",
+      "title": "Anthropic API key for production, stored in Vercel",
+      "kind": "attestation",
+      "due": "2-5",
+      "environments": ["production"],
+      "secrets": ["ANTHROPIC_API_KEY"],
+      "howto": [
+        "Create an API key inside the production environment's dedicated workspace, so that workspace's spend limit applies to it.",
+        "Store it as `ANTHROPIC_API_KEY` in the production Vercel project's variables, once that project exists. Production values never go in a local file, an env file or the repository, so this is an attestation and not a presence check.",
+        "Save an export of the production variable names outside the repository (the console shows variable names, never values), and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "brave-prepaid-credit",
+      "service": "brave",
+      "title": "Brave Search API account with prepaid credit and no auto-recharge",
+      "kind": "attestation",
+      "due": "2-5",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Create a Brave Search API account and choose a plan for Web Search v1.",
+        "Buy prepaid credit and turn auto-recharge off, so spend cannot exceed the balance. Note the plan and balance in your export.",
+        "Save an export of the plan and billing settings outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "brave-api-key",
+      "service": "brave",
+      "title": "Brave Search API key for staging",
+      "kind": "secret-present",
+      "due": "2-5",
+      "environments": ["staging"],
+      "secrets": ["BRAVE_SEARCH_API_KEY"],
+      "howto": [
+        "Create an API key for staging in the Brave Search API dashboard.",
+        "Store it as `BRAVE_SEARCH_API_KEY` in the staging Vercel project's Production-scope variables and in your git-ignored `.env.staging`."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "brave-api-key-production",
+      "service": "brave",
+      "title": "Brave Search API key for production, stored in Vercel",
+      "kind": "attestation",
+      "due": "2-5",
+      "environments": ["production"],
+      "secrets": ["BRAVE_SEARCH_API_KEY"],
+      "howto": [
+        "Create a separate API key for production in the Brave Search API dashboard.",
+        "Store it as `BRAVE_SEARCH_API_KEY` in the production Vercel project's variables, once that project exists. Production values never go in a local file, an env file or the repository, so this is an attestation and not a presence check.",
+        "Save an export of the production variable names outside the repository (the console shows variable names, never values), and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "brave-terms-review",
+      "service": "brave",
+      "title": "Brave terms review recorded (section 3(b) bars storing or caching results)",
+      "kind": "attestation",
+      "due": "2-5",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Read the current Brave Search API terms. Section 3(b) bars storing or caching results, so a Brave result is transient discovery input only.",
+        "Confirm the rates and the account terms against what Story 2.5 will send: normalized public subjects only, never private prompts.",
+        "Write down the date and outcome of the review in a note kept outside the repository, and record its file name as evidence. The Brave adapter stays disabled until this item is recorded."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "vercel-pro-plan",
+      "service": "vercel",
+      "title": "Vercel team upgraded to Pro",
+      "kind": "attestation",
+      "due": "2-16",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Upgrade the Vercel team to Pro (about $20 a month). Taking payments is commercial use, which Hobby terms do not allow.",
+        "Set a monthly spend limit in the team's billing settings and note the figure in your export.",
+        "Save an export of the team's plan and spend settings outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "stripe-account",
+      "service": "stripe",
+      "title": "Stripe account in the United Kingdom with test and live modes and receipts enabled",
+      "kind": "attestation",
+      "due": "2-16",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Open the Stripe account in the United Kingdom. It settles to a GBP bank account.",
+        "Confirm test mode works (local and staging use it) and enable customer email receipts in the account's email settings.",
+        "Save an export of the account settings outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "stripe-live-mode",
+      "service": "stripe",
+      "title": "Stripe account verified and live mode enabled for production",
+      "kind": "attestation",
+      "due": "8-7",
+      "environments": ["production"],
+      "secrets": [],
+      "howto": [
+        "Once the production domain exists (Story 8.7), complete Stripe's account verification and activate live mode. Use live mode in production only: local and staging stay in test mode, and previews hold no Stripe keys.",
+        "Save an export of the account's activation status outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "stripe-restricted-key",
+      "service": "stripe",
+      "title": "Restricted Stripe API key for staging (test mode)",
+      "kind": "secret-present",
+      "due": "2-16",
+      "environments": ["staging"],
+      "secrets": ["STRIPE_RESTRICTED_KEY"],
+      "howto": [
+        "In Stripe test mode create a restricted API key with Checkout Sessions: write, and Charges and PaymentIntents: read, and nothing else.",
+        "Store it as `STRIPE_RESTRICTED_KEY` in the staging Vercel project's Production-scope variables (never in a preview) and in your git-ignored `.env.staging`."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "stripe-restricted-key-production",
+      "service": "stripe",
+      "title": "Restricted Stripe API key for production (live mode), stored in Vercel",
+      "kind": "attestation",
+      "due": "8-7",
+      "environments": ["production"],
+      "secrets": ["STRIPE_RESTRICTED_KEY"],
+      "howto": [
+        "Once the production domain exists, create a live-mode restricted API key with Checkout Sessions: write, and Charges and PaymentIntents: read, and nothing else.",
+        "Store it as `STRIPE_RESTRICTED_KEY` in the production Vercel project's variables (never in a preview). Production values never go in a local file, an env file or the repository, so this is an attestation and not a presence check.",
+        "Save an export of the production variable names outside the repository (the console shows variable names, never values), and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "stripe-webhook-secret",
+      "service": "stripe",
+      "title": "Stripe webhook endpoint and signing secret for staging (test mode)",
+      "kind": "secret-present",
+      "due": "2-16",
+      "environments": ["staging"],
+      "secrets": ["STRIPE_WEBHOOK_SECRET"],
+      "howto": [
+        "In Stripe test mode add a webhook endpoint for the staging deployment's domain. Story 2.16 names the route path; update the endpoint if it differs.",
+        "Store the endpoint's signing secret as `STRIPE_WEBHOOK_SECRET` in the staging Vercel project's Production-scope variables (never in a preview) and in your git-ignored `.env.staging`."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "stripe-webhook-secret-production",
+      "service": "stripe",
+      "title": "Stripe webhook endpoint and signing secret for production (live mode), stored in Vercel",
+      "kind": "attestation",
+      "due": "8-7",
+      "environments": ["production"],
+      "secrets": ["STRIPE_WEBHOOK_SECRET"],
+      "howto": [
+        "In Stripe live mode add a webhook endpoint for the production domain, which only exists once production does (Story 8.7). Story 2.16 names the route path.",
+        "Store the endpoint's signing secret as `STRIPE_WEBHOOK_SECRET` in the production Vercel project's variables (never in a preview). Production values never go in a local file, an env file or the repository, so this is an attestation and not a presence check.",
+        "Save an export of the production variable names outside the repository (the console shows variable names, never values), and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "stripe-fees-tax-review",
+      "service": "stripe",
+      "title": "Stripe UK fees, USD conversion fee, and the tax and VAT position confirmed",
+      "kind": "attestation",
+      "due": "2-16",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Confirm Stripe's UK fees for card payments and the currency-conversion fee for charging in USD while settling to a GBP account.",
+        "Confirm the tax and VAT position, including consumer cancellation rights, privacy-notice duties for payment records, and any record-keeping duty that conflicts with deleting billing history. nova3D computes no tax; registration and the terms are yours.",
+        "Write down the findings and decisions in a note kept outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "payment-terms-text",
+      "service": "stripe",
+      "title": "Terms and refund policy text written",
+      "kind": "attestation",
+      "due": "2-16",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Write the terms and refund policy that the owner sees before the Pay button: English now, and a Hebrew version when you supply one.",
+        "State what happens to unspent credit when an Account is deleted or the instance closes, and that Stripe processes the payment and keeps its own records under its terms and the law.",
+        "Keep the text outside the repository until Story 2.16 adds it to the application, and record the document's file name and date as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "public-model-asset-bucket",
+      "service": "public-model-assets",
+      "title": "Public model-asset bucket that Story 7.2 names",
+      "kind": "attestation",
+      "due": "7-2",
+      "environments": ["staging", "production"],
+      "secrets": [],
+      "howto": [
+        "Story 7.2 chooses the host once Story 7.1 knows the weight size: a Backblaze B2 public bucket or a Supabase public bucket. Create it then, one for each environment, in the adopted region.",
+        "The bucket holds only public, versioned, digest-pinned application and model assets. Never put a user file or a private artifact in it.",
+        "Set a download or transaction cap on the host and note the figure in your export.",
+        "Save an export of the bucket's settings outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "vapid-keys",
+      "service": "web-push",
+      "title": "VAPID key pair for local and staging",
+      "kind": "secret-present",
+      "due": "7-7",
+      "environments": ["local", "staging"],
+      "secrets": ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"],
+      "howto": [
+        "Generate one VAPID key pair for each of local and staging (for example with `npx web-push generate-vapid-keys`). Never reuse a pair across environments.",
+        "Store the pair as `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` in `.env.local` for local, and in the staging Vercel project's Production-scope variables and your git-ignored `.env.staging` for staging. Keep the private keys in your password manager."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "vapid-keys-production",
+      "service": "web-push",
+      "title": "VAPID key pair for production, stored in Vercel",
+      "kind": "attestation",
+      "due": "7-7",
+      "environments": ["production"],
+      "secrets": ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"],
+      "howto": [
+        "Generate a separate VAPID key pair for production (for example with `npx web-push generate-vapid-keys`) and keep the private key in your password manager.",
+        "Store the pair as `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` in the production Vercel project's variables, once that project exists. Production values never go in a local file, an env file or the repository, so this is an attestation and not a presence check.",
+        "Save an export of the production variable names outside the repository (the console shows variable names, never values), and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "backblaze-buckets",
+      "service": "backblaze",
+      "title": "Backblaze account, a backup bucket for each environment in US East, and a separate ledger bucket",
+      "kind": "attestation",
+      "due": "8-9",
+      "environments": ["staging", "production"],
+      "secrets": [],
+      "howto": [
+        "Create the Backblaze B2 account and set daily storage, download and transaction caps. Note the figures in your export.",
+        "Create a private backup bucket for this environment in the US East region, and a separate private ledger bucket (its object keys are prefixed with the instance ID).",
+        "Give the ledger bucket no lifecycle rule: it is intended to be append-only, which Story 8.9 and gate G-9 confirm. Story 8.9 applies the backup lifecycle (dumps 14 days, deleted-at-source objects 7 days, object lock of at most 7 days).",
+        "Save an export of the buckets, their region and the caps outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "backblaze-read-only-keys",
+      "service": "backblaze",
+      "title": "Read-only manifest key and ledger read-only key for staging",
+      "kind": "secret-present",
+      "due": "8-9",
+      "environments": ["staging"],
+      "secrets": [
+        "B2_MANIFEST_READ_KEY_ID",
+        "B2_MANIFEST_READ_APPLICATION_KEY",
+        "B2_LEDGER_READ_KEY_ID",
+        "B2_LEDGER_READ_APPLICATION_KEY"
+      ],
+      "howto": [
+        "Create a read-only application key scoped to staging's backup bucket (the application reads the newest manifest with it) and a read-only key scoped to the ledger bucket (the application and the backup service both read the ledger with it).",
+        "Store the manifest key ID and application key in the staging Vercel project's Production-scope variables. Store the ledger key ID and application key there and also in the Railway backup service's variables. For the check, keep the same values in your git-ignored `.env.staging`."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "backblaze-read-only-keys-production",
+      "service": "backblaze",
+      "title": "Read-only manifest key and ledger read-only key for production, stored in Vercel and Railway",
+      "kind": "attestation",
+      "due": "8-9",
+      "environments": ["production"],
+      "secrets": [
+        "B2_MANIFEST_READ_KEY_ID",
+        "B2_MANIFEST_READ_APPLICATION_KEY",
+        "B2_LEDGER_READ_KEY_ID",
+        "B2_LEDGER_READ_APPLICATION_KEY"
+      ],
+      "howto": [
+        "Create a read-only application key scoped to production's backup bucket (the application reads the newest manifest with it) and a read-only key scoped to the ledger bucket (the application and the backup service both read the ledger with it).",
+        "Store the manifest key ID and application key in the production Vercel project's variables. Store the ledger key ID and application key there and also in the production Railway backup service's variables. Production values never go in a local file, an env file or the repository, so this is an attestation and not a presence check.",
+        "Save an export of the production variable names outside the repository (the console shows variable names, never values), and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "age-key-pair",
+      "service": "backblaze",
+      "title": "One age key pair for each environment; each private key held only in the Administrator's password manager",
+      "kind": "attestation",
+      "due": "8-9",
+      "environments": ["staging", "production"],
+      "secrets": [],
+      "howto": [
+        "Generate a separate pair for each environment with `age-keygen` on your own machine. Never reuse a pair across environments.",
+        "Store each private key only in your password manager, as its own entry. It never goes in the repository, Railway, Vercel, GitHub or any env file. Losing it makes that environment's dumps unreadable, and the Administrator page says so.",
+        "Keep each public key (the `age1` line) for `age-public-key` and `age-public-key-production`.",
+        "Write down the date each pair was generated and where its private key is stored, never the key itself, in a note kept outside the repository, and record its file name as evidence for each environment."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "age-public-key",
+      "service": "backblaze",
+      "title": "age public key set for staging's backup service",
+      "kind": "secret-present",
+      "due": "8-9",
+      "environments": ["staging"],
+      "secrets": ["BACKUP_AGE_PUBLIC_KEY"],
+      "howto": [
+        "Set `BACKUP_AGE_PUBLIC_KEY` to the public key of staging's own pair from `age-key-pair` in the Railway backup service's variables and in your git-ignored `.env.staging`.",
+        "It encrypts every dump and mirrored object. The backup service holds the public key only and can never decrypt a backup."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "age-public-key-production",
+      "service": "backblaze",
+      "title": "age public key set for production's backup service, stored in Railway",
+      "kind": "attestation",
+      "due": "8-9",
+      "environments": ["production"],
+      "secrets": ["BACKUP_AGE_PUBLIC_KEY"],
+      "howto": [
+        "Take the public key of production's own pair from `age-key-pair`; never reuse staging's pair.",
+        "Set `BACKUP_AGE_PUBLIC_KEY` to it in the production Railway backup service's variables, once that service exists. Production values never go in a local file, an env file or the repository, so this is an attestation and not a presence check.",
+        "Save an export of the production variable names outside the repository (the console shows variable names, never values), and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "supabase-restore-project-permission",
+      "service": "supabase",
+      "title": "Permission to create and delete a restore project for the Story 8.4 drill",
+      "kind": "attestation",
+      "due": "8-4",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Confirm the Supabase organization may create a dedicated, temporary restore project for each drill, and that you will delete it afterwards. Its hourly cost is recorded at the first drill and sits outside the fixed monthly figure.",
+        "Write down your permission in a note kept outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    }
+  ]
+}

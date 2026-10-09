@@ -20,6 +20,8 @@ npm run dev                       # http://127.0.0.1:3000
 | `npm test` | Vitest unit and integration suites (integration needs `supabase start`) |
 | `npm run test:env` | the environment guardrails, against fixture environments |
 | `npm run test:e2e` | Playwright browser flows against a production build |
+| `node --env-file-if-exists=.env.staging scripts/check-provisioning.mjs --story <id> --env staging` | reports which external accounts, keys and spend limits due by that story are still missing (see below); `npm run check:provisioning -- --story <id> --env staging` loads the same file itself |
+| `npm run render:provisioning` | renders `provisioning/ledger.json` to `docs/provisioning.md` (CI checks it is current) |
 
 Production builds use webpack (`next build --webpack`), as the seed already did. The [stack qualification report](_bmad-output/implementation-artifacts/qualification-2026-09-14/stack/qualification-report.md) records clean default (Turbopack) and webpack production builds both passing on the pinned package set, and a prerender failure that appeared only in an earlier non-clean staging harness, with its exact cause not established.
 
@@ -33,6 +35,10 @@ There are three environments: `local`, `staging` and `production`. Each has its 
 - Previews never read the database, so nothing compares their identity. They are kept away from real data by rejecting credential-like variables: the check fails if a preview holds any `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `DATABASE_URL`, `POSTGRES_*` or `STRIPE_*` variable, or enables paid adapters.
 
 Details, the staging promotion flow and the Vercel settings that only Josh can change are in [docs/deployment-setup.md](docs/deployment-setup.md). Sign-in setup is in [docs/auth-setup.md](docs/auth-setup.md).
+
+## External accounts and secrets
+
+Accounts, keys and spend limits that only Josh can create are recorded in a machine-readable ledger, `provisioning/ledger.json`, and rendered to [docs/provisioning.md](docs/provisioning.md) with how-to steps, the story that first needs each, and the free-tier limits the design relies on. The ledger holds names, dates and evidence references, never a value. `node --env-file-if-exists=.env.staging scripts/check-provisioning.mjs --story <id> --env staging` fails naming every item due by that story that is still missing, and ignores later ones; everything starts pending. Keys for `local` and `staging` are checked by presence from `.env.local` and `.env.staging`; a production secret never sits in a local file, so production items are attestations. The keys the application generates itself, with their owner, location, rotation procedure and cadence, are in [docs/secrets.md](docs/secrets.md).
 
 ## Modules and ownership
 

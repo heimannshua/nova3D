@@ -44,6 +44,8 @@ Tests: `npm test` runs the unit and integration suites (the integration suite ne
 
 These are changes to the hosted project and the Vercel dashboard. The repository never makes them.
 
+The other accounts, keys and spend limits that only Josh can create (Google OAuth clients, the Supabase plan, Resend, Upstash, Railway, the provider accounts and the rest) are tracked in [docs/provisioning.md](provisioning.md), each tagged with the story that first needs it. Check what is outstanding before starting a story with `node --env-file-if-exists=.env.staging scripts/check-provisioning.mjs --story <id> --env staging` (`npm run check:provisioning -- --story <id> --env staging` loads `.env.staging` itself). Production secrets are never checked from a local file. Keys the application generates itself are listed in [docs/secrets.md](secrets.md).
+
 1. **Identity row.** In the Supabase SQL editor of the staging project, apply the migration (or run `supabase link --project-ref <ref>` and `supabase db push`), then insert the row once:
 
    ```sql

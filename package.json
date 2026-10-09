@@ -10,6 +10,8 @@
     "dev": "next dev",
     "typecheck": "tsc --noEmit",
     "check:env": "node --env-file-if-exists=.env.local scripts/check-env.mjs",
+    "check:provisioning": "node scripts/check-provisioning.mjs",
+    "render:provisioning": "node scripts/render-provisioning.mjs",
     "prebuild": "node scripts/check-env.mjs --deployment",
     "build": "next build --webpack",
     "start": "next start",

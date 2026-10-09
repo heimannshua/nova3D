@@ -52,3 +52,8 @@
   summary: Confirm that the hosted Auth session time-box (30 days), the inactivity timeout (7 days) and the 100MiB Storage file-size limit are available on the Supabase plan in use; they may need a paid plan.
   evidence: `supabase/config.toml` declares `[auth.sessions]` and `[storage] file_size_limit = "100MiB"`, and the local stack applies them. These may be paid-plan features on hosted Supabase (not confirmed here), and the hosted project's plan is not recorded in this repository. Story 1.9 will diff the declared settings against the live ones, which cannot pass if the plan does not allow them.
   mapped_story: 1.10 (provision external accounts, credentials and spend limits; record the Supabase plan and confirm these settings against it).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-10-provision-external-accounts-credentials-and-spend-limits.md`
+  summary: Production ledger items cannot pass until production exists, so add a "not yet applicable" state or a per-item start story to `provisioning/ledger.json` and `scripts/check-provisioning.mjs`.
+  evidence: Production projects are created in Story 8.7, after the Story 8.4 drill, but production items are due earlier in build order (the production Google OAuth client at 1-3, and the production keys at 1-6, 1-9, 2-5, 7-7 and 8-9). `check-provisioning --env production` therefore fails for every story before 8.7 and cannot tell "not yet applicable" from "missing". Only the production Stripe items are due at 8.7 so far.
+  mapped_story: 8.7 (create the production projects; decide then whether production items start at that story or carry a not-yet-applicable state).

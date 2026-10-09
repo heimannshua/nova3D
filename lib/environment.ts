@@ -32,6 +32,14 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 const emailPattern = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 const loopbackHost = /^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\])$/;
 
+/**
+ * True for a placeholder such as replace-with-..., <name>, changeme or todo (whole values only).
+ * Does not trim: callers that accept surrounding whitespace trim first. Shared with the provisioning checks.
+ */
+export function isPlaceholder(value: string | undefined) {
+  return placeholder.test(value ?? '');
+}
+
 export function isPreview(env: Env) {
   return env.VERCEL_ENV === 'preview' || env.VERCEL_ENV === 'development';
 }
@@ -61,7 +69,7 @@ export function validateEnvironment(env: Env): string[] {
   const needed = preview ? requiredVariables : [...requiredVariables, ...supabaseVariables];
 
   const missing = needed.filter((name) => !env[name]);
-  const placeholders = needed.filter((name) => placeholder.test(env[name] || ''));
+  const placeholders = needed.filter((name) => isPlaceholder(env[name]));
 
   if (!appEnvironments.includes(environment as AppEnvironment)) errors.push('APP_ENV must be local, staging, or production');
   if (missing.length) errors.push(`missing required variables: ${missing.join(', ')}`);
@@ -70,10 +78,10 @@ export function validateEnvironment(env: Env): string[] {
   if (!env.AUTH_ALLOWED_EMAILS?.split(',').map((value) => value.trim()).filter(Boolean).length) {
     errors.push('AUTH_ALLOWED_EMAILS must contain at least one email address');
   }
-  if (env.ADMINISTRATOR_EMAIL && !placeholder.test(env.ADMINISTRATOR_EMAIL) && !emailPattern.test(env.ADMINISTRATOR_EMAIL.trim())) {
+  if (env.ADMINISTRATOR_EMAIL && !isPlaceholder(env.ADMINISTRATOR_EMAIL) && !emailPattern.test(env.ADMINISTRATOR_EMAIL.trim())) {
     errors.push('ADMINISTRATOR_EMAIL must be one email address');
   }
-  if (env.INSTANCE_ID && !placeholder.test(env.INSTANCE_ID) && !uuidPattern.test(env.INSTANCE_ID.trim())) {
+  if (env.INSTANCE_ID && !isPlaceholder(env.INSTANCE_ID) && !uuidPattern.test(env.INSTANCE_ID.trim())) {
     errors.push('INSTANCE_ID must be a UUID');
   }
   for (const name of ['PAID_ADAPTERS_ENABLED', 'SYNTHETIC_DATA_ENABLED']) {

@@ -34,6 +34,10 @@ jobs:
         run: npm run build
       - name: Check repository metadata and local links
         run: node scripts/ci/check-repository.mjs
+      # Only the rendered guide is checked here. check-provisioning fails by design until Josh has
+      # created each account, so it is run by hand, per story and environment.
+      - name: Check the provisioning guide matches the ledger
+        run: npm run render:provisioning -- --check
       - name: Test environment identity checks against fixture environments
         run: npm run test:env
       - name: Test local development origin configuration

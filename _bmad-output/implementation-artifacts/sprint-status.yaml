@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-09-2026 11:36
-last_updated: 10-09-2026 13:54
+last_updated: 10-09-2026 14:45
 project: nova3D
 project_key: NOKEY
 tracking_system: file-system
@@ -37,7 +37,7 @@ story_location: _bmad-output/implementation-artifacts
 development_status:
   epic-1: in-progress
   1-1-adopt-and-harden-the-qualified-application-seed: review
-  1-10-provision-external-accounts-credentials-and-spend-limits: backlog
+  1-10-provision-external-accounts-credentials-and-spend-limits: review
   1-2-establish-accessible-localized-navigation-and-preferences: backlog
   1-3-create-invitation-only-accounts: backlog
   1-4-authenticate-with-live-workspace-isolation: backlog

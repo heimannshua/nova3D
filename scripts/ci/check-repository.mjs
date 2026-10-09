@@ -3,7 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '../..');
-const markdownFiles = ['README.md', 'tools/qualification/README.md', 'tools/qualification/devices/README.md', 'tools/qualification/stack/README.md'];
+const markdownFiles = ['README.md', 'docs/deployment-setup.md', 'docs/provisioning.md', 'docs/secrets.md', 'tools/qualification/README.md', 'tools/qualification/devices/README.md', 'tools/qualification/stack/README.md'];
 
 async function exists(path) {
   try { await access(path); return true; } catch { return false; }
