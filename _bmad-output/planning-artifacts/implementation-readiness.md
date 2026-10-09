@@ -269,3 +269,7 @@ Each round used fresh agents that were told not to read this file, the memlogs o
 ### What you must do first (Story 1.10)
 
 Before Story 1.3: one Google OAuth client per environment, consent screen set to In production. Before Story 1.4: the staging Vercel project linked to a `staging` branch with the seed app deployed, the Supabase organization on Pro, and a Supabase access token with the staging database password stored as protected GitHub secrets. The later items (Resend, Upstash, Railway, Anthropic and Brave limits, VAPID, Backblaze and the age key) are tagged with the story that needs them.
+
+### Sprint tracking generated (2026-10-09)
+
+Under your standing instruction (generate `sprint-status.yaml` when the verdict is not FAIL) the file was generated at CONCERNS: `_bmad-output/implementation-artifacts/sprint-status.yaml`, 8 epics, 73 stories and 8 optional retrospectives, all `backlog`, validated by the script. The round-4 fixes were not re-audited. Rerun `bmad-sprint-planning` after any change to `epics.md` to refresh it.

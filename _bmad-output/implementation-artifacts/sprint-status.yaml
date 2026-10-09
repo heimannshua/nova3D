@@ -1,0 +1,133 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
+generated: 10-09-2026 11:36
+last_updated: 10-09-2026 11:36
+project: nova3D
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+development_status:
+  epic-1: backlog
+  1-1-adopt-and-harden-the-qualified-application-seed: backlog
+  1-10-provision-external-accounts-credentials-and-spend-limits: backlog
+  1-2-establish-accessible-localized-navigation-and-preferences: backlog
+  1-3-create-invitation-only-accounts: backlog
+  1-4-authenticate-with-live-workspace-isolation: backlog
+  1-11-manage-invitations-with-fresh-authentication: backlog
+  1-5-disable-and-re-enable-account-access: backlog
+  1-6-recover-the-sole-administrator-securely: backlog
+  1-8-define-tombstones-and-the-hidden-state-contract: backlog
+  1-9-provision-staging-and-run-periodic-jobs: backlog
+  1-12-transfer-private-files-through-the-authorized-gateway: backlog
+  1-13-raise-operational-alarms: backlog
+  1-7-navigate-my-projects-and-project-state: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-confirm-natural-language-intent-and-personalization: backlog
+  2-2-stage-ordered-multi-view-images-privately: backlog
+  2-3-choose-picture-mode-and-acknowledge-uncertainty: backlog
+  2-12-retain-confirmed-pictures-as-immutable-project-artifacts: backlog
+  2-4-set-accountable-usage-limits: backlog
+  2-11-create-durable-job-attempt-step-and-operation-identities: backlog
+  2-6-reserve-bounded-costs-atomically: backlog
+  2-5-disclose-and-authorize-provider-categories: backlog
+  2-7-accept-and-execute-durable-fenced-jobs: backlog
+  2-8-reconcile-ambiguous-charges-without-replacement-calls: backlog
+  2-13-identify-the-pictured-subject-for-research-assisted-mode: backlog
+  2-9-select-research-payment-and-freshness-separately: backlog
+  2-10-record-actionable-in-app-notifications: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-discover-and-capture-licensed-source-revisions: backlog
+  3-2-control-project-and-account-source-eligibility: backlog
+  3-3-account-for-every-consequential-physical-detail: backlog
+  3-4-inspect-sources-and-choose-defensible-interpretations: backlog
+  3-5-approve-one-complete-immutable-research-plan: backlog
+  3-6-admit-and-reuse-only-public-source-research: backlog
+  3-7-show-actual-research-activity-and-bounded-escalation: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-publish-immutable-artifact-manifests: backlog
+  4-2-generate-the-approved-altar-and-ramp-recipe: backlog
+  4-3-certify-corresponding-geometry-equivalence: backlog
+  4-4-apply-clearly-user-added-personalization: backlog
+  4-5-navigate-reciprocal-model-and-evidence-links: backlog
+  4-7-produce-coarse-and-full-glb-viewing-derivatives: backlog
+  4-6-inspect-progressive-read-only-models: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-research-a-focused-correction: backlog
+  5-2-regenerate-only-the-affected-dependency-closure: backlog
+  5-3-compare-immutable-model-history: backlog
+  5-4-restore-a-version-without-silently-authorizing-export: backlog
+  5-5-approve-the-exact-inspected-model: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-pin-the-exact-target-print-profile: backlog
+  6-10-produce-the-canonical-manufacturing-mesh: backlog
+  6-2-validate-manufacturing-mesh-structure: backlog
+  6-3-validate-profile-specific-features-and-support: backlog
+  6-4-perform-bounded-local-repair-with-equivalence-proof: backlog
+  6-5-allow-one-lineage-bound-evidence-regeneration: backlog
+  6-6-define-and-validate-the-shared-provenance-envelope: backlog
+  6-7-render-a-readable-bilingual-pdf-source-record: backlog
+  6-8-assemble-qualified-manufacturing-exports: backlog
+  6-9-deliver-export-packages-on-phone-and-computer: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-qualify-a-bounded-multi-view-reconstruction-engine: backlog
+  7-2-prepare-a-verified-offline-bundle: backlog
+  7-9-capture-and-confirm-images-on-the-device: backlog
+  7-3-convert-and-retain-image-derived-models-locally: backlog
+  7-4-synchronize-offline-drafts-without-overwriting-history: backlog
+  7-5-enforce-learned-offline-revocation-before-sync: backlog
+  7-6-qualify-direct-models-through-the-shared-lineage: backlog
+  7-8-recover-direct-models-with-one-pinned-reconversion: backlog
+  7-7-deliver-optional-private-phone-push: backlog
+  epic-7-retrospective: optional
+
+  epic-8: backlog
+  8-1-tombstone-project-and-export-deletion-before-cleanup: backlog
+  8-2-delete-an-account-or-close-the-instance: backlog
+  8-9-back-up-the-database-and-storage-independently: backlog
+  8-3-purge-private-records-and-enforce-backup-expiry: backlog
+  8-4-restore-the-service-without-resurrecting-deleted-data: backlog
+  8-5-qualify-the-complete-accessible-device-workflow: backlog
+  8-8-qualify-the-workflow-on-the-remaining-device-classes: backlog
+  8-6-qualify-offline-execution-and-authoritative-sync: backlog
+  8-7-prove-cross-provider-and-first-version-acceptance: backlog
+  epic-8-retrospective: optional
