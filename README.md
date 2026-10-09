@@ -48,7 +48,10 @@ The application is a modular monolith. The architecture (AR-2) makes each module
 | --- | --- | --- |
 | Lifecycle | environment identity, restore ledger, tombstones | `lifecycle.instance_identity` (the only table), `lib/environment.ts`, `instrumentation.ts`, `scripts/check-env.mjs` |
 | Identity | Accounts, sessions, invitations, audit events | interim Google sign-in and email allowlist: `lib/auth*.ts`, `lib/supabase/`, `proxy.ts`, `app/login/`, `app/auth/callback/` (Story 1.3 replaces the allowlist) |
-| Projects, Evidence, Geometry, Manufacturing, Artifacts, Jobs, Usage, Preferences and notifications | their own records | nothing yet |
+| Projects, Evidence, Geometry, Manufacturing, Artifacts, Jobs, Usage and notifications | their own records | nothing yet |
+| Preferences | language, light or dark, explanation detail and first-use guidance | four first-party device cookies (`nova3d-locale`, `nova3d-theme`, `nova3d-detail`, `nova3d-guidance`): `lib/preferences.ts`, `lib/preferences.server.ts`, `components/preferences-provider.tsx`; Story 1.4 adds the Account-owned record |
+| Interface (shell, localization, design tokens) | the shared tokens, English and Hebrew catalogs, and the accessible patterns every screen inherits | `app/globals.css`, `lib/i18n/`, `components/ui/`, `components/shell/`, `app/settings/`; the Hebrew catalog is a machine-drafted first pass awaiting native review (see `deferred-work.md`) |
 | Synthetic shell | nothing persisted | `components/nova-dashboard.tsx`, `lib/mock-data.ts`; later stories replace it |
+| Design kit | nothing persisted | `app/kit/`, `components/kit/`: shows the tokens, patterns and a bilingual sample so tests can reach the shell without signing in; without `SYNTHETIC_DATA_ENABLED=true` (which production forbids) it is not public: a signed-out visitor is redirected to sign-in and a signed-in one gets a 404 |
 
 Qualification probes for the engineering gates live in [tools/qualification](tools/qualification/README.md).

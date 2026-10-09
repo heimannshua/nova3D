@@ -57,3 +57,53 @@
   summary: Production ledger items cannot pass until production exists, so add a "not yet applicable" state or a per-item start story to `provisioning/ledger.json` and `scripts/check-provisioning.mjs`.
   evidence: Production projects are created in Story 8.7, after the Story 8.4 drill, but production items are due earlier in build order (the production Google OAuth client at 1-3, and the production keys at 1-6, 1-9, 2-5, 7-7 and 8-9). `check-provisioning --env production` therefore fails for every story before 8.7 and cannot tell "not yet applicable" from "missing". Only the production Stripe items are due at 8.7 so far.
   mapped_story: 8.7 (create the production projects; decide then whether production items start at that story or carry a not-yet-applicable state).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-establish-accessible-localized-navigation-and-preferences.md`
+  summary: **Josh: the Hebrew copy needs native review before release.** Every Hebrew string in `lib/i18n/he.ts` (about 230 messages: navigation, guidance, Settings, sign-in, sample project names and the design-kit sample) was drafted by a model and has not been read by a Hebrew speaker. It is gender-neutral second person plural and uses plural forms for one, two and many, but terminology (for example "מבוסס מקור", "מוסק", "שנוי במחלוקת" for sourced, inferred and disputed), the sample names ("המזבח החיצון והכבש", "מידות פרק ג׳") and the register have not been checked. It must not be presented as reviewed. Edit `lib/i18n/he.ts` only; the parity test keeps its keys and placeholders in step with English.
+  evidence: The story's boundary says machine-drafted Hebrew is never presented as reviewed. `he.ts` carries a DRAFT HEBREW header, and the README interface row says so.
+  mapped_story: release readiness for Epic 1 (before any non-Josh user sees Hebrew); each later story that adds Hebrew copy extends the same file.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-establish-accessible-localized-navigation-and-preferences.md`
+  summary: Run the signed-in shell (Home, My Projects, In Progress, Settings, the 404 page) through axe, keyboard and Hebrew flows in CI. Story 1.2 runs them on the synthetic design kit (`/kit`), because the real shell is behind sign-in and no test login exists.
+  evidence: The real pages were checked once, by hand, with authentication bypassed in a scratch copy: no axe violations and no sideways scrolling in English and Hebrew, light and dark, on desktop and phone. That check is not repeatable in CI. The sign-in provider stand-in that would make it repeatable is already deferred to 1.3 and 1.4 above.
+  mapped_story: 1.3 (the OIDC stand-in) and 1.4 (the first signed-in browser flow); extend `tests/e2e/shell.spec.ts` to the real routes then.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-establish-accessible-localized-navigation-and-preferences.md`
+  summary: Move the four device preference cookies (`nova3d-locale`, `nova3d-theme`, `nova3d-detail`, `nova3d-guidance`) into the Account-owned record, keeping the cookies as the first-paint copy, and offer a language choice on the sign-in page (today it follows the device language only, because Settings is behind sign-in).
+  evidence: Story 1.2 stores preferences on the device only, as the spec requires, and `lib/preferences.ts` is the single reader and writer.
+  mapped_story: 1.4 (Account record and live authorization).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-establish-accessible-localized-navigation-and-preferences.md`
+  summary: A screen-reader pass on real devices (VoiceOver on iOS and macOS, TalkBack, NVDA or JAWS) and a Windows High Contrast pass. Story 1.2 verifies names, roles, live regions and focus order through axe, Playwright role queries and `forced-colors`, `prefers-contrast` and reduced-motion emulation, which cannot show how a given screen reader reads Hebrew or the bottom navigation bar.
+  evidence: No device or screen reader was available to the build, and the accessibility gates are not claimed as passed.
+  mapped_story: UX-DR20 coverage verification before the first release (owner: Josh).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-establish-accessible-localized-navigation-and-preferences.md`
+  summary: Sample-only controls in the synthetic shell are disabled instead of doing nothing: the project filter, the "more actions" button on a project card and on the running job. They become real in My Projects and the job stories.
+  evidence: A control that does nothing is a trap for keyboard and screen-reader users, so Story 1.2 disabled them and removed the "Learn about setup" button and the "⌘ K" hint, which had no behaviour.
+  mapped_story: 1.7 (My Projects) and 2.7 (jobs).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-establish-accessible-localized-navigation-and-preferences.md`
+  summary: A language and theme control on the sign-in page. Settings is behind sign-in, so before sign-in a visitor can only get the device language and light mode.
+  evidence: The sign-in page renders without the shell and has one button on purpose (the public-surface test asserts it). The preference cookies already drive its `lang`, `dir` and theme, so a control would only need to write them through `lib/preferences.ts`.
+  mapped_story: 1.3 (the sign-in surface for invited users).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-establish-accessible-localized-navigation-and-preferences.md`
+  summary: The Account menu in the shell has no sign-out. It shows the sample account and a note that account details arrive later.
+  evidence: Story 1.2 adds no Account, session or auth changes (its boundary), so there is nothing to sign out of that it owns.
+  mapped_story: 1.4 (sessions and live authorization).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-establish-accessible-localized-navigation-and-preferences.md`
+  summary: Locale-aware date, number and relative-time helpers (built on `Intl`) are not provided. Story 1.2 shows sample dates and "12 min ago" as catalog text, so server and browser always render identical markup.
+  evidence: Real dates, durations and counts first appear with project and job data. Formatting them through `Intl` risks a server and browser mismatch if their ICU data differ, so the helper needs a deliberate design (fixed time zone, one formatter shared by both sides).
+  mapped_story: 2.1.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-establish-accessible-localized-navigation-and-preferences.md`
+  summary: On a very short screen (landscape phone, or zoomed far in) the bottom navigation joins the page after the main content, but it is first in tab order, because it sits before the main content in the document.
+  evidence: One `<nav>` serves as the sidebar and the bottom bar so there is a single landmark and tab order. Below 30 rem of height it becomes static and moves to the end visually with CSS `order`. The skip link covers keyboard users, but the sequence does not match the visual order there.
+  mapped_story: 8.5.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-establish-accessible-localized-navigation-and-preferences.md`
+  summary: Both full message catalogs (English and Hebrew) ship to every browser, because client components translate on the client. That is a few tens of kilobytes now; revisit when the catalogs grow (load only the active language, or translate on the server).
+  evidence: `lib/i18n/en.ts` and `he.ts` are imported by `lib/i18n/index.ts`, which client components reach through `useI18n`.
+  mapped_story: 8.5.

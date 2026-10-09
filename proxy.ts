@@ -1,8 +1,8 @@
 import {NextResponse, type NextRequest} from 'next/server';
 import {allowedEmail, hasSupabaseConfig} from '@/lib/auth-config';
+import {isPublicPath} from '@/lib/public-paths';
 import {createSupabaseProxyClient} from '@/lib/supabase/proxy';
 
-const publicPaths = ['/login', '/auth/callback', '/api/health'];
 const legacyInterimSessionCookie = 'nova3d-interim-session';
 
 function nextResponse(request: NextRequest) {
@@ -15,7 +15,7 @@ function nextResponse(request: NextRequest) {
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  if (publicPaths.includes(pathname)) return nextResponse(request);
+  if (isPublicPath(pathname, process.env)) return nextResponse(request);
   if (hasSupabaseConfig()) {
     const client = createSupabaseProxyClient(request);
     if (client) {

@@ -43,7 +43,7 @@ describe('pinned runtime contract (AR-1)', () => {
   });
 
   it('pins the test runners exactly and records them in the lockfile', () => {
-    for (const name of ['vitest', '@playwright/test', 'yaml']) {
+    for (const name of ['vitest', '@playwright/test', '@axe-core/playwright', 'yaml']) {
       const version = pkg.devDependencies[name];
       expect(version, name).toMatch(/^\d+\.\d+\.\d+$/);
       expect(lock.packages[`node_modules/${name}`].version, name).toBe(version);

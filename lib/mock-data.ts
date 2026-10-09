@@ -1,47 +1,61 @@
-export type ProjectStatus = 'Researching' | 'Ready for review' | 'Sample draft';
+import type {MessageKey} from './i18n';
 
+export type ProjectStatus = 'researching' | 'ready-for-review' | 'sample-draft';
+export type ProjectMode = 'evidence-backed' | 'image-derived';
+
+// Everything a person can read about a sample project is a catalog key, so the sample reads in the
+// interface language. The ids, numbers and tones are plain data.
 export type MockProject = {
   id: string;
-  title: string;
-  subtitle: string;
+  title: MessageKey;
+  subtitle: MessageKey;
   status: ProjectStatus;
   progress?: number;
-  updated: string;
-  mode: 'Evidence-backed' | 'Image-derived';
+  updated: MessageKey;
+  mode: ProjectMode;
   tone: 'violet' | 'blue' | 'amber';
 };
 
 export const mockProjects: MockProject[] = [
   {
     id: 'outer-altar-ramp',
-    title: 'Outer Altar and Ramp',
-    subtitle: 'Middot 3 · current version 1',
-    status: 'Ready for review',
+    title: 'sample.outerAltar.title',
+    subtitle: 'sample.outerAltar.subtitle',
+    status: 'ready-for-review',
     progress: 78,
-    updated: 'Updated today',
-    mode: 'Evidence-backed',
+    updated: 'sample.outerAltar.updated',
+    mode: 'evidence-backed',
     tone: 'violet',
   },
   {
     id: 'garden-arch',
-    title: 'Garden arch study',
-    subtitle: 'Image-derived · sample draft',
-    status: 'Sample draft',
-    updated: 'Updated yesterday',
-    mode: 'Image-derived',
+    title: 'sample.gardenArch.title',
+    subtitle: 'sample.gardenArch.subtitle',
+    status: 'sample-draft',
+    updated: 'sample.gardenArch.updated',
+    mode: 'image-derived',
     tone: 'blue',
   },
   {
     id: 'courtyard-bench',
-    title: 'Courtyard bench',
-    subtitle: 'Middot 3 · research in progress',
-    status: 'Researching',
+    title: 'sample.courtyardBench.title',
+    subtitle: 'sample.courtyardBench.subtitle',
+    status: 'researching',
     progress: 34,
-    updated: 'Running now',
-    mode: 'Evidence-backed',
+    updated: 'sample.courtyardBench.updated',
+    mode: 'evidence-backed',
     tone: 'amber',
   },
 ];
+
+export function sampleProjectById(id: string): MockProject {
+  const project = mockProjects.find((candidate) => candidate.id === id);
+  if (!project) throw new Error(`Unknown sample project: ${id}`);
+  return project;
+}
+
+// The shell is synthetic: this stands in for the signed-in Account until Story 1.4. Nothing is persisted.
+export const sampleAccount = {name: 'Josh', initial: 'J'} as const;
 
 // The shell is synthetic: every project below is sample data and nothing is persisted.
 export const healthSummary = {

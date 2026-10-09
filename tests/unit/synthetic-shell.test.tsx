@@ -1,15 +1,17 @@
 import {renderToStaticMarkup} from 'react-dom/server';
 import {describe, expect, it} from 'vitest';
 import {NovaDashboard} from '@/components/nova-dashboard';
+import {Shell} from '@/components/shell/shell';
 import {healthSummary, mockProjects} from '@/lib/mock-data';
 
-// AC-3: the shell is labelled synthetic and makes no claim that anything is persisted.
+// AC-3 of Story 1.1: the shell is labelled synthetic and makes no claim that anything is persisted.
+// The shell chrome now comes from the layout, so each view is rendered inside it, as the app does.
 const views = {
-  home: <NovaDashboard />,
-  projects: <NovaDashboard initialView="projects" />,
-  progress: <NovaDashboard initialView="progress" />,
-  'create panel': <NovaDashboard initialCreateOpen />,
-  'notifications popover': <NovaDashboard initialNoticeOpen />,
+  home: <Shell pathname="/"><NovaDashboard view="home" /></Shell>,
+  projects: <Shell pathname="/projects"><NovaDashboard view="projects" /></Shell>,
+  progress: <Shell pathname="/progress"><NovaDashboard view="progress" /></Shell>,
+  'create panel': <Shell pathname="/" initialCreateOpen><NovaDashboard view="home" /></Shell>,
+  'notifications popover': <Shell pathname="/" initialNoticeOpen><NovaDashboard view="home" /></Shell>,
 };
 
 // Persistence wording, including its negations: the shell should not talk about storage at all.
@@ -40,7 +42,7 @@ describe('synthetic shell data', () => {
   });
 
   it('labels sample projects as samples', () => {
-    const markup = renderToStaticMarkup(<NovaDashboard initialView="projects" />);
+    const markup = renderToStaticMarkup(views.projects);
     expect(markup).toContain('Sample draft');
     expect(markup).toContain('>SAMPLE<');
   });
