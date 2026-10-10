@@ -162,6 +162,11 @@ describe('global shell (G-01, UX-DR24)', () => {
     expect(isChromeless('/auth/callback')).toBe(true);
     expect(isChromeless('/settings')).toBe(false);
     expect(isChromeless('/loginx')).toBe(false);
+    // Registration is for an identity with no Account yet, so it has no shell either (Story 1.3).
+    expect(isChromeless('/register')).toBe(true);
+    expect(isChromeless('/register/')).toBe(true);
+    expect(isChromeless('/registered')).toBe(false);
+    expect(isChromeless('/projects/register')).toBe(false);
   });
 
   it('knows its routes', () => {

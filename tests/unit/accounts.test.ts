@@ -535,8 +535,12 @@ describe('server-only boundary', () => {
       .map((specifier) => (specifier.startsWith('@/') ? join(root, specifier.slice(2)) : specifier.startsWith('.') ? resolve(dirname(file), specifier) : specifier))
       .map((path) => path.replace(/\.(?:ts|tsx|mjs|js)$/, ''));
   }
-  const accountsModule = join(root, 'lib/accounts');
-  const importsAccounts = (file: string, source: string) => importedModules(file, source).includes(accountsModule);
+  // Server-only modules: the accounts library, and the access decision that is built on it. (lib/register.ts is
+  // the opposite by design: the types and constants the registration form shares with its Server Action, free
+  // of server imports, so the client component may use it. Its own test below keeps it that way.)
+  const serverOnly = [join(root, 'lib/accounts'), join(root, 'lib/access')];
+  const importsServerOnly = (file: string, source: string) => importedModules(file, source).some((module) => serverOnly.includes(module));
+  const importsAccounts = (file: string, source: string) => importedModules(file, source).includes(serverOnly[0]);
   const isClientFile = (source: string) => /^\s*(?:\/\*[\s\S]*?\*\/\s*|\/\/.*\n\s*)*['"]use client['"]/.test(source);
 
   it('recognizes an import of lib/accounts however it is spelled, and a client file by its directive', () => {
@@ -547,6 +551,10 @@ describe('server-only boundary', () => {
     expect(importsAccounts(lib, "export {x} from './accounts.ts'")).toBe(true);
     expect(importsAccounts(join(root, 'app/a.tsx'), "const m = await import('@/lib/accounts')")).toBe(true);
     expect(importsAccounts(join(root, 'components/a.tsx'), "import {x} from '@/lib/accounts-other'")).toBe(false);
+    expect(importsServerOnly(join(root, 'components/a.tsx'), "import {x} from '@/lib/access'")).toBe(true);
+    expect(importsServerOnly(lib, "import {x} from './access.ts'")).toBe(true);
+    expect(importsServerOnly(join(root, 'components/a.tsx'), "import {x} from '@/lib/register'")).toBe(false);
+    expect(importsServerOnly(join(root, 'components/a.tsx'), "import {x} from '@/lib/access-other'")).toBe(false);
     expect(importsAccounts(join(root, 'components/a.tsx'), "import {x} from './accounts'")).toBe(false);
     expect(isClientFile("'use client';\nimport x from 'y';")).toBe(true);
     expect(isClientFile('"use client"\n')).toBe(true);
@@ -558,12 +566,26 @@ describe('server-only boundary', () => {
   it('is imported by no client component and nothing under components/', () => {
     const files = ['app', 'components', 'lib'].flatMap((directory) => sourceFiles(join(root, directory)));
     expect(files.length).toBeGreaterThan(20);
+    const importers: string[] = [];
     for (const file of files) {
       const source = readFileSync(file, 'utf8');
-      if (!importsAccounts(file, source)) continue;
+      if (!importsServerOnly(file, source)) continue;
       const name = relative(root, file);
+      importers.push(name);
       expect(name.startsWith('components/'), `${name} is under components/`).toBe(false);
       expect(isClientFile(source), `${name} is a client component`).toBe(false);
     }
+    // Server code does import them: the guard is about where, not about whether.
+    expect(importers).toEqual(expect.arrayContaining(['lib/auth.ts', 'app/auth/callback/route.ts', 'app/register/actions.ts']));
+  });
+
+  it('keeps lib/register.ts free of server-only imports, because the registration form is a client component that uses it', () => {
+    const file = join(root, 'lib/register.ts');
+    const source = readFileSync(file, 'utf8');
+    const imported = importedModules(file, source);
+    expect(imported.filter((module) => serverOnly.includes(module))).toEqual([]);
+    expect(imported.filter((module) => /^(?:node:|next\/(?:headers|server))/.test(module))).toEqual([]);
+    expect(imported.every((module) => module === join(root, 'lib/i18n'))).toBe(true);
+    expect(readFileSync(join(root, 'components/register-form.tsx'), 'utf8')).toContain("from '@/lib/register'");
   });
 });

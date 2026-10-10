@@ -7,7 +7,10 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 
 // Browser flows run against the production build (`npm run build` first). The server verifies its
 // environment identity on startup, so run it against the Supabase CLI stack with `.env.local`
-// written by `node scripts/setup-env.mjs local`, or export the same variables.
+// written by `node scripts/setup-env.mjs local`, or export the same variables. The registration flows
+// also forge Google sessions in that stack and issue codes under the server's hashing keys, so the tests
+// read the same variables (tests/support/server-env.ts) and refuse to run against anything but the
+// local stack.
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,

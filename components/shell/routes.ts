@@ -1,8 +1,12 @@
 // Route knowledge for the shell, kept apart from React so it can be tested directly.
 
-/** Pages that render without the shell: sign-in happens before there is a workspace to navigate. */
+/**
+ * Pages that render without the shell: sign-in and registration happen before there is a workspace to
+ * navigate. Registration (/register) is for an identity that has no Account yet, so none of the shell's
+ * links, menus or Create button would lead anywhere it may go.
+ */
 export function isChromeless(pathname: string): boolean {
-  return pathname === '/login' || pathname.startsWith('/login/') || pathname === '/auth' || pathname.startsWith('/auth/');
+  return ['/login', '/register', '/auth'].some((root) => pathname === root || pathname.startsWith(`${root}/`));
 }
 
 /** Whether a nav link points at the page (or a page beneath it) that is open now. */

@@ -14,9 +14,9 @@
   status: believed resolved (2026-10-08, unverified by the planning run): later commits (1606107, f8c2e90) and spec-google-sign-in.md show Google sign-in working against the project, and Josh reports its sign-up setting as On. Confirm when Story 1.1 re-labels it staging.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-1-adopt-and-harden-the-qualified-application-seed.md`
-  summary: Build the local Google OIDC stand-in that lets Playwright sign in against the Supabase CLI stack and issues the `amr` `oauth` entries that step-up checks read.
-  evidence: Browser flows added in Story 1.1 cover only the signed-out surface (login page, redirect, health). Hosted-Auth behavior is verified only on staging.
-  mapped_story: 1.3 (registration needs a signed-in browser flow; first consumer) and 1.4 (session grants and step-up read the `amr` `oauth` entries).
+  summary: Build the local Google OIDC stand-in that lets Playwright drive the real Google redirect and the PKCE callback against the Supabase CLI stack, and that issues the `amr` `oauth` entries that step-up checks read. Partly met by Story 1.3 Part B: browser tests now forge sessions (a Google user and an `auth.sessions` row, a token signed with the stack's JWT secret, the `@supabase/ssr` cookie), so signed-in flows run, but the callback's code exchange and the pre-authorization it consumes are covered only by unit tests with a fake Auth client, plus the failed-exchange path against the real stack.
+  evidence: `tests/support/forged-session.ts` and `tests/e2e/registration.spec.ts`. A forged session carries the `oauth` method in the token's `amr` claim but has no `auth.mfa_amr_claims` rows, so it cannot exercise the step-up reads either.
+  mapped_story: 1.4 (session grants and step-up read the `amr` `oauth` entries; first story that needs the stand-in itself).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-1-adopt-and-harden-the-qualified-application-seed.md`
   summary: Build a QStash fake that implements the schedule-and-publish port, including provider-native signature verification, for the signed route framework and the periodic tasks.
@@ -59,14 +59,14 @@
   mapped_story: 8.7 (create the production projects; decide then whether production items start at that story or carry a not-yet-applicable state).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-2-establish-accessible-localized-navigation-and-preferences.md`
-  summary: **Josh: the Hebrew copy needs native review before release.** Every Hebrew string in `lib/i18n/he.ts` (about 230 messages: navigation, guidance, Settings, sign-in, sample project names and the design-kit sample) was drafted by a model and has not been read by a Hebrew speaker. It is gender-neutral second person plural and uses plural forms for one, two and many, but terminology (for example "מבוסס מקור", "מוסק", "שנוי במחלוקת" for sourced, inferred and disputed), the sample names ("המזבח החיצון והכבש", "מידות פרק ג׳") and the register have not been checked. It must not be presented as reviewed. Edit `lib/i18n/he.ts` only; the parity test keeps its keys and placeholders in step with English.
+  summary: **Josh: the Hebrew copy needs native review before release.** Every Hebrew string in `lib/i18n/he.ts` (about 245 messages: navigation, guidance, Settings, sign-in, the registration screen and the disabled-account message added by Story 1.3 Part B, sample project names and the design-kit sample) was drafted by a model and has not been read by a Hebrew speaker. It is gender-neutral second person plural and uses plural forms for one, two and many, but terminology (for example "מבוסס מקור", "מוסק", "שנוי במחלוקת" for sourced, inferred and disputed), the sample names ("המזבח החיצון והכבש", "מידות פרק ג׳") and the register have not been checked. It must not be presented as reviewed. Edit `lib/i18n/he.ts` only; the parity test keeps its keys and placeholders in step with English.
   evidence: The story's boundary says machine-drafted Hebrew is never presented as reviewed. `he.ts` carries a DRAFT HEBREW header, and the README interface row says so.
   mapped_story: release readiness for Epic 1 (before any non-Josh user sees Hebrew); each later story that adds Hebrew copy extends the same file.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-2-establish-accessible-localized-navigation-and-preferences.md`
-  summary: Run the signed-in shell (Home, My Projects, In Progress, Settings, the 404 page) through axe, keyboard and Hebrew flows in CI. Story 1.2 runs them on the synthetic design kit (`/kit`), because the real shell is behind sign-in and no test login exists.
-  evidence: The real pages were checked once, by hand, with authentication bypassed in a scratch copy: no axe violations and no sideways scrolling in English and Hebrew, light and dark, on desktop and phone. That check is not repeatable in CI. The sign-in provider stand-in that would make it repeatable is already deferred to 1.3 and 1.4 above.
-  mapped_story: 1.3 (the OIDC stand-in) and 1.4 (the first signed-in browser flow); extend `tests/e2e/shell.spec.ts` to the real routes then.
+  summary: Run the rest of the signed-in shell (keyboard flows, menus and dialogs open, the 404 page, enlarged text, dark Hebrew and high contrast on every page) through CI. Story 1.3 Part B added axe runs on the real Home, My Projects, In Progress and Settings pages for an active Account (English light and Hebrew dark, desktop and phone) and for the registration screen (all four language and theme variants), using forged sessions; nothing else of the signed-in shell is covered beyond the synthetic design kit (`/kit`).
+  evidence: `tests/e2e/registration.spec.ts` for the real routes; `tests/e2e/shell.spec.ts` still drives the kit. The dedicated sign-in provider stand-in is deferred above.
+  mapped_story: 1.4 (the first signed-in browser flows with session grants); extend `tests/e2e/shell.spec.ts` to the real routes then.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-2-establish-accessible-localized-navigation-and-preferences.md`
   summary: Move the four device preference cookies (`nova3d-locale`, `nova3d-theme`, `nova3d-detail`, `nova3d-guidance`) into the Account-owned record, keeping the cookies as the first-paint copy, and offer a language choice on the sign-in page (today it follows the device language only, because Settings is behind sign-in).
@@ -108,15 +108,15 @@
   evidence: `lib/i18n/en.ts` and `he.ts` are imported by `lib/i18n/index.ts`, which client components reach through `useI18n`.
   mapped_story: 8.5.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
-  summary: Story 1.3 Part B (the app half): the registration screen with the operator disclosure, consuming a pre-authorization in the auth callback, gating every private route on a live Account, removing `AUTH_ALLOWED_EMAILS` everywhere, requiring the two hash keys at startup, and the browser flows with forged sessions.
-  evidence: The plan was split at Josh's choice on 2026-10-10 because the single build was too large to review safely; Part A (database) is built first and Part B uses its `api` functions.
-  mapped_story: 1.3 (AC-1 screen and gating, AC-7 sign-in consumption, AC-9 allowlist removal).
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-part-b-registration-and-account-gating.md`
+  summary: **Josh: cut staging over from the old email list before deploying Story 1.3 Part B.** The live-Account check replaces the interim `AUTH_ALLOWED_EMAILS` gate at once, so every address that is allowed in today needs a pre-authorization (or a code) first, or it sees only the registration screen. The old list held `heimannshua@gmail.com,daniel@orvex.ai` (the staging Administrator and the second address Josh uses today). Steps: apply the two Part A migrations, expose `api`, enable the hook and set `INVITATION_HASH_KEY` and `RATE_LIMIT_HASH_KEY` (both are now required at startup, and the Vercel build fails without them); put `ADMINISTRATOR_EMAIL=heimannshua@gmail.com` and `SEED_ACCOUNT_EMAILS=daniel@orvex.ai` in `.env.staging`; run `node --env-file=.env.staging scripts/seed-accounts.mjs preauthorize --confirm staging`; delete `AUTH_ALLOWED_EMAILS` from the Vercel project (every scope) and `.env.staging`; deploy; then each address opens the app through real Google (a session from before the deploy has no Account yet and lands on `/register`, where the proxy consumes the pre-authorization and sends it Home). Written out in `docs/auth-setup.md` (Cutting over from the old email list) and `docs/deployment-setup.md`.
+  evidence: Part B was verified only against the local Supabase CLI stack. Nothing was applied, pushed, seeded or deployed to staging or production. The old list is not read by anything any more, so nothing can warn or fail a deploy for an address left out of the seed; the check is the manual one above.
+  mapped_story: 1.3 (AC-7, AC-9 hosted verification), then 1.9 for the config push.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
   summary: **Josh: hosted setup for Story 1.3 Part A on staging.** Apply the two new migrations (`20261010120000_accounts.sql`, `20261010120100_api.sql`), add `api` to the exposed schemas (never `identity` or `projects`), enable the Before User Created hook (`api.before_user_created`, dashboard or `supabase config push` in Story 1.9), generate `INVITATION_HASH_KEY` and `RATE_LIMIT_HASH_KEY` (`openssl rand -base64 32` each) into the staging Vercel project and `.env.staging`, then run `node --env-file=.env.staging scripts/seed-accounts.mjs preauthorize --confirm staging`. Steps are in `docs/deployment-setup.md` (Provisioning staging, steps 2 to 5) and `docs/auth-setup.md`.
   evidence: Part A was verified only against the local Supabase CLI stack, as the spec requires. Nothing was applied, pushed or seeded on staging or production. Two hosted details are unverified until the migrations run there: that the hosted `postgres` role may reference and `FOR UPDATE`-lock `auth.users` (the local one can), and that the hook payload matches what the local Auth service and the Auth source send (`app_metadata.provider` and `user_metadata.email_verified`); a hook mismatch would reject every first-time Google sign-in with "Sign-in is not available for this account".
-  mapped_story: 1.3 (Part B is deferred separately above), then 1.9 for the config push.
+  mapped_story: 1.3 (Part B's hosted cutover is its own entry above), then 1.9 for the config push.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
   summary: Re-check the pinned Google subject on every sign-in, not only when a pre-authorization is consumed. Auth links a new Google identity to an existing user with the same verified email, so a recycled address could add a second Google identity to an Account's Auth user; `identity.accounts.google_subject` and `identity.preauthorizations.google_subject` hold the pin, but nothing compares them with `auth.identities` after activation.
@@ -134,9 +134,9 @@
   mapped_story: 1.6 (recover the sole Administrator securely).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
-  summary: `lib/accounts.ts` is server-only by convention and by test, not by the `server-only` package, because the seed script imports it through Node type stripping and the package throws there. Part B can add `import 'server-only'` once the script no longer imports the module (or runs with `--conditions=react-server` and the package is added as a dependency).
-  evidence: `tests/unit/accounts.test.ts` fails if any `'use client'` file or anything under `components/` imports `lib/accounts`, and the module throws at load when a `window` exists. Server code (routes, the callback) may import it.
-  mapped_story: 1.3 (Part B, when routes first import it).
+  summary: `lib/accounts.ts` is server-only by convention and by test, not by the `server-only` package, because the seed script imports it through Node type stripping and the package throws there. Story 1.3 Part B imports it from routes, the proxy and a Server Action (through `lib/access.ts`), and the seed script still imports it, so the guard stays as it is. Add `import 'server-only'` once the script no longer imports the module (or runs with `--conditions=react-server` and the package is added as a dependency).
+  evidence: `tests/unit/accounts.test.ts` fails if any `'use client'` file or anything under `components/` imports `lib/accounts`, and the module throws at load when a `window` exists. `components/register-form.tsx` is a client component and imports only `lib/register.ts`, which holds the types it shares with the Server Action.
+  mapped_story: 1.4 (the next story that adds server routes), or whichever story first stops the seed script importing the module.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
   summary: Verify the hook's accept path on the first real staging Google sign-in, and that the hosted `postgres` role can lock `auth.users` (`FOR UPDATE`) and reference it. The accept path is verified only against a hand-built Google payload (`app_metadata.provider` google, `user_metadata.email_verified` true), built from the Auth source and from a payload captured for an email sign-up; no real Google sign-in ran. Its reject path is verified live: `POST /auth/v1/invite` with the service key reaches the hook and returns its message, and the Auth admin create-user endpoint does not call the hook at all. A wrong accept path would reject every first-time Google sign-in with "Sign-in is not available for this account"; existing users are unaffected because the hook runs only at creation.
@@ -163,7 +163,47 @@
   evidence: `identity.guard_account` rejects any change to `user_id`, `google_subject` and `source`; `api.consume_preauthorization` refuses a second subject for a consumed address.
   mapped_story: 1.6 (recover the sole Administrator securely).
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
-  summary: Migration warning for `AUTH_ALLOWED_EMAILS`. At cutover every address in the old list that is not pre-authorized (and has no Account) loses access, because the live-Account check replaces the list. Before the switch, compare the list with the pre-authorizations (`seed-accounts.mjs preauthorize` with the right `ADMINISTRATOR_EMAIL` and `SEED_ACCOUNT_EMAILS`) and warn or fail the deploy for any address left out.
-  evidence: Part A neither reads nor removes `AUTH_ALLOWED_EMAILS` (the spec's Never list); the two addresses in the templates are the staging Administrator and the second address Josh uses today.
-  mapped_story: 1.3 Part B (allowlist removal).
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-part-b-registration-and-account-gating.md`
+  summary: "Use a different Google account" on the registration screen ends the session and returns to sign-in, but Google may sign the same account straight back in. Offer the account chooser (`prompt=select_account` on the Google OAuth request) when the person came from that button, and decide whether the sign-in page should always offer it.
+  evidence: `startGoogleSignIn` asks for Google with no `queryParams`, and `tests/unit/sign-in.test.tsx` pins that call. A person with one signed-in Google account in the browser is not asked which one to use.
+  mapped_story: 1.4 (the next story that touches the sign-in page) or 1.11.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-part-b-registration-and-account-gating.md`
+  summary: Cover "database unreachable" end to end in a browser. The proxy, the pages, the callback and the registration action are tested for it with a fake network (`tests/unit/proxy-gating.test.ts`, `auth-callback.test.ts`, `register-action.test.ts`), but no browser test stops the stack's database or Auth service.
+  evidence: The local stack is shared by every test file and by the developer; stopping a container mid-run would break parallel tests. A dedicated stack, or a switch in the fake network layer, would make it safe.
+  mapped_story: 1.9 (staging provisioning and the pipeline that owns a throwaway stack) or 1.13 (alarms).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-part-b-registration-and-account-gating.md`
+  summary: Private `/api` routes should answer a denied request with 401 or 403 JSON, not the HTML sign-in redirect the proxy sends every private path. A client of `/api/...` (a fetch from the app, a worker, a test) cannot use a 307 or 303 to a login page; today only `/api/health` exists and it is public.
+  evidence: `proxy.ts` redirects every denied request to `/login?error=...`, whatever its path or `Accept` header.
+  mapped_story: 1.4 (session grants and the first private API routes).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-part-b-registration-and-account-gating.md`
+  summary: The gate asks twice and memoizes nothing. The proxy makes one Auth call and one service-role call for each private request, the page repeats both, and nothing is cached within a request. Replace both with session grants and, where a lookup stays, a per-request memo.
+  evidence: `proxy.ts` calls `resolveAccess` and each private page calls `requireActiveAccount`; `docs/auth-setup.md` (How access is decided) records the cost.
+  mapped_story: 1.4 (session grants replace the double lookup).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-part-b-registration-and-account-gating.md`
+  summary: The registration form needs JavaScript. The command-ID rotation, the retry after a dropped connection, the blank-code message and the stale-form redirect live in a client wrapper around the Server Action, so a form submitted before hydration is replayed by React but one with scripts disabled does nothing. Move what can move into the action and make the form submit without scripts (progressive enhancement).
+  evidence: `components/register-form.tsx` (`attemptRegistration`) passes a client closure to `useActionState`, which cannot be progressively enhanced.
+  mapped_story: 2.1.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-part-b-registration-and-account-gating.md`
+  summary: A deadline that fires in the middle of a token refresh can lose the refreshed cookies. `readUser` gives Auth 5 seconds; if the refresh succeeded at Auth but the answer arrives after the deadline, the new refresh token never reaches the browser, the old one is rotated away, and the next request signs the person out.
+  evidence: `withDeadline` in `lib/deadline.ts` abandons the call but cannot cancel it, and `lib/supabase/proxy.ts` only carries cookies the client wrote before the deadline.
+  mapped_story: 1.4 (session grants make the refresh explicit).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-part-b-registration-and-account-gating.md`
+  summary: The sign-in callback drops the destination the person wanted. Everyone lands on Home (or on the registration screen) after Google, so a deep link such as a shared project URL is lost at sign-in.
+  evidence: `app/auth/callback/route.ts` redirects to `/` or `/register` only; `proxy.ts` sends a signed-out visitor to `/login?error=not_signed_in` without remembering the path.
+  mapped_story: 1.7 (the first deep-linkable pages).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-part-b-registration-and-account-gating.md`
+  summary: A link to the privacy policy is missing beside the operator notice on the registration screen. The notice says the instance operator administers the hosting accounts that hold users' data; it should lead to the policy that says what that means.
+  evidence: `components/register-form.tsx` shows the notice (`register.operator`) with no link, because no policy page exists yet.
+  mapped_story: 8.7 (release readiness).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-part-b-registration-and-account-gating.md`
+  summary: There is no break-glass path if the gate is misconfigured and everyone, the Administrator included, is locked out: an unseeded database, a wrong service key, or the `api` schema not exposed denies every request by design. `check-env --live` catches the last two (and not an unseeded database), but nothing lets the Administrator back in without database access and the seed command.
+  evidence: `lib/access.ts` fails closed on every error; `docs/deployment-setup.md` says to seed before deploying; recovery of the sole Administrator is not built.
+  mapped_story: 1.6 (recover the sole Administrator securely).

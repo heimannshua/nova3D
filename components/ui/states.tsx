@@ -39,11 +39,11 @@ export type NoticeTone = 'info' | 'success' | 'danger' | 'warning';
 const noticeIcons: Record<NoticeTone, IconName> = {info: 'info-circle', success: 'check-circle', danger: 'x-octagon', warning: 'alert-triangle'};
 
 /** An inline message with a shape as well as a colour. Use role="alert" only for errors that appear after an action. */
-export function Notice({tone = 'info', children, role, action}: {tone?: NoticeTone; children: ReactNode; role?: 'alert' | 'note' | 'status'; action?: ReactNode}) {
+export function Notice({tone = 'info', children, role, action, id}: {tone?: NoticeTone; children: ReactNode; role?: 'alert' | 'note' | 'status'; action?: ReactNode; id?: string}) {
   return (
     <div className={`notice notice-${tone}`} role={role}>
       <span className="notice-icon"><Icon name={noticeIcons[tone]} size={16}/></span>
-      <p className="notice-text">{children}</p>
+      <p className="notice-text" id={id}>{children}</p>
       {action}
     </div>
   );

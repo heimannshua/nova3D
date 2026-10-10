@@ -1,9 +1,7 @@
 import {NovaDashboard} from '@/components/nova-dashboard';
-import {getAccess} from '@/lib/auth';
-import {redirect} from 'next/navigation';
+import {requireActiveAccount} from '@/lib/auth';
 
 export default async function HomePage() {
-  const access = await getAccess();
-  if (access.kind === 'none') redirect('/login');
+  await requireActiveAccount();
   return <NovaDashboard view="home" />;
 }

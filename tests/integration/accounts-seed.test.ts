@@ -34,7 +34,6 @@ describe('the audited seed command (AC-6, AC-7)', () => {
       SUPABASE_SERVICE_ROLE_KEY: stack.serviceKey,
       ADMINISTRATOR_EMAIL: emails.admin,
       INSTANCE_ID: instanceId,
-      AUTH_ALLOWED_EMAILS: emails.admin,
       PAID_ADAPTERS_ENABLED: 'false',
       SYNTHETIC_DATA_ENABLED: 'true',
       SEED_ACCOUNT_EMAILS: emails.members.join(', '),
@@ -229,7 +228,7 @@ describe('the audited seed command (AC-6, AC-7)', () => {
 
     const missing = await run(['issue', '--name', 'No key'], environment({INVITATION_HASH_KEY: undefined}));
     expect(missing.code).toBe(1);
-    expect(missing.stderr).toContain('INVITATION_HASH_KEY is not set');
+    expect(missing.stderr).toContain('missing required variables: INVITATION_HASH_KEY');
 
     const weak = await run(['issue', '--name', 'Weak key'], environment({INVITATION_HASH_KEY: 'short'}));
     expect(weak.code).toBe(1);

@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Usage: node scripts/check-env.mjs [--live | --deployment]
 //   (no flag)     label and format checks only; reads no network
-//   --live        also compares APP_ENV and INSTANCE_ID with the instance_identity row
+//   --live        also compares APP_ENV and INSTANCE_ID with the instance_identity row, and asks the
+//                 accounts API (api.account_status, nil UUID) for `none`: the api schema must be exposed
+//                 and the Story 1.3 migrations applied. It cannot tell whether the accounts are seeded.
 //   --deployment  the build step: does nothing unless VERCEL is set, then behaves like --live
 // Previews never read the database. No secret is printed.
 import {isPreview, validateEnvironment, verifyInstanceIdentity} from '../lib/environment.ts';
@@ -21,7 +23,7 @@ if (deployment && !process.env.VERCEL) {
 
 const live = deployment || flags.has('--live');
 const environment = process.env.APP_ENV;
-const errors = live ? await verifyInstanceIdentity(process.env) : validateEnvironment(process.env);
+const errors = live ? await verifyInstanceIdentity(process.env, undefined, {accountsApi: true}) : validateEnvironment(process.env);
 
 if (errors.length) {
   console.error(`Environment validation failed for ${environment || 'unset'}:`);
@@ -29,5 +31,5 @@ if (errors.length) {
   process.exit(1);
 }
 
-const verified = live && !isPreview(process.env) ? ' Instance identity verified against the database.' : '';
+const verified = live && !isPreview(process.env) ? ' Instance identity verified against the database; the accounts API answered.' : '';
 console.log(`Environment validation passed for ${environment}.${verified}`);

@@ -93,7 +93,10 @@ if (isPreview(process.env)) fail('Refusing to run in a Vercel preview or develop
 
 // Fails closed on a mixed-up environment: the label, the format of every variable and the database's own
 // identity row must all agree before anything is written.
-const problems = await verifyInstanceIdentity(process.env);
+// Only the hashing keys this command uses are required: `issue` and `revoke --code-stdin` hash a code under
+// INVITATION_HASH_KEY; `preauthorize`, `unauthorize`, `list` and `revoke --id` hash nothing.
+const hashKeys = command === 'issue' || (command === 'revoke' && values['code-stdin']) ? ['INVITATION_HASH_KEY'] : [];
+const problems = await verifyInstanceIdentity(process.env, undefined, {hashKeys});
 if (problems.length) {
   console.error(`Environment validation failed for ${environment || 'unset'}:`);
   for (const problem of problems) console.error(`- ${problem}`);

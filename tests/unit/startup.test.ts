@@ -1,3 +1,4 @@
+import {randomBytes} from 'node:crypto';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {register} from '@/instrumentation';
 import {verifyStartupIdentity} from '@/instrumentation-node';
@@ -16,9 +17,10 @@ const stagingEnv: Record<string, string | undefined> = {
   SUPABASE_SERVICE_ROLE_KEY: KEY,
   ADMINISTRATOR_EMAIL: 'admin@example.com',
   INSTANCE_ID: INSTANCE,
-  AUTH_ALLOWED_EMAILS: 'admin@example.com',
   PAID_ADAPTERS_ENABLED: 'false',
   SYNTHETIC_DATA_ENABLED: 'true',
+  INVITATION_HASH_KEY: randomBytes(32).toString('base64'),
+  RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64'),
   VERCEL: undefined,
   VERCEL_ENV: undefined,
   NEXT_RUNTIME: undefined,
@@ -150,8 +152,18 @@ describe('verifyStartupIdentity', () => {
     expect(printed()).toContain('ADMINISTRATOR_EMAIL');
   });
 
+  it('exits 1 without a hashing key, before contacting the database (Story 1.3)', async () => {
+    for (const name of ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY']) {
+      env({[name]: undefined});
+      respondWith(rowResponse('staging', INSTANCE));
+      await expect(verifyStartupIdentity(noWait)).rejects.toThrow('process.exit(1)');
+      expect(fetchStub).not.toHaveBeenCalled();
+      expect(printed()).toContain(`missing required variables: ${name}`);
+    }
+  });
+
   it('never contacts the database for a preview', async () => {
-    env({VERCEL: '1', VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined});
+    env({VERCEL: '1', VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, INVITATION_HASH_KEY: undefined, RATE_LIMIT_HASH_KEY: undefined});
     respondWith(rowResponse('production', OTHER));
     await expect(verifyStartupIdentity(noWait)).resolves.toBeUndefined();
     expect(fetchStub).not.toHaveBeenCalled();

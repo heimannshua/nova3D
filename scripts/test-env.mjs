@@ -8,8 +8,9 @@
 // child process) forwards that one origin to the local server. Every other URL is untouched.
 import assert from 'node:assert/strict';
 import {execFile} from 'node:child_process';
+import {randomBytes} from 'node:crypto';
 import {createServer} from 'node:http';
-import {after, before, describe, it} from 'node:test';
+import {after, before, beforeEach, describe, it} from 'node:test';
 import {resolve} from 'node:path';
 
 const script = resolve(import.meta.dirname, 'check-env.mjs');
@@ -19,6 +20,8 @@ const INSTANCE = '3f0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c44';
 const OTHER_INSTANCE = '9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d';
 const DB_PASSWORD = 'db-password-must-never-be-printed';
 const STRIPE_KEY = 'sk_test_must_never_be_printed';
+// The two account hashing keys (Story 1.3): random, at least 32 bytes, different from each other.
+const hashKeys = () => ({INVITATION_HASH_KEY: randomBytes(32).toString('base64'), RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64')});
 const FIXTURE_HOST = 'https://fixture.supabase.co';
 // An address nothing listens on: connections are refused at once and cannot race a freed port.
 const NOTHING_LISTENS = 'https://127.0.0.1:1';
@@ -30,25 +33,41 @@ globalThis.fetch = (input, init) => {
 const preload = `--import=data:text/javascript,${encodeURIComponent(forwardFixtureHost)}`;
 
 let rows = [];
+// What api.account_status answers (the accounts API preflight): an HTTP status and a JSON body.
+const accountsOk = () => ({status: 200, body: {status: 'none', account_id: null, workspace_id: null, role: null}});
+let accountsAnswer = accountsOk();
 let origin = '';
 let server;
 const requests = [];
 
 before(async () => {
   server = createServer((request, response) => {
-    requests.push({url: request.url, headers: request.headers});
-    const authorized = request.headers.apikey === SERVICE_KEY && request.headers.authorization === `Bearer ${SERVICE_KEY}`;
-    if (!authorized || request.headers['accept-profile'] !== 'lifecycle' || !request.url?.startsWith('/rest/v1/instance_identity')) {
-      response.writeHead(401, {'content-type': 'application/json'}).end('{"message":"denied"}');
-      return;
-    }
-    response.writeHead(200, {'content-type': 'application/json'}).end(JSON.stringify(rows));
+    let body = '';
+    request.on('data', (chunk) => (body += chunk));
+    request.on('end', () => {
+      requests.push({url: request.url, method: request.method, headers: request.headers, body});
+      const authorized = request.headers.apikey === SERVICE_KEY && request.headers.authorization === `Bearer ${SERVICE_KEY}`;
+      if (authorized && request.method === 'POST' && request.headers['content-profile'] === 'api' && request.url === '/rest/v1/rpc/account_status') {
+        response.writeHead(accountsAnswer.status, {'content-type': 'application/json'}).end(JSON.stringify(accountsAnswer.body));
+        return;
+      }
+      if (!authorized || request.headers['accept-profile'] !== 'lifecycle' || !request.url?.startsWith('/rest/v1/instance_identity')) {
+        response.writeHead(401, {'content-type': 'application/json'}).end('{"message":"denied"}');
+        return;
+      }
+      response.writeHead(200, {'content-type': 'application/json'}).end(JSON.stringify(rows));
+    });
   });
   await new Promise((done) => server.listen(0, '127.0.0.1', done));
   origin = `http://127.0.0.1:${server.address().port}`;
 });
 
 after(() => server.close());
+
+// Every case starts with a healthy accounts API.
+beforeEach(() => {
+  accountsAnswer = accountsOk();
+});
 
 // A complete, valid local environment pointing at the fixture. Each case changes only what it tests.
 const local = () => ({
@@ -59,13 +78,14 @@ const local = () => ({
   SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY,
   ADMINISTRATOR_EMAIL: 'admin@example.com',
   INSTANCE_ID: INSTANCE,
-  AUTH_ALLOWED_EMAILS: 'heimannshua@gmail.com,daniel@orvex.ai',
   PAID_ADAPTERS_ENABLED: 'false',
   SYNTHETIC_DATA_ENABLED: 'true',
+  ...hashKeys(),
 });
 const staging = () => ({...local(), APP_ENV: 'staging', NEXT_PUBLIC_APP_ENV: 'staging', NEXT_PUBLIC_SUPABASE_URL: FIXTURE_HOST});
+// A preview holds no Supabase variables and neither hashing key.
 const preview = () => {
-  const {NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ...rest} = staging();
+  const {NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY, ...rest} = staging();
   return {...rest, VERCEL: '1', VERCEL_ENV: 'preview'};
 };
 const deployment = () => ({...staging(), VERCEL: '1', VERCEL_ENV: 'production'});
@@ -93,7 +113,7 @@ describe('identity matrix', () => {
     const result = await run(local(), '--live');
     passed(result);
     assert.match(result.stdout, /Instance identity verified/);
-    assert.ok(requests.at(-1).url.startsWith('/rest/v1/instance_identity'));
+    assert.ok(requests.some((request) => request.url.startsWith('/rest/v1/instance_identity')));
   });
 
   it('mixed identity: the row says staging but APP_ENV=production', async () => {
@@ -141,6 +161,8 @@ describe('identity matrix', () => {
       POSTGRES_PASSWORD: DB_PASSWORD,
       STRIPE_SECRET_KEY: STRIPE_KEY,
       STRIPE_WEBHOOK_SECRET: STRIPE_KEY,
+      INVITATION_HASH_KEY: randomBytes(32).toString('base64'),
+      RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64'),
     };
     for (const [name, value] of Object.entries(forbidden)) {
       const result = await run({...preview(), [name]: value});
@@ -210,14 +232,95 @@ describe('identity matrix', () => {
   });
 });
 
+describe('the accounts API preflight (Story 1.3)', () => {
+  const fixtureRows = () => {
+    rows = [{environment: 'local', instance_id: INSTANCE}];
+    accountsAnswer = accountsOk();
+  };
+
+  it('--live asks api.account_status for the nil UUID with the service role and says so', async () => {
+    fixtureRows();
+    const before = requests.length;
+    const result = await run(local(), '--live');
+    passed(result);
+    assert.match(result.stdout, /the accounts API answered/);
+    const asked = requests.slice(before).find((request) => request.url === '/rest/v1/rpc/account_status');
+    assert.ok(asked, 'account_status was not called');
+    assert.equal(asked.method, 'POST');
+    assert.equal(asked.headers['content-profile'], 'api');
+    assert.deepEqual(JSON.parse(asked.body), {p_user_id: '00000000-0000-0000-0000-000000000000'});
+  });
+
+  it('--live fails in one line when the api schema is not exposed, the migrations are missing or the key is refused', async () => {
+    for (const [status, text] of [[406, 'HTTP 406'], [404, 'HTTP 404'], [401, 'HTTP 401'], [403, 'HTTP 403']]) {
+      fixtureRows();
+      accountsAnswer = {status, body: {message: 'nope'}};
+      const result = await run(local(), '--live');
+      rejected(result, 'the accounts API cannot be verified');
+      assert.ok(result.stderr.includes(text), result.stderr);
+      assert.ok(result.stderr.includes('api schema exposed'), result.stderr);
+      assert.equal(result.stderr.split('\n').filter((line) => line.includes('accounts API')).length, 1, 'more than one line');
+    }
+  });
+
+  it('--live fails when the answer is not none', async () => {
+    fixtureRows();
+    accountsAnswer = {status: 200, body: {status: 'active', account_id: 'x'}};
+    rejected(await run(local(), '--live'), 'did not answer "none" for the nil UUID');
+  });
+
+  it('the deployment build runs it too, and fails closed', async () => {
+    rows = [{environment: 'staging', instance_id: INSTANCE}];
+    accountsAnswer = accountsOk();
+    const result = await run(deployment(), '--deployment');
+    passed(result);
+    assert.match(result.stdout, /the accounts API answered/);
+    accountsAnswer = {status: 406, body: {code: 'PGRST106'}};
+    rejected(await run(deployment(), '--deployment'), 'the accounts API cannot be verified');
+  });
+
+  it('does not run without --live, and does not mask an identity mismatch', async () => {
+    fixtureRows();
+    accountsAnswer = {status: 406, body: {}};
+    const before = requests.length;
+    passed(await run(local()));
+    assert.equal(requests.length, before, 'a plain check contacted the database');
+    rows = [{environment: 'local', instance_id: OTHER_INSTANCE}];
+    rejected(await run(local(), '--live'), 'INSTANCE_ID differs from the instance_identity row');
+  });
+
+  it('never runs for a preview', async () => {
+    fixtureRows();
+    accountsAnswer = {status: 406, body: {}};
+    const before = requests.length;
+    for (const args of [[], ['--live'], ['--deployment']]) passed(await run(preview(), ...args));
+    assert.equal(requests.length, before, 'a preview contacted the database');
+  });
+});
+
 describe('static rules kept from the seed', () => {
   it('rejects placeholder credentials', async () => {
     rejected(await run({...local(), NEXT_PUBLIC_SUPABASE_ANON_KEY: 'replace-with-local-anon-key'}), 'placeholder values are not allowed');
     rejected(await run({...local(), INSTANCE_ID: '<staging-instance-id>'}), 'placeholder values are not allowed');
   });
 
-  it('requires the interim allowlist until Story 1.3 replaces it', async () => {
-    rejected(await run({...local(), AUTH_ALLOWED_EMAILS: ''}), 'AUTH_ALLOWED_EMAILS must contain at least one email address');
+  it('requires both account hashing keys outside a preview (Story 1.3)', async () => {
+    for (const name of ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY']) {
+      const {[name]: _missing, ...without} = local();
+      rejected(await run(without), `missing required variables: ${name}`);
+      rejected(await run({...local(), [name]: ''}), name);
+      rejected(await run({...local(), [name]: `<${name.toLowerCase()}>`}), 'placeholder values are not allowed');
+      rejected(await run({...local(), [name]: 'too-short-to-be-a-key'}), `${name} must decode to at least 32 bytes`);
+    }
+    const same = randomBytes(32).toString('base64');
+    rejected(await run({...local(), INVITATION_HASH_KEY: same, RATE_LIMIT_HASH_KEY: same}), 'must be different keys');
+    passed(await run(local()));
+    passed(await run(staging()));
+  });
+
+  it('does not require the keys in a preview, which must not hold them', async () => {
+    passed(await run(preview()));
+    rejected(await run({...preview(), RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64')}), 'RATE_LIMIT_HASH_KEY');
   });
 
   it('rejects synthetic data in production', async () => {

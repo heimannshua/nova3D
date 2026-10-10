@@ -3,7 +3,7 @@ import {describe, expect, it, vi} from 'vitest';
 import {LoginForm} from '@/components/login-form';
 import {locales, translate, type Locale, type MessageKey} from '@/lib/i18n';
 import {I18nProvider} from '@/lib/i18n/react';
-import {signInErrorCodes, signInErrorKey, startGoogleSignIn, type OAuthClient} from '@/lib/sign-in';
+import {signInErrorCodes, signInErrorKey, signInErrorPath, startGoogleSignIn, type OAuthClient} from '@/lib/sign-in';
 
 const render = (locale: Locale, initialError?: string) => renderToStaticMarkup(<I18nProvider locale={locale}><LoginForm initialError={initialError}/></I18nProvider>);
 const alertText = (markup: string) => /<div class="notice notice-danger" role="alert">[\s\S]*?<p class="notice-text">([^<]*)<\/p>/.exec(markup)?.[1];
@@ -14,13 +14,14 @@ const expectedKey: Record<string, MessageKey> = {
   not_allowed: 'login.error.not_allowed',
   auth_not_configured: 'login.error.auth_not_configured',
   not_signed_in: 'login.error.not_signed_in',
+  account_disabled: 'login.error.account_disabled',
 };
 
 // Names an attacker could put in ?error= to reach Object.prototype instead of a message.
 const prototypeNames = ['constructor', '__proto__', 'hasOwnProperty', 'toString', 'valueOf', 'isPrototypeOf'];
 
 describe('sign-in error codes (the ?error= query string)', () => {
-  it('knows exactly the five codes the sign-in routes send back', () => {
+  it('knows exactly the six codes the sign-in routes, the proxy and the pages send back', () => {
     expect([...signInErrorCodes].sort()).toEqual(Object.keys(expectedKey).sort());
   });
 
@@ -44,6 +45,17 @@ describe('sign-in error codes (the ?error= query string)', () => {
     it('shows no error when there is no code', () => {
       expect(render(locale)).not.toContain('role="alert"');
     });
+  });
+
+  it('builds the path every redirect uses from the code, so no caller spells the query string itself', () => {
+    for (const code of signInErrorCodes) expect(signInErrorPath(code as never)).toBe(`/login?error=${code}`);
+  });
+
+  it('tells a person who is turned away, or whose Account is disabled, to contact the instance operator', () => {
+    for (const key of ['login.error.account_disabled', 'login.error.not_allowed'] as const) {
+      expect(translate('en', key), key).toMatch(/operator of this nova3D instance/);
+      expect(translate('he', key), key).toMatch(/מפעיל המופע של nova3D/);
+    }
   });
 
   it('maps every own code, falls back for anything else, and never reads the prototype', () => {

@@ -79,7 +79,6 @@ const staging = (overrides: Record<string, string | undefined> = {}) => {
     SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY,
     ADMINISTRATOR_EMAIL: 'admin@example.com',
     INSTANCE_ID: INSTANCE,
-    AUTH_ALLOWED_EMAILS: 'admin@example.com',
     PAID_ADAPTERS_ENABLED: 'false',
     SYNTHETIC_DATA_ENABLED: 'true',
     INVITATION_HASH_KEY: INVITATION_KEY,
@@ -314,7 +313,8 @@ describe('issue', () => {
   it('refuses a missing or weak key before any request', async () => {
     const missing = await run(['issue', '--name', 'Daniel', '--confirm', 'staging'], staging({INVITATION_HASH_KEY: undefined}));
     expect(missing.code).toBe(1);
-    expect(missing.stderr).toContain('INVITATION_HASH_KEY is not set');
+    // The environment check names it first now that both keys are required everywhere but a preview.
+    expect(missing.stderr).toContain('missing required variables: INVITATION_HASH_KEY');
     const weak = await run(['issue', '--name', 'Daniel', '--confirm', 'staging'], staging({INVITATION_HASH_KEY: 'short'}));
     expect(weak.code).toBe(1);
     expect(rpcs).toEqual([]);
@@ -385,5 +385,83 @@ describe('list', () => {
     expect(result.stdout).toContain(`${ID}  named   unused   2026-10-10T10:00:00+00:00  Daniel`);
     expect(result.stdout).toContain('5b0c9f0e-1111-4222-8333-444455556666  general revoked  2026-10-09T10:00:00+00:00');
     expect(rpcs[0].body).toEqual({});
+  });
+});
+
+describe('which hashing keys each command needs', () => {
+  const noKeys = {INVITATION_HASH_KEY: undefined, RATE_LIMIT_HASH_KEY: undefined};
+  const onlyInvitation = {INVITATION_HASH_KEY: INVITATION_KEY, RATE_LIMIT_HASH_KEY: undefined};
+  const onlyRateLimit = {INVITATION_HASH_KEY: undefined, RATE_LIMIT_HASH_KEY: RATE_LIMIT_KEY};
+  const fine = (outcome = 'revoked') => {
+    answer = ({name}) => {
+      if (name === 'list_invitations') return {body: []};
+      if (name === 'revoke_invitation') return {body: {invitation_id: ID, outcome}};
+      if (name === 'withdraw_preauthorization') return {body: {outcome: 'withdrawn'}};
+      if (name === 'seed_preauthorization') return {body: {preauthorization_id: ID, role: 'administrator', created: true, consumed: false, other_administrators: 0}};
+      return {body: {invitation_id: ID, outcome: 'issued'}};
+    };
+  };
+
+  it.each([
+    ['list', ['list']],
+    ['revoke --id', ['revoke', '--id', ID]],
+    ['unauthorize', ['unauthorize', '--email', 'someone@example.com']],
+    ['preauthorize', ['preauthorize']],
+  ])('%s needs neither key', async (_name, args) => {
+    fine();
+    const result = await run([...args, '--confirm', 'staging'], staging(noKeys));
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stderr).not.toContain('HASH_KEY');
+    expect(rpcs.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['list', ['list']],
+    ['revoke --id', ['revoke', '--id', ID]],
+    ['unauthorize', ['unauthorize', '--email', 'someone@example.com']],
+    ['preauthorize', ['preauthorize']],
+  ])('%s is not stopped by a malformed key it does not use', async (_name, args) => {
+    fine();
+    const result = await run([...args, '--confirm', 'staging'], staging({INVITATION_HASH_KEY: 'short', RATE_LIMIT_HASH_KEY: '<placeholder>'}));
+    expect(result.code, result.stderr).toBe(0);
+  });
+
+  it.each([
+    ['issue --name', ['issue', '--name', 'Daniel'], undefined],
+    ['issue --general', ['issue', '--general'], undefined],
+    ['revoke --code-stdin', ['revoke', '--code-stdin'], '7H2K-9QXM-3NRT-0AB4-VWXY-1234-5678-ZZZZ\n'],
+  ])('%s needs INVITATION_HASH_KEY only', async (_name, args, input) => {
+    fine();
+    const withInvitation = await run([...args, '--confirm', 'staging'], staging(onlyInvitation), input);
+    expect(withInvitation.code, withInvitation.stderr).toBe(0);
+    rpcs = [];
+    for (const missing of [noKeys, onlyRateLimit]) {
+      const refused = await run([...args, '--confirm', 'staging'], staging(missing), input);
+      expect(refused.code).toBe(1);
+      expect(refused.stderr).toContain('missing required variables: INVITATION_HASH_KEY');
+      expect(refused.stderr).not.toContain('RATE_LIMIT_HASH_KEY');
+    }
+    expect(rpcs).toEqual([]);
+  });
+
+  it('still refuses a malformed key for the command that uses it, naming the variable and not the value', async () => {
+    fine();
+    const result = await run(['issue', '--name', 'Daniel', '--confirm', 'staging'], staging({INVITATION_HASH_KEY: 'short'}));
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('INVITATION_HASH_KEY must decode to at least 32 bytes');
+    expect(result.stderr).not.toContain('short');
+  });
+
+  it('keeps every other check: the service key, the identity row and the confirmation', async () => {
+    fine();
+    const noServiceKey = await run(['list', '--confirm', 'staging'], staging({...noKeys, SUPABASE_SERVICE_ROLE_KEY: undefined}));
+    expect(noServiceKey.code).toBe(1);
+    expect(noServiceKey.stderr).toContain('SUPABASE_SERVICE_ROLE_KEY');
+    const mixed = await run(['list', '--confirm', 'staging'], staging({...noKeys, INSTANCE_ID: '11111111-1111-4111-8111-111111111111'}));
+    expect(mixed.code).toBe(1);
+    expect(mixed.stderr).toContain('INSTANCE_ID differs');
+    const unconfirmed = await run(['list'], staging(noKeys));
+    expect(unconfirmed.code).toBe(2);
+    expect(rpcs).toEqual([]);
   });
 });

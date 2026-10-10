@@ -1,4 +1,5 @@
 import {execFile} from 'node:child_process';
+import {randomBytes} from 'node:crypto';
 import {resolve} from 'node:path';
 import {Client} from 'pg';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
@@ -175,9 +176,10 @@ describe('check-env --live against the local stack', () => {
     SUPABASE_SERVICE_ROLE_KEY: stack.serviceKey,
     ADMINISTRATOR_EMAIL: 'admin@example.com',
     INSTANCE_ID: instanceId,
-    AUTH_ALLOWED_EMAILS: 'admin@example.com',
     PAID_ADAPTERS_ENABLED: 'false',
     SYNTHETIC_DATA_ENABLED: 'true',
+    INVITATION_HASH_KEY: randomBytes(32).toString('base64'),
+    RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64'),
   });
   const check = (env: Record<string, string>) =>
     new Promise<{code: number; stdout: string; stderr: string}>((done) => {
@@ -191,6 +193,8 @@ describe('check-env --live against the local stack', () => {
     const good = await check(environment(rows[0].instance_id));
     expect(good.code, good.stderr).toBe(0);
     expect(good.stdout).toContain('Instance identity verified');
+    // The accounts API preflight ran too: api.account_status for the nil UUID answered `none` on the real stack.
+    expect(good.stdout).toContain('the accounts API answered');
 
     const bad = await check(environment('11111111-1111-4111-8111-111111111111'));
     expect(bad.code).toBe(1);

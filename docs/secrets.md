@@ -20,7 +20,7 @@ Generate on your own machine, copy straight into the store, and never paste a va
 
 ### RATE_LIMIT_HASH_KEY
 
-Story 1.3. Keyed hash (HMAC-SHA256) of the platform-reported client address for the registration and recovery rate limiter, so no raw address is kept. Read only by the application (`lib/accounts.ts`). Not required at startup until Story 1.3 Part B; checked for shape when set (base64, at least 32 bytes, different from `INVITATION_HASH_KEY`).
+Story 1.3. Keyed hash (HMAC-SHA256) of the platform-reported client address for the registration and recovery rate limiter, so no raw address is kept. Read only by the application (`lib/accounts.ts`). Required at startup in every environment except a preview, which must not hold it; checked for shape (base64, at least 32 bytes, different from `INVITATION_HASH_KEY`).
 
 - **Owner:** Administrator (Josh).
 - **Generation:** 32 random bytes from a secure generator, for example `openssl rand -base64 32`, one value per environment.
@@ -30,7 +30,7 @@ Story 1.3. Keyed hash (HMAC-SHA256) of the platform-reported client address for 
 
 ### INVITATION_HASH_KEY
 
-Story 1.3. Keyed hash (HMAC-SHA256) under which invitation codes are stored; only hashes are kept. Read only by the application (`lib/accounts.ts`) and by the audited seed command (`scripts/seed-accounts.mjs`), which hashes a code before it reaches the database. Not required at startup until Story 1.3 Part B; checked for shape when set (base64, at least 32 bytes, different from `RATE_LIMIT_HASH_KEY`). `node scripts/setup-env.mjs local` generates both local keys and keeps valid ones.
+Story 1.3. Keyed hash (HMAC-SHA256) under which invitation codes are stored; only hashes are kept. Read only by the application (`lib/accounts.ts`) and by the audited seed command (`scripts/seed-accounts.mjs`), which hashes a code before it reaches the database. Required at startup in every environment except a preview, which must not hold it; checked for shape (base64, at least 32 bytes, different from `RATE_LIMIT_HASH_KEY`). `node scripts/setup-env.mjs local` generates both local keys and keeps valid ones.
 
 - **Owner:** Administrator (Josh).
 - **Generation:** 32 random bytes from a secure generator, for example `openssl rand -base64 32`, one value per environment.

@@ -1,7 +1,6 @@
 import type {Metadata} from 'next';
-import {redirect} from 'next/navigation';
 import {NovaDashboard} from '@/components/nova-dashboard';
-import {getAccess} from '@/lib/auth';
+import {requireActiveAccount} from '@/lib/auth';
 import {getI18n} from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -10,7 +9,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ProjectsPage() {
-  const access = await getAccess();
-  if (access.kind === 'none') redirect('/login');
+  await requireActiveAccount();
   return <NovaDashboard view="projects" />;
 }

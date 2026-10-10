@@ -1,15 +1,24 @@
 import type {MessageKey} from './i18n';
 
 // Error codes the sign-in routes send back in the query string, each with a catalog message.
-const errorMessages: Record<string, MessageKey> = {
+const errorMessages = {
   auth_unavailable: 'login.error.auth_unavailable',
   auth_failed: 'login.error.auth_failed',
   not_allowed: 'login.error.not_allowed',
   auth_not_configured: 'login.error.auth_not_configured',
   not_signed_in: 'login.error.not_signed_in',
-};
+  account_disabled: 'login.error.account_disabled',
+} as const satisfies Record<string, MessageKey>;
+
+/** The codes the sign-in routes, the proxy and the pages send back as /login?error=<code>. */
+export type SignInErrorCode = keyof typeof errorMessages;
 
 export const signInErrorCodes = Object.keys(errorMessages);
+
+/** The path that shows a sign-in error. The one place the query string is built. */
+export function signInErrorPath(code: SignInErrorCode) {
+  return `/login?error=${code}`;
+}
 
 /**
  * The message for an error code from the query string, or null when there is no code. The code comes from
@@ -18,7 +27,7 @@ export const signInErrorCodes = Object.keys(errorMessages);
  */
 export function signInErrorKey(code: string | undefined): MessageKey | null {
   if (!code) return null;
-  return Object.hasOwn(errorMessages, code) ? errorMessages[code] : 'login.error.unknown';
+  return Object.hasOwn(errorMessages, code) ? errorMessages[code as SignInErrorCode] : 'login.error.unknown';
 }
 
 export type OAuthClient = {

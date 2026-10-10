@@ -1,4 +1,6 @@
-// Which paths the proxy lets through without a signed-in Account.
+// Which paths the proxy lets through without a signed-in Account. /register is deliberately not one of
+// them: registration is for a signed-in Google identity that has no Account yet, and the proxy lets only
+// that identity reach it (lib/access.ts).
 export const publicPaths = ['/login', '/auth/callback', '/api/health'];
 
 /**

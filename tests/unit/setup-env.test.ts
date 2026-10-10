@@ -73,7 +73,7 @@ const hostedFile = [
   `NEXT_PUBLIC_SUPABASE_URL=${HOSTED_URL}`,
   'NEXT_PUBLIC_SUPABASE_ANON_KEY=hosted-anon-key',
   'SUPABASE_SERVICE_ROLE_KEY=hosted-service-key',
-  'AUTH_ALLOWED_EMAILS=a@b.co',
+  'SEED_ACCOUNT_EMAILS=a@b.co',
   'UNRELATED=keep-me',
   '',
 ].join('\n');
@@ -108,7 +108,7 @@ describe('setup-env local', () => {
     expect(valuesOf(text, 'ADMINISTRATOR_EMAIL')).toHaveLength(1);
     expect(text).toContain('# my notes');
     expect(text).toContain('UNRELATED=keep-me');
-    expect(text).toContain('AUTH_ALLOWED_EMAILS=a@b.co');
+    expect(text).toContain('SEED_ACCOUNT_EMAILS=a@b.co');
     expect(text).not.toContain(HOSTED_URL);
     expect(text).not.toContain('hosted-');
 

@@ -2,7 +2,8 @@
 title: 'Story 1.3 (Part B: app): Registration screen and live-Account gating'
 type: 'feature'
 created: '2026-10-10'
-status: 'draft'
+status: 'done'
+baseline_commit: 'bc07499898a0f916df70e6d21e3b183c0188cc78'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -60,15 +61,15 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `lib/access.ts`, `lib/auth.ts` -- one Account-state resolver (`signed-out | unregistered | active | disabled | unavailable`) from the verified session and `accountStatus`, used by proxy, pages and callback; delete the email-list code -- AC-1, AC-9
-- [ ] `proxy.ts` -- apply the matrix; unregistered users reach only `/register`; any error denies -- AC-1, AC-9
-- [ ] `app/auth/callback/route.ts` -- consume the pre-authorization, then route by the resolved state, signing out on refusal, disabled or error -- AC-7
-- [ ] `app/register/page.tsx`, `app/register/actions.ts`, `components/register-form.tsx` -- Server Action with `useActionState`, command ID handling, generic messages, operator notice, "use a different Google account" sign-out; localized; phone and desktop -- AC-1, AC-3
-- [ ] `lib/i18n/en.ts`, `lib/i18n/he.ts`, `lib/sign-in.ts` -- messages and the `account_disabled` code -- AC-1
-- [ ] `components/shell/routes.ts`, `lib/public-paths.ts` -- `/register` chromeless and not public -- AC-1
-- [ ] `lib/environment.ts`, `scripts/*`, `.env*.example`, `docs/*`, `README.md` -- remove `AUTH_ALLOWED_EMAILS`; require both hash keys at startup outside previews -- AC-9
-- [ ] `tests/` -- unit (resolver, callback routing, action outcomes, proxy decisions with fake accounts), forged-session browser flows on desktop and phone in English and Hebrew (axe included), a test that searches the repository for the removed names -- all ACs
-- [ ] `deferred-work.md`, `docs/auth-setup.md` -- seed the old allowlist addresses before cutover, hosted steps for Josh -- housekeeping
+- [x] `lib/access.ts`, `lib/auth.ts` -- one Account-state resolver (`signed-out | unregistered | active | disabled | unavailable`) from the verified session and `accountStatus`, used by proxy, pages and callback; delete the email-list code -- AC-1, AC-9
+- [x] `proxy.ts` -- apply the matrix; unregistered users reach only `/register`; any error denies -- AC-1, AC-9
+- [x] `app/auth/callback/route.ts` -- consume the pre-authorization, then route by the resolved state, signing out on refusal, disabled or error -- AC-7
+- [x] `app/register/page.tsx`, `app/register/actions.ts`, `components/register-form.tsx` -- Server Action with `useActionState`, command ID handling, generic messages, operator notice, "use a different Google account" sign-out; localized; phone and desktop -- AC-1, AC-3
+- [x] `lib/i18n/en.ts`, `lib/i18n/he.ts`, `lib/sign-in.ts` -- messages and the `account_disabled` code -- AC-1
+- [x] `components/shell/routes.ts`, `lib/public-paths.ts` -- `/register` chromeless and not public -- AC-1
+- [x] `lib/environment.ts`, `scripts/*`, `.env*.example`, `docs/*`, `README.md` -- remove `AUTH_ALLOWED_EMAILS`; require both hash keys at startup outside previews -- AC-9
+- [x] `tests/` -- unit (resolver, callback routing, action outcomes, proxy decisions with fake accounts), forged-session browser flows on desktop and phone in English and Hebrew (axe included), a test that searches the repository for the removed names -- all ACs
+- [x] `deferred-work.md`, `docs/auth-setup.md` -- seed the old allowlist addresses before cutover, hosted steps for Josh -- housekeeping
 
 **Acceptance Criteria:**
 - Given a signed-in Google identity without an Account, when it visits any private path, then it reaches only `/register`, which explains the operator's role and works on phone and desktop in both languages.
@@ -91,3 +92,65 @@ Local Google sign-in cannot be driven, so browser tests forge sessions: insert a
 - `supabase start && npm test` -- expected: unit and integration pass
 - `CI=1 npm run test:e2e` -- expected: registration and gating flows pass on both projects
 - `grep -rIn "AUTH_ALLOWED_EMAILS\|allowedEmail\|authAllowedEmails" . --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.next --exclude-dir=_bmad-output --exclude-dir=_bmad` -- expected: no matches
+
+## Suggested Review Order
+
+**One decision about who is in (the core idea)**
+
+- A single resolver turns the verified session plus the Accounts database into one of five states; any failure becomes "unavailable".
+  [`access.ts:144`](../../lib/access.ts#L144)
+
+- The table that says where each state may go.
+  [`access.ts:183`](../../lib/access.ts#L183)
+
+- Only a real Google, confirmed, non-anonymous user counts; other Auth errors are outages, not "signed out".
+  [`access.ts:111`](../../lib/access.ts#L111)
+
+**Every request passes through it**
+
+- The proxy applies the table to every private path and denies on any error.
+  [`proxy.ts:39`](../../proxy.ts#L39)
+
+- A seeded address is activated when its owner opens the registration page, not just at sign-in.
+  [`access.ts:246`](../../lib/access.ts#L246)
+
+- Pages repeat the check, so the proxy is not the only boundary.
+  [`auth.ts:22`](../../lib/auth.ts#L22)
+
+**Sign-in and sign-out**
+
+- The callback claims a pre-authorization, then routes by the result; a refusal signs out everywhere, an outage only here.
+  [`route.ts:14`](../../app/auth/callback/route.ts#L14)
+
+- The sign-in decision for each outcome.
+  [`access.ts:223`](../../lib/access.ts#L223)
+
+- Sign-out has a deadline and only clears this project's cookies.
+  [`sign-out.ts:32`](../../lib/supabase/sign-out.ts#L32)
+
+**Registration screen**
+
+- The Server Action: user from the session, bounded input, generic failures, command-ID handling.
+  [`actions.ts:22`](../../app/register/actions.ts#L22)
+
+- The form: operator notice, accessible errors, and a stale form is sent to the right page.
+  [`register-form.tsx:80`](../../components/register-form.tsx#L80)
+
+**Old list removed, new keys required**
+
+- Hosted preflight: the accounts API must answer before a deploy proceeds.
+  [`environment.ts:268`](../../lib/environment.ts#L268)
+
+- A repository search proves the old email list is gone.
+  [`allowlist-removal.test.ts`](../../tests/unit/allowlist-removal.test.ts)
+
+**Tests (supporting)**
+
+- Sessions are forged against the real local Auth, so the real `getUser()` path runs.
+  [`forged-session.ts`](../../tests/support/forged-session.ts)
+
+- Browser flows for every matrix row, desktop and phone, English and Hebrew, with accessibility checks.
+  [`registration.spec.ts`](../../tests/e2e/registration.spec.ts)
+
+- Proxy decisions and the callback, with fake Auth and fake accounts.
+  [`proxy-gating.test.ts`](../../tests/unit/proxy-gating.test.ts)

@@ -296,10 +296,11 @@ p.text-span, div.text-span { display: block; text-align: start; }
 .btn-quiet:hover { background: var(--action-soft); color: var(--action-soft-text); }
 .btn-danger { background: var(--danger-action); color: var(--danger-action-text); }
 .btn-danger:hover { background: var(--danger-action-hover); }
-.btn:disabled {
+.btn:disabled, .btn[aria-disabled="true"] {
   background: var(--surface-sunken);
   border-color: var(--border);
   color: var(--text-subtle);
+  cursor: not-allowed;
 }
 
 .icon-btn {
@@ -763,7 +764,7 @@ main { flex: 1; min-inline-size: 0; }
 
 /* ---------- Sign-in ---------- */
 .auth-shell { display: grid; min-block-size: 100dvh; place-items: center; padding: var(--space-5); background: radial-gradient(circle at 50% 0, var(--action-soft) 0, var(--surface-page) 48%); }
-.auth-card { inline-size: min(27rem, 100%); padding: var(--pad); border: 1px solid var(--border-strong); border-radius: var(--radius-xl); background: var(--surface-card); box-shadow: var(--elevation-2); }
+.auth-card { inline-size: min(27rem, 100%); padding: var(--pad); border: 1px solid var(--border-strong); border-radius: var(--radius-xl); background: var(--surface-card); box-shadow: var(--elevation-2); overflow-wrap: anywhere; }
 .auth-card .brand { margin-block-end: var(--space-6); }
 .auth-card h1 { margin-block-start: var(--space-1); font-size: var(--text-2xl); }
 .auth-lede { margin-block: var(--space-3) var(--space-5); color: var(--text-muted); font-size: var(--text-sm); }
@@ -772,6 +773,18 @@ main { flex: 1; min-inline-size: 0; }
 .auth-hint, .auth-footnote { color: var(--text-muted); font-size: var(--text-xs); }
 .auth-hint { margin-block-start: var(--space-2); }
 .auth-footnote { margin-block-start: var(--space-5); text-align: center; }
+
+/* The registration form (Story 1.3). The code is Latin text, so the field reads left to right in Hebrew too. */
+.auth-form { display: grid; gap: var(--space-4); }
+.auth-field { display: grid; gap: var(--space-2); }
+.auth-field .auth-hint { margin-block-start: 0; }
+.auth-label { color: var(--text-strong); font-size: var(--text-sm); font-weight: 700; }
+.auth-input { inline-size: 100%; min-block-size: var(--target); padding-inline: var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-card); color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--text-base); }
+.auth-input[aria-invalid="true"] { border-color: var(--status-danger-fg); }
+.auth-submit { inline-size: 100%; }
+.auth-status { min-block-size: 1.25rem; margin-block-start: calc(-1 * var(--space-2)); }
+.auth-nocode { margin-block-start: var(--space-4); text-align: center; }
+.auth-switch { display: flex; justify-content: center; margin-block-start: var(--space-2); }
 
 /* ---------- Reduced motion: no animation, no parallax, no smooth scrolling ---------- */
 @media (prefers-reduced-motion: reduce) {
@@ -788,7 +801,7 @@ main { flex: 1; min-inline-size: 0; }
 @media (forced-colors: active) {
   :focus-visible { outline: 0.1875rem solid Highlight; }
   .btn, .icon-btn, .status-badge, .notice, .choice, .nav-item, .back-link { border: 1px solid ButtonText; }
-  .btn:disabled, .icon-btn:disabled { border-color: GrayText; color: GrayText; }
+  .btn:disabled, .btn[aria-disabled="true"], .icon-btn:disabled { border-color: GrayText; color: GrayText; }
   .nav-item.active, .choice:has(input:checked) { border-color: Highlight; outline: 0.125rem solid Highlight; }
   .progress-track { border-color: CanvasText; }
   .progress-fill { forced-color-adjust: none; background: Highlight; }

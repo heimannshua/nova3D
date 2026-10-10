@@ -18,7 +18,6 @@ const requiredVariables = [
   'NEXT_PUBLIC_APP_ENV',
   'ADMINISTRATOR_EMAIL',
   'INSTANCE_ID',
-  'AUTH_ALLOWED_EMAILS',
   'PAID_ADAPTERS_ENABLED',
   'SYNTHETIC_DATA_ENABLED',
 ];
@@ -37,9 +36,21 @@ export const isEmailAddress = (value: string) => value.length <= maxEmailLength 
 const loopbackHost = /^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\])$/;
 
 // Story 1.3: keys under which invitation codes and client addresses are hashed before they reach the
-// database. Optional until Story 1.3 Part B requires them at startup; checked for shape when present.
+// database. Required at startup everywhere except a preview (which must not hold them), and checked for
+// shape whenever they are set.
 export const hashKeyVariables = ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY'] as const;
+export type HashKeyName = (typeof hashKeyVariables)[number];
 export const minHashKeyBytes = 32;
+
+export type CheckOptions = {
+  /**
+   * The hashing keys this run needs, required and checked for shape. Defaults to both, which is what the
+   * server needs. The audited seed command asks only for the keys its command uses.
+   */
+  hashKeys?: readonly HashKeyName[];
+  /** Also ask the accounts API (api.account_status) for the nil UUID and expect `none`: the hosted preflight. */
+  accountsApi?: boolean;
+};
 const base64Text = /^[A-Za-z0-9+/_-]+={0,2}$/;
 
 /** Decodes a hash key the one way every caller does: base64 (standard or URL-safe, padding optional). */
@@ -115,22 +126,20 @@ export function isHttpsUrl(value: string) {
 }
 
 /** Label and format checks. Reads no network. Returns one message per problem. */
-export function validateEnvironment(env: Env): string[] {
+export function validateEnvironment(env: Env, options: CheckOptions = {}): string[] {
   const errors: string[] = [];
   const environment = env.APP_ENV;
   const preview = isPreview(env);
-  const needed = preview ? requiredVariables : [...requiredVariables, ...supabaseVariables];
+  const keys = options.hashKeys ?? hashKeyVariables;
+  const needed = preview ? requiredVariables : [...requiredVariables, ...supabaseVariables, ...keys];
 
-  const missing = needed.filter((name) => !env[name]);
+  const missing = needed.filter((name) => !env[name]?.trim());
   const placeholders = needed.filter((name) => isPlaceholder(env[name]));
 
   if (!appEnvironments.includes(environment as AppEnvironment)) errors.push('APP_ENV must be local, staging, or production');
   if (missing.length) errors.push(`missing required variables: ${missing.join(', ')}`);
   if (placeholders.length) errors.push(`placeholder values are not allowed: ${placeholders.join(', ')}`);
   if (env.NEXT_PUBLIC_APP_ENV !== environment) errors.push('APP_ENV and NEXT_PUBLIC_APP_ENV must match');
-  if (!env.AUTH_ALLOWED_EMAILS?.split(',').map((value) => value.trim()).filter(Boolean).length) {
-    errors.push('AUTH_ALLOWED_EMAILS must contain at least one email address');
-  }
   if (env.ADMINISTRATOR_EMAIL && !isPlaceholder(env.ADMINISTRATOR_EMAIL) && !isEmailAddress(env.ADMINISTRATOR_EMAIL.trim())) {
     errors.push(`ADMINISTRATOR_EMAIL must be one email address of at most ${maxEmailLength} characters`);
   }
@@ -140,11 +149,11 @@ export function validateEnvironment(env: Env): string[] {
   for (const name of ['PAID_ADAPTERS_ENABLED', 'SYNTHETIC_DATA_ENABLED']) {
     if (env[name] && !['true', 'false'].includes(env[name]!)) errors.push(`${name} must be true or false`);
   }
-  for (const name of hashKeyVariables) {
+  for (const name of keys) {
     const problem = env[name]?.trim() ? hashKeyProblem(env[name]!) : null;
     if (problem) errors.push(`${name} ${problem}`);
   }
-  const [invitationKey, rateLimitKey] = hashKeyVariables.map((name) => env[name]?.trim() ?? '');
+  const [invitationKey, rateLimitKey] = hashKeyVariables.map((name) => (keys.includes(name) ? env[name]?.trim() ?? '' : ''));
   if (invitationKey && rateLimitKey && !hashKeyProblem(invitationKey) && !hashKeyProblem(rateLimitKey) && sameKey(invitationKey, rateLimitKey)) {
     errors.push('INVITATION_HASH_KEY and RATE_LIMIT_HASH_KEY must be different keys');
   }
@@ -255,6 +264,66 @@ export async function fetchInstanceIdentity(
   return {identity: {environment: row.environment, instance_id: row.instance_id}};
 }
 
+/** The user ID the preflight asks about: no Auth user has it, so the answer must be `none`. */
+export const nilUserId = '00000000-0000-0000-0000-000000000000';
+
+/**
+ * The hosted preflight for Story 1.3: calls api.account_status for the nil UUID with the service role and
+ * expects `none`. It fails with one line when the `api` schema is not exposed, the migrations are not
+ * applied, the service key is wrong, or the database does not answer. It cannot tell an unseeded database
+ * from a seeded one, and does not try: an unseeded deployment locks everyone out (see docs/deployment-setup.md).
+ */
+export async function checkAccountsApi(env: Env, fetchImpl: IdentityFetch = fetch, timeoutMs = 5000): Promise<IdentityRead> {
+  const base = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!base || !key) return {error: 'the accounts API cannot be checked: Supabase URL or service key is missing', retryable: false};
+  let origin: string;
+  try {
+    origin = new URL(base).origin;
+  } catch {
+    return {error: 'the accounts API cannot be checked: NEXT_PUBLIC_SUPABASE_URL is not a valid URL', retryable: false};
+  }
+  const headers = {apikey: key, authorization: `Bearer ${key}`, 'content-type': 'application/json', 'content-profile': 'api', accept: 'application/json'};
+  try {
+    new Headers(headers);
+  } catch {
+    return {error: 'the accounts API cannot be checked: SUPABASE_SERVICE_ROLE_KEY is not a valid HTTP header value', retryable: false};
+  }
+
+  let response: Response;
+  try {
+    // redirect: 'error' so the service key can never follow a redirect to another host.
+    response = await fetchImpl(`${origin}/rest/v1/rpc/account_status`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({p_user_id: nilUserId}),
+      redirect: 'error',
+      signal: AbortSignal.timeout(timeoutMs),
+      cache: 'no-store',
+    });
+  } catch (error) {
+    const name = typeof error === 'object' && error !== null ? String((error as {name?: unknown}).name) : '';
+    const slow = name === 'TimeoutError' || name === 'AbortError';
+    return {error: `the accounts API cannot be verified: the database at ${origin} ${slow ? `did not answer within ${Math.round(timeoutMs / 1000)} s` : 'is unreachable'}`, retryable: true};
+  }
+  if (!response.ok) {
+    return {
+      error: `the accounts API cannot be verified: ${origin} answered HTTP ${response.status} for api.account_status (is the api schema exposed, the Story 1.3 migrations applied and the service key right?)`,
+      retryable: response.status >= 500,
+    };
+  }
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return {error: 'the accounts API cannot be verified: api.account_status did not answer with JSON', retryable: false};
+  }
+  if (typeof body !== 'object' || body === null || (body as {status?: unknown}).status !== 'none') {
+    return {error: 'the accounts API cannot be verified: api.account_status did not answer "none" for the nil UUID (is the Story 1.3 migration applied to this database?)', retryable: false};
+  }
+  return {};
+}
+
 /** Compares the row with APP_ENV and INSTANCE_ID. Names the mismatch, never prints the UUIDs. */
 export function compareIdentity(env: Env, identity: InstanceIdentity): string[] {
   const errors: string[] = [];
@@ -278,15 +347,20 @@ export function identityMismatchHint(env: Env) {
  * Fails closed: an unreachable database or a missing row is an error. `retryable` is true only
  * for failures that may clear by themselves; a mismatch, an absent row or a 4xx is final.
  */
-export async function checkInstanceIdentity(env: Env, fetchImpl: IdentityFetch = fetch): Promise<{errors: string[]; retryable: boolean}> {
-  const errors = validateEnvironment(env);
+export async function checkInstanceIdentity(env: Env, fetchImpl: IdentityFetch = fetch, options: CheckOptions = {}): Promise<{errors: string[]; retryable: boolean}> {
+  const errors = validateEnvironment(env, options);
   if (errors.length || isPreview(env)) return {errors, retryable: false};
   const {identity, error, retryable} = await fetchInstanceIdentity(env, fetchImpl);
   if (!identity) return {errors: [error ?? 'instance_identity cannot be verified'], retryable: Boolean(retryable)};
   const mismatches = compareIdentity(env, identity);
-  return {errors: mismatches.length ? [...mismatches, identityMismatchHint(env)] : [], retryable: false};
+  if (mismatches.length) return {errors: [...mismatches, identityMismatchHint(env)], retryable: false};
+  if (options.accountsApi) {
+    const accounts = await checkAccountsApi(env, fetchImpl);
+    if (accounts.error) return {errors: [accounts.error], retryable: Boolean(accounts.retryable)};
+  }
+  return {errors: [], retryable: false};
 }
 
-export async function verifyInstanceIdentity(env: Env, fetchImpl: IdentityFetch = fetch): Promise<string[]> {
-  return (await checkInstanceIdentity(env, fetchImpl)).errors;
+export async function verifyInstanceIdentity(env: Env, fetchImpl: IdentityFetch = fetch, options: CheckOptions = {}): Promise<string[]> {
+  return (await checkInstanceIdentity(env, fetchImpl, options)).errors;
 }

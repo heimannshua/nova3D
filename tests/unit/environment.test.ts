@@ -1,9 +1,12 @@
 import {randomBytes} from 'node:crypto';
 import {describe, expect, it} from 'vitest';
-import {checkInstanceIdentity, compareIdentity, decodeHashKey, fetchInstanceIdentity, hashKeyProblem, identityMismatchHint, isLoopbackUrl, parseEmailList, parseEnvValue, sameKey, validateEnvironment, verifyInstanceIdentity, type Env, type IdentityFetch} from '@/lib/environment';
+import {checkAccountsApi, checkInstanceIdentity, compareIdentity, nilUserId, decodeHashKey, fetchInstanceIdentity, hashKeyProblem, identityMismatchHint, isLoopbackUrl, parseEmailList, parseEnvValue, sameKey, validateEnvironment, verifyInstanceIdentity, type Env, type IdentityFetch} from '@/lib/environment';
 
 const INSTANCE = '3f0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c44';
 const SERVICE_KEY = 'fixture-service-key-must-never-be-returned';
+
+// Both hashing keys are required outside a preview (Story 1.3 Part B), so a complete environment holds them.
+const hashKeys = (): Env => ({INVITATION_HASH_KEY: randomBytes(32).toString('base64'), RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64')});
 
 const staging: Env = {
   APP_ENV: 'staging',
@@ -13,13 +16,14 @@ const staging: Env = {
   SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY,
   ADMINISTRATOR_EMAIL: 'admin@example.com',
   INSTANCE_ID: INSTANCE,
-  AUTH_ALLOWED_EMAILS: 'admin@example.com',
   PAID_ADAPTERS_ENABLED: 'false',
   SYNTHETIC_DATA_ENABLED: 'true',
   VERCEL: '1',
   VERCEL_ENV: 'production',
+  ...hashKeys(),
 };
 
+const noKeys: Env = {INVITATION_HASH_KEY: undefined, RATE_LIMIT_HASH_KEY: undefined};
 const answer = (status: number, body: unknown): IdentityFetch => async () => new Response(JSON.stringify(body), {status});
 
 describe('isLoopbackUrl', () => {
@@ -37,7 +41,7 @@ describe('validateEnvironment', () => {
   });
 
   it('requires ADMINISTRATOR_EMAIL and INSTANCE_ID everywhere, previews included', () => {
-    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined};
+    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys};
     expect(validateEnvironment(preview)).toEqual([]);
     expect(validateEnvironment({...preview, ADMINISTRATOR_EMAIL: undefined}).join()).toContain('ADMINISTRATOR_EMAIL');
     expect(validateEnvironment({...preview, INSTANCE_ID: undefined}).join()).toContain('INSTANCE_ID');
@@ -71,7 +75,6 @@ describe('validateEnvironment', () => {
       NEXT_PUBLIC_APP_ENV: 'staging',
       ADMINISTRATOR_EMAIL: 'admin@example.com',
       INSTANCE_ID: INSTANCE,
-      AUTH_ALLOWED_EMAILS: 'admin@example.com',
       PAID_ADAPTERS_ENABLED: 'false',
       SYNTHETIC_DATA_ENABLED: 'true',
       VERCEL: '1',
@@ -120,7 +123,7 @@ describe('validateEnvironment', () => {
 
     it('does not mistake a real address that starts with a placeholder word', () => {
       for (const email of ['todos@example.com', 'todo.list@example.com', 'changemefast@example.com']) {
-        expect(validateEnvironment({...staging, ADMINISTRATOR_EMAIL: email, AUTH_ALLOWED_EMAILS: email}), email).toEqual([]);
+        expect(validateEnvironment({...staging, ADMINISTRATOR_EMAIL: email}), email).toEqual([]);
       }
     });
   });
@@ -182,7 +185,7 @@ describe('verifyInstanceIdentity', () => {
 
   it('never reads the database for a preview', async () => {
     let calls = 0;
-    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined};
+    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys};
     const errors = await verifyInstanceIdentity(preview, async () => { calls += 1; return new Response('[]'); });
     expect(errors).toEqual([]);
     expect(calls).toBe(0);
@@ -331,10 +334,22 @@ describe('hash keys (Story 1.3)', () => {
     expect(hashKeyProblem('ab'.repeat(32))).toMatch(/not random/);
   });
 
-  it('are optional: an environment without them stays valid, so nothing requires them at startup', () => {
+  it('are required outside a preview, so the server does not start without them', () => {
     expect(validateEnvironment(staging)).toEqual([]);
-    expect(validateEnvironment({...staging, INVITATION_HASH_KEY: '', RATE_LIMIT_HASH_KEY: '  '})).toEqual([]);
-    expect(validateEnvironment({...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined})).toEqual([]);
+    for (const name of ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY']) {
+      for (const value of [undefined, '', '  ']) {
+        expect(validateEnvironment({...staging, [name]: value}).join('\n'), `${name}=${JSON.stringify(value)}`).toContain(`missing required variables: ${name}`);
+      }
+    }
+    expect(validateEnvironment({...staging, ...noKeys}).join('\n')).toContain('missing required variables: INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY');
+    // The local environment is held to the same rule.
+    const local = {...staging, APP_ENV: 'local', NEXT_PUBLIC_APP_ENV: 'local', VERCEL: undefined, VERCEL_ENV: undefined, NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321'};
+    expect(validateEnvironment(local)).toEqual([]);
+    expect(validateEnvironment({...local, ...noKeys}).join('\n')).toContain('missing required variables');
+  });
+
+  it('are not required in a preview, which must not hold them', () => {
+    expect(validateEnvironment({...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys})).toEqual([]);
   });
 
   it('are checked for shape when present, without printing the value', () => {
@@ -361,7 +376,7 @@ describe('hash keys (Story 1.3)', () => {
   });
 
   it('are named by the preview rule: a preview or development deployment must hold neither', () => {
-    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined};
+    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys};
     expect(validateEnvironment(preview)).toEqual([]);
     for (const name of ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY']) {
       for (const environment of ['preview', 'development']) {
@@ -427,5 +442,162 @@ describe('SEED_ACCOUNT_EMAILS (Story 1.3)', () => {
     expect(validateEnvironment({...staging, SEED_ACCOUNT_EMAILS: ''})).toEqual([]);
     expect(validateEnvironment({...staging, SEED_ACCOUNT_EMAILS: 'a@b.co, not-an-email'}).join()).toContain('SEED_ACCOUNT_EMAILS must be a comma-separated list of email addresses');
     expect(validateEnvironment({...staging, SEED_ACCOUNT_EMAILS: '<seed-account-emails>'}).join()).toContain('SEED_ACCOUNT_EMAILS');
+  });
+});
+
+describe('which hashing keys a run needs (the seed command asks only for its own)', () => {
+  const good = () => randomBytes(32).toString('base64');
+  const withoutKeys = {...staging, ...noKeys};
+
+  it('requires both by default, as the server does', () => {
+    expect(validateEnvironment(withoutKeys).join('\n')).toContain('missing required variables: INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY');
+  });
+
+  it('requires none when a command hashes nothing', () => {
+    expect(validateEnvironment(withoutKeys, {hashKeys: []})).toEqual([]);
+  });
+
+  it('requires only the invitation key for a command that hashes a code', () => {
+    const only = {...withoutKeys, INVITATION_HASH_KEY: good()};
+    expect(validateEnvironment(only, {hashKeys: ['INVITATION_HASH_KEY']})).toEqual([]);
+    expect(validateEnvironment(withoutKeys, {hashKeys: ['INVITATION_HASH_KEY']}).join('\n')).toContain('missing required variables: INVITATION_HASH_KEY');
+    expect(validateEnvironment(withoutKeys, {hashKeys: ['INVITATION_HASH_KEY']}).join('\n')).not.toContain('RATE_LIMIT_HASH_KEY');
+  });
+
+  it('does not judge a key the command does not use, however it is set', () => {
+    const odd = {...withoutKeys, INVITATION_HASH_KEY: good(), RATE_LIMIT_HASH_KEY: 'too-short'};
+    expect(validateEnvironment(odd, {hashKeys: ['INVITATION_HASH_KEY']})).toEqual([]);
+    expect(validateEnvironment(odd, {hashKeys: []})).toEqual([]);
+    expect(validateEnvironment(odd).join('\n')).toContain('RATE_LIMIT_HASH_KEY must decode to at least 32 bytes');
+  });
+
+  it('still checks the shape of the keys it does need, and that two needed keys differ', () => {
+    expect(validateEnvironment({...withoutKeys, INVITATION_HASH_KEY: 'short'}, {hashKeys: ['INVITATION_HASH_KEY']}).join('\n')).toContain('INVITATION_HASH_KEY must decode to at least 32 bytes');
+    const same = good();
+    expect(validateEnvironment({...withoutKeys, INVITATION_HASH_KEY: same, RATE_LIMIT_HASH_KEY: same}).join('\n')).toContain('must be different keys');
+    // A key the command does not use cannot make two keys "the same".
+    expect(validateEnvironment({...withoutKeys, INVITATION_HASH_KEY: same, RATE_LIMIT_HASH_KEY: same}, {hashKeys: ['INVITATION_HASH_KEY']})).toEqual([]);
+  });
+
+  it('never asks a preview for keys, whatever the run needs', () => {
+    const preview = {...withoutKeys, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined};
+    expect(validateEnvironment(preview, {hashKeys: ['INVITATION_HASH_KEY']})).toEqual([]);
+  });
+});
+
+describe('the accounts API preflight (check-env --live)', () => {
+  const none = {status: 'none', account_id: null, workspace_id: null, role: null};
+  type Seen = {url: string; init?: RequestInit};
+  const recorder = (response: () => Response | Promise<Response>) => {
+    const seen: Seen[] = [];
+    const fetchImpl: IdentityFetch = async (url, init) => {
+      seen.push({url, init});
+      return response();
+    };
+    return {seen, fetchImpl};
+  };
+  const jsonResponse = (status: number, body: unknown) => () => new Response(JSON.stringify(body), {status});
+
+  it('asks api.account_status for the nil UUID with the service role, and accepts none', async () => {
+    const {seen, fetchImpl} = recorder(jsonResponse(200, none));
+    expect(await checkAccountsApi(staging, fetchImpl)).toEqual({});
+    expect(seen).toHaveLength(1);
+    expect(seen[0].url).toBe('https://abcdefgh.supabase.co/rest/v1/rpc/account_status');
+    expect(seen[0].init?.method).toBe('POST');
+    expect(JSON.parse(String(seen[0].init?.body))).toEqual({p_user_id: nilUserId});
+    expect(nilUserId).toBe('00000000-0000-0000-0000-000000000000');
+    const headers = seen[0].init?.headers as Record<string, string>;
+    expect(headers['content-profile']).toBe('api');
+    expect(headers.apikey).toBe(SERVICE_KEY);
+    expect(headers.authorization).toBe(`Bearer ${SERVICE_KEY}`);
+    expect(seen[0].init?.redirect).toBe('error');
+  });
+
+  it.each([
+    ['the api schema is not exposed', 406, {code: 'PGRST106'}, 'HTTP 406'],
+    ['the function is missing (migrations not applied)', 404, {code: 'PGRST202'}, 'HTTP 404'],
+    ['the service key is wrong', 401, {message: 'Invalid authentication credentials'}, 'HTTP 401'],
+    ['the role may not run it', 403, {code: '42501'}, 'HTTP 403'],
+  ])('fails in one line when %s', async (_name, status, body, text) => {
+    const {fetchImpl} = recorder(jsonResponse(status, body));
+    const result = await checkAccountsApi(staging, fetchImpl);
+    expect(result.error).toContain('the accounts API cannot be verified');
+    expect(result.error).toContain(text);
+    expect(result.error).toContain('api schema exposed');
+    expect(result.error).not.toContain('\n');
+    expect(result.error).not.toContain(SERVICE_KEY);
+    expect(result.retryable).toBe(false);
+  });
+
+  it('marks a 5xx and an unreachable database as retryable, and a 4xx as final', async () => {
+    expect((await checkAccountsApi(staging, recorder(jsonResponse(503, {})).fetchImpl)).retryable).toBe(true);
+    const down = await checkAccountsApi(staging, async () => { throw new TypeError('fetch failed'); });
+    expect(down).toMatchObject({retryable: true});
+    expect(down.error).toContain('unreachable');
+    const slow = await checkAccountsApi(staging, async () => { throw new DOMException('timed out', 'TimeoutError'); });
+    expect(slow.error).toContain('did not answer within 5 s');
+  });
+
+  it.each([
+    ['anything but none', {status: 'active', account_id: 'x'}],
+    ['an empty answer', {}],
+    ['a list', [none]],
+    ['null', null],
+  ])('fails when the answer is %s', async (_name, body) => {
+    const result = await checkAccountsApi(staging, recorder(jsonResponse(200, body)).fetchImpl);
+    expect(result.error).toContain('did not answer "none" for the nil UUID');
+    expect(result.retryable).toBe(false);
+  });
+
+  it('fails on a body that is not JSON, without printing it', async () => {
+    const result = await checkAccountsApi(staging, recorder(() => new Response('<html>secret</html>')).fetchImpl);
+    expect(result.error).toContain('did not answer with JSON');
+    expect(result.error).not.toContain('secret');
+  });
+
+  it('needs a URL and a key, refuses a key that cannot be a header, and sends nothing in those cases', async () => {
+    const {seen, fetchImpl} = recorder(jsonResponse(200, none));
+    expect((await checkAccountsApi({}, fetchImpl)).error).toContain('missing');
+    expect((await checkAccountsApi({...staging, NEXT_PUBLIC_SUPABASE_URL: 'nope'}, fetchImpl)).error).toContain('not a valid URL');
+    expect((await checkAccountsApi({...staging, SUPABASE_SERVICE_ROLE_KEY: 'bad\nkey'}, fetchImpl)).error).toContain('not a valid HTTP header value');
+    expect(seen).toEqual([]);
+  });
+
+  it('runs after the identity check, and only when asked', async () => {
+    const calls: string[] = [];
+    const both: IdentityFetch = async (url) => {
+      calls.push(new URL(url).pathname);
+      return url.includes('instance_identity') ? new Response(JSON.stringify([{environment: 'staging', instance_id: INSTANCE}])) : new Response(JSON.stringify(none));
+    };
+    expect(await checkInstanceIdentity(staging, both)).toEqual({errors: [], retryable: false});
+    expect(calls).toEqual(['/rest/v1/instance_identity']);
+    calls.length = 0;
+    expect(await checkInstanceIdentity(staging, both, {accountsApi: true})).toEqual({errors: [], retryable: false});
+    expect(calls).toEqual(['/rest/v1/instance_identity', '/rest/v1/rpc/account_status']);
+  });
+
+  it('fails the check when the preflight fails, and keeps the retry flag of the failure', async () => {
+    const answer: IdentityFetch = async (url) =>
+      url.includes('instance_identity') ? new Response(JSON.stringify([{environment: 'staging', instance_id: INSTANCE}])) : new Response('{}', {status: 404});
+    const result = await checkInstanceIdentity(staging, answer, {accountsApi: true});
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('the accounts API cannot be verified');
+    expect(result.retryable).toBe(false);
+    const flaky: IdentityFetch = async (url) => (url.includes('instance_identity') ? new Response(JSON.stringify([{environment: 'staging', instance_id: INSTANCE}])) : new Response('{}', {status: 503}));
+    expect((await checkInstanceIdentity(staging, flaky, {accountsApi: true})).retryable).toBe(true);
+  });
+
+  it('does not run when the identity does not match, and never runs for a preview', async () => {
+    const calls: string[] = [];
+    const mismatch: IdentityFetch = async (url) => {
+      calls.push(url);
+      return new Response(JSON.stringify([{environment: 'staging', instance_id: '9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d'}]));
+    };
+    expect((await checkInstanceIdentity(staging, mismatch, {accountsApi: true})).errors.join()).toContain('instance mismatch');
+    expect(calls).toHaveLength(1);
+    calls.length = 0;
+    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys};
+    expect(await checkInstanceIdentity(preview, mismatch, {accountsApi: true})).toEqual({errors: [], retryable: false});
+    expect(calls).toEqual([]);
   });
 });
