@@ -1,5 +1,6 @@
+import {randomBytes} from 'node:crypto';
 import {describe, expect, it} from 'vitest';
-import {checkInstanceIdentity, compareIdentity, fetchInstanceIdentity, identityMismatchHint, isLoopbackUrl, validateEnvironment, verifyInstanceIdentity, type Env, type IdentityFetch} from '@/lib/environment';
+import {checkInstanceIdentity, compareIdentity, decodeHashKey, fetchInstanceIdentity, hashKeyProblem, identityMismatchHint, isLoopbackUrl, parseEmailList, parseEnvValue, sameKey, validateEnvironment, verifyInstanceIdentity, type Env, type IdentityFetch} from '@/lib/environment';
 
 const INSTANCE = '3f0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c44';
 const SERVICE_KEY = 'fixture-service-key-must-never-be-returned';
@@ -305,5 +306,126 @@ describe('checkInstanceIdentity', () => {
     expect(identityMismatchHint({APP_ENV: 'local'})).toBe('fix: run node scripts/setup-env.mjs local after supabase db reset, so INSTANCE_ID follows the local stack');
     expect(identityMismatchHint({APP_ENV: 'staging'})).toContain('INSTANCE_ID');
     expect(identityMismatchHint({APP_ENV: 'staging'})).toContain('docs/deployment-setup.md');
+  });
+});
+
+describe('hash keys (Story 1.3)', () => {
+  const good = () => randomBytes(32).toString('base64');
+
+  it('accept base64 of at least 32 random bytes, standard or URL-safe, padded or not', () => {
+    expect(hashKeyProblem(good())).toBeNull();
+    expect(hashKeyProblem(randomBytes(32).toString('base64url'))).toBeNull();
+    expect(hashKeyProblem(randomBytes(64).toString('base64'))).toBeNull();
+    expect(hashKeyProblem(`  ${good()}\n`)).toBeNull();
+    expect(decodeHashKey(good())).toHaveLength(32);
+  });
+
+  it('reject placeholders, other alphabets, short keys and low-variety keys, naming the problem', () => {
+    expect(hashKeyProblem('replace-with-local-invitation-hash-key')).toMatch(/placeholder/);
+    expect(hashKeyProblem('<staging-invitation-hash-key>')).toMatch(/placeholder/);
+    expect(hashKeyProblem('changeme')).toMatch(/placeholder/);
+    expect(hashKeyProblem('this is not base64 text, it has spaces')).toMatch(/base64/);
+    expect(hashKeyProblem(randomBytes(31).toString('base64'))).toMatch(/at least 32 bytes/);
+    expect(hashKeyProblem(randomBytes(16).toString('base64'))).toMatch(/at least 32 bytes/);
+    expect(hashKeyProblem('A'.repeat(64))).toMatch(/not random/);
+    expect(hashKeyProblem('ab'.repeat(32))).toMatch(/not random/);
+  });
+
+  it('are optional: an environment without them stays valid, so nothing requires them at startup', () => {
+    expect(validateEnvironment(staging)).toEqual([]);
+    expect(validateEnvironment({...staging, INVITATION_HASH_KEY: '', RATE_LIMIT_HASH_KEY: '  '})).toEqual([]);
+    expect(validateEnvironment({...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined})).toEqual([]);
+  });
+
+  it('are checked for shape when present, without printing the value', () => {
+    expect(validateEnvironment({...staging, INVITATION_HASH_KEY: good(), RATE_LIMIT_HASH_KEY: good()})).toEqual([]);
+    const bad = 'short-secret-value-that-must-not-be-echoed';
+    const errors = validateEnvironment({...staging, INVITATION_HASH_KEY: bad, RATE_LIMIT_HASH_KEY: '<staging-rate-limit-hash-key>'});
+    expect(errors.join('\n')).toMatch(/INVITATION_HASH_KEY must decode to at least 32 bytes/);
+    expect(errors.join('\n')).toMatch(/RATE_LIMIT_HASH_KEY is a placeholder/);
+    expect(errors.join('\n')).not.toContain(bad);
+  });
+
+  it('must differ from each other, compared by the bytes they decode to', () => {
+    const bytes = randomBytes(32);
+    const same = bytes.toString('base64');
+    expect(validateEnvironment({...staging, INVITATION_HASH_KEY: same, RATE_LIMIT_HASH_KEY: same}).join()).toContain('must be different keys');
+    // The same key spelled differently is still the same key: URL-safe alphabet, without padding, with padding.
+    for (const spelled of [bytes.toString('base64url'), same.replace(/=+$/, ''), `  ${same}  `]) {
+      expect(validateEnvironment({...staging, INVITATION_HASH_KEY: same, RATE_LIMIT_HASH_KEY: spelled}).join(), spelled).toContain('must be different keys');
+    }
+    expect(sameKey(bytes.toString('base64'), bytes.toString('base64url'))).toBe(true);
+    expect(validateEnvironment({...staging, INVITATION_HASH_KEY: same, RATE_LIMIT_HASH_KEY: good()})).toEqual([]);
+    // Two bad keys are reported as bad, not as equal.
+    expect(validateEnvironment({...staging, INVITATION_HASH_KEY: 'short', RATE_LIMIT_HASH_KEY: 'short'}).join()).not.toContain('must be different keys');
+  });
+
+  it('are named by the preview rule: a preview or development deployment must hold neither', () => {
+    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined};
+    expect(validateEnvironment(preview)).toEqual([]);
+    for (const name of ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY']) {
+      for (const environment of ['preview', 'development']) {
+        const value = good();
+        const errors = validateEnvironment({...preview, VERCEL_ENV: environment, [name]: value});
+        expect(errors.join('\n'), `${environment} ${name}`).toMatch(new RegExp(`hold no Supabase, database or Stripe variables or account hashing keys: ${name}$`, 'm'));
+        expect(errors.join('\n')).not.toContain(value);
+      }
+    }
+    const both = validateEnvironment({...preview, INVITATION_HASH_KEY: good(), RATE_LIMIT_HASH_KEY: good()});
+    expect(both.join()).toContain('INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY');
+    // A deployment that is not a preview may hold them.
+    expect(validateEnvironment({...staging, INVITATION_HASH_KEY: good(), RATE_LIMIT_HASH_KEY: good()})).toEqual([]);
+  });
+});
+
+describe('parseEnvValue (how an env-file value is read)', () => {
+  it('ends an unquoted value at a trailing comment and trims it', () => {
+    expect(parseEnvValue('abc')).toBe('abc');
+    expect(parseEnvValue('  abc  ')).toBe('abc');
+    expect(parseEnvValue('abc # a note')).toBe('abc');
+    expect(parseEnvValue('abc\t# a note')).toBe('abc');
+    expect(parseEnvValue('abc #')).toBe('abc');
+    expect(parseEnvValue('abc#not-a-comment')).toBe('abc#not-a-comment');
+    expect(parseEnvValue('# only a comment')).toBe('');
+    expect(parseEnvValue('')).toBe('');
+  });
+
+  it('reads a quoted value up to its closing quote, keeping a # inside it', () => {
+    expect(parseEnvValue('"abc"')).toBe('abc');
+    expect(parseEnvValue("'abc' # note")).toBe('abc');
+    expect(parseEnvValue('"a # b" # note')).toBe('a # b');
+    expect(parseEnvValue('"unterminated')).toBe('"unterminated');
+  });
+
+  it('lets a key with a trailing comment be judged by its value alone', () => {
+    const key = randomBytes(32).toString('base64');
+    expect(hashKeyProblem(parseEnvValue(`${key} # generated by me`))).toBeNull();
+    expect(hashKeyProblem(`${key} # generated by me`)).not.toBeNull();
+  });
+});
+
+describe('SEED_ACCOUNT_EMAILS (Story 1.3)', () => {
+  it('parses a comma-separated list into lowercase, de-duplicated addresses', () => {
+    expect(parseEmailList(' A@b.co,c@d.co , a@B.co,,')).toEqual(['a@b.co', 'c@d.co']);
+    expect(parseEmailList(undefined)).toEqual([]);
+    expect(parseEmailList('')).toEqual([]);
+  });
+
+  it('rejects an address longer than 254 characters, here and in ADMINISTRATOR_EMAIL', () => {
+    const local = 'a'.repeat(64);
+    const longest = `${local}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(57)}.com`;
+    expect(longest).toHaveLength(254);
+    const tooLong = `${longest}x`;
+    expect(validateEnvironment({...staging, SEED_ACCOUNT_EMAILS: longest})).toEqual([]);
+    expect(validateEnvironment({...staging, SEED_ACCOUNT_EMAILS: `a@b.co, ${tooLong}`}).join()).toContain('SEED_ACCOUNT_EMAILS must be a comma-separated list of email addresses');
+    expect(validateEnvironment({...staging, ADMINISTRATOR_EMAIL: longest})).toEqual([]);
+    expect(validateEnvironment({...staging, ADMINISTRATOR_EMAIL: tooLong}).join()).toContain('ADMINISTRATOR_EMAIL must be one email address');
+  });
+
+  it('is optional and, when present, must hold email addresses', () => {
+    expect(validateEnvironment({...staging, SEED_ACCOUNT_EMAILS: 'a@b.co, c@d.co'})).toEqual([]);
+    expect(validateEnvironment({...staging, SEED_ACCOUNT_EMAILS: ''})).toEqual([]);
+    expect(validateEnvironment({...staging, SEED_ACCOUNT_EMAILS: 'a@b.co, not-an-email'}).join()).toContain('SEED_ACCOUNT_EMAILS must be a comma-separated list of email addresses');
+    expect(validateEnvironment({...staging, SEED_ACCOUNT_EMAILS: '<seed-account-emails>'}).join()).toContain('SEED_ACCOUNT_EMAILS');
   });
 });

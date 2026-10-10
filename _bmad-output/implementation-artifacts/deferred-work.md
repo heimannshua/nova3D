@@ -112,3 +112,58 @@
   summary: Story 1.3 Part B (the app half): the registration screen with the operator disclosure, consuming a pre-authorization in the auth callback, gating every private route on a live Account, removing `AUTH_ALLOWED_EMAILS` everywhere, requiring the two hash keys at startup, and the browser flows with forged sessions.
   evidence: The plan was split at Josh's choice on 2026-10-10 because the single build was too large to review safely; Part A (database) is built first and Part B uses its `api` functions.
   mapped_story: 1.3 (AC-1 screen and gating, AC-7 sign-in consumption, AC-9 allowlist removal).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
+  summary: **Josh: hosted setup for Story 1.3 Part A on staging.** Apply the two new migrations (`20261010120000_accounts.sql`, `20261010120100_api.sql`), add `api` to the exposed schemas (never `identity` or `projects`), enable the Before User Created hook (`api.before_user_created`, dashboard or `supabase config push` in Story 1.9), generate `INVITATION_HASH_KEY` and `RATE_LIMIT_HASH_KEY` (`openssl rand -base64 32` each) into the staging Vercel project and `.env.staging`, then run `node --env-file=.env.staging scripts/seed-accounts.mjs preauthorize --confirm staging`. Steps are in `docs/deployment-setup.md` (Provisioning staging, steps 2 to 5) and `docs/auth-setup.md`.
+  evidence: Part A was verified only against the local Supabase CLI stack, as the spec requires. Nothing was applied, pushed or seeded on staging or production. Two hosted details are unverified until the migrations run there: that the hosted `postgres` role may reference and `FOR UPDATE`-lock `auth.users` (the local one can), and that the hook payload matches what the local Auth service and the Auth source send (`app_metadata.provider` and `user_metadata.email_verified`); a hook mismatch would reject every first-time Google sign-in with "Sign-in is not available for this account".
+  mapped_story: 1.3 (Part B is deferred separately above), then 1.9 for the config push.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
+  summary: Re-check the pinned Google subject on every sign-in, not only when a pre-authorization is consumed. Auth links a new Google identity to an existing user with the same verified email, so a recycled address could add a second Google identity to an Account's Auth user; `identity.accounts.google_subject` and `identity.preauthorizations.google_subject` hold the pin, but nothing compares them with `auth.identities` after activation.
+  evidence: Part A pins the subject at activation and refuses another subject only while consuming a pre-authorization (`api.consume_preauthorization`). `api.account_status` reports the Account but does not compare subjects.
+  mapped_story: 1.4 (live authorization on every private request) and 1.6 (Administrator recovery).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
+  summary: The Story 1.9 dormant-identity purge must lock the identity row first and decide after: `select ... from auth.users where id = $1 for update`, then delete only rows with no recent `identity.registration_attempts` and no Account, in a separate statement (the integration test `AC-5` shows the shape). A single `delete ... where not exists (...)` takes its snapshot before it waits for the registration's lock and would still delete an identity whose attempt was just recorded.
+  evidence: A registration holds `FOR UPDATE` on the Auth user, so a delete waits; if the registration created an Account the delete then fails on `ON DELETE RESTRICT`; if it failed (wrong code) the attempt time is persisted but a one-statement predicate does not see it.
+  mapped_story: 1.9 (dormant-identity purge).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
+  summary: Decide where "sole Administrator" is enforced in the database. Part A has no unique index on role `administrator` (the seed derives one Administrator from `ADMINISTRATOR_EMAIL`), because the spec does not ask for one and it would make the integration suite fail on any local database where the real Administrator is already seeded. The scenario to close: `ADMINISTRATOR_EMAIL` is changed and the seed run again, whether the old Administrator has signed in (the new address becomes a second Administrator Account) or not (two Administrator pre-authorizations, either of which can be consumed). Part A only warns: `preauthorize` prints a warning when another administrator pre-authorization exists, and `unauthorize --email` withdraws one that is unconsumed.
+  evidence: `identity.accounts.role` and `identity.preauthorizations.role` accept `administrator` for any number of rows.
+  mapped_story: 1.6 (recover the sole Administrator securely).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
+  summary: `lib/accounts.ts` is server-only by convention and by test, not by the `server-only` package, because the seed script imports it through Node type stripping and the package throws there. Part B can add `import 'server-only'` once the script no longer imports the module (or runs with `--conditions=react-server` and the package is added as a dependency).
+  evidence: `tests/unit/accounts.test.ts` fails if any `'use client'` file or anything under `components/` imports `lib/accounts`, and the module throws at load when a `window` exists. Server code (routes, the callback) may import it.
+  mapped_story: 1.3 (Part B, when routes first import it).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
+  summary: Verify the hook's accept path on the first real staging Google sign-in, and that the hosted `postgres` role can lock `auth.users` (`FOR UPDATE`) and reference it. The accept path is verified only against a hand-built Google payload (`app_metadata.provider` google, `user_metadata.email_verified` true), built from the Auth source and from a payload captured for an email sign-up; no real Google sign-in ran. Its reject path is verified live: `POST /auth/v1/invite` with the service key reaches the hook and returns its message, and the Auth admin create-user endpoint does not call the hook at all. A wrong accept path would reject every first-time Google sign-in with "Sign-in is not available for this account"; existing users are unaffected because the hook runs only at creation.
+  evidence: The local stack cannot reach Google, and the Google provider fetches Google's OIDC discovery document when it is built, so the stack cannot fake a Google sign-in.
+  mapped_story: 1.3 Part B (first sign-in through the callback) and 1.10 (a throwaway Google account for the staging check).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
+  summary: Alarm on registration trips: a spike of `limited` outcomes (an origin at its limit, and above all the global limit of 100 failures an hour, which locks registration for everyone for up to an hour), repeated `registration.subject_mismatch` audit events, and unexpected registration errors. The limiter only counts today; nothing tells the Administrator it is being hit.
+  evidence: Failures are counted in `identity.rate_limit_counters` and refusals are audited, but no job reads either and no alert exists in Part A.
+  mapped_story: 1.13 (raise operational alarms).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
+  summary: Add a canary for a hash-key mismatch. If `INVITATION_HASH_KEY` differs from the key a code was issued under (a rotated or mistyped key), every outstanding code silently stops matching and looks like a wrong code. Idea: store a keyed check value (for example the HMAC of a fixed label) beside the invitations, verify it when issuing and listing, and say so in the Administrator page.
+  evidence: Only hashes are stored and no function can tell a wrong key from a wrong code.
+  mapped_story: 1.11 (manage invitations with fresh authentication).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
+  summary: Account removal. `identity.accounts.user_id` references `auth.users` with `ON DELETE RESTRICT`, so an Auth user that owns an Account cannot be deleted, by the dormant-identity purge, the Auth admin API or the dashboard. Deleting or anonymizing an Account (its Workspace, registration command, invitation and pre-authorization rows, audit references and the invitee label on a named code) has to be designed with the deletion stories, including what an append-only audit trail keeps.
+  evidence: `accounts`, `workspaces`, `registration_commands`, `invitations.redeemed_account_id` and `preauthorizations.account_id` all restrict deletion; `invitations.label` holds the invitee's name in clear.
+  mapped_story: 8.2 (account and data deletion).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
+  summary: A re-pin path for the Administrator's Google subject. The subject is pinned at activation and `identity.accounts` refuses to change `google_subject` (a trigger), so if the Administrator's Google account changes its subject the new subject is refused permanently. Recovery needs a deliberate, audited re-pin that relaxes that guard.
+  evidence: `identity.guard_account` rejects any change to `user_id`, `google_subject` and `source`; `api.consume_preauthorization` refuses a second subject for a consumed address.
+  mapped_story: 1.6 (recover the sole Administrator securely).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
+  summary: Migration warning for `AUTH_ALLOWED_EMAILS`. At cutover every address in the old list that is not pre-authorized (and has no Account) loses access, because the live-Account check replaces the list. Before the switch, compare the list with the pre-authorizations (`seed-accounts.mjs preauthorize` with the right `ADMINISTRATOR_EMAIL` and `SEED_ACCOUNT_EMAILS`) and warn or fail the deploy for any address left out.
+  evidence: Part A neither reads nor removes `AUTH_ALLOWED_EMAILS` (the spec's Never list); the two addresses in the templates are the staging Administrator and the second address Josh uses today.
+  mapped_story: 1.3 Part B (allowlist removal).

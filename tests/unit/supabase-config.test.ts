@@ -28,6 +28,20 @@ describe('supabase/config.toml', () => {
     expect(section('api').schemas).toContain('"lifecycle"');
   });
 
+  it('exposes the api schema, the only callable surface, and never the tables behind it', () => {
+    const schemas = section('api').schemas;
+    expect(schemas).toContain('"api"');
+    expect(schemas).not.toContain('"identity"');
+    expect(schemas).not.toContain('"projects"');
+  });
+
+  it('runs the Before User Created hook in the database and enables nothing else', () => {
+    const hook = section('auth.hook.before_user_created');
+    expect(hook.enabled).toBe('true');
+    expect(hook.uri).toBe('"pg-functions://postgres/api/before_user_created"');
+    expect([...text.matchAll(/^\[auth\.hook\.([a-z_]+)\]/gm)].map((match) => match[1])).toEqual(['before_user_created']);
+  });
+
   it('allows files up to 100MiB', () => {
     expect(section('storage').file_size_limit).toBe('"100MiB"');
   });

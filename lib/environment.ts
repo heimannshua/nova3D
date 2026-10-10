@@ -24,13 +24,66 @@ const requiredVariables = [
 ];
 const supabaseVariables = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
 // A preview must hold none of these: any SUPABASE_* or NEXT_PUBLIC_SUPABASE_* variable, a database
-// URL, POSTGRES_* or STRIPE_*. Previews are protected by this rejection, not by a database check.
-const previewForbiddenName = /^(?:(?:NEXT_PUBLIC_)?SUPABASE_|POSTGRES_|(?:NEXT_PUBLIC_)?STRIPE_)|^DATABASE_URL$/;
+// URL, POSTGRES_* or STRIPE_*, or the account hashing keys (Story 1.3). Previews are protected by this
+// rejection, not by a database check.
+const previewForbiddenName = /^(?:(?:NEXT_PUBLIC_)?SUPABASE_|POSTGRES_|(?:NEXT_PUBLIC_)?STRIPE_)|^DATABASE_URL$|^(?:INVITATION|RATE_LIMIT)_HASH_KEY$/;
 // Bare words are anchored so a real value such as todos@example.com is not mistaken for a placeholder.
 const placeholder = /^(?:replace-with-|<[^>]+>)|^(?:changeme|todo)$/i;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const emailPattern = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+/** RFC 5321 limit. The database refuses longer addresses too. */
+export const maxEmailLength = 254;
+export const isEmailAddress = (value: string) => value.length <= maxEmailLength && emailPattern.test(value);
 const loopbackHost = /^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\])$/;
+
+// Story 1.3: keys under which invitation codes and client addresses are hashed before they reach the
+// database. Optional until Story 1.3 Part B requires them at startup; checked for shape when present.
+export const hashKeyVariables = ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY'] as const;
+export const minHashKeyBytes = 32;
+const base64Text = /^[A-Za-z0-9+/_-]+={0,2}$/;
+
+/** Decodes a hash key the one way every caller does: base64 (standard or URL-safe, padding optional). */
+export function decodeHashKey(value: string) {
+  return Buffer.from(value.trim(), 'base64');
+}
+
+/**
+ * Why a hash key is unusable, or null. Names the problem, never the value. A key is base64 text of at
+ * least 32 bytes (`openssl rand -base64 32`) with enough variety to rule out a typed-in or repeated value.
+ */
+export function hashKeyProblem(value: string): string | null {
+  const text = value.trim();
+  if (isPlaceholder(text)) return 'is a placeholder';
+  if (!base64Text.test(text)) return 'must be base64 text, for example from `openssl rand -base64 32`';
+  if (decodeHashKey(text).length < minHashKeyBytes) return `must decode to at least ${minHashKeyBytes} bytes`;
+  if (new Set(text).size < 10) return 'is not random (too few distinct characters)';
+  return null;
+}
+
+/**
+ * The value of an environment-file line the way Node's `--env-file` reads it: a quoted value runs to its
+ * closing quote, an unquoted one ends at the first ` #` (a trailing comment) and is trimmed.
+ */
+export function parseEnvValue(raw: string) {
+  const text = raw.trim();
+  const quote = /^(["'`])/.exec(text)?.[1];
+  if (quote) {
+    const end = text.indexOf(quote, 1);
+    if (end > 0) return text.slice(1, end);
+  }
+  return text.replace(/(^|\s)#.*$/, '').trim();
+}
+
+/** Two key values are the same key when they decode to the same bytes, however they are spelled. */
+export function sameKey(a: string, b: string) {
+  return decodeHashKey(a).equals(decodeHashKey(b));
+}
+
+/** SEED_ACCOUNT_EMAILS as lowercase, de-duplicated addresses. Invalid entries are kept so the caller can name them. */
+export function parseEmailList(value: string | undefined) {
+  const entries = (value ?? '').split(',').map((entry) => entry.trim().toLowerCase()).filter(Boolean);
+  return [...new Set(entries)];
+}
 
 /**
  * True for a placeholder such as replace-with-..., <name>, changeme or todo (whole values only).
@@ -78,14 +131,25 @@ export function validateEnvironment(env: Env): string[] {
   if (!env.AUTH_ALLOWED_EMAILS?.split(',').map((value) => value.trim()).filter(Boolean).length) {
     errors.push('AUTH_ALLOWED_EMAILS must contain at least one email address');
   }
-  if (env.ADMINISTRATOR_EMAIL && !isPlaceholder(env.ADMINISTRATOR_EMAIL) && !emailPattern.test(env.ADMINISTRATOR_EMAIL.trim())) {
-    errors.push('ADMINISTRATOR_EMAIL must be one email address');
+  if (env.ADMINISTRATOR_EMAIL && !isPlaceholder(env.ADMINISTRATOR_EMAIL) && !isEmailAddress(env.ADMINISTRATOR_EMAIL.trim())) {
+    errors.push(`ADMINISTRATOR_EMAIL must be one email address of at most ${maxEmailLength} characters`);
   }
   if (env.INSTANCE_ID && !isPlaceholder(env.INSTANCE_ID) && !uuidPattern.test(env.INSTANCE_ID.trim())) {
     errors.push('INSTANCE_ID must be a UUID');
   }
   for (const name of ['PAID_ADAPTERS_ENABLED', 'SYNTHETIC_DATA_ENABLED']) {
     if (env[name] && !['true', 'false'].includes(env[name]!)) errors.push(`${name} must be true or false`);
+  }
+  for (const name of hashKeyVariables) {
+    const problem = env[name]?.trim() ? hashKeyProblem(env[name]!) : null;
+    if (problem) errors.push(`${name} ${problem}`);
+  }
+  const [invitationKey, rateLimitKey] = hashKeyVariables.map((name) => env[name]?.trim() ?? '');
+  if (invitationKey && rateLimitKey && !hashKeyProblem(invitationKey) && !hashKeyProblem(rateLimitKey) && sameKey(invitationKey, rateLimitKey)) {
+    errors.push('INVITATION_HASH_KEY and RATE_LIMIT_HASH_KEY must be different keys');
+  }
+  if (env.SEED_ACCOUNT_EMAILS?.trim() && !parseEmailList(env.SEED_ACCOUNT_EMAILS).every(isEmailAddress)) {
+    errors.push(`SEED_ACCOUNT_EMAILS must be a comma-separated list of email addresses (each at most ${maxEmailLength} characters)`);
   }
 
   if (env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -107,7 +171,7 @@ export function validateEnvironment(env: Env): string[] {
     if (env.SYNTHETIC_DATA_ENABLED !== 'true') errors.push('preview/development requires SYNTHETIC_DATA_ENABLED=true');
     if (env.PAID_ADAPTERS_ENABLED !== 'false') errors.push('preview/development requires PAID_ADAPTERS_ENABLED=false');
     const held = Object.keys(env).filter((name) => previewForbiddenName.test(name) && env[name]);
-    if (held.length) errors.push(`preview/development deployments must hold no Supabase, database or Stripe variables: ${held.sort().join(', ')}`);
+    if (held.length) errors.push(`preview/development deployments must hold no Supabase, database or Stripe variables or account hashing keys: ${held.sort().join(', ')}`);
   }
   if (environment === 'production' && env.SYNTHETIC_DATA_ENABLED === 'true') errors.push('production cannot enable synthetic data');
 

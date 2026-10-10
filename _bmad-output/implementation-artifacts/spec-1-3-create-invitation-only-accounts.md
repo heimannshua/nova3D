@@ -2,7 +2,8 @@
 title: 'Story 1.3 (Part A: database): Create invitation-only accounts'
 type: 'feature'
 created: '2026-10-10'
-status: 'draft'
+status: 'done'
+baseline_commit: 'b37d4b52e5ac1fff72b218a15df434629647e0c5'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -58,14 +59,14 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/*_accounts.sql` -- `identity` tables (accounts, invitations, preauthorizations, audit_events, rate_limit_counters, registration_commands, registration_attempts), `projects.workspaces` with `projects.provision_workspace`, append-only audit trigger, RLS on with no policies, role revokes -- AC-1 to AC-8
-- [ ] `supabase/migrations/*_api.sql` -- `api` functions: `register_with_code`, `consume_preauthorization`, `seed_preauthorization`, `issue_invitation`, `revoke_invitation`, `account_status`; limiter inside registration; the Before User Created hook function -- AC-1 to AC-5, AC-7
-- [ ] `supabase/config.toml` -- expose `api`, enable the hook -- AC-4
-- [ ] `lib/accounts.ts` -- code generation, HMAC helpers, client-address hashing, typed service-role calls (server-only) -- AC-3, AC-6
-- [ ] `scripts/seed-accounts.mjs` -- audited commands: pre-authorize `ADMINISTRATOR_EMAIL` and `SEED_ACCOUNT_EMAILS`, issue a named or general code (shown once), revoke -- AC-6, AC-7
-- [ ] `lib/environment.ts`, `scripts/setup-env.mjs`, `.env*.example`, `docs/auth-setup.md`, `docs/deployment-setup.md` -- optional key shape checks, local key generation, seed and hosted-setup steps -- AC-6
-- [ ] `tests/` -- unit (codes, HMAC, shape checks) and integration against the stack for every matrix row, including the delete race with two connections -- all Part A ACs
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- Part B, plus hosted setup for Josh -- housekeeping
+- [x] `supabase/migrations/*_accounts.sql` -- `identity` tables (accounts, invitations, preauthorizations, audit_events, rate_limit_counters, registration_commands, registration_attempts), `projects.workspaces` with `projects.provision_workspace`, append-only audit trigger, RLS on with no policies, role revokes -- AC-1 to AC-8
+- [x] `supabase/migrations/*_api.sql` -- `api` functions: `register_with_code`, `consume_preauthorization`, `seed_preauthorization`, `issue_invitation`, `revoke_invitation`, `account_status`; limiter inside registration; the Before User Created hook function -- AC-1 to AC-5, AC-7
+- [x] `supabase/config.toml` -- expose `api`, enable the hook -- AC-4
+- [x] `lib/accounts.ts` -- code generation, HMAC helpers, client-address hashing, typed service-role calls (server-only) -- AC-3, AC-6
+- [x] `scripts/seed-accounts.mjs` -- audited commands: pre-authorize `ADMINISTRATOR_EMAIL` and `SEED_ACCOUNT_EMAILS`, issue a named or general code (shown once), revoke -- AC-6, AC-7
+- [x] `lib/environment.ts`, `scripts/setup-env.mjs`, `.env*.example`, `docs/auth-setup.md`, `docs/deployment-setup.md` -- optional key shape checks, local key generation, seed and hosted-setup steps -- AC-6
+- [x] `tests/` -- unit (codes, HMAC, shape checks) and integration against the stack for every matrix row, including the delete race with two connections -- all Part A ACs
+- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- Part B, plus hosted setup for Josh -- housekeeping
 
 **Acceptance Criteria:**
 - Given one unused invitation and concurrent registrations, when both redeem, then at most one Account and Workspace exist, retries return the original outcome, a changed payload is rejected and no partial Account exists.
@@ -89,3 +90,66 @@ Auth users are inserted directly in integration tests, with a Google row in `aut
 - `npm run typecheck && npm run lint && npm run build` -- expected: exit 0
 - `supabase start && npm test` -- expected: unit and integration pass, every matrix row covered
 - `git diff --stat -- proxy.ts lib/auth.ts lib/auth-config.ts app` -- expected: empty (no route or gating change in Part A)
+
+## Suggested Review Order
+
+**Registration (the core idea)**
+
+- One function creates an Account: code check, identity lock, workspace, all or nothing.
+  [`api.sql:99`](../../supabase/migrations/20261010120100_api.sql#L99)
+
+- Seeded addresses become Accounts at first verified Google sign-in; wrong subject is refused.
+  [`api.sql:256`](../../supabase/migrations/20261010120100_api.sql#L256)
+
+- "Verified Google" is read from Auth's own tables, never from the caller.
+  [`api.sql:48`](../../supabase/migrations/20261010120100_api.sql#L48)
+
+**Who can touch it**
+
+- Tables hold nothing for browser roles; the new-function default is closed.
+  [`accounts.sql:31`](../../supabase/migrations/20261010120000_accounts.sql#L31)
+
+- Accounts reference the Auth identity so it cannot be deleted from under them.
+  [`accounts.sql:38`](../../supabase/migrations/20261010120000_accounts.sql#L38)
+
+- The audit log refuses update, delete and truncate.
+  [`accounts.sql:203`](../../supabase/migrations/20261010120000_accounts.sql#L203)
+
+- Only Google, verified, can create an Auth user; checked at creation.
+  [`api.sql:612`](../../supabase/migrations/20261010120100_api.sql#L612)
+
+- The hook is switched on in the Auth config.
+  [`config.toml:75`](../../supabase/config.toml#L75)
+
+**Codes, limits and the server helpers**
+
+- The rate limiter's counters; the database never sees a raw code or address.
+  [`accounts.sql:185`](../../supabase/migrations/20261010120000_accounts.sql#L185)
+
+- Codes are 160 random bits; only keyed hashes leave this file.
+  [`accounts.ts:53`](../../lib/accounts.ts#L53)
+
+- Forwarded-address headers are trusted on Vercel only.
+  [`accounts.ts:164`](../../lib/accounts.ts#L164)
+
+- Registration fails closed and never counts an outage as a bad code.
+  [`accounts.ts:337`](../../lib/accounts.ts#L337)
+
+- Issuing a code: shown once, general code replaced only on request.
+  [`api.sql:451`](../../supabase/migrations/20261010120100_api.sql#L451)
+
+**Seed command**
+
+- Audited commands to pre-authorize, issue, list and revoke; needs `--confirm` outside local.
+  [`seed-accounts.mjs`](../../scripts/seed-accounts.mjs)
+
+**Tests (supporting)**
+
+- Every matrix row against the real local database.
+  [`accounts.test.ts`](../../tests/integration/accounts.test.ts)
+
+- Races: parallel guesses, two users, one code, delete versus registration.
+  [`accounts-concurrency.test.ts`](../../tests/integration/accounts-concurrency.test.ts)
+
+- Seed command and the `--confirm` guard.
+  [`seed-accounts.test.ts`](../../tests/unit/seed-accounts.test.ts)

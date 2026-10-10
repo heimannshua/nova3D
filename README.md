@@ -20,6 +20,7 @@ npm run dev                       # http://127.0.0.1:3000
 | `npm test` | Vitest unit and integration suites (integration needs `supabase start`) |
 | `npm run test:env` | the environment guardrails, against fixture environments |
 | `npm run test:e2e` | Playwright browser flows against a production build |
+| `npm run seed:accounts -- <command>` | the audited seed command (Story 1.3): `preauthorize`, `unauthorize --email <address>`, `issue --name <label>` or `issue --general`, `list`, `revoke --id <id>`; see [docs/auth-setup.md](docs/auth-setup.md) |
 | `node --env-file-if-exists=.env.staging scripts/check-provisioning.mjs --story <id> --env staging` | reports which external accounts, keys and spend limits due by that story are still missing (see below); `npm run check:provisioning -- --story <id> --env staging` loads the same file itself |
 | `npm run render:provisioning` | renders `provisioning/ledger.json` to `docs/provisioning.md` (CI checks it is current) |
 
@@ -32,7 +33,7 @@ There are three environments: `local`, `staging` and `production`. Each has its 
 - `local` runs only against the Supabase CLI stack on a loopback URL.
 - `staging` is the existing hosted Supabase project and its own Vercel project; only the `staging` branch deploys.
 - `production` does not exist yet.
-- Previews never read the database, so nothing compares their identity. They are kept away from real data by rejecting credential-like variables: the check fails if a preview holds any `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `DATABASE_URL`, `POSTGRES_*` or `STRIPE_*` variable, or enables paid adapters.
+- Previews never read the database, so nothing compares their identity. They are kept away from real data by rejecting credential-like variables: the check fails if a preview holds any `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `DATABASE_URL`, `POSTGRES_*`, `STRIPE_*`, `INVITATION_HASH_KEY` or `RATE_LIMIT_HASH_KEY` variable, or enables paid adapters.
 
 Details, the staging promotion flow and the Vercel settings that only Josh can change are in [docs/deployment-setup.md](docs/deployment-setup.md). Sign-in setup is in [docs/auth-setup.md](docs/auth-setup.md).
 
@@ -47,7 +48,7 @@ The application is a modular monolith. The architecture (AR-2) makes each module
 | Module | Owns | In the seed |
 | --- | --- | --- |
 | Lifecycle | environment identity, restore ledger, tombstones | `lifecycle.instance_identity` (the only table), `lib/environment.ts`, `instrumentation.ts`, `scripts/check-env.mjs` |
-| Identity | Accounts, sessions, invitations, audit events | interim Google sign-in and email allowlist: `lib/auth*.ts`, `lib/supabase/`, `proxy.ts`, `app/login/`, `app/auth/callback/` (Story 1.3 replaces the allowlist) |
+| Identity | Accounts, sessions, invitations, audit events | database half of Story 1.3: schemas `identity` and `projects` (unexposed) behind the `api` functions, `lib/accounts.ts`, `scripts/seed-accounts.mjs`, migrations `*_accounts.sql` and `*_api.sql`; interim Google sign-in and email allowlist still gate the app: `lib/auth*.ts`, `lib/supabase/`, `proxy.ts`, `app/login/`, `app/auth/callback/` (Story 1.3 Part B replaces the allowlist) |
 | Projects, Evidence, Geometry, Manufacturing, Artifacts, Jobs, Usage and notifications | their own records | nothing yet |
 | Preferences | language, light or dark, explanation detail and first-use guidance | four first-party device cookies (`nova3d-locale`, `nova3d-theme`, `nova3d-detail`, `nova3d-guidance`): `lib/preferences.ts`, `lib/preferences.server.ts`, `components/preferences-provider.tsx`; Story 1.4 adds the Account-owned record |
 | Interface (shell, localization, design tokens) | the shared tokens, English and Hebrew catalogs, and the accessible patterns every screen inherits | `app/globals.css`, `lib/i18n/`, `components/ui/`, `components/shell/`, `app/settings/`; the Hebrew catalog is a machine-drafted first pass awaiting native review (see `deferred-work.md`) |

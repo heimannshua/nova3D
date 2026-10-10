@@ -1,6 +1,6 @@
 import {execFileSync} from 'node:child_process';
 
-export type Stack = {apiUrl: string; anonKey: string; serviceKey: string; dbUrl: string};
+export type Stack = {apiUrl: string; anonKey: string; serviceKey: string; dbUrl: string; jwtSecret: string | undefined};
 
 let cached: Stack | undefined;
 
@@ -17,10 +17,16 @@ export function localStack(): Stack {
     throw new Error('The local Supabase stack is not running. Run `supabase start` first.');
   }
   const values = Object.fromEntries([...output.matchAll(/^([A-Z0-9_]+)="?([^"\n]*)"?$/gm)].map((match) => [match[1], match[2]]));
-  const stack = {apiUrl: values.API_URL, anonKey: values.ANON_KEY, serviceKey: values.SERVICE_ROLE_KEY, dbUrl: values.DB_URL};
+  const stack = {apiUrl: values.API_URL, anonKey: values.ANON_KEY, serviceKey: values.SERVICE_ROLE_KEY, dbUrl: values.DB_URL, jwtSecret: values.JWT_SECRET};
   if (!stack.apiUrl || !stack.anonKey || !stack.serviceKey || !stack.dbUrl) {
     throw new Error('`supabase status -o env` did not report the API URL, keys and DB URL.');
   }
   cached = stack;
   return stack;
+}
+
+/** The stack's JWT secret, for the one test that signs a token. Read lazily so no other test depends on it. */
+export function jwtSecretOf(stack: Stack) {
+  if (!stack.jwtSecret) throw new Error('`supabase status -o env` did not report JWT_SECRET, which this test needs to sign a token.');
+  return stack.jwtSecret;
 }

@@ -3,7 +3,9 @@ import {chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSyn
 import {createServer, type Server} from 'node:http';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
+import {randomBytes} from 'node:crypto';
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, it} from 'vitest';
+import {decodeHashKey, hashKeyProblem} from '@/lib/environment';
 
 const repo = resolve(import.meta.dirname, '../..');
 const script = join(repo, 'scripts/setup-env.mjs');
@@ -175,5 +177,102 @@ describe('setup-env local', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('stack is not running');
     expect(result.stderr).not.toContain('not installed');
+  });
+});
+
+describe('setup-env local hashing keys (Story 1.3)', () => {
+  const names = ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY'];
+
+  it('generates two different random keys of 32 bytes and never prints them', async () => {
+    const result = await setup();
+    expect(result.code, result.stderr).toBe(0);
+    const text = read(envFile());
+    const keys = names.map((name) => valuesOf(text, name));
+    for (const [index, values] of keys.entries()) {
+      expect(values, names[index]).toHaveLength(1);
+      expect(hashKeyProblem(values[0]), names[index]).toBeNull();
+      expect(decodeHashKey(values[0]).length).toBeGreaterThanOrEqual(32);
+      expect(values[0]).not.toMatch(/replace-with/);
+      expect(result.stdout + result.stderr).not.toContain(values[0]);
+    }
+    expect(keys[0][0]).not.toBe(keys[1][0]);
+    expect(result.stdout).toContain('INVITATION_HASH_KEY');
+    expect(result.stdout).toContain('RATE_LIMIT_HASH_KEY');
+    expect(mode(envFile())).toBe(0o600);
+  });
+
+  it('keeps valid keys on a second run, so stored invitation hashes stay valid', async () => {
+    expect((await setup()).code).toBe(0);
+    const first = names.map((name) => valuesOf(read(envFile()), name)[0]);
+    const second = await setup();
+    expect(second.code, second.stderr).toBe(0);
+    expect(names.map((name) => valuesOf(read(envFile()), name)[0])).toEqual(first);
+    expect(second.stdout).toContain('already matches');
+  });
+
+  it('replaces a placeholder or malformed key, in every duplicate, and keeps a valid one', async () => {
+    const keep = Buffer.from(Array.from({length: 32}, (_, index) => index * 7 + 3)).toString('base64');
+    writeFileSync(envFile(), `INVITATION_HASH_KEY=replace-with-local-invitation-hash-key\nexport INVITATION_HASH_KEY=too-short\nRATE_LIMIT_HASH_KEY=${keep}\n`, {mode: 0o600});
+    expect(hashKeyProblem(keep)).toBeNull();
+    const result = await setup();
+    expect(result.code, result.stderr).toBe(0);
+    const text = read(envFile());
+    const replaced = valuesOf(text, 'INVITATION_HASH_KEY');
+    expect(replaced).toHaveLength(2);
+    expect(replaced[0]).toBe(replaced[1]);
+    expect(hashKeyProblem(replaced[0])).toBeNull();
+    expect(valuesOf(text, 'RATE_LIMIT_HASH_KEY')).toEqual([keep]);
+    expect(result.stdout).toContain('INVITATION_HASH_KEY');
+    expect(result.stdout).not.toContain('RATE_LIMIT_HASH_KEY');
+  });
+
+  it('judges a key by its value, not by a trailing comment, and keeps it', async () => {
+    const invitation = randomBytes(32).toString('base64');
+    const rateLimit = randomBytes(32).toString('base64');
+    const original = `INVITATION_HASH_KEY=${invitation} # made with openssl\nRATE_LIMIT_HASH_KEY=${rateLimit}\t# and this one\n`;
+    writeFileSync(envFile(), original, {mode: 0o600});
+    const result = await setup();
+    expect(result.code, result.stderr).toBe(0);
+    const text = read(envFile());
+    expect(text).toContain(`INVITATION_HASH_KEY=${invitation} # made with openssl`);
+    expect(text).toContain(`RATE_LIMIT_HASH_KEY=${rateLimit}\t# and this one`);
+    expect(result.stdout).not.toMatch(/INVITATION_HASH_KEY|RATE_LIMIT_HASH_KEY/);
+
+    // A comment around a bad value does not make it good.
+    writeFileSync(envFile(), `INVITATION_HASH_KEY=short # looks fine\nRATE_LIMIT_HASH_KEY=${rateLimit}\n`, {mode: 0o600});
+    expect((await setup()).code).toBe(0);
+    const replaced = valuesOf(read(envFile()), 'INVITATION_HASH_KEY');
+    expect(replaced).toHaveLength(1);
+    expect(hashKeyProblem(replaced[0])).toBeNull();
+    expect(replaced[0]).not.toContain('#');
+    expect(valuesOf(read(envFile()), 'RATE_LIMIT_HASH_KEY')).toEqual([rateLimit]);
+  });
+
+  it('replaces RATE_LIMIT_HASH_KEY when both keys are valid but are the same key', async () => {
+    const bytes = randomBytes(32);
+    const same = bytes.toString('base64');
+    writeFileSync(envFile(), `INVITATION_HASH_KEY=${same}\nRATE_LIMIT_HASH_KEY=${bytes.toString('base64url')} # the same key, spelled differently\n`, {mode: 0o600});
+    const result = await setup();
+    expect(result.code, result.stderr).toBe(0);
+    const text = read(envFile());
+    expect(valuesOf(text, 'INVITATION_HASH_KEY')).toEqual([same]);
+    const [rateLimit] = valuesOf(text, 'RATE_LIMIT_HASH_KEY');
+    expect(hashKeyProblem(rateLimit)).toBeNull();
+    expect(decodeHashKey(rateLimit).equals(bytes)).toBe(false);
+    expect(result.stdout).toContain('RATE_LIMIT_HASH_KEY');
+    expect(result.stdout).not.toContain('INVITATION_HASH_KEY');
+    expect(result.stdout + result.stderr).not.toContain(rateLimit);
+    // Settled: a second run changes nothing.
+    const settled = read(envFile());
+    expect((await setup()).stdout).toContain('already matches');
+    expect(read(envFile())).toBe(settled);
+  });
+
+  it('gives a different machine different keys', async () => {
+    expect((await setup()).code).toBe(0);
+    const first = valuesOf(read(envFile()), 'INVITATION_HASH_KEY')[0];
+    rmSync(envFile());
+    expect((await setup()).code).toBe(0);
+    expect(valuesOf(read(envFile()), 'INVITATION_HASH_KEY')[0]).not.toBe(first);
   });
 });

@@ -21,9 +21,11 @@ Staging and production must use an `https` Supabase URL; local must use a loopba
 
 `next build` outside Vercel does not read the database, so local and CI builds stay credential-free.
 
-**Previews are different.** A preview never reads the database, so nothing compares its identity with a row. It is kept away from real data by rejecting credential-like variables: the check fails if a preview or development deployment holds any variable named `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `DATABASE_URL`, `POSTGRES_*` or `STRIPE_*` (names are reported, never values), and it requires `PAID_ADAPTERS_ENABLED=false`, `SYNTHETIC_DATA_ENABLED=true` and `APP_ENV=staging`.
+**Previews are different.** A preview never reads the database, so nothing compares its identity with a row. It is kept away from real data by rejecting credential-like variables: the check fails if a preview or development deployment holds any variable named `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `DATABASE_URL`, `POSTGRES_*`, `STRIPE_*`, `INVITATION_HASH_KEY` or `RATE_LIMIT_HASH_KEY` (names are reported, never values), and it requires `PAID_ADAPTERS_ENABLED=false`, `SYNTHETIC_DATA_ENABLED=true` and `APP_ENV=staging`.
 
-`ADMINISTRATOR_EMAIL` is required in every environment. `AUTH_ALLOWED_EMAILS` stays in place until Story 1.3 replaces it.
+`ADMINISTRATOR_EMAIL` is required in every environment. `AUTH_ALLOWED_EMAILS` stays in place until Story 1.3 Part B replaces it with the live-Account check.
+
+Story 1.3 adds three optional variables, checked for shape when set and never required at startup before Part B: `INVITATION_HASH_KEY` and `RATE_LIMIT_HASH_KEY` (base64 text decoding to at least 32 bytes, different from each other once decoded) and `SEED_ACCOUNT_EMAILS` (comma-separated member addresses, each at most 254 characters, for the seed command; unset in the templates on purpose). A preview or development deployment must hold neither key.
 
 ## Local
 
@@ -34,7 +36,7 @@ npm run check:env -- --live       # confirms APP_ENV, INSTANCE_ID and the row ag
 npm run dev
 ```
 
-`setup-env` replaces the Supabase URL, keys and `INSTANCE_ID` in an existing `.env.local` with the stack's (every duplicate, `export` lines included), leaves other lines alone, and adds new template variables such as `ADMINISTRATOR_EMAIL`. When it replaces a hosted URL it first copies the old file to `.env.local.bak` (git-ignored, mode 0600) and never overwrites an existing backup; delete the backup when you no longer need those values. `supabase db reset` recreates the row with a new UUID; run `setup-env` again afterwards.
+`setup-env` replaces the Supabase URL, keys and `INSTANCE_ID` in an existing `.env.local` with the stack's (every duplicate, `export` lines included), leaves other lines alone, adds new template variables such as `ADMINISTRATOR_EMAIL`, and generates `INVITATION_HASH_KEY` and `RATE_LIMIT_HASH_KEY` when they are missing, placeholders or malformed (a valid key is kept, so invitation hashes already stored in the local database stay valid). When it replaces a hosted URL it first copies the old file to `.env.local.bak` (git-ignored, mode 0600) and never overwrites an existing backup; delete the backup when you no longer need those values. `supabase db reset` recreates the row with a new UUID; run `setup-env` again afterwards. A reset also empties the Accounts, invitations and pre-authorizations of Story 1.3; run `npm run seed:accounts -- preauthorize` again if you want your local addresses back.
 
 **Never run `supabase db reset --linked` against staging or production.** It runs `supabase/seed.sql`, which would put a `local` identity row into the hosted project (and it resets the hosted database).
 
@@ -46,21 +48,23 @@ These are changes to the hosted project and the Vercel dashboard. The repository
 
 The other accounts, keys and spend limits that only Josh can create (Google OAuth clients, the Supabase plan, Resend, Upstash, Railway, the provider accounts and the rest) are tracked in [docs/provisioning.md](provisioning.md), each tagged with the story that first needs it. Check what is outstanding before starting a story with `node --env-file-if-exists=.env.staging scripts/check-provisioning.mjs --story <id> --env staging` (`npm run check:provisioning -- --story <id> --env staging` loads `.env.staging` itself). Production secrets are never checked from a local file. Keys the application generates itself are listed in [docs/secrets.md](secrets.md).
 
-1. **Identity row.** In the Supabase SQL editor of the staging project, apply the migration (or run `supabase link --project-ref <ref>` and `supabase db push`), then insert the row once:
+1. **Identity row.** In the Supabase SQL editor of the staging project, apply the migrations in `supabase/migrations/` in order (or run `supabase link --project-ref <ref>` and `supabase db push`), then insert the row once:
 
    ```sql
    insert into lifecycle.instance_identity (environment) values ('staging') returning instance_id;
    ```
 
    Keep the returned UUID; it is `INSTANCE_ID`. Never insert a second row, and never copy a row from another environment.
-2. **Expose the schema.** In Project Settings → API → Exposed schemas, add `lifecycle` (the server reads the row through the Data API with the service role; `anon` and `authenticated` hold no privileges on it).
-3. **Auth settings.** Match `supabase/config.toml` as described in `docs/auth-setup.md`.
-4. **Vercel project settings.**
+2. **Expose the schemas.** In Project Settings → API → Exposed schemas, add `lifecycle` (the server reads the row through the Data API with the service role; `anon` and `authenticated` hold no privileges on it) and `api` (Story 1.3: the only callable surface of Accounts and invitations; only the service role may execute its functions). Never expose `identity` or `projects`; they hold the tables.
+3. **Auth settings.** Match `supabase/config.toml` as described in `docs/auth-setup.md`, including the Before User Created hook (`api.before_user_created`). The hook function exists only after step 1 has applied the Story 1.3 migrations (`*_accounts.sql`, `*_api.sql`).
+4. **Hashing keys (Story 1.3).** Generate `INVITATION_HASH_KEY` and `RATE_LIMIT_HASH_KEY` on your own machine (`openssl rand -base64 32` each; two different values, never reused from another environment) and put them in the Vercel project's Production-scope variables and in your local, git-ignored `.env.staging`. Neither is required to start the application until Story 1.3 Part B; both are needed by the seed command and by `lib/accounts.ts`. See [secrets.md](secrets.md).
+5. **Seed the accounts (Story 1.3).** With the migrations applied, `api` exposed and the keys in `.env.staging`, set `SEED_ACCOUNT_EMAILS` in `.env.staging` deliberately (the template leaves it commented out) and run `node --env-file=.env.staging scripts/seed-accounts.mjs preauthorize --confirm staging`. It pre-authorizes `ADMINISTRATOR_EMAIL` as the Administrator and every address in `SEED_ACCOUNT_EMAILS` as a member; running it again changes nothing. Each address becomes an Account at its first verified Google sign-in (Part B wires that into the sign-in callback). `issue --name <label>`, `issue --general`, `list`, `revoke` and `unauthorize --email` are the other commands (see `docs/auth-setup.md`). Every command is audited. Production seeding is decided in Story 8.7: production secrets are never read from a file on a laptop, so there is no `.env.production` to run the command with.
+6. **Vercel project settings.**
    - Settings → Git → Production Branch: `staging`.
-   - Settings → Environment Variables, Production scope: `APP_ENV=staging`, `NEXT_PUBLIC_APP_ENV=staging`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `INSTANCE_ID`, `ADMINISTRATOR_EMAIL`, `AUTH_ALLOWED_EMAILS`, `PAID_ADAPTERS_ENABLED=false`, `SYNTHETIC_DATA_ENABLED=true`.
-   - Preview and Development scopes: `APP_ENV=staging`, `NEXT_PUBLIC_APP_ENV=staging`, `INSTANCE_ID`, `ADMINISTRATOR_EMAIL`, `AUTH_ALLOWED_EMAILS`, `PAID_ADAPTERS_ENABLED=false`, `SYNTHETIC_DATA_ENABLED=true` and **no** variable named `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `DATABASE_URL`, `POSTGRES_*` or `STRIPE_*` (the Vercel Supabase integration adds several; remove them from these scopes). The check rejects a preview that holds one.
+   - Settings → Environment Variables, Production scope: `APP_ENV=staging`, `NEXT_PUBLIC_APP_ENV=staging`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `INSTANCE_ID`, `ADMINISTRATOR_EMAIL`, `AUTH_ALLOWED_EMAILS`, `PAID_ADAPTERS_ENABLED=false`, `SYNTHETIC_DATA_ENABLED=true`, and the two hashing keys from step 4 (optional until Part B).
+   - Preview and Development scopes: `APP_ENV=staging`, `NEXT_PUBLIC_APP_ENV=staging`, `INSTANCE_ID`, `ADMINISTRATOR_EMAIL`, `AUTH_ALLOWED_EMAILS`, `PAID_ADAPTERS_ENABLED=false`, `SYNTHETIC_DATA_ENABLED=true` and **no** variable named `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `DATABASE_URL`, `POSTGRES_*`, `STRIPE_*`, `INVITATION_HASH_KEY` or `RATE_LIMIT_HASH_KEY` (the Vercel Supabase integration adds several; remove them from these scopes). The check rejects a preview that holds one.
    - Leave Production deploys for `production` disabled until a production project exists.
-5. Fast-forward `main` into `staging` (below) to trigger the first build.
+7. Fast-forward `main` into `staging` (below) to trigger the first build.
 
 Known consequence, accepted 2026-10-09: once `vercel.json` lands, `main` no longer deploys, and the Vercel project fails its build until `INSTANCE_ID` and `ADMINISTRATOR_EMAIL` are set there and the staging database has its identity row.
 
@@ -76,7 +80,7 @@ Never force-push `staging`. If the push is rejected as non-fast-forward, `stagin
 
 ## Variable contract
 
-`NEXT_PUBLIC_*` variables are browser-visible. `SUPABASE_SERVICE_ROLE_KEY` is server-only and belongs only in encrypted Vercel settings or a local ignored file. `.env.example`, `.env.staging.example` and `.env.production.example` document the contract. The check fails closed on missing or placeholder values, an `APP_ENV` that is not `local`, `staging` or `production`, `APP_ENV=local` against a non-loopback Supabase URL, a staging or production URL that is not `https`, a preview that is not staging or that enables paid adapters or disables synthetic data, a preview that holds any variable named `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `DATABASE_URL`, `POSTGRES_*` or `STRIPE_*`, and production with synthetic data. Placeholder detection matches `replace-with-…`, `<…>`, `changeme` and `todo` as whole values, so a real address such as `todos@example.com` is not rejected.
+`NEXT_PUBLIC_*` variables are browser-visible. `SUPABASE_SERVICE_ROLE_KEY` is server-only and belongs only in encrypted Vercel settings or a local ignored file. `.env.example`, `.env.staging.example` and `.env.production.example` document the contract. The check fails closed on missing or placeholder values, an `APP_ENV` that is not `local`, `staging` or `production`, `APP_ENV=local` against a non-loopback Supabase URL, a staging or production URL that is not `https`, a preview that is not staging or that enables paid adapters or disables synthetic data, a preview that holds any variable named `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `DATABASE_URL`, `POSTGRES_*`, `STRIPE_*`, `INVITATION_HASH_KEY` or `RATE_LIMIT_HASH_KEY`, and production with synthetic data. Placeholder detection matches `replace-with-…`, `<…>`, `changeme` and `todo` as whole values, so a real address such as `todos@example.com` is not rejected.
 
 ## Supabase restore
 
