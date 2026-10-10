@@ -107,3 +107,8 @@
   summary: Both full message catalogs (English and Hebrew) ship to every browser, because client components translate on the client. That is a few tens of kilobytes now; revisit when the catalogs grow (load only the active language, or translate on the server).
   evidence: `lib/i18n/en.ts` and `he.ts` are imported by `lib/i18n/index.ts`, which client components reach through `useI18n`.
   mapped_story: 8.5.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-create-invitation-only-accounts.md`
+  summary: Story 1.3 Part B (the app half): the registration screen with the operator disclosure, consuming a pre-authorization in the auth callback, gating every private route on a live Account, removing `AUTH_ALLOWED_EMAILS` everywhere, requiring the two hash keys at startup, and the browser flows with forged sessions.
+  evidence: The plan was split at Josh's choice on 2026-10-10 because the single build was too large to review safely; Part A (database) is built first and Part B uses its `api` functions.
+  mapped_story: 1.3 (AC-1 screen and gating, AC-7 sign-in consumption, AC-9 allowlist removal).
