@@ -62,7 +62,11 @@ export async function attemptRegistration(
   }
 }
 
-/** "Use a different Google account": a refusal by the proxy (the session is already gone) still ends at sign-in. */
+/**
+ * "Use a different Google account": the action ends this session and redirects to Google's account chooser
+ * (Story 1.4b), which travels as a thrown error and is rethrown for Next.js to follow, like any redirect. A
+ * refusal by the proxy (the session is already gone), or a failure, still ends at sign-in.
+ */
 export async function attemptSwitch(action: () => Promise<void>, navigate: Navigate = goTo) {
   try {
     await action();

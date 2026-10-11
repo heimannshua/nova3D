@@ -12,6 +12,11 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 // (tests/e2e/authorization.spec.ts). It is the same build, with a fake network preloaded into it.
 const flakyPort = port + 1;
 if (flakyPort > 65535) throw new Error('PORT + 1 must also be a valid port.');
+// The step-up flows (Story 1.4b, tests/e2e/step-up.spec.ts) run a real second Google sign-in against a fake Google
+// that `npm run fake-google:up` puts behind the stack's Auth container (scripts/fake-google-stack.mjs). Nothing
+// here starts it: the swap changes the stack, not the application servers below, and the swap allows these two
+// servers' callbacks (this port and the next one, 4173 and 4174 by default). The specs that need it skip when it
+// is not running, and fail in CI, where it must be.
 // The fake network is controlled through a private directory made here, once: Playwright loads this file in
 // the process that starts the servers and again in each worker, and the workers inherit the variable the first
 // load sets. The directory name is random (mkdtemp, mode 0700) and is removed when the run ends.

@@ -63,7 +63,7 @@ const exchangedToken = (claims: Record<string, unknown> = {sub: USER, session_id
 const receipt = (outcome: string) => ({outcome, accountId: outcome === 'none' || outcome === 'refused' ? null : ACCOUNT, workspaceId: null, role: null});
 const call = async (query = '?code=google-code') => {
   const response = await GET(new Request(`http://127.0.0.1:4173/auth/callback${query}`));
-  const location = new URL(response.headers.get('location') ?? '');
+  const location = new URL(response.headers.get('location') ?? '', 'http://127.0.0.1:4173');
   return {status: response.status, to: `${location.pathname}${location.search}`};
 };
 

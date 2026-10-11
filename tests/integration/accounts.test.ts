@@ -29,13 +29,25 @@ const committedInvitationIds = committed.invitationIds;
 // ---------------------------------------------------------------------------------------------------
 describe('schema, access and AC-8: anon and authenticated can execute and read nothing', () => {
   const tables = {
-    identity: ['accounts', 'audit_events', 'invitations', 'preauthorizations', 'rate_limit_counters', 'registration_attempts', 'registration_commands', 'session_grants'],
+    identity: [
+      'accounts',
+      'audit_events',
+      'fresh_authentications',
+      'invitations',
+      'preauthorizations',
+      'rate_limit_counters',
+      'registration_attempts',
+      'registration_commands',
+      'session_grants',
+      'step_up_nonces',
+    ],
     projects: ['workspaces'],
   };
   const apiFunctions = [
     'account_status',
     'authorize_session',
     'before_user_created',
+    'complete_step_up',
     'confirm_registration',
     'consume_preauthorization',
     'issue_grant',
@@ -47,6 +59,8 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'revoke_grants',
     'revoke_invitation',
     'seed_preauthorization',
+    'start_step_up',
+    'use_marker',
     'withdraw_preauthorization',
   ];
 
@@ -66,7 +80,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
          from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname in ('identity', 'projects') and c.relkind = 'r' order by 1`,
     );
-    expect(found).toHaveLength(9);
+    expect(found).toHaveLength(11);
     for (const row of found) expect(row, row.name).toMatchObject({rls: true, policies: 0});
   });
 

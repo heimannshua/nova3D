@@ -82,6 +82,24 @@ describe('CI contract', () => {
     expect(commands).toContain('node scripts/setup-env.mjs local');
   });
 
+  it('swaps in the fake Google after the stack starts and only for the browser tests (Story 1.4b)', () => {
+    const start = indexOfRun('supabase start');
+    const swap = indexOfRun('npm run fake-google:up');
+    const checked = indexOfRun('npm run fake-google:status');
+    const unit = indexOfRun('npm test');
+    const browser = indexOfRun('npm run test:e2e');
+    expect(swap).toBeGreaterThan(start);
+    // A swap that did not take fails in its own step, right after it, and not as a wall of failing browser tests.
+    expect(checked).toBe(swap + 1);
+    expect(checked).toBeLessThan(browser);
+    // The unit and integration suites, and the health check, never see the swapped Auth container.
+    expect(swap).toBeGreaterThan(unit);
+    expect(swap).toBeLessThan(browser);
+    expect(pkg.scripts['fake-google:up']).toBe('node scripts/fake-google-stack.mjs up');
+    expect(pkg.scripts['fake-google:down']).toBe('node scripts/fake-google-stack.mjs down');
+    expect(pkg.scripts['fake-google:status']).toBe('node scripts/fake-google-stack.mjs status');
+  });
+
   it('stops the stack only when the start step ran, and always then', () => {
     const start = steps.find((step) => step.run?.includes('supabase start'));
     expect(start?.id).toBeTruthy();

@@ -38,6 +38,16 @@ export function isAuthCookieName(name: string, supabaseUrl: string | undefined =
   return new RegExp(`^${escapeForPattern(base)}(?:-code-verifier|-flows-code-verifier|-flow-[A-Za-z0-9_-]{8,64}-code-verifier)?(?:\\.\\d+)?$`).test(name);
 }
 
+/**
+ * Whether a cookie is one of THIS project's PKCE verifier cookies and nothing else: the fixed `-code-verifier`,
+ * the `-flows-code-verifier` index and the per-flow `-flow-<id>-code-verifier` slots. Never the session cookie.
+ */
+export function isPkceVerifierCookieName(name: string, supabaseUrl: string | undefined = process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  const base = authCookieBase(supabaseUrl);
+  if (!base) return false;
+  return new RegExp(`^${escapeForPattern(base)}(?:-code-verifier|-flows-code-verifier|-flow-[A-Za-z0-9_-]{8,64}-code-verifier)$`).test(name);
+}
+
 type SignOutClient = {auth: {signOut(options: {scope: AuthSignOutScope}): Promise<unknown>}};
 type Log = (message: string, detail: string) => void;
 const defaultLog: Log = (message, detail) => console.error(message, detail);

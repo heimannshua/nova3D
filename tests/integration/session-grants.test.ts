@@ -1165,10 +1165,18 @@ describe('the preflight', () => {
     });
   });
 
-  const tablesRead = ['identity.session_grants', 'identity.accounts', 'auth.sessions', 'auth.identities'];
+  const tablesRead = [
+    'identity.session_grants',
+    'identity.accounts',
+    'identity.step_up_nonces',
+    'identity.fresh_authentications',
+    'auth.sessions',
+    'auth.identities',
+    'auth.mfa_amr_claims',
+  ];
 
   // The functions run as their owner. Hand this one to `anon`, which can use the auth schema but read none of
-  // its tables, give it the right to read only some of the four, inside a transaction that is rolled back,
+  // its tables, give it the right to read only some of the seven, inside a transaction that is rolled back,
   // and see what the preflight says. (Everything granted here is undone with the transaction.)
   async function ownedByRoleThatCanRead(client: Client, readable: string[]) {
     await client.query('grant usage on schema api, identity to anon');
@@ -1177,7 +1185,7 @@ describe('the preflight', () => {
     await client.query('alter function api.preflight() owner to anon');
   }
 
-  it('answers ok when the role it runs as can read all four tables (the control for the next cases)', async () => {
+  it('answers ok when the role it runs as can read all seven tables (the control for the next cases)', async () => {
     await inTx(async (client) => {
       await ownedByRoleThatCanRead(client, tablesRead);
       expect(await api(client).preflight()).toEqual({ok: true});

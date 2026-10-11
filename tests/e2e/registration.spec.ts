@@ -1,7 +1,7 @@
 import {randomBytes} from 'node:crypto';
 import {expect, test, type Page} from '@playwright/test';
 import type {Locale} from '../../lib/i18n';
-import {alertOf, label, mainNav, overflow, signIn, violations, watchForProblems} from '../support/e2e-helpers';
+import {alertOf, hydrated, label, mainNav, overflow, signIn, stopAtAuth, stoppedAtAuth, violations, watchForProblems} from '../support/e2e-helpers';
 import {accountsWorld, type AccountsWorld} from '../support/forged-session';
 
 // Story 1.3 Part B: registration and live-Account gating, in a real browser against the production build
@@ -238,15 +238,28 @@ test.describe('registering with a code', () => {
     expect((await world.accountOf(person)).status).toBe('active');
   });
 
-  test('"use a different Google account" ends the session and returns to sign-in', async ({page, context, baseURL}) => {
+  test('"use a different Google account" ends the session and sends the browser to Google\'s account chooser', async ({page, context, baseURL}) => {
     const person = await world.signedInUser();
     await signIn(context, baseURL!, person);
+    // Stopped at Auth's authorize endpoint, which shows what Google was asked for without needing Google
+    // (tests/e2e/step-up.spec.ts goes on to the chooser itself, against the fake Google).
+    const seen = await stopAtAuth(page);
     await page.goto('/register');
+    await hydrated(page, 'main form.auth-switch button');
     await page.getByRole('button', {name: label('en', 'register.switch')}).click();
-    await expect(page).toHaveURL(`${baseURL}/login`);
-    await expect(page.getByRole('button', {name: label('en', 'login.google')})).toBeVisible();
+    await expect(page.getByText(stoppedAtAuth)).toBeVisible();
+    expect(seen).toHaveLength(1);
+    const url = new URL(seen[0]);
+    expect(url.searchParams.get('provider')).toBe('google');
+    expect(url.searchParams.get('prompt')).toBe('select_account');
+    expect(url.searchParams.has('login_hint')).toBe(false);
+    expect(url.searchParams.get('redirect_to')).toBe(`${baseURL}/auth/callback`);
+    // The old session is over: its cookie is gone and Auth no longer has it. And the verifier of the NEW flow
+    // survived the expiry (the start came after it).
     expect((await context.cookies()).filter((cookie) => cookie.name === person.cookie.name && cookie.value !== '')).toEqual([]);
     expect(await world.sessionExists(person.sessionId)).toBe(false);
+    expect((await context.cookies()).find((cookie) => /-code-verifier$/.test(cookie.name) && cookie.value !== ''), 'the new flow\'s PKCE verifier').toBeDefined();
+    await page.unroute('**/auth/v1/authorize**');
     await page.goto('/');
     await expect(page).toHaveURL(/\/login\?error=not_signed_in$/);
   });

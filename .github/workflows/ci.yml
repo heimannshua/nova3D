@@ -71,6 +71,15 @@ jobs:
         run: npm run test:health
       - name: Install the Playwright browser
         run: npx playwright install --with-deps chromium
+      # The step-up browser flows (Story 1.4b) run a real second Google sign-in against a fake Google: this swaps
+      # only the stack's Auth container for a copy that reaches it (see scripts/fake-google-stack.mjs). It comes
+      # after the unit and integration suites, which expect the stack as `supabase start` made it, and the
+      # stack's own stop step removes the swapped container.
+      - name: Swap in the fake Google for the browser tests
+        run: npm run fake-google:up
+      # Fails here, with the reason, if the fake is not running or Auth does not send Google sign-in to it.
+      - name: Check that Auth uses the fake Google
+        run: npm run fake-google:status
       - name: Browser tests
         run: npm run test:e2e
       - name: Upload the browser report

@@ -16,6 +16,7 @@
 import {createHmac, randomBytes} from 'node:crypto';
 import {isIPv4, isIPv6} from 'node:net';
 import {decodeHashKey, hashKeyProblem, hashKeyVariables, isPlaceholder, type Env} from './environment.ts';
+import {consumedStepUpClasses, stepUpClasses, type StepUpClass} from './step-up.ts';
 
 if (typeof window !== 'undefined') {
   throw new Error('lib/accounts.ts is server-only and must not be imported by browser code.');
@@ -258,6 +259,25 @@ export type GrantReceipt = {outcome: GrantOutcome; accountId: string | null; epo
  */
 export type GrantRevocation = {revoked: number; live: number};
 export type EpochReceipt = {accountId: string; epoch: number | null};
+
+/**
+ * api.start_step_up: `started` (a nonce now exists, valid until `expiresAt`), `limited` (10 starts in the last hour
+ * for this Account; nothing was started or voided) or `refused` (the session does not hold a valid grant of an
+ * active Account, or the Google identity is not the pinned one).
+ */
+export type StepUpStartReceipt = {outcome: 'started' | 'limited' | 'refused'; expiresAt: string | null};
+/**
+ * api.complete_step_up: `accepted` (the new session has its grant and its marker, the initiating grant is
+ * revoked), `rejected` (this was the step-up's own sign-in, but it cannot be accepted: `reason` says why, and the
+ * caller must end only the new session) or `not_step_up` (the sign-in is not this step-up's: an ordinary sign-in).
+ */
+export type StepUpReceipt = {
+  outcome: 'accepted' | 'rejected' | 'not_step_up';
+  reason: string | null;
+  actionClass: StepUpClass | null;
+};
+export const markerOutcomes = ['allowed', 'none', 'expired', 'used', 'stale', 'denied'] as const;
+export type MarkerOutcome = (typeof markerOutcomes)[number];
 
 export type PreauthorizationReceipt = {
   preauthorizationId: string;
@@ -551,6 +571,110 @@ export async function confirmRegistration(input: {userId: string; commandId: str
   const row = await callRow('confirm_registration', {p_user_id: userId, p_command_id: commandId, p_code_hash: hashInvitationCode(input.code, key)}, options);
   if (typeof row.confirmed !== 'boolean') throw unexpected();
   return row.confirmed;
+}
+
+const secretHashPattern = /^[0-9a-f]{64}$/;
+const verifierHashPattern = /^[A-Za-z0-9_-]{43}$/;
+
+function requireStepUpClass(value: string): StepUpClass {
+  if (!(stepUpClasses as readonly string[]).includes(value)) throw new TypeError('actionClass must be one of the step-up classes');
+  return value as StepUpClass;
+}
+
+/**
+ * Starts a step-up for the session that is asking (Story 1.4b). The user is the verified Auth user's and the
+ * session the verified access token's; the secret hash is the SHA-256 of the random secret that goes in this
+ * browser's httpOnly cookie and the verifier hash is the PKCE challenge of the Google sign-in this start begins
+ * (lib/step-up-flow.ts). Fails closed: if the database cannot be reached this throws, and no nonce exists the
+ * caller can rely on.
+ */
+export async function startStepUp(
+  input: {userId: string; sessionId: string; actionClass: string; secretHash: string; verifierHash: string},
+  options: AccountsOptions = {},
+): Promise<StepUpStartReceipt> {
+  const actionClass = requireStepUpClass(input.actionClass);
+  if (!secretHashPattern.test(input.secretHash)) throw new TypeError('secretHash must be a hex SHA-256');
+  if (!verifierHashPattern.test(input.verifierHash)) throw new TypeError('verifierHash must be a base64url SHA-256');
+  const row = await callRow(
+    'start_step_up',
+    {
+      p_user_id: requireUuid('userId', input.userId),
+      p_session_id: requireUuid('sessionId', input.sessionId),
+      p_action_class: actionClass,
+      p_secret_hash: input.secretHash,
+      p_verifier_hash: input.verifierHash,
+    },
+    options,
+  );
+  const outcome = oneOf(row.outcome, ['started', 'limited', 'refused'] as const);
+  const expiresAt = text(row.expires_at);
+  // A start that does not say when it expires is not a start.
+  if (outcome === 'started' && !expiresAt) throw unexpected();
+  return {outcome, expiresAt: outcome === 'started' ? expiresAt : null};
+}
+
+/**
+ * Hands the sign-in that has just come back to the database to accept or reject (Story 1.4b). `sessionId` is the
+ * NEW session, taken from the access token the code exchange returned for the user Auth then vouched for; the
+ * database reads everything else from its own tables and Auth's, never from the caller. If this throws, nothing
+ * was accepted: the caller ends only the new session.
+ */
+export async function completeStepUp(
+  input: {userId: string; sessionId: string; secretHash: string; verifierHash: string},
+  options: AccountsOptions = {},
+): Promise<StepUpReceipt> {
+  if (!secretHashPattern.test(input.secretHash)) throw new TypeError('secretHash must be a hex SHA-256');
+  if (!verifierHashPattern.test(input.verifierHash)) throw new TypeError('verifierHash must be a base64url SHA-256');
+  const row = await callRow(
+    'complete_step_up',
+    {
+      p_user_id: requireUuid('userId', input.userId),
+      p_session_id: requireUuid('sessionId', input.sessionId),
+      p_secret_hash: input.secretHash,
+      p_verifier_hash: input.verifierHash,
+    },
+    options,
+  );
+  const outcome = oneOf(row.outcome, ['accepted', 'rejected', 'not_step_up'] as const);
+  const actionClass = row.action_class === null || row.action_class === undefined ? null : oneOf(row.action_class, stepUpClasses);
+  // An acceptance that does not name the class it is for is not an acceptance.
+  if (outcome === 'accepted' && actionClass === null) throw unexpected();
+  return {outcome, reason: text(row.reason), actionClass};
+}
+
+/**
+ * Checks, and for account_deletion and close_instance consumes, the fresh-authentication marker of the session
+ * that is asking (Story 1.4b). A later story's command calls it in the transaction of the sensitive change (the
+ * SQL function api.use_marker), or from the server before it. `startedAfter` is the moment the destructive
+ * confirmation was shown: the two consumed classes require it, and a marker whose step-up started at or before it
+ * is `stale`. Anything but `allowed` is not permission.
+ */
+export async function checkMarker(
+  input: {userId: string; sessionId: string; actionClass: string; startedAfter?: Date | string | null},
+  options: AccountsOptions = {},
+): Promise<MarkerOutcome> {
+  const actionClass = requireStepUpClass(input.actionClass);
+  let startedAfter: string | null = null;
+  // `null` is missing, like `undefined`: it must never become a time (`new Date(null)` is the epoch).
+  if (input.startedAfter != null) {
+    const moment = new Date(input.startedAfter);
+    if (Number.isNaN(moment.getTime())) throw new TypeError('startedAfter must be a valid time');
+    startedAfter = moment.toISOString();
+  }
+  if (startedAfter === null && (consumedStepUpClasses as readonly string[]).includes(actionClass)) {
+    throw new TypeError('startedAfter is required for a class whose marker is consumed by use');
+  }
+  const row = await callRow(
+    'use_marker',
+    {
+      p_user_id: requireUuid('userId', input.userId),
+      p_session_id: requireUuid('sessionId', input.sessionId),
+      p_action_class: actionClass,
+      p_started_after: startedAfter,
+    },
+    options,
+  );
+  return oneOf(row.outcome, markerOutcomes);
 }
 
 /**

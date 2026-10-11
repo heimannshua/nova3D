@@ -9,6 +9,7 @@ const errorMessages = {
   not_signed_in: 'login.error.not_signed_in',
   session_ended: 'login.error.session_ended',
   account_disabled: 'login.error.account_disabled',
+  step_up_failed: 'login.error.step_up_failed',
 } as const satisfies Record<string, MessageKey>;
 
 /** The codes the sign-in routes, the proxy and the pages send back as /login?error=<code>. */
@@ -50,9 +51,15 @@ export function signInErrorKey(code: string | undefined): MessageKey | null {
   return Object.hasOwn(errorMessages, code) ? errorMessages[code as SignInErrorCode] : 'login.error.unknown';
 }
 
+/** What Google is asked for when the person must see the account chooser: Google's own `prompt=select_account`, and no `login_hint` (which would suppress the chooser). */
+export const accountChooserParams: Readonly<{readonly prompt: 'select_account'}> = Object.freeze({prompt: 'select_account'} as const);
+
 export type OAuthClient = {
   auth: {
-    signInWithOAuth(credentials: {provider: 'google'; options: {redirectTo: string}}): Promise<{error: {message: string} | null}>;
+    signInWithOAuth(credentials: {
+      provider: 'google';
+      options: {redirectTo: string; queryParams?: Record<string, string>};
+    }): Promise<{data?: {url?: string | null} | null; error: {message: string} | null}>;
   };
 };
 
@@ -77,5 +84,34 @@ export async function startGoogleSignIn(
   } catch (error) {
     log('Google sign-in could not be started', error);
     return 'login.error.startFailed';
+  }
+}
+
+/**
+ * Builds a Google sign-in on the SERVER (a Server Action cannot navigate the browser itself): the PKCE code
+ * verifier is written to this browser's cookies through the client, and the URL to send the browser to comes
+ * back. `redirectTo` is exactly `<origin>/auth/callback` (a query string fails Auth's allow-list). With
+ * `chooser`, Google is asked for its account chooser (`prompt=select_account`, no `login_hint`).
+ */
+export async function requestGoogleSignIn(
+  client: OAuthClient | null,
+  origin: string,
+  options: {chooser?: boolean} = {},
+  log: (message: string, detail: unknown) => void = (message, detail) => console.error(message, detail),
+): Promise<{ok: true; url: string} | {ok: false; error: MessageKey}> {
+  if (!client) return {ok: false, error: 'login.error.auth_unavailable'};
+  try {
+    const {data, error} = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: options.chooser ? {redirectTo: `${origin}/auth/callback`, queryParams: {...accountChooserParams}} : {redirectTo: `${origin}/auth/callback`},
+    });
+    if (error || !data?.url) {
+      log('Google sign-in could not be started', error ?? 'no authorize URL');
+      return {ok: false, error: 'login.error.startFailed'};
+    }
+    return {ok: true, url: data.url};
+  } catch (error) {
+    log('Google sign-in could not be started', error);
+    return {ok: false, error: 'login.error.startFailed'};
   }
 }

@@ -48,3 +48,34 @@ export const mainNav = (page: Page, locale: Locale) => page.getByRole('navigatio
 /** The forged session cookie, if the browser still holds it with a value. */
 export const sessionCookies = async (context: BrowserContext, user: {cookie: {name: string}}) =>
   (await context.cookies()).filter((cookie) => cookie.name === user.cookie.name && cookie.value !== '');
+
+/**
+ * Stops the browser at Auth's authorize endpoint with a stand-in page ("stopped at Auth"), so a test can read exactly
+ * what the application asked Google for without Google, and without Auth being swapped. Returns the authorize URLs
+ * the browser asked for, in order (a live array).
+ */
+export const authorizePath = '**/auth/v1/authorize**';
+export const stoppedAtAuth = 'stopped at Auth';
+export async function stopAtAuth(page: Page) {
+  const seen: string[] = [];
+  await page.route(authorizePath, (route) => {
+    seen.push(route.request().url());
+    return route.fulfill({status: 200, contentType: 'text/html', body: `<!doctype html><title>Auth stand-in</title><p>${stoppedAtAuth}</p>`});
+  });
+  return seen;
+}
+
+/**
+ * Waits until React has taken over the page's controls (they carry React's props). Before that a form button
+ * whose action is a function does nothing when pressed: its `action` is a placeholder that throws, and the press
+ * is not replayed. `selector` names the controls to wait for.
+ */
+export async function hydrated(page: Page, selector = 'main button[type="submit"]') {
+  await page.waitForFunction(
+    (css) => {
+      const nodes = [...document.querySelectorAll(css)];
+      return nodes.length > 0 && nodes.every((node) => Object.keys(node).some((key) => key.startsWith('__reactProps$')));
+    },
+    selector,
+  );
+}

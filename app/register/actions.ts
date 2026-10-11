@@ -5,7 +5,8 @@ import {redirect} from 'next/navigation';
 import {AccountsUnavailableError, clientAddressFromHeaders, confirmRegistration, registerWithCode, type RegistrationReceipt} from '@/lib/accounts';
 import {issueSessionGrant, resolveAccess} from '@/lib/access';
 import {isCommandId, maxCodeLength, newCommandId, type RegisterState} from '@/lib/register';
-import {signInErrorPath} from '@/lib/sign-in';
+import {requestGoogleSignIn, signInErrorPath} from '@/lib/sign-in';
+import {requestOrigin} from '@/lib/step-up.server';
 import {createSupabaseServerClient, endSession} from '@/lib/supabase/server';
 
 // A command ID is minted again after any definitive answer. It is kept only when the attempt may or may
@@ -98,8 +99,19 @@ export async function registerWithInvitation(_previous: RegisterState, formData:
   return fresh('refused');
 }
 
-/** "Use a different Google account": ends this browser's session and returns to sign-in. */
+/**
+ * "Use a different Google account" (Story 1.4b): ends this browser's session and sends the person to Google's
+ * account chooser, so Google cannot simply sign the same account straight back in. The session is ended first
+ * (which also removes this browser's PKCE verifier cookies), and only then is the new Google sign-in built from
+ * a fresh client, which writes its own verifier; the start must follow the expiry or the expiry would remove
+ * it. If Google cannot be started the person lands on sign-in, where the button starts it the ordinary way.
+ * Nothing in the request chooses where this goes: the chooser is asked for with `prompt=select_account` and no
+ * `login_hint`, and the return address is this application's own callback.
+ */
 export async function switchGoogleAccount(): Promise<void> {
   await endSession(await createSupabaseServerClient(), 'local');
-  redirect('/login');
+  const where = await requestOrigin();
+  const google = where ? await requestGoogleSignIn(await createSupabaseServerClient(), where.origin, {chooser: true}) : null;
+  if (!google?.ok) redirect(signInErrorPath('auth_unavailable'));
+  redirect(google.url);
 }

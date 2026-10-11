@@ -2,7 +2,12 @@ import {createServerClient} from '@supabase/ssr';
 import {cookies} from 'next/headers';
 import {isAuthCookieName, signOutQuietly, type SignOutScope} from './sign-out';
 
-export async function createSupabaseServerClient() {
+/**
+ * `track`, when given, is told the name and value of every cookie this client writes (a removal has the empty
+ * value). It changes nothing about how the client works; the step-up uses it to undo exactly the PKCE verifier
+ * cookies a Google sign-in start wrote when the step-up then cannot begin.
+ */
+export async function createSupabaseServerClient(options: {track?: (cookie: {name: string; value: string}) => void} = {}) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
@@ -15,7 +20,10 @@ export async function createSupabaseServerClient() {
       },
       setAll(cookiesToSet) {
         try {
-          cookiesToSet.forEach(({name, value, options}) => cookieStore.set(name, value, options));
+          cookiesToSet.forEach(({name, value, options: cookieOptions}) => {
+            cookieStore.set(name, value, cookieOptions);
+            options.track?.({name, value});
+          });
         } catch {
           // Server Components cannot always write cookies; proxy handles refreshes.
         }

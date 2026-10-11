@@ -96,3 +96,64 @@ describe('every route handler under app/api answers only an active Account', () 
     }
   });
 });
+
+describe('step-up (Story 1.4b) has one way in, one way to decide and one way to check', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+
+  it('starts a step-up only in lib/accounts.ts and the one Server Action', () => {
+    expect(callers('startStepUp')).toEqual(['app/step-up/actions.ts', 'lib/accounts.ts']);
+  });
+
+  it('accepts a step-up only in lib/accounts.ts and the sign-in decision that the callback makes', () => {
+    expect(callers('completeStepUp')).toEqual(['lib/access.ts', 'lib/accounts.ts']);
+    expect(callers('finishStepUp')).toEqual(['app/auth/callback/route.ts', 'lib/access.ts']);
+  });
+
+  it('has no sensitive action yet that checks a marker: only the typed call exists', () => {
+    expect(callers('checkMarker')).toEqual(['lib/accounts.ts']);
+  });
+
+  it('reads the step-up cookie and the PKCE verifier BEFORE the code exchange, which removes the verifier', () => {
+    const callback = withoutComments(read('app/auth/callback/route.ts'));
+    const reads = callback.indexOf('readStepUpFlow()');
+    const exchanges = callback.indexOf('exchangeCodeForSession(');
+    expect(reads).toBeGreaterThan(-1);
+    expect(exchanges).toBeGreaterThan(-1);
+    expect(reads).toBeLessThan(exchanges);
+  });
+
+  it('takes nothing from the request in the Server Action: no form data, no search parameter, no URL, no header but the origin', () => {
+    const action = withoutComments(read('app/step-up/actions.ts'));
+    for (const forbidden of [/\bformData\b/i, /\bsearchParams\b/, /\brequest\.url\b/, /\bnew URL\(/, /\bheaders\(\)/]) expect(action).not.toMatch(forbidden);
+  });
+
+  it('derives the return path from the action class in one table, and reads it from no request anywhere', () => {
+    expect(withoutComments(read('lib/step-up.ts'))).toMatch(/export const stepUpReturnPaths: Record<StepUpClass, string>/);
+    for (const file of sources.filter((candidate) => !candidate.startsWith('lib/step-up'))) {
+      expect(withoutComments(read(file)), file).not.toMatch(/searchParams\.get\(['"](?:returnTo|return_to|redirect|redirectTo|next|callbackUrl)['"]\)/);
+    }
+  });
+
+  it('keeps the markers and nonces in Postgres only: nothing in the application reads their tables, signs them into a token or keeps them in Redis', () => {
+    for (const file of sources) {
+      const source = withoutComments(read(file));
+      expect(source, file).not.toMatch(/fresh_authentications|step_up_nonces/);
+    }
+    for (const file of sources.filter((candidate) => candidate.startsWith('lib/step-up') || candidate === 'app/step-up/actions.ts')) {
+      expect(withoutComments(read(file)), file).not.toMatch(/upstash|redis|jsonwebtoken|\bjwt\b|setSession\(|updateUser\(/i);
+    }
+  });
+
+  it('keeps every browser-bound piece of it free of the server-only modules (the form is a client component)', () => {
+    for (const file of ['components/step-up-form.tsx', 'lib/step-up.ts']) {
+      const source = withoutComments(read(file));
+      expect(source, file).not.toMatch(/from '@\/lib\/accounts'|from '@\/lib\/access'|from '@\/lib\/step-up-flow'|from '@\/lib\/step-up\.server'|node:crypto/);
+    }
+  });
+});

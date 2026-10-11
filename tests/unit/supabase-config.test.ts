@@ -71,6 +71,14 @@ describe('supabase/config.toml', () => {
     expect(section('auth.email').otp_expiry).toBe('900');
   });
 
+  it('points Google at Google: no provider URL override, and nothing of the browser tests\' fake Google in the declared settings', () => {
+    // The fake Google (Story 1.4b) is wired into the running stack's Auth container by a script; the file that is
+    // pushed to and diffed against hosted projects never mentions it.
+    expect(section('auth.external.google')).not.toHaveProperty('url');
+    expect(section('auth.external.google').skip_nonce_check).toBe('false');
+    expect(text).not.toMatch(/4173|4174|host\.docker\.internal|accounts\.google\.com|fake/i);
+  });
+
   it('allows only the local app callbacks', () => {
     const urls = text.match(/additional_redirect_urls\s*=\s*\[([^\]]*)\]/)?.[1] ?? '';
     expect([...urls.matchAll(/"([^"]+)"/g)].map((match) => match[1])).toEqual([

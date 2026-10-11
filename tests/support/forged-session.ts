@@ -1,6 +1,6 @@
-import {randomUUID} from 'node:crypto';
+import {randomBytes, randomUUID} from 'node:crypto';
 import {Client} from 'pg';
-import {hashClientAddress, hashKey, issueGrant, issueInvitation, raiseAuthorizationEpoch, registerWithCode, revokeInvitation, revokeSessionGrant, seedPreauthorization} from '../../lib/accounts';
+import {checkMarker, hashClientAddress, hashKey, issueGrant, issueInvitation, raiseAuthorizationEpoch, registerWithCode, revokeInvitation, revokeSessionGrant, seedPreauthorization, startStepUp, type MarkerOutcome} from '../../lib/accounts';
 import {insertAuthUser, releaseOrigins, removeAccountData, type CommittedData, type TestUser, type UserOptions} from './accounts-data';
 import {sessionCookieName, sessionCookieValue} from './session-cookie';
 import {serverEnv} from './server-env';
@@ -156,9 +156,54 @@ export function accountsWorld() {
   const invitationStatus = async (invitationId: string) => (await db.query('select status from identity.invitations where id = $1', [invitationId])).rows[0]?.status as string | undefined;
   const sessionExists = async (sessionId: string) => (await db.query('select 1 from auth.sessions where id = $1', [sessionId])).rowCount === 1;
 
+  // Step-up (Story 1.4b) ------------------------------------------------------------------------------
+
+  /** The fresh-authentication markers of the user's Account, oldest first. */
+  const markersOf = async (user: TestUser) =>
+    (await db.query('select m.* from identity.fresh_authentications m join identity.accounts a on a.id = m.account_id where a.user_id = $1 order by m.issued_at', [user.id])).rows as {
+      session_id: string;
+      action_class: string;
+      issued_at: Date;
+      expires_at: Date;
+      consumed_at: Date | null;
+      step_up_started_at: Date;
+    }[];
+  /** The step-up nonces of the user's Account, oldest first. */
+  const noncesOf = async (user: TestUser) =>
+    (await db.query('select n.* from identity.step_up_nonces n join identity.accounts a on a.id = n.account_id where a.user_id = $1 order by n.started_at', [user.id])).rows as {
+      session_id: string;
+      action_class: string;
+      status: string;
+      started_at: Date;
+      expires_at: Date;
+      completed_session_id: string | null;
+    }[];
+  /** Starts a step-up from a session the way the Server Action does (with secrets nobody will use), e.g. to replace the open one or to fill the hourly limit. */
+  const startStepUpFrom = (user: TestUser, sessionId: string, actionClass = 'administration') =>
+    startStepUp({userId: user.id, sessionId, actionClass, secretHash: randomBytes(32).toString('hex'), verifierHash: randomBytes(32).toString('base64url')}, {env});
+  /** Checks (and for the two destructive classes consumes) a session's marker, as a later story's command will. */
+  const markerOutcome = (user: TestUser, sessionId: string, actionClass: string, startedAfter?: Date): Promise<MarkerOutcome> =>
+    checkMarker({userId: user.id, sessionId, actionClass, ...(startedAfter ? {startedAfter} : {})}, {env});
+  /** Moves the user's open nonce back in time by this many minutes. */
+  const ageNonces = (user: TestUser, minutes: number) =>
+    db.query(
+      `update identity.step_up_nonces n set started_at = n.started_at - $2 * interval '1 minute', expires_at = n.expires_at - $2 * interval '1 minute'
+        from identity.accounts a where a.id = n.account_id and a.user_id = $1`,
+      [user.id, minutes],
+    );
+  /** The Auth user a real Google sign-in created for this address, registered for cleanup with the world. Undefined if there is none. */
+  async function adoptUser(email: string) {
+    const id = (await db.query('select id from auth.users where email = $1', [email])).rows[0]?.id as string | undefined;
+    if (id && !committed.users.includes(id)) committed.users.push(id);
+    return id;
+  }
+  const authSessionsOf = async (userId: string) => (await db.query('select id from auth.sessions where user_id = $1', [userId])).rows.map((row) => row.id as string);
+  const hasGrantAtAll = async (sessionId: string) => (await db.query('select 1 from identity.session_grants where session_id = $1', [sessionId])).rowCount === 1;
+
   return {
     env, stack, db, connect, close, signedInUser, issueCode, revokeCode, preauthorize, activate, registerWithoutGrant, restoreSession, grant, extraSession, revokeGrant, raiseEpoch, ageGrant, grantOf, grantsOf, auditEvents,
     resetLimiter, setStatus, accountOf, workspacesOf, commandsOf, invitationStatus, sessionExists,
+    markersOf, noncesOf, startStepUpFrom, markerOutcome, ageNonces, adoptUser, authSessionsOf, hasGrantAtAll,
   };
 }
 

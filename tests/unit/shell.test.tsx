@@ -180,6 +180,11 @@ describe('global shell (G-01, UX-DR24)', () => {
     expect(isChromeless('/register/')).toBe(true);
     expect(isChromeless('/registered')).toBe(false);
     expect(isChromeless('/projects/register')).toBe(false);
+    // The step-up page is one question, "sign in with Google again" (Story 1.4b).
+    expect(isChromeless('/step-up')).toBe(true);
+    expect(isChromeless('/step-up/')).toBe(true);
+    expect(isChromeless('/step-upx')).toBe(false);
+    expect(isChromeless('/settings/step-up')).toBe(false);
   });
 
   it('knows its routes', () => {

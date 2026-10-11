@@ -65,6 +65,21 @@ export async function insertAuthSession(client: Client, userId: string): Promise
   return id;
 }
 
+/**
+ * The `auth.mfa_amr_claims` row Auth writes when a session is created by a sign-in method: `oauth` for Google.
+ * Auth, not a token, is where a step-up reads "this session came from a Google sign-in, and when". `createdAt`
+ * defaults to the database's clock now; pass a moment to make the sign-in older (or younger) than a step-up's start.
+ */
+export async function insertAmrClaim(client: Client, sessionId: string, options: {method?: string; createdAt?: Date} = {}) {
+  // The database's own clock, to the microsecond, unless a moment is given: a JavaScript Date is truncated to the
+  // millisecond, which can put "just now" a hair before a nonce the database started in the same millisecond.
+  await client.query(
+    `insert into auth.mfa_amr_claims (id, session_id, created_at, updated_at, authentication_method)
+     values (gen_random_uuid(), $1, coalesce($2::timestamptz, clock_timestamp()), coalesce($2::timestamptz, clock_timestamp()), $3)`,
+    [sessionId, options.createdAt ?? null, options.method ?? 'oauth'],
+  );
+}
+
 export type CommittedData = {
   users: string[];
   emails: string[];
@@ -78,6 +93,8 @@ export async function removeAccountData(client: Client, data: CommittedData) {
   await client.query('begin');
   try {
     const accounts = `(select id from identity.accounts where user_id = any($1))`;
+    await client.query(`delete from identity.fresh_authentications where account_id in ${accounts}`, [data.users]);
+    await client.query(`delete from identity.step_up_nonces where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.session_grants where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.registration_commands where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.invitations where redeemed_account_id in ${accounts} or code_hash = any($2) or id = any($3)`, [data.users, data.hashes, data.invitationIds]);

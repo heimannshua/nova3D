@@ -11,6 +11,7 @@ export const he: Record<MessageKey, Message> = {
   'meta.description': 'דרך פרטית ומבוססת ראיות מרעיון ועד מודל להדפסה.',
   'meta.login': 'התחברות',
   'meta.register': 'יצירת חשבון',
+  'meta.stepUp': 'התחברות חוזרת',
   'meta.settings': 'הגדרות',
   'meta.projects': 'הפרויקטים שלי',
   'meta.progress': 'בתהליך',
@@ -283,6 +284,7 @@ export const he: Record<MessageKey, Message> = {
   'login.error.session_ended': 'ההפעלה הסתיימה. התחברו שוב.',
   'login.notice.signed_out': 'התנתקתם.',
   'login.error.account_disabled': 'החשבון הזה מושבת ולכן אי אפשר להתחבר איתו. פנו למפעיל המופע של nova3D לקבלת עזרה.',
+  'login.error.step_up_failed': 'לא ניתן היה להשתמש בהתחברות הזו כדי לאשר שזה אתם, ולכן היא לא נחשבה. התחברו שוב כדי להמשיך.',
   'login.error.unknown': 'לא ניתן היה להשלים את ההתחברות.',
   'login.error.startFailed': 'לא ניתן היה להתחיל את ההתחברות עם Google. נסו שוב.',
   'login.retry': 'לנסות שוב',
@@ -302,4 +304,15 @@ export const he: Record<MessageKey, Message> = {
   'register.error.empty': 'הזינו את קוד ההזמנה.',
   'register.noCode': 'אין לכם קוד? בקשו אותו ממי שהזמין אתכם ל-nova3D.',
   'register.switch': 'שימוש בחשבון Google אחר',
+
+  // Step-up (Story 1.4b)
+  'stepUp.eyebrow': 'אישור זהות',
+  'stepUp.title': 'התחברות חוזרת עם Google',
+  'stepUp.lede': 'הצעד הזה דורש התחברות מחדש. בחרו את אותו חשבון Google שבו אתם משתמשים עכשיו.',
+  'stepUp.continue': 'המשך עם Google',
+  'stepUp.pending': 'מעבירים אתכם אל Google…',
+  'stepUp.footnote': 'תחזרו אל nova3D לאחר ההתחברות.',
+  'stepUp.cancel': 'לא עכשיו',
+  'stepUp.error.unavailable': 'לא הצלחנו להתחיל את זה כרגע. נסו שוב בעוד רגע.',
+  'stepUp.error.limited': 'התחלתם יותר מדי אישורי התחברות. נסו שוב בעוד זמן מה.',
 };

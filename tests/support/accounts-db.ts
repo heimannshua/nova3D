@@ -1,10 +1,11 @@
 import {createHash, randomBytes, randomUUID} from 'node:crypto';
 import {Client} from 'pg';
 import {afterAll, beforeAll} from 'vitest';
-import {insertAuthSession, insertAuthUser, removeAccountData, type TestUser, type UserOptions} from './accounts-data';
+import {insertAmrClaim, insertAuthSession, insertAuthUser, removeAccountData, type TestUser, type UserOptions} from './accounts-data';
 import {localStack} from './stack';
 
 export type {TestUser, UserOptions};
+export {insertAmrClaim};
 
 // Shared helpers for the Story 1.3 integration tests, which run against the Supabase CLI stack. Most
 // cases run inside a transaction that is rolled back, as the service role, so they leave nothing
@@ -121,6 +122,12 @@ export function createHarness() {
         ]),
       confirmRegistration: (userId: string, commandId: string, hash: string) => call('select confirmed from api.confirm_registration($1, $2, $3)', [userId, commandId, hash]),
       preflight: () => call('select ok from api.preflight()', []),
+      startStepUp: (userId: string, sessionId: string, actionClass: string, secretHash: string, verifierHash: string) =>
+        call('select outcome, expires_at from api.start_step_up($1, $2, $3, $4, $5)', [userId, sessionId, actionClass, secretHash, verifierHash]),
+      completeStepUp: (userId: string, sessionId: string, secretHash: string, verifierHash: string) =>
+        call('select outcome, reason, action_class from api.complete_step_up($1, $2, $3, $4)', [userId, sessionId, secretHash, verifierHash]),
+      useMarker: (userId: string, sessionId: string, actionClass: string, startedAfter: Date | string | null = null) =>
+        call('select outcome from api.use_marker($1, $2, $3, $4)', [userId, sessionId, actionClass, startedAfter]),
       raiseEpoch: (accountId: string, actor = 'seed:local:test') =>
         call('select account_id, epoch::integer as epoch from api.raise_authorization_epoch($1, $2)', [accountId, actor]),
       seed: (email: string, role: string, actor = 'seed:local:test') => call('select * from api.seed_preauthorization($1, $2, $3)', [email, role, actor]),

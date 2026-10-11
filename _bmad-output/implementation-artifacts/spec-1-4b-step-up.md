@@ -2,7 +2,8 @@
 title: 'Story 1.4b: Step-up re-authentication and a local fake Google'
 type: 'feature'
 created: '2026-10-11'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: '1b7de69ef2184e7f58ef69b6ad900acd7fc2c148'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -58,14 +59,14 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/*` -- nonce and marker tables, the three `api` functions, audit events, preflight, rate count -- AC-4, AC-9
-- [ ] `lib/accounts.ts`, `lib/step-up.ts` -- typed calls, cookie handling, class and return-path maps -- AC-4
-- [ ] `app/step-up/*`, `app/auth/callback/route.ts` -- localized `/step-up` page with a Server Action start; callback branch; failure handling -- AC-4
-- [ ] `lib/sign-in.ts`, `app/register/actions.ts`, `components/register-form.tsx` -- account chooser on "use a different Google account" -- AC-3
-- [ ] `lib/i18n/{en,he}.ts` -- messages -- AC-4
-- [ ] `tests/support/fake-google.mjs`, a stack-swap script, `package.json`, `.github/workflows/ci.yml`, `playwright.config.ts` -- the fake Google and its wiring; stand-in specs skipped unless active -- AC-4, AC-9
-- [ ] `tests/` -- every matrix row at the database; callback branch with the real client; browser flows on desktop and phone in English and Hebrew with axe -- all ACs
-- [ ] `docs/auth-setup.md`, `deferred-work.md` -- hosted step-up checklist (AC-9: chooser appears, new `session_id`, `amr` row at or after the nonce start, marker, old grant revoked, single-session setting off), fake Google use, resolved and remaining items -- housekeeping
+- [x] `supabase/migrations/*` -- nonce and marker tables, the three `api` functions, audit events, preflight, rate count -- AC-4, AC-9
+- [x] `lib/accounts.ts`, `lib/step-up.ts` -- typed calls, cookie handling, class and return-path maps -- AC-4
+- [x] `app/step-up/*`, `app/auth/callback/route.ts` -- localized `/step-up` page with a Server Action start; callback branch; failure handling -- AC-4
+- [x] `lib/sign-in.ts`, `app/register/actions.ts`, `components/register-form.tsx` -- account chooser on "use a different Google account" -- AC-3
+- [x] `lib/i18n/{en,he}.ts` -- messages -- AC-4
+- [x] `tests/support/fake-google.mjs`, a stack-swap script, `package.json`, `.github/workflows/ci.yml`, `playwright.config.ts` -- the fake Google and its wiring; stand-in specs skipped unless active -- AC-4, AC-9
+- [x] `tests/` -- every matrix row at the database; callback branch with the real client; browser flows on desktop and phone in English and Hebrew with axe -- all ACs
+- [x] `docs/auth-setup.md`, `deferred-work.md` -- hosted step-up checklist (AC-9: chooser appears, new `session_id`, `amr` row at or after the nonce start, marker, old grant revoked, single-session setting off), fake Google use, resolved and remaining items -- housekeeping
 
 **Acceptance Criteria:**
 - Given a step-up started from a stolen session, when it is completed in another browser or a different Google account signs in, then the initiating session does not become fresh, any marker belongs only to a newly minted session, a mismatch revokes only that session, and an expired or replaced nonce is rejected.
@@ -84,3 +85,52 @@ Spike result: Auth ignores `[auth.external.google] url`; it reads Google's OIDC 
 - `npm run typecheck && npm run lint && npm run build` -- expected: exit 0
 - `supabase start && npm test` -- expected: unit and integration pass, every matrix row covered
 - `CI=1 npm run test:e2e` (clean scratch copy, fake Google active) -- expected: all flows pass on both projects
+
+## Suggested Review Order
+
+**The decision (the core idea)**
+
+- One database function accepts or rejects a completed sign-in, reading Auth's own tables and never the caller; every check is a `when` arm, then grant, marker, revoke, consume and audit in one transaction.
+  [`step_up.sql:248`](../../supabase/migrations/20261011120000_step_up.sql#L248)
+
+- The start: Account active, grant valid, pinned Google subject, 10 an hour counted from the rows under a per-Account lock, the old nonce voided, the new one written with hashes only.
+  [`step_up.sql:160`](../../supabase/migrations/20261011120000_step_up.sql#L160)
+
+- The marker check: this session's own, this class, 5 minutes; two classes consumed by use and needing a step-up that started after the confirmation.
+  [`step_up.sql:362`](../../supabase/migrations/20261011120000_step_up.sql#L362)
+
+**The browser side**
+
+- The Server Action: Google is built on the server with the chooser and no hint, the nonce exists, only then the cookie is set and the browser leaves; if the nonce cannot be written the verifier cookies the start wrote are undone, and a `refused` goes Home; everything comes from the verified session.
+  [`actions.ts:38`](../../app/step-up/actions.ts#L38)
+
+- The callback branch: the cookie and the PKCE verifier are read before the exchange removes the verifier; a rejection ends only the new session, locally.
+  [`route.ts:43`](../../app/auth/callback/route.ts#L43)
+
+- What the callback does with the database's answer (ordinary, accepted, rejected, unreachable) and why none of them is a global sign-out.
+  [`access.ts:506`](../../lib/access.ts#L506)
+
+- The binding to the flow: the verifier is read from the cookie @supabase/ssr writes and hashes to the challenge in the URL.
+  [`step-up-flow.ts:62`](../../lib/step-up-flow.ts#L62)
+
+- "Use a different Google account": the session is ended first, then Google is started with the chooser from a fresh client.
+  [`actions.ts:111`](../../app/register/actions.ts#L111)
+
+**The fake Google**
+
+- The fake: chooser that honors `prompt=select_account`, single-use codes, signed `id_token`, discovery over TLS, a tunnel for `accounts.google.com` only, certificates made at run time.
+  [`fake-google.mjs:91`](../../tests/support/fake-google.mjs#L91)
+
+- The swap: only the Auth container, recreated from its own inspection with four changes, and proven before it is reported active.
+  [`fake-google-stack.mjs:349`](../../scripts/fake-google-stack.mjs#L349)
+
+**Tests (supporting)**
+
+- Every matrix row at the database, the races, and the REST round trip.
+  [`step-up.test.ts`](../../tests/integration/step-up.test.ts)
+
+- Browser flows on desktop and phone: the same account, another account, another browser, expired, replaced, outage, and the chooser.
+  [`step-up.spec.ts`](../../tests/e2e/step-up.spec.ts)
+
+- The callback with the real Supabase client over a stubbed network.
+  [`auth-callback-real-client.test.ts`](../../tests/unit/auth-callback-real-client.test.ts)

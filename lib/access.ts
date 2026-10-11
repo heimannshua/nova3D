@@ -23,9 +23,21 @@
 // or `signed-out`, never a pass, and nothing is cached between requests. The calls of one decision (Auth's
 // user, the stored session, the authorization) share one overall time budget, so three slow answers cannot
 // take three times as long.
-import {authorizeSession, consumePreauthorization, issueGrant, type ActivationReceipt, type GrantReceipt, type Role, type SessionAuthorization} from '@/lib/accounts';
+import {
+  authorizeSession,
+  completeStepUp,
+  consumePreauthorization,
+  issueGrant,
+  type ActivationReceipt,
+  type GrantReceipt,
+  type Role,
+  type SessionAuthorization,
+  type StepUpReceipt,
+} from '@/lib/accounts';
 import {createBudget, withinBudget, type Budget} from '@/lib/deadline';
 import {signInErrorPath} from '@/lib/sign-in';
+import {stepUpReturnPaths} from '@/lib/step-up';
+import {hashStepUpSecret} from '@/lib/step-up-flow';
 import type {SignOutScope} from '@/lib/supabase/sign-out';
 
 export const homePath = '/';
@@ -466,4 +478,58 @@ export async function claimPreauthorization(
     if (refusal) return refusal;
   }
   return decideSignIn({kind: 'user', user}, receipt);
+}
+
+/**
+ * What the sign-in callback does with a sign-in that came back to a browser holding a step-up cookie (Story
+ * 1.4b). The cookie is cleared whichever it is: this browser holds one PKCE verifier (the most recently
+ * started sign-in's), and a sign-in that comes back has consumed it, so this step-up cannot come back here.
+ *   ordinary  the sign-in is not this step-up's (the cookie names no nonce, or the verifier is not the one this
+ *             nonce's flow began: a sign-in started any other way, which overwrote the step-up's verifier), so
+ *             the callback carries on as for any sign-in.
+ *   decided   the callback acts on this decision: the new session's grant and marker exist and the person
+ *             returns to the class's own path (`stay`), or the new session was NOT accepted and only it is ended
+ *             (local scope, never a global sign-out) with the person sent to sign-in (`signOut`). The
+ *             initiating session is never signed out here; its grant is revoked by the database only on
+ *             acceptance, so a rejection leaves it untouched.
+ */
+export type StepUpSignIn = {kind: 'ordinary'} | {kind: 'decided'; decision: SignInDecision};
+
+/**
+ * Hands the new session to the database to accept or reject as the step-up's completed sign-in. The user is the
+ * one Auth vouched for and the session the one in the exchanged access token (`user`), the secret is this
+ * browser's cookie and `challenge` the PKCE challenge of the verifier that came back with it; the database
+ * decides, from its own tables and Auth's, never from anything the browser said beyond those two. Any failure
+ * (the database did not answer, an answer of an unexpected shape) is a sign-in that did not complete: only this
+ * browser's new session is ended, with the unavailable message, and nothing fresh exists.
+ */
+export async function finishStepUp(
+  user: AccessUser,
+  flow: {secret: string; challenge: string},
+  options: {complete?: (input: {userId: string; sessionId: string; secretHash: string; verifierHash: string}, timeoutMs: number) => Promise<StepUpReceipt>; log?: AccessOptions['log']; timeoutMs?: number; budget?: Budget} = {},
+): Promise<StepUpSignIn> {
+  const log = options.log ?? defaultLog;
+  const budget = options.budget ?? createBudget(options.timeoutMs ?? signInTimeoutMs);
+  const complete = options.complete ?? ((input, timeoutMs) => completeStepUp(input, {timeoutMs}));
+  let receipt: StepUpReceipt;
+  try {
+    receipt = await withinBudget(budget, (remaining) =>
+      complete({userId: user.id, sessionId: user.sessionId, secretHash: hashStepUpSecret(flow.secret), verifierHash: flow.challenge}, remaining),
+    );
+  } catch (error) {
+    log('The step-up could not be completed; failing closed.', describe(error));
+    return {kind: 'decided', decision: outage(signInErrorPath('auth_unavailable'))};
+  }
+  switch (receipt.outcome) {
+    case 'not_step_up':
+      return {kind: 'ordinary'};
+    case 'accepted':
+      if (receipt.actionClass) return {kind: 'decided', decision: stay(stepUpReturnPaths[receipt.actionClass])};
+      break;
+    case 'rejected':
+      log('A step-up sign-in was rejected; only its new session is ended.', `reason ${String(receipt.reason)}`);
+      return {kind: 'decided', decision: outage(signInErrorPath('step_up_failed'))};
+  }
+  log('The step-up answer was not understood; failing closed.', `outcome ${String(receipt.outcome)}`);
+  return {kind: 'decided', decision: outage(signInErrorPath('auth_unavailable'))};
 }

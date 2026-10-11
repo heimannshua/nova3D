@@ -11,6 +11,7 @@ export const en = {
   'meta.login': 'Sign in',
   'meta.register': 'Create your account',
   'meta.settings': 'Settings',
+  'meta.stepUp': 'Sign in again',
   'meta.projects': 'My Projects',
   'meta.progress': 'In Progress',
   'meta.kit': 'Design kit',
@@ -281,6 +282,7 @@ export const en = {
   'login.error.session_ended': 'Your session ended. Sign in again.',
   'login.notice.signed_out': 'You have been signed out.',
   'login.error.account_disabled': 'This account is disabled, so it cannot sign in. Contact the operator of this nova3D instance for help.',
+  'login.error.step_up_failed': 'That sign-in could not be used to confirm it is you, so it was ignored. Sign in again to continue.',
   'login.error.unknown': 'Sign-in could not be completed.',
   'login.error.startFailed': 'Google sign-in could not be started. Try again.',
   'login.retry': 'Try again',
@@ -300,6 +302,17 @@ export const en = {
   'register.error.empty': 'Enter your invitation code.',
   'register.noCode': 'No code? Ask whoever invited you to nova3D.',
   'register.switch': 'Use a different Google account',
+
+  // Step-up (Story 1.4b). A sensitive action needs the person to sign in with Google again, with the same account.
+  'stepUp.eyebrow': 'Confirm it is you',
+  'stepUp.title': 'Sign in with Google again',
+  'stepUp.lede': 'This step needs a fresh sign-in. Choose the same Google account you are using now.',
+  'stepUp.continue': 'Continue with Google',
+  'stepUp.pending': 'Taking you to Google…',
+  'stepUp.footnote': 'You will come back to nova3D when you have signed in.',
+  'stepUp.cancel': 'Not now',
+  'stepUp.error.unavailable': 'We could not start that just now. Try again in a moment.',
+  'stepUp.error.limited': 'Too many sign-in confirmations were started. Try again in a while.',
 } as const satisfies Record<string, Message>;
 
 export type MessageKey = keyof typeof en;

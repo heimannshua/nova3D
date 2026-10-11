@@ -41,6 +41,7 @@ const SESSION = '3b1c9a3e-6a3e-4f19-9d0e-0a4f5e2c8d11';
 const OTHER_USER = '1c0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c99';
 const COMMAND = 'c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f';
 const CODE = '7H2K-9QXM-AB12-CD34-EF56-GH78-JK90-MN12';
+const GOOGLE_URL = 'http://127.0.0.1:54321/auth/v1/authorize?provider=google&prompt=select_account&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=s256';
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const initial = {commandId: COMMAND, error: null} as const;
@@ -60,7 +61,7 @@ const redirected = async (work: Promise<unknown>) => {
   return null;
 };
 
-type Auth = {getUser: ReturnType<typeof vi.fn>; signOut: ReturnType<typeof vi.fn>; getSession: ReturnType<typeof vi.fn>};
+type Auth = {getUser: ReturnType<typeof vi.fn>; signOut: ReturnType<typeof vi.fn>; getSession: ReturnType<typeof vi.fn>; signInWithOAuth: ReturnType<typeof vi.fn>};
 let auth: Auth;
 const accountIs = (state: 'unregistered' | 'active' | 'disabled' | 'no_grant' | 'revoked' | 'expired' | 'idle' | 'stale_epoch' | 'subject_mismatch') =>
   mocks.authorizeSession.mockResolvedValue(
@@ -77,6 +78,7 @@ beforeEach(() => {
     })),
     signOut: vi.fn(),
     getSession: vi.fn(sessionReader(USER, SESSION).getSession),
+    signInWithOAuth: vi.fn(async () => ({data: {provider: 'google', url: GOOGLE_URL}, error: null})),
   };
   mocks.createSupabaseServerClient.mockReset().mockImplementation(async () => ({auth}));
   mocks.endSession.mockReset();
@@ -342,11 +344,54 @@ describe('who may register', () => {
   });
 });
 
-describe('use a different Google account', () => {
-  it('ends this browser session only and returns to sign-in', async () => {
-    expect(await redirected(switchGoogleAccount())).toBe('/login');
+describe('use a different Google account (Story 1.4b)', () => {
+  let order: string[];
+  beforeEach(() => {
+    order = [];
+    mocks.headers.mockResolvedValue(new Headers({host: '127.0.0.1:4173'}));
+    mocks.createSupabaseServerClient.mockReset().mockImplementation(async () => {
+      order.push('client');
+      return {auth};
+    });
+    mocks.endSession.mockReset().mockImplementation(async () => {
+      order.push('end');
+    });
+    auth.signInWithOAuth.mockImplementation(async () => {
+      order.push('google');
+      return {data: {provider: 'google', url: GOOGLE_URL}, error: null};
+    });
+  });
+
+  it('ends this browser session only, and THEN starts Google with the account chooser from a fresh client: the start follows the expiry', async () => {
+    expect(await redirected(switchGoogleAccount())).toBe(GOOGLE_URL);
     expect(mocks.endSession).toHaveBeenCalledTimes(1);
     expect(mocks.endSession.mock.calls[0][1]).toBe('local');
+    // The session cookies (and with them the verifier cookies) are expired before the new flow writes its own verifier.
+    expect(order).toEqual(['client', 'end', 'client', 'google']);
+  });
+
+  it('asks Google for the chooser: prompt=select_account and no login_hint, returning to this application\'s own callback', async () => {
+    await redirected(switchGoogleAccount());
+    expect(auth.signInWithOAuth).toHaveBeenCalledWith({provider: 'google', options: {redirectTo: 'http://127.0.0.1:4173/auth/callback', queryParams: {prompt: 'select_account'}}});
+    expect(auth.signInWithOAuth.mock.calls[0][0].options.queryParams).not.toHaveProperty('login_hint');
+  });
+
+  it('uses the forwarded host and protocol behind the platform\'s proxy', async () => {
+    mocks.headers.mockResolvedValue(new Headers({'x-forwarded-host': 'nova3d.example', 'x-forwarded-proto': 'https', host: 'internal:3000'}));
+    await redirected(switchGoogleAccount());
+    expect(auth.signInWithOAuth.mock.calls[0][0].options.redirectTo).toBe('https://nova3d.example/auth/callback');
+  });
+
+  it('lands on sign-in, saying it is unavailable, when Google cannot be started: the session is already over, and the button there starts it the ordinary way', async () => {
+    auth.signInWithOAuth.mockResolvedValue({data: null, error: {message: 'raw provider detail'}});
+    expect(await redirected(switchGoogleAccount())).toBe('/login?error=auth_unavailable');
+    expect(mocks.endSession).toHaveBeenCalledTimes(1);
+    mocks.headers.mockResolvedValue(new Headers({host: 'not a host!'}));
+    expect(await redirected(switchGoogleAccount())).toBe('/login?error=auth_unavailable');
+  });
+
+  it('reads nothing from the request: it takes no argument at all', () => {
+    expect(switchGoogleAccount.length).toBe(0);
   });
 });
 
