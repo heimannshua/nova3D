@@ -27,14 +27,17 @@ import {
   authorizeSession,
   completeStepUp,
   consumePreauthorization,
+  issueCsrf,
   issueGrant,
   type ActivationReceipt,
+  type CsrfIssueOutcome,
   type GrantReceipt,
   type Role,
   type SessionAuthorization,
   type StepUpReceipt,
 } from '@/lib/accounts';
 import {createBudget, withinBudget, type Budget} from '@/lib/deadline';
+import {hashCsrfToken, newCsrfToken} from '@/lib/request-integrity';
 import {signInErrorPath} from '@/lib/sign-in';
 import {stepUpReturnPaths} from '@/lib/step-up';
 import {hashStepUpSecret} from '@/lib/step-up-flow';
@@ -51,6 +54,9 @@ export const actionTimeoutMs = 8000;
 
 /** How long the sign-in callback's whole chain (the code exchange, the user, the pre-authorization, the grant) may take. */
 export const signInTimeoutMs = 10_000;
+
+/** How long issuing a CSRF token may take before the page goes on without one. */
+export const csrfIssueTimeoutMs = 3000;
 
 /** The verified user and the ID of the Auth session that is making this request. */
 export type AccessUser = {id: string; email: string; sessionId: string};
@@ -322,8 +328,18 @@ export function decideAccess(pathname: string, access: Access, method: string = 
 
 /** Why a private `/api` request was denied: the status and the JSON a client can act on (never HTML, never a redirect). */
 export type ApiDenial = {
-  status: 401 | 403 | 503;
-  error: 'not_signed_in' | 'session_ended' | 'account_required' | 'account_disabled' | 'not_allowed' | 'auth_unavailable' | 'auth_not_configured';
+  status: 401 | 403 | 500 | 503;
+  error:
+    | 'not_signed_in'
+    | 'session_ended'
+    | 'account_required'
+    | 'account_disabled'
+    | 'not_allowed'
+    | 'auth_unavailable'
+    | 'auth_not_configured'
+    | 'origin_not_allowed'
+    | 'csrf_invalid'
+    | 'internal_error';
   /** True when asking again may succeed (the check could not be made), as opposed to being refused. */
   retryable: boolean;
 };
@@ -363,6 +379,14 @@ export function apiDenialResponse(denial: ApiDenial) {
 
 export const apiNotConfigured: ApiDenial = {status: 503, error: 'auth_not_configured', retryable: false};
 export const apiUnavailable: ApiDenial = {status: 503, error: 'auth_unavailable', retryable: true};
+/** A mutation whose Origin is not this application's (Story 1.4c): refused before any state change, whoever is signed in. */
+export const apiOriginNotAllowed: ApiDenial = {status: 403, error: 'origin_not_allowed', retryable: false};
+/** A route mutation without its session's CSRF token, or with another's (Story 1.4c). */
+export const apiCsrfInvalid: ApiDenial = {status: 403, error: 'csrf_invalid', retryable: false};
+/** The session's grant ended between the access check and the token check of a route mutation. */
+export const apiSessionEnded: ApiDenial = {status: 401, error: 'session_ended', retryable: false};
+/** Something threw that is not an outage: a bug, which retrying will not fix and which must not look like a service that is down. */
+export const apiInternalError: ApiDenial = {status: 500, error: 'internal_error', retryable: false};
 
 /** Where a page for `pathname` sends this visitor, or null when the page may render. */
 export function redirectFor(pathname: string, access: Access): string | null {
@@ -532,4 +556,30 @@ export async function finishStepUp(
   }
   log('The step-up answer was not understood; failing closed.', `outcome ${String(receipt.outcome)}`);
   return {kind: 'decided', decision: outage(signInErrorPath('auth_unavailable'))};
+}
+
+/**
+ * Mints a CSRF token for the verified session and has the database store its hash on the session's grant
+ * (Story 1.4c). Returns the token to deliver in the cookie, or null when none is to be delivered: the grant
+ * already holds a hash under a minute old (another request issued it and sets the cookie), the session no
+ * longer holds a valid grant, or the database could not answer. A failure is logged by name and never blocks
+ * the page, which simply goes on without a cookie; the next page request tries again. The token is never
+ * logged, and only its hash leaves this function.
+ */
+export async function issueCsrfToken(
+  user: AccessUser,
+  options: {issue?: (input: {userId: string; sessionId: string; hash: string}, timeoutMs: number) => Promise<CsrfIssueOutcome>; log?: AccessOptions['log']; timeoutMs?: number; budget?: Budget} = {},
+): Promise<string | null> {
+  const log = options.log ?? defaultLog;
+  const budget = options.budget ?? createBudget(options.timeoutMs ?? csrfIssueTimeoutMs);
+  const issue = options.issue ?? ((input: {userId: string; sessionId: string; hash: string}, timeoutMs: number) => issueCsrf(input, {timeoutMs}));
+  try {
+    const token = newCsrfToken();
+    const hash = await hashCsrfToken(token);
+    const outcome = await withinBudget(budget, (remaining) => issue({userId: user.id, sessionId: user.sessionId, hash}, remaining));
+    return outcome === 'issued' ? token : null;
+  } catch (error) {
+    log('The CSRF token could not be issued; the page goes on without one.', describe(error));
+    return null;
+  }
 }

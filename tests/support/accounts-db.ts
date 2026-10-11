@@ -126,6 +126,8 @@ export function createHarness() {
         call('select outcome, expires_at from api.start_step_up($1, $2, $3, $4, $5)', [userId, sessionId, actionClass, secretHash, verifierHash]),
       completeStepUp: (userId: string, sessionId: string, secretHash: string, verifierHash: string) =>
         call('select outcome, reason, action_class from api.complete_step_up($1, $2, $3, $4)', [userId, sessionId, secretHash, verifierHash]),
+      issueCsrf: (userId: string, sessionId: string, hash: string) => call('select outcome from api.issue_csrf($1, $2, $3)', [userId, sessionId, hash]),
+      verifyCsrf: (userId: string, sessionId: string, hash: string) => call('select outcome from api.verify_csrf($1, $2, $3)', [userId, sessionId, hash]),
       useMarker: (userId: string, sessionId: string, actionClass: string, startedAfter: Date | string | null = null) =>
         call('select outcome from api.use_marker($1, $2, $3, $4)', [userId, sessionId, actionClass, startedAfter]),
       raiseEpoch: (accountId: string, actor = 'seed:local:test') =>

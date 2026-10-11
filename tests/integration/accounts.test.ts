@@ -50,6 +50,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'complete_step_up',
     'confirm_registration',
     'consume_preauthorization',
+    'issue_csrf',
     'issue_grant',
     'issue_invitation',
     'list_invitations',
@@ -61,6 +62,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'seed_preauthorization',
     'start_step_up',
     'use_marker',
+    'verify_csrf',
     'withdraw_preauthorization',
   ];
 
@@ -263,6 +265,8 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
         account_status: {p_user_id: randomUUID()},
         authorize_session: {p_user_id: randomUUID(), p_session_id: randomUUID()},
         issue_grant: {p_user_id: randomUUID(), p_session_id: randomUUID()},
+        issue_csrf: {p_user_id: randomUUID(), p_session_id: randomUUID(), p_csrf_hash: codeHash()},
+        verify_csrf: {p_user_id: randomUUID(), p_session_id: randomUUID(), p_csrf_hash: codeHash()},
         revoke_grants: {p_actor: 'seed', p_reason: 'test', p_session_id: randomUUID()},
         confirm_registration: {p_user_id: randomUUID(), p_command_id: randomUUID(), p_code_hash: codeHash()},
         preflight: {},

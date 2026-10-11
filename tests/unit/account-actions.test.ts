@@ -10,7 +10,7 @@ class Redirected extends Error {
     this.to = to;
   }
 }
-const store = vi.hoisted(() => ({cookies: [] as {name: string; value: string}[], deleted: [] as string[]}));
+const store = vi.hoisted(() => ({cookies: [] as {name: string; value: string}[], deleted: [] as string[], failDelete: undefined as undefined | ((name: string) => boolean)}));
 const mocks = vi.hoisted(() => ({
   createSupabaseServerClient: vi.fn(),
   authorizeSession: vi.fn(),
@@ -21,6 +21,7 @@ vi.mock('next/headers', () => ({
   cookies: async () => ({
     getAll: () => store.cookies,
     delete: (name: string) => {
+      if (store.failDelete?.(name)) throw Object.assign(new Error(`cannot delete ${name}=secret-marker`), {name: 'CookieStoreError'});
       store.deleted.push(name);
     },
   }),
@@ -78,6 +79,7 @@ beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', HOSTED);
   store.cookies = [{name: cookieName, value: 'x'}, {name: 'nova3d-locale', value: 'he'}];
   store.deleted = [];
+  store.failDelete = undefined;
   order = [];
   getUser = vi.fn(async () => ({data: {user: googleUser}, error: null}));
   authSignOut = vi.fn(async (options: {scope: string}) => {
@@ -110,6 +112,29 @@ describe('sign out', () => {
     expect(mocks.revokeSessionGrant).toHaveBeenCalledWith({sessionId: SESSION, userId: USER, actor: `user:${USER}`, reason: 'sign_out'}, {timeoutMs: expect.any(Number)});
     expect(cookiesExpired()).toBe(true);
     expect(store.deleted).not.toContain('nova3d-locale');
+  });
+
+  it('removes the CSRF cookie with the session it belonged to (Story 1.4c), and only once the revocation is recorded', async () => {
+    expect(await redirected(signOut(sessionActionIdle))).toBe('/login?notice=signed_out');
+    expect(store.deleted).toContain('nova3d-csrf');
+    store.deleted = [];
+    mocks.revokeSessionGrant.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
+    expect(await signOut(sessionActionIdle)).toEqual({outcome: 'unavailable'});
+    expect(store.deleted).not.toContain('nova3d-csrf');
+  });
+
+  it('still signs out, and says where, when the CSRF cookie cannot be removed: a cookie that stays is a token that does not match', async () => {
+    store.failDelete = (name) => name === 'nova3d-csrf';
+    expect(await redirected(signOut(sessionActionIdle))).toBe('/login?notice=signed_out');
+    // The session was still ended, in the order that matters, and the failure is in the log by name only.
+    expect(order).toEqual(['revokeSessionGrant', 'auth.signOut:local']);
+    expect(cookiesExpired()).toBe(true);
+    expect(store.deleted).not.toContain('nova3d-csrf');
+    const printed = JSON.stringify(vi.mocked(console.error).mock.calls);
+    expect(printed).toContain('The CSRF cookie could not be removed.');
+    expect(printed).toContain('CookieStoreError');
+    expect(printed).not.toContain('nova3d-csrf=');
+    expect(printed).not.toContain('secret-marker');
   });
 
   it('knows no user or session but the verified ones: the state the client sends back names nothing it can use', async () => {

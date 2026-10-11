@@ -2,7 +2,8 @@
 title: 'Story 1.4c: Origin and CSRF checks for state-changing requests'
 type: 'feature'
 created: '2026-10-11'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: '2765fc327003f9224009df2dfc919210cb732ad3'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -59,12 +60,12 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/*` -- `csrf_hash` and `csrf_issued_at` on `identity.session_grants`, `guard_session_grant`, `api.issue_csrf`, `api.verify_csrf`, preflight -- AC-5
-- [ ] `lib/request-integrity.ts` (pure: origin decision, token and header names, hashing helpers), `lib/accounts.ts` -- AC-5
-- [ ] `proxy.ts`, `lib/supabase/proxy.ts` -- origin check; cookie issue on a page request -- AC-5
-- [ ] `lib/auth.ts`, `lib/csrf-client.ts` (browser-safe: reads the cookie, adds the header), `app/api/kit/mutation/route.ts` (synthetic-only; a GET that reports a counter, a POST that bumps it) -- `requireMutationAccess` and its first user -- AC-5
-- [ ] `tests/` -- every matrix row: pure decision, proxy decisions, database, browser flows (a Server Action replayed with a foreign, `null` and no origin; the route with and without a token; the cookie issued once) on desktop and phone; structural test that every non-GET `app/api` handler uses the helper -- all ACs
-- [ ] `docs/auth-setup.md`, `deferred-work.md` -- what the checks do, what a proxy must forward, a hosted check for Josh, resolved and remaining items -- housekeeping
+- [x] `supabase/migrations/*` -- `csrf_hash` and `csrf_issued_at` on `identity.session_grants`, `guard_session_grant`, `api.issue_csrf`, `api.verify_csrf`, preflight -- AC-5
+- [x] `lib/request-integrity.ts` (pure: origin decision, token and header names, hashing helpers), `lib/accounts.ts` -- AC-5
+- [x] `proxy.ts`, `lib/supabase/proxy.ts` -- origin check; cookie issue on a page request -- AC-5
+- [x] `lib/auth.ts`, `lib/csrf-client.ts` (browser-safe: reads the cookie, adds the header), `app/api/kit/mutation/route.ts` (synthetic-only; a GET that reports a counter, a POST that bumps it) -- `requireMutationAccess` and its first user -- AC-5
+- [x] `tests/` -- every matrix row: pure decision, proxy decisions, database, browser flows (a Server Action replayed with a foreign, `null` and no origin; the route with and without a token; the cookie issued once) on desktop and phone; structural test that every non-GET `app/api` handler uses the helper -- all ACs
+- [x] `docs/auth-setup.md`, `deferred-work.md` -- what the checks do, what a proxy must forward, a hosted check for Josh, resolved and remaining items -- housekeeping
 
 **Acceptance Criteria:**
 - Given a cookie-authenticated mutation from a foreign origin, or without its CSRF token, when it is submitted, then it is rejected before any state change, while the same request from the application's own origin succeeds.
@@ -83,3 +84,47 @@ Why the proxy issues the token, not each place a grant is made: grants are creat
 - `npm run typecheck && npm run lint && npm run build` -- expected: exit 0
 - `supabase start && npm test` -- expected: unit and integration pass, every matrix row covered
 - `CI=1 npm run test:e2e` (clean scratch copy; start the stack as CI does, with the fake Google active) -- expected: all flows pass on both projects
+
+## Suggested Review Order
+
+**The decision (the core idea)**
+
+- One pure function says whether a non-safe request is from this application: a present, non-`null` `Origin` whose host is the first `x-forwarded-host`, else `host`, and no cross-site fetch.
+  [`request-integrity.ts:114`](../../lib/request-integrity.ts#L114)
+
+- The proxy applies it after the access decision, so a denied request keeps its 401, 403 or redirect, and to public paths too; the refusal is a 403, never a redirect.
+  [`proxy.ts:152`](../../proxy.ts#L152)
+
+**The token**
+
+- Issue: the database stores the hash only when the grant has none or it is a minute old or older, under the grant's row lock, so two tabs racing keep one token and only a stored hash is delivered.
+  [`request_integrity.sql:74`](../../supabase/migrations/20261011130000_request_integrity.sql#L74)
+
+- Check: the hash of the header against the grant of the verified session, which must itself be valid.
+  [`request_integrity.sql:128`](../../supabase/migrations/20261011130000_request_integrity.sql#L128)
+
+- The proxy hands a signed-in browser its token on a document navigation that carries no cookie, and never lets a failure block the page.
+  [`proxy.ts:90`](../../proxy.ts#L90)
+
+- The cookie goes with its session: the callback removes it when the browser gets a different session (the case the spec did not name, and the one a step-up hits), or the new session never gets its own.
+  [`route.ts:67`](../../app/auth/callback/route.ts#L67)
+
+**The helper every route mutation starts from**
+
+- Origin, then the active Account, then the token, with the user and session from the verified session; a database that cannot answer is a retryable 503.
+  [`auth.ts:125`](../../lib/auth.ts#L125)
+
+- The structural test reads every route handler under `app` and fails unless a non-safe one starts from its guard; the synthetic route may check its flag first, by name.
+  [`gate-structure.test.ts`](../../tests/unit/gate-structure.test.ts)
+
+**Tests (supporting)**
+
+- Every database row, including the races.
+  [`request-integrity.test.ts`](../../tests/integration/request-integrity.test.ts)
+
+- The proxy's origin and cookie decisions with a fake network.
+  [`proxy-gating.test.ts:713`](../../tests/unit/proxy-gating.test.ts#L713)
+
+- Browser flows on desktop and phone, including a Server Action replayed with a foreign, `null` and no origin, and the step-up against the fake Google.
+  [`request-integrity.spec.ts`](../../tests/e2e/request-integrity.spec.ts)
+

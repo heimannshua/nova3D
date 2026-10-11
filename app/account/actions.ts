@@ -3,6 +3,7 @@
 import {redirect} from 'next/navigation';
 import {revokeAccountGrants, revokeSessionGrant} from '@/lib/accounts';
 import {withActiveAccount, withVerifiedUser} from '@/lib/auth';
+import {clearCsrfCookie} from '@/lib/csrf.server';
 import {withinBudget} from '@/lib/deadline';
 import {signedOutPath} from '@/lib/sign-in';
 import type {SessionActionState} from '@/lib/session-actions';
@@ -36,6 +37,8 @@ export async function signOut(_previous: SessionActionState): Promise<SessionAct
     }
     // The grant is revoked, so the session is over whatever Auth answers; the cookies are expired either way.
     await endSession(supabase, 'local', {timeoutMs: Math.min(signOutTimeoutMs, budget.remaining())});
+    // The CSRF token went with the grant it belonged to; its cookie goes too.
+    await clearCsrfCookie();
     redirect(signedOutPath);
   });
 }

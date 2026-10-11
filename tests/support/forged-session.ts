@@ -135,8 +135,21 @@ export function accountsWorld() {
       [sessionId, issuedDaysAgo, usedDaysAgo],
     );
   const grantOf = async (sessionId: string) => (await db.query('select * from identity.session_grants where session_id = $1', [sessionId])).rows[0] as
-    | {session_id: string; epoch: string; issued_at: Date; last_used_at: Date; revoked_at: Date | null; revoked_by: string | null; revoked_reason: string | null}
+    | {
+        session_id: string;
+        epoch: string;
+        issued_at: Date;
+        last_used_at: Date;
+        revoked_at: Date | null;
+        revoked_by: string | null;
+        revoked_reason: string | null;
+        csrf_hash: string | null;
+        csrf_issued_at: Date | null;
+      }
     | undefined;
+  /** Moves the stored CSRF hash back in time by this many seconds (Story 1.4c): the cookie was lost a while ago. */
+  const ageCsrf = (sessionId: string, seconds: number) =>
+    db.query(`update identity.session_grants set csrf_issued_at = csrf_issued_at - $2 * interval '1 second' where session_id = $1 and csrf_hash is not null`, [sessionId, seconds]);
   const grantsOf = async (user: TestUser) =>
     (await db.query('select g.session_id from identity.session_grants g join identity.accounts a on a.id = g.account_id where a.user_id = $1 order by g.issued_at', [user.id])).rows.map((row) => row.session_id as string);
   const auditEvents = async (action: string, target: string) =>
@@ -201,7 +214,7 @@ export function accountsWorld() {
   const hasGrantAtAll = async (sessionId: string) => (await db.query('select 1 from identity.session_grants where session_id = $1', [sessionId])).rowCount === 1;
 
   return {
-    env, stack, db, connect, close, signedInUser, issueCode, revokeCode, preauthorize, activate, registerWithoutGrant, restoreSession, grant, extraSession, revokeGrant, raiseEpoch, ageGrant, grantOf, grantsOf, auditEvents,
+    env, stack, db, connect, close, signedInUser, issueCode, revokeCode, preauthorize, activate, registerWithoutGrant, restoreSession, grant, extraSession, revokeGrant, raiseEpoch, ageGrant, ageCsrf, grantOf, grantsOf, auditEvents,
     resetLimiter, setStatus, accountOf, workspacesOf, commandsOf, invitationStatus, sessionExists,
     markersOf, noncesOf, startStepUpFrom, markerOutcome, ageNonces, adoptUser, authSessionsOf, hasGrantAtAll,
   };

@@ -1,6 +1,7 @@
 import {NextRequest} from 'next/server';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {proxy} from '@/proxy';
+import {csrfCookieName, hashCsrfToken} from '@/lib/request-integrity';
 import {sessionCookieName, sessionCookieValue, signAccessToken} from '../support/session-cookie';
 
 // The proxy end to end with a fake network: the real Supabase client reads a real-looking session cookie,
@@ -26,11 +27,14 @@ type Net = {
   authorization: 'active' | 'unregistered' | 'disabled' | 'no_session' | 'no_grant' | 'revoked' | 'expired' | 'idle' | 'stale_epoch' | 'subject_mismatch' | 'error500' | 'forbidden' | 'unreachable';
   /** What api.issue_grant does: a receipt outcome, or a failure. */
   grant: 'issued' | 'exists' | 'disabled' | 'subject_mismatch' | 'revoked' | 'error500' | 'unreachable';
+  /** What api.issue_csrf does (Story 1.4c): an outcome, or a failure. */
+  csrf: 'issued' | 'exists' | 'denied' | 'error500' | 'unreachable';
 };
 
 let net: Net;
 let calls: Call[];
 let errors: ReturnType<typeof vi.spyOn>;
+let warnings: ReturnType<typeof vi.spyOn>;
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {status, headers: {'content-type': 'application/json'}});
 const userBody = (id = USER, overrides: Record<string, unknown> = {}) => ({
@@ -78,6 +82,11 @@ async function stubbedFetch(input: unknown, init: RequestInit = {}): Promise<Res
     if (net.grant === 'error500') return json({message: 'boom'}, 500);
     return json({outcome: net.grant, account_id: ACCOUNT, epoch: 1});
   }
+  if (url.pathname === '/rest/v1/rpc/issue_csrf') {
+    if (net.csrf === 'unreachable') throw new TypeError('fetch failed');
+    if (net.csrf === 'error500') return json({message: 'boom'}, 500);
+    return json({outcome: net.csrf});
+  }
   if (url.pathname === '/rest/v1/rpc/consume_preauthorization') {
     if (net.preauth === 'unreachable') throw new TypeError('fetch failed');
     if (net.preauth === 'error500') return json({message: 'boom'}, 500);
@@ -88,9 +97,10 @@ async function stubbedFetch(input: unknown, init: RequestInit = {}): Promise<Res
 }
 
 beforeEach(() => {
-  net = {user: 'ok', authorization: 'active', grant: 'issued', preauth: 'none', logout: 'ok'};
+  net = {user: 'ok', authorization: 'active', grant: 'issued', preauth: 'none', logout: 'ok', csrf: 'issued'};
   calls = [];
   errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  warnings = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   vi.stubGlobal('fetch', vi.fn(stubbedFetch));
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', SUPABASE);
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'anon-key');
@@ -106,10 +116,36 @@ afterEach(() => {
 const session = (extra: Partial<Parameters<typeof sessionCookieValue>[0]> = {}) =>
   sessionCookieValue({supabaseUrl: SUPABASE, userId: USER, email: 'person@example.com', sessionId: SESSION, jwtSecret: SECRET, ...extra});
 
-function run(path: string, options: {cookie?: string | null; method?: string; legacy?: boolean} = {}) {
+// The application's own address, as a browser on it reaches it. A request that is not a GET carries its own
+// Origin unless a test says otherwise (`origin: null` sends none), because the proxy refuses one that does not
+// (Story 1.4c) and Next's Request has no Host header of its own, which a server always receives.
+const OWN_ORIGIN = 'http://127.0.0.1:4173';
+const OWN_HOST = '127.0.0.1:4173';
+
+type RunOptions = {
+  cookie?: string | null;
+  method?: string;
+  legacy?: boolean;
+  /** The Origin header: the application's own by default for a method that is not safe; `null` sends none. */
+  origin?: string | null;
+  /** Other headers, which win over the defaults. */
+  headers?: Record<string, string>;
+  /** A browser navigating to a document: the fetch metadata and Accept a page request carries. */
+  navigation?: boolean;
+  /** A CSRF cookie the browser already holds. */
+  csrf?: string;
+};
+
+function run(path: string, options: RunOptions = {}) {
+  const method = options.method ?? 'GET';
   const cookie = options.cookie === undefined ? `${cookieName}=${session()}` : options.cookie;
-  const parts = [cookie, options.legacy ? 'nova3d-interim-session=old' : null].filter(Boolean).join('; ');
-  return proxy(new NextRequest(`http://127.0.0.1:4173${path}`, {method: options.method ?? 'GET', headers: parts ? {cookie: parts} : {}}));
+  const parts = [cookie, options.legacy ? 'nova3d-interim-session=old' : null, options.csrf === undefined ? null : `${csrfCookieName}=${options.csrf}`].filter(Boolean).join('; ');
+  const headers: Record<string, string> = {host: OWN_HOST};
+  if (parts) headers.cookie = parts;
+  const origin = options.origin === undefined ? (['GET', 'HEAD', 'OPTIONS'].includes(method) ? null : OWN_ORIGIN) : options.origin;
+  if (origin !== null) headers.origin = origin;
+  if (options.navigation) Object.assign(headers, {'sec-fetch-dest': 'document', 'sec-fetch-mode': 'navigate', 'sec-fetch-site': 'none', accept: 'text/html,application/xhtml+xml'});
+  return proxy(new NextRequest(`${OWN_ORIGIN}${path}`, {method, headers: {...headers, ...options.headers}}));
 }
 const destination = (response: Response) => {
   const location = response.headers.get('location');
@@ -667,5 +703,422 @@ describe('a private /api path answers JSON, never HTML or a redirect', () => {
     const response = await run('/apiary');
     expect(response.status).toBe(307);
     expect(destination(response)).toBe('/login?error=session_ended');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+// Story 1.4c: request integrity. The proxy refuses any request that is not safe unless it comes from this
+// application's own origin, after it has decided access; and it hands a signed-in browser its session's CSRF
+// token on a page request.
+describe('origin checks (Story 1.4c)', () => {
+  const plain = async (response: Response) => ({status: response.status, type: response.headers.get('content-type'), location: response.headers.get('location'), text: await response.text()});
+  // (Not /register: an active Account is sent Home from it, which is its answer before any origin is asked about.)
+  const paths = ['/settings', '/projects', '/nope', '/'];
+
+  it.each(['POST', 'PUT', 'PATCH', 'DELETE'])('lets a %s from the application\'s own origin through, to a page and to /api', async (method) => {
+    for (const path of ['/settings', '/api/projects']) expect(passes(await run(path, {method})), `${method} ${path}`).toBe(true);
+  });
+
+  it.each([
+    ['another host', 'https://evil.example'],
+    ['a host that starts with ours', `${OWN_ORIGIN}.evil.example`],
+    ['the same host on another port', 'http://127.0.0.1:4174'],
+    ['the literal null (a sandboxed frame, a redirect across sites)', 'null'],
+    ['no Origin at all', null],
+    ['an Origin that is not a URL', 'not a url'],
+  ] as [string, string | null][])('refuses a Server Action posted with %s, with a plain 403 and no redirect, before it reaches the action', async (_name, origin) => {
+    for (const path of paths) {
+      const response = await run(path, {method: 'POST', origin});
+      expect(response.status, path).toBe(403);
+      expect(response.headers.get('location'), path).toBeNull();
+      expect(response.headers.get('x-middleware-next'), path).toBeNull();
+      expect(response.headers.get('content-type'), path).toMatch(/^text\/plain/);
+      expect(response.headers.get('cache-control'), path).toBe('no-store');
+      expect(await response.text(), path).toBe('Forbidden');
+    }
+  });
+
+  it.each([
+    ['another host', 'https://evil.example'],
+    ['the literal null', 'null'],
+    ['no Origin at all', null],
+  ] as [string, string | null][])('refuses a route mutation with %s with 403 JSON origin_not_allowed', async (_name, origin) => {
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+      const response = await run('/api/projects', {method, origin});
+      expect(response.status, method).toBe(403);
+      expect(response.headers.get('content-type'), method).toMatch(/^application\/json/);
+      expect(response.headers.get('cache-control'), method).toBe('no-store');
+      expect(response.headers.get('location'), method).toBeNull();
+      expect(await response.json(), method).toEqual({error: 'origin_not_allowed', retryable: false});
+    }
+  });
+
+  it('refuses a cross-site fetch even when its Origin matches', async () => {
+    for (const [path, expected] of [['/settings', 'Forbidden'], ['/api/projects', 'origin_not_allowed']] as const) {
+      const response = await run(path, {method: 'POST', headers: {'sec-fetch-site': 'cross-site'}});
+      expect(response.status, path).toBe(403);
+      expect(await response.text(), path).toContain(expected);
+    }
+    for (const site of ['same-origin', 'same-site', 'none']) expect(passes(await run('/settings', {method: 'POST', headers: {'sec-fetch-site': site}})), site).toBe(true);
+  });
+
+  it('compares with the first x-forwarded-host, else host, as Next does for Server Actions', async () => {
+    // Behind a platform: the public name is forwarded, the internal one is `host`.
+    const behind = {host: 'internal.local:3000', 'x-forwarded-host': 'app.example'};
+    expect(passes(await run('/settings', {method: 'POST', origin: 'https://app.example', headers: behind}))).toBe(true);
+    expect((await run('/settings', {method: 'POST', origin: 'http://internal.local:3000', headers: behind})).status).toBe(403);
+    expect(passes(await run('/settings', {method: 'POST', origin: 'https://app.example', headers: {...behind, 'x-forwarded-host': 'app.example, proxy.internal'}}))).toBe(true);
+    expect((await run('/settings', {method: 'POST', origin: 'https://app.example', headers: {...behind, 'x-forwarded-host': 'proxy.internal, app.example'}})).status).toBe(403);
+    // And with no host to compare to, nothing passes.
+    const lost = new NextRequest(`${OWN_ORIGIN}/settings`, {method: 'POST', headers: {cookie: `${cookieName}=${session()}`, origin: OWN_ORIGIN}});
+    expect((await proxy(lost)).status).toBe(403);
+  });
+
+  it.each(['GET', 'HEAD', 'OPTIONS'])('does not check %s, however it arrives', async (method) => {
+    for (const origin of [null, 'null', 'https://evil.example']) {
+      for (const path of ['/settings', '/api/projects']) {
+        const response = await run(path, {method, origin, headers: {'sec-fetch-site': 'cross-site'}});
+        expect(passes(response), `${method} ${path} ${origin}`).toBe(true);
+      }
+    }
+  });
+
+  it('runs after the access decision, so a denied request keeps its own answer', async () => {
+    const foreign = {origin: 'https://evil.example'};
+    // Signed out.
+    const signedOut = await run('/settings', {method: 'POST', cookie: null, ...foreign});
+    expect([signedOut.status, destination(signedOut)]).toEqual([303, '/login?error=not_signed_in']);
+    const apiSignedOut = await run('/api/projects', {method: 'POST', cookie: null, origin: null});
+    expect([apiSignedOut.status, await apiSignedOut.json()]).toEqual([401, {error: 'not_signed_in', retryable: false}]);
+    // No Account.
+    net.authorization = 'unregistered';
+    expect([(await run('/settings', {method: 'POST', ...foreign})).status, destination(await run('/settings', {method: 'POST', ...foreign}))]).toEqual([303, '/register']);
+    expect((await run('/api/projects', {method: 'POST', ...foreign})).status).toBe(403);
+    expect(await (await run('/api/projects', {method: 'POST', ...foreign})).json()).toEqual({error: 'account_required', retryable: false});
+    // A session without a valid grant.
+    net.authorization = 'revoked';
+    expect(destination(await run('/settings', {method: 'POST', ...foreign}))).toBe('/login?error=session_ended');
+    expect(await (await run('/api/projects', {method: 'POST', origin: null})).json()).toEqual({error: 'session_ended', retryable: false});
+    // Disabled.
+    net.authorization = 'disabled';
+    expect(destination(await run('/settings', {method: 'POST', ...foreign}))).toBe('/login?error=account_disabled');
+    expect(await (await run('/api/projects', {method: 'POST', origin: null})).json()).toEqual({error: 'account_disabled', retryable: false});
+    // The check that could not be made.
+    net.authorization = 'unreachable';
+    expect(destination(await run('/settings', {method: 'POST', ...foreign}))).toBe('/login?error=auth_unavailable');
+    const outage = await run('/api/projects', {method: 'POST', origin: null});
+    expect([outage.status, await outage.json()]).toEqual([503, {error: 'auth_unavailable', retryable: true}]);
+  });
+
+  it('has asked who the person is before it refuses, and asks nothing else of the database', async () => {
+    const response = await run('/api/projects', {method: 'POST', origin: 'https://evil.example'});
+    expect(response.status).toBe(403);
+    expect(rpcs().map((call) => call.path)).toEqual(['/rest/v1/rpc/authorize_session']);
+  });
+
+  it('applies to public paths too, without asking anyone', async () => {
+    for (const [path, expected] of [['/login', 'Forbidden'], ['/auth/callback', 'Forbidden'], ['/api/health', 'origin_not_allowed']] as const) {
+      for (const origin of ['https://evil.example', 'null', null]) {
+        const response = await run(path, {cookie: null, method: 'POST', origin});
+        expect(response.status, `${path} ${origin}`).toBe(403);
+        expect(await response.text(), path).toContain(expected);
+      }
+      expect(passes(await run(path, {cookie: null, method: 'POST'})), path).toBe(true);
+      expect(passes(await run(path, {cookie: null})), path).toBe(true);
+    }
+    expect(calls).toEqual([]);
+  });
+
+  it('applies to the synthetic design kit when it is public', async () => {
+    vi.stubEnv('SYNTHETIC_DATA_ENABLED', 'true');
+    expect((await run('/kit', {cookie: null, method: 'POST', origin: 'https://evil.example'})).status).toBe(403);
+    expect(passes(await run('/kit', {cookie: null, method: 'POST'}))).toBe(true);
+  });
+
+  it('answers a refusal with the session Auth refreshed while it decided, or the next request would present a used refresh token', async () => {
+    for (const path of ['/settings', '/api/projects']) {
+      calls.length = 0;
+      const response = await run(path, {method: 'POST', origin: 'https://evil.example', cookie: `${cookieName}=${session({issuedAt: Math.floor(Date.now() / 1000) - 7200})}`});
+      expect(response.status, path).toBe(403);
+      expect(calls.some((call) => call.path === '/auth/v1/token'), path).toBe(true);
+      expect(setCookies(response).some((value) => value.startsWith(`${cookieName}=`) && !value.startsWith(`${cookieName}=;`)), path).toBe(true);
+    }
+  });
+
+  it('clears the retired interim cookie on a refusal too', async () => {
+    const response = await run('/settings', {method: 'POST', origin: null, legacy: true});
+    expect(response.status).toBe(403);
+    expect(setCookies(response).some((value) => value.startsWith('nova3d-interim-session=;'))).toBe(true);
+  });
+
+  it('does not sign a refused request\'s session out, and spends no CSRF token on it', async () => {
+    const response = await run('/settings', {method: 'POST', origin: 'https://evil.example', navigation: true});
+    expect(response.status).toBe(403);
+    expect(calls.some((call) => call.path === '/auth/v1/logout')).toBe(false);
+    expect(rpcs().some((call) => call.path.endsWith('/issue_csrf'))).toBe(false);
+    expect(setCookies(response).some((value) => value.startsWith(`${csrfCookieName}=`))).toBe(false);
+  });
+});
+
+describe('a refusal for its origin is logged as one line (Story 1.4c)', () => {
+  it.each([
+    ['origin_mismatch', 'POST', {origin: 'https://evil-marker.example'}],
+    ['origin_missing', 'PUT', {origin: null}],
+    ['origin_null', 'PATCH', {origin: 'null'}],
+    ['origin_invalid', 'DELETE', {origin: 'not a url'}],
+    ['cross_site', 'POST', {headers: {'sec-fetch-site': 'cross-site'}}],
+  ] as [string, string, Partial<RunOptions>][])('names the rule and the method and nothing else: %s %s', async (rule, method, options) => {
+    for (const [path, extra] of [
+      ['/settings?token=query-marker', {}],
+      ['/api/projects?token=query-marker', {}],
+      ['/login?token=query-marker', {cookie: null}],
+    ] as [string, Partial<RunOptions>][]) {
+      warnings.mockClear();
+      const response = await run(path, {method, headers: {'x-marker': 'header-marker', referer: 'https://referrer-marker.example/page', ...options.headers}, ...options, ...extra});
+      expect(response.status, path).toBe(403);
+      expect(warnings.mock.calls, path).toEqual([[`A request was refused for its origin. ${rule} ${method}`]]);
+      const printed = JSON.stringify([warnings.mock.calls, errors.mock.calls]);
+      for (const secret of ['marker', 'evil', 'query', 'settings', 'projects', 'login', '127.0.0.1', 'eyJ', SECRET, 'service-role-key', SESSION, USER]) expect(printed, `${path} ${secret}`).not.toContain(secret);
+    }
+  });
+
+  it('logs a method it cannot name as OTHER, never as the sender spelled it', async () => {
+    const response = await run('/settings', {method: 'PROPFIND', origin: null});
+    expect(response.status).toBe(403);
+    expect(warnings.mock.calls).toEqual([['A request was refused for its origin. origin_missing PROPFIND']]);
+  });
+
+  it('logs nothing for a request that is let through, a safe method, or a request denied for another reason', async () => {
+    await run('/settings', {method: 'POST'});
+    await run('/settings', {method: 'GET', origin: 'https://evil.example'});
+    await run('/settings', {method: 'POST', cookie: null, origin: 'https://evil.example'});
+    net.authorization = 'revoked';
+    await run('/settings', {method: 'POST', origin: 'https://evil.example'});
+    expect(warnings).not.toHaveBeenCalled();
+  });
+});
+
+describe('the CSRF cookie (Story 1.4c)', () => {
+  const issued = () => rpcs().filter((call) => call.path.endsWith('/issue_csrf'));
+  const csrfSetCookie = (response: Response) => setCookies(response).find((value) => value.startsWith(`${csrfCookieName}=`));
+  const tokenOf = (value: string | undefined) => /^[^=]+=([^;]*)/.exec(value ?? '')?.[1] ?? '';
+
+  it('is issued to an active Account\'s first page request: a token in a cookie scripts can read, and only its hash to the database', async () => {
+    const response = await run('/projects', {navigation: true});
+    expect(passes(response)).toBe(true);
+    const cookie = csrfSetCookie(response);
+    expect(cookie).toBeDefined();
+    const token = tokenOf(cookie);
+    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    // Readable by page script, Lax, the whole site, and not Secure on http. It is a session cookie.
+    expect(cookie).toMatch(/Path=\//i);
+    expect(cookie).toMatch(/SameSite=lax/i);
+    expect(cookie).not.toMatch(/HttpOnly/i);
+    expect(cookie).not.toMatch(/Secure/i);
+    expect(cookie).not.toMatch(/Max-Age|Expires/i);
+
+    // The database is told the user and session of the verified token and the hash of the cookie's token.
+    expect(issued()).toHaveLength(1);
+    expect(JSON.parse(issued()[0].body)).toEqual({p_user_id: USER, p_session_id: SESSION, p_csrf_hash: await hashCsrfToken(token)});
+    expect(issued()[0].headers.authorization).toBe('Bearer service-role-key');
+    expect(issued()[0].headers['content-profile']).toBe('api');
+    // The token itself is nowhere in what the database was sent.
+    expect(JSON.stringify(calls)).not.toContain(token);
+    expect(response.headers.get('cache-control')).toMatch(/no-store/);
+  });
+
+  it('is Secure when the browser came in over https', async () => {
+    const response = await run('/projects', {navigation: true, headers: {'x-forwarded-proto': 'https'}});
+    expect(csrfSetCookie(response)).toMatch(/Secure/i);
+    const insecure = await run('/projects', {navigation: true, headers: {'x-forwarded-proto': 'http'}});
+    expect(csrfSetCookie(insecure)).not.toMatch(/Secure/i);
+  });
+
+  it('is a new token every time one is issued', async () => {
+    const tokens = new Set<string>();
+    for (let request = 0; request < 5; request += 1) tokens.add(tokenOf(csrfSetCookie(await run('/', {navigation: true}))));
+    expect(tokens.size).toBe(5);
+  });
+
+  it('is issued to a browser too old to send fetch metadata, which asks for a document', async () => {
+    const response = await run('/projects', {headers: {accept: 'text/html,application/xhtml+xml'}});
+    expect(csrfSetCookie(response)).toBeDefined();
+  });
+
+  it('is issued on any page, a page that does not exist included, and the page still renders', async () => {
+    for (const path of ['/', '/projects', '/progress', '/settings', '/nope']) {
+      const response = await run(path, {navigation: true});
+      expect(passes(response), path).toBe(true);
+      expect(csrfSetCookie(response), path).toBeDefined();
+    }
+  });
+
+  it('keeps the refreshed session cookies beside it', async () => {
+    const response = await run('/projects', {navigation: true, cookie: `${cookieName}=${session({issuedAt: Math.floor(Date.now() / 1000) - 7200})}`});
+    expect(setCookies(response).some((value) => value.startsWith(`${cookieName}=`) && !value.startsWith(`${cookieName}=;`))).toBe(true);
+    expect(csrfSetCookie(response)).toBeDefined();
+  });
+
+  it('is left alone when the browser already holds one: nothing is asked of the database and nothing is set', async () => {
+    const response = await run('/projects', {navigation: true, csrf: 'a'.repeat(43)});
+    expect(passes(response)).toBe(true);
+    expect(issued()).toEqual([]);
+    expect(csrfSetCookie(response)).toBeUndefined();
+  });
+
+  it.each([
+    ['a truncated value', 'a'.repeat(20)],
+    ['a value one character too long', 'a'.repeat(44)],
+    ['a value with a character a token never has', `${'a'.repeat(42)}!`],
+    ['a value that is not even URL-safe', 'not a token at all'],
+    ['padding', `${'a'.repeat(42)}=`],
+    ['the literal undefined', 'undefined'],
+  ])('counts a cookie that is %s as no cookie, so it cannot keep the real one from being issued', async (_name, planted) => {
+    const response = await run('/projects', {navigation: true, csrf: planted});
+    expect(passes(response)).toBe(true);
+    expect(issued()).toHaveLength(1);
+    expect(csrfSetCookie(response)).toBeDefined();
+  });
+
+  it('leaves a cookie that is shaped like a token alone, whether or not the database knows it (a stale one cannot be told from here)', async () => {
+    for (const token of ['A'.repeat(43), 'a-_9'.repeat(10) + 'abc']) {
+      const response = await run('/projects', {navigation: true, csrf: token});
+      expect(csrfSetCookie(response), token).toBeUndefined();
+    }
+    expect(issued()).toEqual([]);
+  });
+
+  it.each([
+    ['a Chrome prefetch', {'sec-purpose': 'prefetch'}],
+    ['a prerender', {'sec-purpose': 'prefetch;prerender'}],
+    ['an older prefetch', {purpose: 'prefetch'}],
+  ])('is not issued on %s: a page the person has not opened', async (_name, headers) => {
+    const response = await run('/projects', {navigation: true, headers});
+    expect(passes(response)).toBe(true);
+    expect(issued()).toEqual([]);
+    expect(csrfSetCookie(response)).toBeUndefined();
+  });
+
+  it('always marks a response that sets the cookie private and no-store, over whatever was there, a refreshed session\'s header included', async () => {
+    const plainResponse = await run('/projects', {navigation: true});
+    expect(csrfSetCookie(plainResponse)).toBeDefined();
+    expect(plainResponse.headers.get('cache-control')).toBe('private, no-store');
+    const refreshed = await run('/projects', {navigation: true, cookie: `${cookieName}=${session({issuedAt: Math.floor(Date.now() / 1000) - 7200})}`});
+    expect(calls.some((call) => call.path === '/auth/v1/token')).toBe(true);
+    expect(csrfSetCookie(refreshed)).toBeDefined();
+    expect(refreshed.headers.get('cache-control')).toBe('private, no-store');
+  });
+
+  it('does not touch the cache headers of a page that sets no cookie of ours', async () => {
+    const response = await run('/projects', {navigation: true, csrf: 'a'.repeat(43)});
+    expect(csrfSetCookie(response)).toBeUndefined();
+    expect(response.headers.get('cache-control')).not.toBe('private, no-store');
+  });
+
+  it('counts an empty cookie as no cookie', async () => {
+    const response = await run('/projects', {navigation: true, csrf: ''});
+    expect(issued()).toHaveLength(1);
+    expect(csrfSetCookie(response)).toBeDefined();
+  });
+
+  it.each(['exists', 'denied'] as const)('sets nothing when the database says %s: only a stored hash is delivered, so a second tab that asked at the same moment leaves the first one\'s token standing', async (outcome) => {
+    net.csrf = outcome;
+    const response = await run('/projects', {navigation: true});
+    expect(passes(response)).toBe(true);
+    expect(issued()).toHaveLength(1);
+    expect(csrfSetCookie(response)).toBeUndefined();
+  });
+
+  it.each(['unreachable', 'error500'] as const)('issues nothing, and never blocks the page, when the database cannot answer (%s)', async (failure) => {
+    net.csrf = failure;
+    const response = await run('/projects', {navigation: true});
+    expect(passes(response)).toBe(true);
+    expect(response.status).toBe(200);
+    expect(csrfSetCookie(response)).toBeUndefined();
+    const printed = JSON.stringify(errors.mock.calls);
+    expect(printed).toContain('The CSRF token could not be issued');
+    for (const secret of ['service-role-key', 'eyJ', SECRET]) expect(printed).not.toContain(secret);
+    // And it does not sign anybody out for it.
+    expect(calls.some((call) => call.path === '/auth/v1/logout')).toBe(false);
+  });
+
+  it('gives up on a database that never answers, and renders the page', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: unknown, init?: RequestInit) => {
+      if (new URL(typeof input === 'string' ? input : (input as Request).url).pathname === '/rest/v1/rpc/issue_csrf') return new Promise<Response>(() => undefined);
+      return stubbedFetch(input, init);
+    }));
+    vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']});
+    try {
+      const pending = run('/projects', {navigation: true});
+      let settled = false;
+      void pending.then(() => { settled = true; }, () => { settled = true; });
+      // The deadline starts when the proxy gets to the issue, after its other calls have answered.
+      // (A real turn of the event loop between steps: the stubbed network answers on those, and on a busy machine
+      // twenty quick steps can pass before the proxy has got as far as the issue.)
+      for (let step = 0; step < 2000 && !settled; step += 1) {
+        await new Promise((resolve) => setImmediate(resolve));
+        await vi.advanceTimersByTimeAsync(500);
+      }
+      const response = await pending;
+      expect(passes(response)).toBe(true);
+      expect(csrfSetCookie(response)).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    ['a fetch', {'sec-fetch-dest': 'empty', accept: 'application/json'}],
+    ['a client-side navigation', {'sec-fetch-dest': 'empty', rsc: '1', accept: 'text/x-component'}],
+    ['a prefetch', {'sec-fetch-dest': 'empty', rsc: '1', 'next-router-prefetch': '1'}],
+    ['a frame', {'sec-fetch-dest': 'iframe', accept: 'text/html'}],
+    ['a script', {'sec-fetch-dest': 'script', accept: '*/*'}],
+    ['a request with no headers of a browser', {}],
+  ] as [string, Record<string, string>][])('is not issued on %s', async (_name, headers) => {
+    const response = await run('/projects', {headers});
+    expect(passes(response)).toBe(true);
+    expect(issued()).toEqual([]);
+    expect(csrfSetCookie(response)).toBeUndefined();
+  });
+
+  it('is not issued to a navigation to /api, to a mutation, or to anyone who is not let in', async () => {
+    expect(issued()).toEqual([]);
+    await run('/api/projects', {navigation: true});
+    await run('/projects', {method: 'POST', navigation: true});
+    expect(issued()).toEqual([]);
+    for (const state of ['unregistered', 'disabled', 'revoked', 'no_grant', 'subject_mismatch', 'unreachable'] as const) {
+      net.authorization = state;
+      const response = await run('/projects', {navigation: true});
+      expect(csrfSetCookie(response), state).toBeUndefined();
+    }
+    const signedOut = await run('/projects', {navigation: true, cookie: null});
+    expect(csrfSetCookie(signedOut)).toBeUndefined();
+    expect(issued()).toEqual([]);
+  });
+
+  it('is not issued by a public path, which has no session to give it to', async () => {
+    vi.stubEnv('SYNTHETIC_DATA_ENABLED', 'true');
+    for (const path of ['/login', '/auth/callback', '/api/health', '/kit']) {
+      const response = await run(path, {navigation: true});
+      expect(csrfSetCookie(response), path).toBeUndefined();
+    }
+    expect(issued()).toEqual([]);
+  });
+
+  it('is not issued to an identity that has no Account, even at the registration screen', async () => {
+    net.authorization = 'unregistered';
+    const response = await run('/register', {navigation: true});
+    expect(passes(response)).toBe(true);
+    expect(csrfSetCookie(response)).toBeUndefined();
+    expect(issued()).toEqual([]);
+  });
+
+  it('is issued to a session whose grant predates this feature on its next page request, exactly as to a new one', async () => {
+    // An older grant has no hash; the proxy cannot tell and need not: the database decides.
+    const first = await run('/projects', {navigation: true});
+    expect(csrfSetCookie(first)).toBeDefined();
+    const again = await run('/projects', {navigation: true, csrf: tokenOf(csrfSetCookie(first))});
+    expect(csrfSetCookie(again)).toBeUndefined();
+    expect(issued()).toHaveLength(1);
   });
 });

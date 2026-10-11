@@ -279,6 +279,17 @@ export type StepUpReceipt = {
 export const markerOutcomes = ['allowed', 'none', 'expired', 'used', 'stale', 'denied'] as const;
 export type MarkerOutcome = (typeof markerOutcomes)[number];
 
+/**
+ * api.issue_csrf: `issued` (the hash is now the grant's, so the caller delivers the token it is the hash of),
+ * `exists` (the grant holds a hash under a minute old, left as it was: the caller delivers nothing) or `denied`
+ * (the session does not hold a valid grant of an active Account).
+ */
+export const csrfIssueOutcomes = ['issued', 'exists', 'denied'] as const;
+export type CsrfIssueOutcome = (typeof csrfIssueOutcomes)[number];
+/** api.verify_csrf: `valid` is the only permission. `denied` is a session that no longer holds a valid grant. */
+export const csrfCheckOutcomes = ['valid', 'invalid', 'denied'] as const;
+export type CsrfCheckOutcome = (typeof csrfCheckOutcomes)[number];
+
 export type PreauthorizationReceipt = {
   preauthorizationId: string;
   role: Role;
@@ -475,6 +486,40 @@ export async function issueGrant(userId: string, sessionId: string, options: Acc
   const epoch = count(row.epoch);
   if (!accountId || epoch === null) throw unexpected();
   return {outcome, accountId, epoch};
+}
+
+const csrfHashPattern = /^[0-9a-f]{64}$/;
+
+/**
+ * Stores the hash of a new CSRF token on the grant of the verified session (Story 1.4c), when the grant has no
+ * hash or its hash is 60 seconds old or older. The user is the verified Auth user's and the session the verified
+ * access token's, never a client's; the hash is the SHA-256 of a token the server has just minted
+ * (hashCsrfToken in lib/request-integrity.ts), and the token itself never comes here. Only `issued` means the
+ * caller may deliver the token. If this throws, nothing is known to be stored and nothing is delivered.
+ */
+export async function issueCsrf(input: {userId: string; sessionId: string; hash: string}, options: AccountsOptions = {}): Promise<CsrfIssueOutcome> {
+  if (!csrfHashPattern.test(input.hash)) throw new TypeError('hash must be a hex SHA-256');
+  const row = await callRow(
+    'issue_csrf',
+    {p_user_id: requireUuid('userId', input.userId), p_session_id: requireUuid('sessionId', input.sessionId), p_csrf_hash: input.hash},
+    options,
+  );
+  return oneOf(row.outcome, csrfIssueOutcomes);
+}
+
+/**
+ * Compares the hash of a request's CSRF token with the one on the grant of the verified session (Story 1.4c).
+ * Only `valid` is permission. Fails closed: if the database cannot be reached this throws, and the caller
+ * refuses the request as retryable.
+ */
+export async function verifyCsrf(input: {userId: string; sessionId: string; hash: string}, options: AccountsOptions = {}): Promise<CsrfCheckOutcome> {
+  if (!csrfHashPattern.test(input.hash)) throw new TypeError('hash must be a hex SHA-256');
+  const row = await callRow(
+    'verify_csrf',
+    {p_user_id: requireUuid('userId', input.userId), p_session_id: requireUuid('sessionId', input.sessionId), p_csrf_hash: input.hash},
+    options,
+  );
+  return oneOf(row.outcome, csrfCheckOutcomes);
 }
 
 const actorPattern = /^[a-z][a-z_]*(?::[A-Za-z0-9_-]{1,64}){0,2}$/;

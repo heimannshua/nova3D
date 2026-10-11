@@ -8,16 +8,23 @@ class Redirected extends Error {
     this.to = to;
   }
 }
-const mocks = vi.hoisted(() => ({createSupabaseServerClient: vi.fn(), authorizeSession: vi.fn()}));
+const mocks = vi.hoisted(() => ({createSupabaseServerClient: vi.fn(), authorizeSession: vi.fn(), verifyCsrf: vi.fn()}));
 vi.mock('next/navigation', () => ({
   redirect: (to: string) => {
     throw new Redirected(to);
   },
 }));
 vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient: mocks.createSupabaseServerClient}));
-vi.mock('@/lib/accounts', async (importOriginal) => ({...(await importOriginal<typeof import('@/lib/accounts')>()), authorizeSession: mocks.authorizeSession}));
+vi.mock('@/lib/accounts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/accounts')>()),
+  authorizeSession: mocks.authorizeSession,
+  verifyCsrf: mocks.verifyCsrf,
+}));
 
-import {getAccess, requireActiveAccount, requireApiAccess, requireUnregisteredIdentity} from '@/lib/auth';
+import {AccountsConfigError, AccountsUnavailableError} from '@/lib/accounts';
+import {apiInternalError, apiSessionEnded} from '@/lib/access';
+import {getAccess, requireActiveAccount, requireApiAccess, requireMutationAccess, requireUnregisteredIdentity} from '@/lib/auth';
+import {csrfHeaderName, hashCsrfToken, newCsrfToken} from '@/lib/request-integrity';
 import {sessionReader} from '../support/access-token';
 
 const USER = '5f0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c44';
@@ -56,6 +63,7 @@ beforeEach(() => {
   getUser = vi.fn(async () => ({data: {user: googleUser}, error: null}));
   mocks.createSupabaseServerClient.mockReset().mockImplementation(async () => ({auth: {getUser, ...sessionReader(USER, SESSION)}}));
   mocks.authorizeSession.mockReset();
+  mocks.verifyCsrf.mockReset().mockResolvedValue('valid');
   accountIs('active');
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
@@ -211,5 +219,178 @@ describe('requireApiAccess (every private route handler)', () => {
     accountIs('active');
     expect((await requireApiAccess()).access).toBeDefined();
     expect(mocks.authorizeSession).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('requireMutationAccess (every route handler that changes something)', () => {
+  const OWN = 'https://app.example';
+  const token = newCsrfToken();
+  const mutation = (init: {method?: string; origin?: string | null; token?: string | null; headers?: Record<string, string>} = {}) => {
+    const headers: Record<string, string> = {host: 'app.example', ...init.headers};
+    const origin = init.origin === undefined ? OWN : init.origin;
+    if (origin !== null) headers.origin = origin;
+    const sent = init.token === undefined ? token : init.token;
+    if (sent !== null) headers[csrfHeaderName] = sent;
+    return new Request(`${OWN}/api/anything`, {method: init.method ?? 'POST', headers});
+  };
+  const denied = async (work: ReturnType<typeof requireMutationAccess>) => {
+    const guard = await work;
+    if (!guard.denied) throw new Error('expected a denial');
+    return {status: guard.denied.status, body: await guard.denied.json(), headers: guard.denied.headers};
+  };
+
+  it('lets a request through from this application\'s own origin with its session\'s token, and returns the active Account', async () => {
+    const guard = await requireMutationAccess(mutation());
+    expect(guard.denied).toBeUndefined();
+    expect(guard.access).toMatchObject({state: 'active', user: {id: USER, sessionId: SESSION}, account: {accountId: ACCOUNT}});
+  });
+
+  it('asks the database about the verified user and session and the hash of the header, never the token or anything the request names', async () => {
+    const request = mutation({headers: {'x-user-id': '22222222-2222-4222-8222-222222222222', 'x-session-id': '11111111-1111-4111-8111-111111111111'}});
+    await requireMutationAccess(request);
+    expect(mocks.verifyCsrf).toHaveBeenCalledTimes(1);
+    const [input, options] = mocks.verifyCsrf.mock.calls[0];
+    expect(input).toEqual({userId: USER, sessionId: SESSION, hash: await hashCsrfToken(token)});
+    expect(JSON.stringify(input)).not.toContain(token);
+    expect(options.timeoutMs).toBeGreaterThan(0);
+  });
+
+  it.each(['POST', 'PUT', 'PATCH', 'DELETE'])('accepts a %s', async (method) => {
+    expect((await requireMutationAccess(mutation({method}))).denied).toBeUndefined();
+  });
+
+  it.each([
+    ['another host', 'https://evil.example'],
+    ['the literal null', 'null'],
+    ['no Origin', null],
+    ['an Origin that is not a URL', 'garbage'],
+  ])('refuses %s with 403 origin_not_allowed, before it asks anyone anything', async (_name, origin) => {
+    const answer = await denied(requireMutationAccess(mutation({origin})));
+    expect(answer.status).toBe(403);
+    expect(answer.body).toEqual({error: 'origin_not_allowed', retryable: false});
+    expect(answer.headers.get('content-type')).toMatch(/^application\/json/);
+    expect(answer.headers.get('cache-control')).toBe('no-store');
+    expect(mocks.createSupabaseServerClient).not.toHaveBeenCalled();
+    expect(mocks.authorizeSession).not.toHaveBeenCalled();
+    expect(mocks.verifyCsrf).not.toHaveBeenCalled();
+  });
+
+  it('refuses a cross-site fetch even when its Origin matches', async () => {
+    const answer = await denied(requireMutationAccess(mutation({headers: {'sec-fetch-site': 'cross-site'}})));
+    expect(answer.body).toEqual({error: 'origin_not_allowed', retryable: false});
+  });
+
+  it('compares with the first x-forwarded-host, else host', async () => {
+    expect((await requireMutationAccess(mutation({headers: {host: 'internal.local:3000', 'x-forwarded-host': 'app.example, edge.internal'}}))).denied).toBeUndefined();
+    expect((await denied(requireMutationAccess(mutation({headers: {host: 'app.example', 'x-forwarded-host': 'other.example'}})))).body.error).toBe('origin_not_allowed');
+  });
+
+  it.each([
+    ['no session', () => noSession(), 401, 'not_signed_in'],
+    ['a revoked grant', () => accountIs('revoked'), 401, 'session_ended'],
+    ['no Account', () => accountIs('unregistered'), 403, 'account_required'],
+    ['a disabled Account', () => accountIs('disabled'), 403, 'account_disabled'],
+    ['a changed Google identity', () => accountIs('subject_mismatch'), 403, 'not_allowed'],
+    ['a database failure', () => mocks.authorizeSession.mockRejectedValue(new Error('down')), 503, 'auth_unavailable'],
+  ])('keeps the answer of requireApiAccess for %s, and checks no token', async (_name, arrange, status, error) => {
+    arrange();
+    const answer = await denied(requireMutationAccess(mutation()));
+    expect([answer.status, answer.body]).toEqual([status, {error, retryable: status === 503}]);
+    expect(mocks.verifyCsrf).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['no token', null],
+    ['an empty token', ''],
+    ['something that is not shaped like a token', 'let-me-in'],
+    ['a token that is too long', `${newCsrfToken()}x`],
+  ])('refuses %s with 403 csrf_invalid, without asking the database', async (_name, sent) => {
+    const answer = await denied(requireMutationAccess(mutation({token: sent})));
+    expect(answer.status).toBe(403);
+    expect(answer.body).toEqual({error: 'csrf_invalid', retryable: false});
+    expect(answer.headers.get('cache-control')).toBe('no-store');
+    expect(mocks.verifyCsrf).not.toHaveBeenCalled();
+  });
+
+  it('refuses a token whose hash is not the session\'s (a wrong token, or another session\'s) with 403 csrf_invalid', async () => {
+    mocks.verifyCsrf.mockResolvedValue('invalid');
+    const answer = await denied(requireMutationAccess(mutation()));
+    expect([answer.status, answer.body]).toEqual([403, {error: 'csrf_invalid', retryable: false}]);
+    expect(mocks.verifyCsrf).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers a session whose grant ended between the two checks like any other ended session', async () => {
+    mocks.verifyCsrf.mockResolvedValue('denied');
+    const answer = await denied(requireMutationAccess(mutation()));
+    expect([answer.status, answer.body]).toEqual([401, {error: 'session_ended', retryable: false}]);
+  });
+
+  it.each([
+    ['cannot be reached', new AccountsUnavailableError('The accounts database did not answer.', {retryable: true})],
+    ['refuses the call', new AccountsUnavailableError('The accounts database refused the call (HTTP 403).', {status: 403, code: '42501'})],
+    ['answers nonsense', new AccountsUnavailableError('The accounts database answered with an unexpected shape.')],
+  ])('answers a retryable 503 and lets nothing through when the database %s', async (_name, failure) => {
+    mocks.verifyCsrf.mockRejectedValue(failure);
+    const answer = await denied(requireMutationAccess(mutation()));
+    expect(answer.status).toBe(503);
+    expect(answer.body).toEqual({error: 'auth_unavailable', retryable: true});
+    expect(answer.headers.get('retry-after')).toBe('5');
+    const printed = JSON.stringify(vi.mocked(console.error).mock.calls);
+    expect(printed).toContain('CSRF check failed closed');
+    expect(printed).not.toContain(token);
+  });
+
+  it.each([
+    ['a TypeError (a bug)', new TypeError('boom')],
+    ['a RangeError', new RangeError('out of range')],
+    ['a missing configuration', new AccountsConfigError('SUPABASE_SERVICE_ROLE_KEY is not set')],
+    ['something that is not an Error', 'a string'],
+    ['null', null],
+  ])('answers a NON-retryable 500 and lets nothing through when the check throws %s: a bug is not an outage, and a retry will not fix it', async (_name, failure) => {
+    mocks.verifyCsrf.mockRejectedValue(failure);
+    const answer = await denied(requireMutationAccess(mutation()));
+    expect(answer.status).toBe(500);
+    expect(answer.body).toEqual({error: 'internal_error', retryable: false});
+    expect(answer.headers.get('retry-after')).toBeNull();
+    expect(answer.headers.get('cache-control')).toBe('no-store');
+    expect(answer.headers.get('content-type')).toMatch(/^application\/json/);
+    // Logged, by name and message through the module's own helper, and never with a token.
+    const printed = JSON.stringify(vi.mocked(console.error).mock.calls);
+    expect(printed).toContain('unexpected error');
+    expect(printed).not.toContain('database did not answer');
+    expect(printed).not.toContain(token);
+  });
+
+  it('names its denials: the 401 of a grant that ended in between, and the 500, are the shared constants', async () => {
+    expect(apiSessionEnded).toEqual({status: 401, error: 'session_ended', retryable: false});
+    expect(apiInternalError).toEqual({status: 500, error: 'internal_error', retryable: false});
+    mocks.verifyCsrf.mockResolvedValue('denied');
+    expect((await denied(requireMutationAccess(mutation()))).body).toEqual({error: apiSessionEnded.error, retryable: apiSessionEnded.retryable});
+    mocks.verifyCsrf.mockRejectedValue(new Error('bug'));
+    expect((await denied(requireMutationAccess(mutation()))).status).toBe(apiInternalError.status);
+  });
+
+  it('only a verified `valid` lets a request through: any other answer is a refusal', async () => {
+    for (const outcome of ['invalid', 'denied', 'ok', undefined, null, true]) {
+      mocks.verifyCsrf.mockResolvedValue(outcome);
+      expect((await requireMutationAccess(mutation())).denied, String(outcome)).toBeDefined();
+    }
+    mocks.verifyCsrf.mockResolvedValue('valid');
+    expect((await requireMutationAccess(mutation())).denied).toBeUndefined();
+  });
+
+  it('asks afresh every time: nothing from an earlier request is honored', async () => {
+    expect((await requireMutationAccess(mutation())).access).toBeDefined();
+    mocks.verifyCsrf.mockResolvedValue('invalid');
+    expect((await denied(requireMutationAccess(mutation()))).status).toBe(403);
+    mocks.verifyCsrf.mockResolvedValue('valid');
+    accountIs('revoked');
+    expect((await denied(requireMutationAccess(mutation()))).status).toBe(401);
+    expect(mocks.authorizeSession).toHaveBeenCalledTimes(3);
+  });
+
+  it('answers 503 auth_not_configured, not retryable, when Supabase is not configured', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '');
+    expect((await denied(requireMutationAccess(mutation()))).body).toEqual({error: 'auth_not_configured', retryable: false});
   });
 });

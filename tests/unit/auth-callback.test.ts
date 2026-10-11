@@ -5,10 +5,12 @@ const mocks = vi.hoisted(() => ({
   createSupabaseServerClient: vi.fn(),
   endSession: vi.fn(),
   expireAuthCookies: vi.fn(),
+  clearCsrfCookie: vi.fn(),
   consumePreauthorization: vi.fn(),
   issueGrant: vi.fn(),
 }));
 vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient: mocks.createSupabaseServerClient, endSession: mocks.endSession, expireAuthCookies: mocks.expireAuthCookies}));
+vi.mock('@/lib/csrf.server', () => ({clearCsrfCookie: mocks.clearCsrfCookie}));
 vi.mock('@/lib/accounts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/accounts')>()),
   consumePreauthorization: mocks.consumePreauthorization,
@@ -75,6 +77,7 @@ beforeEach(() => {
     client.order.push('endSession');
   });
   mocks.expireAuthCookies.mockReset();
+  mocks.clearCsrfCookie.mockReset();
   mocks.consumePreauthorization.mockReset().mockImplementation(async () => {
     client.order.push('consume');
     return receipt('active');
@@ -375,5 +378,32 @@ describe('the session of the exchange (Story 1.4a)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('the CSRF cookie belongs to one session (Story 1.4c)', () => {
+  it('is removed once the code exchange has given the browser a new session, before anything else is decided', async () => {
+    expect((await call()).to).toBe('/');
+    expect(mocks.clearCsrfCookie).toHaveBeenCalledTimes(1);
+    const [cleared] = mocks.clearCsrfCookie.mock.invocationCallOrder;
+    expect(client.exchange.mock.invocationCallOrder[0]).toBeLessThan(cleared);
+    expect(cleared).toBeLessThan(mocks.consumePreauthorization.mock.invocationCallOrder[0]);
+  });
+
+  it('is removed whatever the new session then turns out to be, a refusal included, because the old session is gone either way', async () => {
+    mocks.consumePreauthorization.mockImplementation(async () => receipt('refused'));
+    expect((await call()).to).toBe('/login?error=not_allowed');
+    expect(mocks.clearCsrfCookie).toHaveBeenCalledTimes(1);
+  });
+
+  it('is left alone when no new session came of it: Google turned the sign-in back, or the exchange failed or did not answer', async () => {
+    await call('?error=access_denied');
+    await call('');
+    client = fakeClient({exchange: {data: {user: null, session: null}, error: Object.assign(new Error('invalid grant'), {name: 'AuthApiError', status: 400})}});
+    await call();
+    client = fakeClient();
+    client.exchange.mockRejectedValueOnce(new TypeError('fetch failed'));
+    await call();
+    expect(mocks.clearCsrfCookie).not.toHaveBeenCalled();
   });
 });

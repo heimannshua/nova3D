@@ -1,11 +1,15 @@
 import {describe, expect, it, vi} from 'vitest';
 import type {ActivationReceipt, GrantReceipt, SessionAuthorization} from '@/lib/accounts';
 import {
+  apiCsrfInvalid,
   apiDenial,
+  apiDenialResponse,
+  apiOriginNotAllowed,
   claimPreauthorization,
   decideAccess,
   decideSignIn,
   isOutageError,
+  issueCsrfToken,
   issueSessionGrant,
   readUser,
   redirectFor,
@@ -15,6 +19,7 @@ import {
   type AuthReader,
   type UserRead,
 } from '@/lib/access';
+import {hashCsrfToken} from '@/lib/request-integrity';
 import {sessionReader, unsignedToken} from '../support/access-token';
 
 const USER = '5f0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c44';
@@ -535,6 +540,65 @@ describe('issueSessionGrant: the grant of the session that has become an Account
       const pending = issueSessionGrant(person, {issue: () => new Promise(() => undefined), timeoutMs: 300, log: quiet});
       await vi.advanceTimersByTimeAsync(300);
       expect(await pending).toEqual(unavailable);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('the answers of a refused mutation (Story 1.4c)', () => {
+  it('is 403 JSON for a foreign origin and for a missing or wrong token, and neither can be retried into success', () => {
+    expect(apiOriginNotAllowed).toEqual({status: 403, error: 'origin_not_allowed', retryable: false});
+    expect(apiCsrfInvalid).toEqual({status: 403, error: 'csrf_invalid', retryable: false});
+    for (const denial of [apiOriginNotAllowed, apiCsrfInvalid]) {
+      const {body, init} = apiDenialResponse(denial);
+      expect(body).toEqual({error: denial.error, retryable: false});
+      expect(init).toEqual({status: 403, headers: {'cache-control': 'no-store'}});
+    }
+  });
+});
+
+describe('issueCsrfToken: the session\'s CSRF token, delivered only when its hash is stored', () => {
+  type Issue = NonNullable<Parameters<typeof issueCsrfToken>[1]>['issue'];
+  const issued = (outcome: 'issued' | 'exists' | 'denied'): Issue => vi.fn(async () => outcome);
+
+  it('returns a new token when the database stores its hash, and tells the database the verified user, the session and only that hash', async () => {
+    const issue = vi.fn(async (_input: {userId: string; sessionId: string; hash: string}, _timeoutMs: number) => 'issued' as const);
+    const token = await issueCsrfToken(person, {issue});
+    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(issue).toHaveBeenCalledTimes(1);
+    const [input, timeoutMs] = issue.mock.calls[0];
+    expect(input).toEqual({userId: USER, sessionId: SESSION, hash: await hashCsrfToken(token!)});
+    expect(JSON.stringify(input)).not.toContain(token!);
+    expect(timeoutMs).toBeGreaterThan(0);
+    expect(timeoutMs).toBeLessThanOrEqual(3000);
+  });
+
+  it('is a different token every time', async () => {
+    const seen = new Set<string | null>();
+    for (let call = 0; call < 20; call += 1) seen.add(await issueCsrfToken(person, {issue: issued('issued')}));
+    expect(seen.size).toBe(20);
+  });
+
+  it.each(['exists', 'denied'] as const)('returns nothing when the database says %s: a token whose hash is not stored must never be delivered', async (outcome) => {
+    expect(await issueCsrfToken(person, {issue: issued(outcome)})).toBeNull();
+  });
+
+  it('returns nothing, logs the failure by name only, and never throws, when the database cannot answer or answers nonsense', async () => {
+    const log = vi.fn();
+    expect(await issueCsrfToken(person, {issue: async () => { throw new Error('The accounts database did not answer.'); }, log})).toBeNull();
+    expect(await issueCsrfToken(person, {issue: (async () => 'minted') as never, log})).toBeNull();
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0][0]).toContain('could not be issued');
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/[A-Za-z0-9_-]{43}/);
+  });
+
+  it('gives up on a database that never answers', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = issueCsrfToken(person, {issue: () => new Promise(() => undefined), timeoutMs: 300, log: quiet});
+      await vi.advanceTimersByTimeAsync(300);
+      expect(await pending).toBeNull();
     } finally {
       vi.useRealTimers();
     }

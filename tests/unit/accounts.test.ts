@@ -17,6 +17,7 @@ import {
   hashKey,
   invitationCodeBytes,
   invitationCodeEntropyBits,
+  issueCsrf,
   issueGrant,
   issueInvitation,
   listInvitations,
@@ -29,6 +30,7 @@ import {
   revokeInvitation,
   revokeSessionGrant,
   seedPreauthorization,
+  verifyCsrf,
   withdrawPreauthorization,
 } from '@/lib/accounts';
 import type {Env} from '@/lib/environment';
@@ -698,6 +700,95 @@ describe('confirmRegistration (Story 1.4a)', () => {
       await expect(confirmRegistration({userId: USER, commandId: COMMAND_ID, code}, {env: environment(), fetch: endpoint(() => ({body})).fetch}), JSON.stringify(body)).rejects.toBeInstanceOf(AccountsUnavailableError);
     }
     await expect(confirmRegistration({userId: USER, commandId: COMMAND_ID, code}, {env: {...environment(), INVITATION_HASH_KEY: undefined}, fetch: endpoint(() => ({body: {confirmed: true}})).fetch})).rejects.toBeInstanceOf(AccountsConfigError);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+describe('CSRF tokens (Story 1.4c)', () => {
+  const SESSION = '3b1c9a3e-6a3e-4f19-9d0e-0a4f5e2c8d11';
+  const HASH = 'ab'.repeat(32);
+
+  describe('issueCsrf', () => {
+    it('sends the user, the session and the hash to api.issue_csrf with the service role, and nothing else', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'issued'}}));
+      expect(await issueCsrf({userId: USER.toUpperCase(), sessionId: SESSION.toUpperCase(), hash: HASH}, {env: environment(), fetch})).toBe('issued');
+      expect(calls).toHaveLength(1);
+      expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/issue_csrf');
+      expect(calls[0].init.headers).toMatchObject({'content-profile': 'api', authorization: `Bearer ${SERVICE_KEY}`});
+      expect(calls[0].body).toEqual({p_user_id: USER, p_session_id: SESSION, p_csrf_hash: HASH});
+      expect(JSON.stringify(calls[0].body)).not.toContain(SERVICE_KEY);
+    });
+
+    it.each(['issued', 'exists', 'denied'] as const)('maps the %s outcome', async (outcome) => {
+      const {fetch} = endpoint(() => ({body: {outcome}}));
+      expect(await issueCsrf({userId: USER, sessionId: SESSION, hash: HASH}, {env: environment(), fetch})).toBe(outcome);
+    });
+
+    it.each([
+      ['an outcome it does not know', {outcome: 'minted'}],
+      ['a verification\'s outcome', {outcome: 'valid'}],
+      ['no outcome', {}],
+      ['an array', [{outcome: 'issued'}]],
+      ['text', 'issued'],
+    ])('treats %s as no answer at all', async (_name, body) => {
+      const {fetch} = endpoint(() => ({body}));
+      await expect(issueCsrf({userId: USER, sessionId: SESSION, hash: HASH}, {env: environment(), fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+
+    it('fails closed when the database cannot be reached, errors, or refuses the call', async () => {
+      const input = {userId: USER, sessionId: SESSION, hash: HASH};
+      await expect(issueCsrf(input, {env: environment(), fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({retryable: true});
+      await expect(issueCsrf(input, {env: environment(), fetch: endpoint(() => ({status: 503, body: {}})).fetch})).rejects.toMatchObject({retryable: true, status: 503});
+      await expect(issueCsrf(input, {env: environment(), fetch: endpoint(() => ({status: 403, body: {code: '42501'}})).fetch})).rejects.toMatchObject({retryable: false, code: '42501'});
+    });
+
+    it('refuses an ID that is not a UUID, or a hash that is not a SHA-256, without calling the database', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'issued'}}));
+      await expect(issueCsrf({userId: 'x', sessionId: SESSION, hash: HASH}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      await expect(issueCsrf({userId: USER, sessionId: "x'; drop table", hash: HASH}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      for (const hash of ['', 'AB'.repeat(32), 'ab'.repeat(31), `${'ab'.repeat(32)}0`, 'g'.repeat(64), 'a token, not its hash']) {
+        await expect(issueCsrf({userId: USER, sessionId: SESSION, hash}, {env: environment(), fetch}), hash).rejects.toThrow(TypeError);
+      }
+      expect(calls).toHaveLength(0);
+    });
+  });
+
+  describe('verifyCsrf', () => {
+    it('sends the user, the session and the hash to api.verify_csrf with the service role', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'valid'}}));
+      expect(await verifyCsrf({userId: USER, sessionId: SESSION, hash: HASH}, {env: environment(), fetch})).toBe('valid');
+      expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/verify_csrf');
+      expect(calls[0].init.headers).toMatchObject({'content-profile': 'api', authorization: `Bearer ${SERVICE_KEY}`});
+      expect(calls[0].body).toEqual({p_user_id: USER, p_session_id: SESSION, p_csrf_hash: HASH});
+    });
+
+    it.each(['valid', 'invalid', 'denied'] as const)('maps the %s outcome', async (outcome) => {
+      const {fetch} = endpoint(() => ({body: {outcome}}));
+      expect(await verifyCsrf({userId: USER, sessionId: SESSION, hash: HASH}, {env: environment(), fetch})).toBe(outcome);
+    });
+
+    it.each([
+      ['an outcome it does not know', {outcome: 'ok'}],
+      ['an issue\'s outcome', {outcome: 'issued'}],
+      ['no outcome', {}],
+      ['a boolean', {outcome: true}],
+      ['text', 'valid'],
+    ])('treats %s as no answer at all, never as permission', async (_name, body) => {
+      const {fetch} = endpoint(() => ({body}));
+      await expect(verifyCsrf({userId: USER, sessionId: SESSION, hash: HASH}, {env: environment(), fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+
+    it('fails closed when the database cannot be reached, so the caller refuses the request as retryable', async () => {
+      await expect(verifyCsrf({userId: USER, sessionId: SESSION, hash: HASH}, {env: environment(), fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({retryable: true});
+      await expect(verifyCsrf({userId: USER, sessionId: SESSION, hash: HASH}, {env: environment(), fetch: endpoint(() => ({status: 500, body: {}})).fetch})).rejects.toMatchObject({retryable: true});
+    });
+
+    it('refuses a bad ID or hash without calling', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'valid'}}));
+      await expect(verifyCsrf({userId: USER, sessionId: 'nope', hash: HASH}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      await expect(verifyCsrf({userId: USER, sessionId: SESSION, hash: 'raw-token'}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      expect(calls).toHaveLength(0);
+    });
   });
 });
 

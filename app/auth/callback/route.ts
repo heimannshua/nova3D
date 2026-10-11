@@ -1,4 +1,5 @@
 import {claimPreauthorization, decideSignIn, finishStepUp, isOutageError, readUser, signInTimeoutMs, type SignInDecision} from '@/lib/access';
+import {clearCsrfCookie} from '@/lib/csrf.server';
 import {createBudget, withinBudget} from '@/lib/deadline';
 import {signInErrorPath} from '@/lib/sign-in';
 import {clearStepUpCookie, readStepUpFlow} from '@/lib/step-up.server';
@@ -59,6 +60,11 @@ export async function GET(request: Request) {
     if (exchanged.data.user) await endSession(supabase, outage ? 'local' : 'global');
     return to(signInErrorPath(outage ? 'auth_unavailable' : 'auth_failed'));
   }
+
+  // The browser now holds a different session (a new sign-in, or a step-up's new session), and the CSRF cookie
+  // it may still hold belongs to the old one: remove it, so the proxy issues this session its own on its first
+  // page request (Story 1.4c).
+  await clearCsrfCookie();
 
   // Who signed in, from Auth itself; then the pre-authorization for that user's verified address.
   const read = await readUser(supabase, {budget, accessToken: exchanged.data.session?.access_token});

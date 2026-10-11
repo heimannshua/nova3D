@@ -11,7 +11,9 @@ export const label = (locale: Locale, key: MessageKey, params?: Record<string, s
 
 /** Puts a forged session in the browser, with the device preferences a test asks for (language, theme). */
 export async function signIn(context: BrowserContext, baseURL: string, user: {cookie: ForgedUser['cookie']}, preferences: {locale?: Locale; theme?: 'light' | 'dark'} = {}) {
-  const cookies = [{name: user.cookie.name, value: user.cookie.value, url: baseURL}];
+  // SameSite Lax, spelled out as @supabase/ssr spells it in the cookie it sets. A cookie with NO SameSite attribute is
+  // only "Lax by default" in Chrome, which still sends it on a cross-site top-level POST for its first two minutes.
+  const cookies: {name: string; value: string; url: string; sameSite?: 'Lax'}[] = [{name: user.cookie.name, value: user.cookie.value, url: baseURL, sameSite: 'Lax'}];
   for (const [name, value] of Object.entries(preferences)) cookies.push({name: `nova3d-${name}`, value, url: baseURL});
   await context.addCookies(cookies);
 }

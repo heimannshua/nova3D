@@ -39,8 +39,20 @@ export function createSupabaseProxyClient(request: NextRequest) {
 
   return {
     supabase,
-    /** Lets the request through to the page, with any refreshed session. */
-    next: () => carry(NextResponse.next({request})),
+    /**
+     * Lets the request through to the page, with any refreshed session. `extraCookie` (the CSRF token, Story 1.4c)
+     * is set on the same response, and a response that sets it is ALWAYS `private, no-store`, whatever cache
+     * header was there (a refreshed session may have set a weaker one): a shared cache must never store, and
+     * so hand to somebody else, a response that carries one person's token.
+     */
+    next: (extraCookie?: {name: string; value: string; options: CookieOptions}) => {
+      const response = carry(NextResponse.next({request}));
+      if (extraCookie) {
+        response.cookies.set(extraCookie.name, extraCookie.value, extraCookie.options);
+        response.headers.set('cache-control', 'private, no-store');
+      }
+      return response;
+    },
     /** Carries any refreshed (or cleared) session cookies on a response the proxy built itself, such as a JSON denial. */
     respond: (response: NextResponse) => carry(response),
     /** Sends the browser elsewhere, keeping any refreshed (or cleared) session cookies. */

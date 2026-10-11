@@ -3,17 +3,21 @@ import {
   apiDenial,
   apiDenialResponse,
   apiNotConfigured,
+  apiOriginNotAllowed,
   apiUnavailable,
   claimPreauthorization,
   decideAccess,
   gatingTimeoutMs,
+  issueCsrfToken,
   registerPath,
   resolveAccess,
+  type Access,
   type AccessDecision,
   type ApiDenial,
 } from '@/lib/access';
 import {hasSupabaseConfig} from '@/lib/auth-config';
 import {isPublicPath} from '@/lib/public-paths';
+import {csrfCookieName, csrfCookieOptions, decideOrigin, isCsrfToken, isDocumentNavigation, isSecureRequest, originInputOf, type OriginRefusal} from '@/lib/request-integrity';
 import {signInErrorPath, type SignInErrorCode} from '@/lib/sign-in';
 import {createSupabaseProxyClient} from '@/lib/supabase/proxy';
 import {signOutQuietly} from '@/lib/supabase/sign-out';
@@ -47,6 +51,50 @@ function denyApi(request: NextRequest, denial: ApiDenial, client?: {respond(resp
   return clearLegacyCookie(request, client ? client.respond(response) : response);
 }
 
+/**
+ * Why a request that would otherwise go on is refused for where it came from, or null (Story 1.4c): any method
+ * but GET, HEAD and OPTIONS needs an `Origin` that is this application's own, and no `Sec-Fetch-Site:
+ * cross-site`. Next checks the Origin of a Server Action itself and lets a missing one through; this does not,
+ * for every non-safe request, Server Action or route.
+ */
+function originRefusal(request: NextRequest): OriginRefusal | null {
+  const decision = decideOrigin(originInputOf(request.method, request.headers));
+  return decision.allowed ? null : decision.reason;
+}
+
+/**
+ * The refusal: 403 JSON for an /api path and a plain 403 elsewhere, never a redirect, so a request from
+ * another site is told nothing about where to go. Like any other answer it carries the session cookies Auth
+ * refreshed while the access decision ran, when there was one. It is logged as ONE line that names the rule
+ * and the method and nothing else: no header value, no path, no query, because every one of them is the
+ * sender's, and a refusal is exactly the request that cannot be trusted to log its own words.
+ */
+function refuseOrigin(request: NextRequest, api: boolean, reason: OriginRefusal, client?: {respond(response: NextResponse): NextResponse}) {
+  const method = /^[A-Za-z]{1,16}$/.test(request.method) ? request.method.toUpperCase() : 'OTHER';
+  console.warn(`A request was refused for its origin. ${reason} ${method}`);
+  if (api) return denyApi(request, apiOriginNotAllowed, client);
+  const response = new NextResponse('Forbidden', {status: 403, headers: {'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store'}});
+  return clearLegacyCookie(request, client ? client.respond(response) : response);
+}
+
+/**
+ * The CSRF cookie to set on a page that is about to render, or undefined. Only an active Account's browser
+ * navigation (a document request; not a client-side navigation, a prefetch or an /api call) that carries no
+ * token cookie is issued one. The database decides whether to store a hash (api.issue_csrf), and only a stored
+ * hash is delivered, so a second tab that asks at the same moment sets nothing and the cookie and the hash
+ * never differ. A failure issues nothing and never blocks the page. A cookie that is already there is left
+ * alone, which is also why a request from another site cannot make the token change: it cannot read the cookie
+ * and cannot clear it. "There" means shaped like a token: a truncated or planted value counts as absent, or it
+ * would keep the real one from ever being issued.
+ */
+async function pageCsrfCookie(request: NextRequest, api: boolean, access: Access) {
+  if (api || access.state !== 'active') return undefined;
+  if (!isDocumentNavigation(request.method, request.headers) || isCsrfToken(request.cookies.get(csrfCookieName)?.value)) return undefined;
+  const token = await issueCsrfToken(access.user);
+  if (!token) return undefined;
+  return {name: csrfCookieName, value: token, options: csrfCookieOptions(isSecureRequest(request.headers.get('x-forwarded-proto'), request.nextUrl.protocol))};
+}
+
 function deny(request: NextRequest, error: SignInErrorCode) {
   return clearLegacyCookie(request, NextResponse.redirect(new URL(signInErrorPath(error), request.url), redirectStatus(request)));
 }
@@ -62,6 +110,11 @@ function deny(request: NextRequest, error: SignInErrorCode) {
  *
  * A private /api path is answered with JSON (401, 403 or a retryable 503), never a redirect.
  *
+ * Request integrity (Story 1.4c) comes after the access decision, so a request that is denied keeps its 401, 403
+ * or redirect: a request that would otherwise go on, and every request to a public path, is refused with a 403
+ * unless it is safe (GET, HEAD, OPTIONS) or its Origin is this application's. A page request that goes on may
+ * also be handed its session's CSRF token cookie (pageCsrfCookie).
+ *
  * One more thing happens here, because only the proxy (and routes and actions) can clear cookies: a person
  * who signed in BEFORE their address was pre-authorized has no Account, and the sign-in callback, which
  * consumes pre-authorizations, will not run again until they sign in again. So when such an identity opens
@@ -70,8 +123,12 @@ function deny(request: NextRequest, error: SignInErrorCode) {
  */
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  if (isPublicPath(pathname, process.env)) return clearLegacyCookie(request, NextResponse.next());
   const api = isApiPath(pathname);
+  if (isPublicPath(pathname, process.env)) {
+    const refusal = originRefusal(request);
+    if (refusal) return refuseOrigin(request, api, refusal);
+    return clearLegacyCookie(request, NextResponse.next());
+  }
   if (!hasSupabaseConfig()) return api ? denyApi(request, apiNotConfigured) : deny(request, 'auth_not_configured');
 
   try {
@@ -91,7 +148,9 @@ export async function proxy(request: NextRequest) {
         const denial = apiDenial(access);
         if (denial) return denyApi(request, denial, client);
       }
-      return clearLegacyCookie(request, client.next());
+      const refusal = originRefusal(request);
+      if (refusal) return refuseOrigin(request, api, refusal, client);
+      return clearLegacyCookie(request, client.next(await pageCsrfCookie(request, api, access)));
     }
 
     // A refusal that signs the person out does it on a page request. A Server Action that is refused (a form
