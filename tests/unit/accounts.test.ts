@@ -6,6 +6,7 @@ import {
   AccountsConfigError,
   AccountsUnavailableError,
   accountStatus,
+  adoptPreferences,
   authorizeSession,
   canonicalizeInvitationCode,
   clientAddressFromHeaders,
@@ -30,6 +31,7 @@ import {
   revokeInvitation,
   revokeSessionGrant,
   seedPreauthorization,
+  setAccountPreference,
   verifyCsrf,
   withdrawPreauthorization,
 } from '@/lib/accounts';
@@ -524,7 +526,7 @@ describe('session grants (Story 1.4a)', () => {
   describe('authorizeSession', () => {
     it('sends the user and the session to api.authorize_session with the service role, and nothing else', async () => {
       const {calls, fetch} = endpoint(() => ({body: active}));
-      expect(await authorizeSession(USER, SESSION.toUpperCase(), {env: environment(), fetch})).toEqual({state: 'active', accountId: ACCOUNT, workspaceId: 'w1', role: 'member', epoch: 2});
+      expect(await authorizeSession(USER, SESSION.toUpperCase(), {env: environment(), fetch})).toEqual({state: 'active', accountId: ACCOUNT, workspaceId: 'w1', role: 'member', epoch: 2, preferences: null});
       expect(calls).toHaveLength(1);
       expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/authorize_session');
       expect(calls[0].init.headers).toMatchObject({'content-profile': 'api', authorization: `Bearer ${SERVICE_KEY}`});
@@ -534,12 +536,30 @@ describe('session grants (Story 1.4a)', () => {
 
     it.each(['unregistered', 'disabled', 'no_session', 'no_grant', 'revoked', 'expired', 'idle', 'stale_epoch', 'subject_mismatch'] as const)('answers %s with the state and nothing of the Account', async (state) => {
       const {fetch} = endpoint(() => ({body: {state, account_id: ACCOUNT, workspace_id: 'w1', role: 'administrator', epoch: 5}}));
-      expect(await authorizeSession(USER, SESSION, {env: environment(), fetch})).toEqual({state, accountId: null, workspaceId: null, role: null, epoch: null});
+      expect(await authorizeSession(USER, SESSION, {env: environment(), fetch})).toEqual({state, accountId: null, workspaceId: null, role: null, epoch: null, preferences: null});
     });
 
     it('accepts an active Account that has no Workspace row with a null Workspace', async () => {
       const {fetch} = endpoint(() => ({body: {...active, workspace_id: null}}));
       expect(await authorizeSession(USER, SESSION, {env: environment(), fetch})).toMatchObject({state: 'active', workspaceId: null});
+    });
+
+    it('carries the Account\'s preferences record as the database returned it, and null for an Account with none', async () => {
+      const record = {locale: 'he', theme: 'dark', detail: 'technical', guidance: 'dismissed'};
+      expect(await authorizeSession(USER, SESSION, {env: environment(), fetch: endpoint(() => ({body: {...active, preferences: record}})).fetch})).toMatchObject({state: 'active', preferences: record});
+      expect(await authorizeSession(USER, SESSION, {env: environment(), fetch: endpoint(() => ({body: {...active, preferences: null}})).fetch})).toMatchObject({state: 'active', preferences: null});
+    });
+
+    it('never lets the preferences record decide: an answer without one, or with one that is not an object, is still access', async () => {
+      for (const preferences of [undefined, null, 'dark', 7, true, ['dark']]) {
+        const {fetch} = endpoint(() => ({body: {...active, preferences}}));
+        expect(await authorizeSession(USER, SESSION, {env: environment(), fetch}), String(preferences)).toMatchObject({state: 'active', accountId: ACCOUNT, preferences: null});
+      }
+    });
+
+    it('carries no record in any state that is not access, whatever the database said', async () => {
+      const {fetch} = endpoint(() => ({body: {state: 'revoked', preferences: {locale: 'he', theme: 'dark', detail: 'simple', guidance: 'shown'}}}));
+      expect(await authorizeSession(USER, SESSION, {env: environment(), fetch})).toMatchObject({state: 'revoked', preferences: null});
     });
 
     it.each([
@@ -787,6 +807,114 @@ describe('CSRF tokens (Story 1.4c)', () => {
       const {calls, fetch} = endpoint(() => ({body: {outcome: 'valid'}}));
       await expect(verifyCsrf({userId: USER, sessionId: 'nope', hash: HASH}, {env: environment(), fetch})).rejects.toThrow(TypeError);
       await expect(verifyCsrf({userId: USER, sessionId: SESSION, hash: 'raw-token'}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      expect(calls).toHaveLength(0);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+describe('the preferences record (Story 1.4d)', () => {
+  const ACCOUNT = '7a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d';
+  const device = {accountId: ACCOUNT, locale: 'he', theme: 'dark', detail: 'technical', guidance: 'dismissed'};
+
+  describe('adoptPreferences', () => {
+    it('sends the Account the server derived and the four values to api.adopt_preferences with the service role, and nothing else', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'created'}}));
+      expect(await adoptPreferences({...device, accountId: ACCOUNT.toUpperCase()}, {env: environment(), fetch})).toBe('created');
+      expect(calls).toHaveLength(1);
+      expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/adopt_preferences');
+      expect(calls[0].init.headers).toMatchObject({'content-profile': 'api', authorization: `Bearer ${SERVICE_KEY}`});
+      expect(calls[0].body).toEqual({p_account_id: ACCOUNT, p_locale: 'he', p_theme: 'dark', p_detail: 'technical', p_guidance: 'dismissed'});
+      expect(JSON.stringify(calls[0].body)).not.toContain(SERVICE_KEY);
+    });
+
+    it('sends a null language as null: no language was chosen', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'created'}}));
+      await adoptPreferences({...device, locale: null}, {env: environment(), fetch});
+      expect(calls[0].body).toMatchObject({p_locale: null});
+    });
+
+    it.each(['created', 'exists', 'denied'] as const)('maps the %s outcome', async (outcome) => {
+      const {fetch} = endpoint(() => ({body: {outcome}}));
+      expect(await adoptPreferences(device, {env: environment(), fetch})).toBe(outcome);
+    });
+
+    it.each([
+      ['an outcome it does not know', {outcome: 'adopted'}],
+      ['a save\'s outcome', {outcome: 'saved'}],
+      ['no outcome', {}],
+      ['text', 'created'],
+    ])('treats %s as no answer at all', async (_name, body) => {
+      const {fetch} = endpoint(() => ({body}));
+      await expect(adoptPreferences(device, {env: environment(), fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+
+    it('fails closed when the database cannot be reached, errors, or refuses the call, so nothing is known to be stored', async () => {
+      await expect(adoptPreferences(device, {env: environment(), fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({retryable: true});
+      await expect(adoptPreferences(device, {env: environment(), fetch: endpoint(() => ({status: 503, body: {}})).fetch})).rejects.toMatchObject({retryable: true, status: 503});
+      await expect(adoptPreferences(device, {env: environment(), fetch: endpoint(() => ({status: 400, body: {code: '22023'}})).fetch})).rejects.toMatchObject({retryable: false, code: '22023'});
+    });
+
+    it('refuses an Account that is not a UUID, and a value that is not a short word, without calling the database', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'created'}}));
+      await expect(adoptPreferences({...device, accountId: 'x'}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      await expect(adoptPreferences({...device, accountId: "x'; drop table"}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      for (const patch of [{theme: ''}, {theme: 'x'.repeat(40)}, {detail: ''}, {guidance: ''}, {locale: ''}, {theme: null}, {detail: 7}, {guidance: undefined}]) {
+        await expect(adoptPreferences({...device, ...patch} as never, {env: environment(), fetch}), JSON.stringify(patch)).rejects.toThrow(TypeError);
+      }
+      expect(calls).toHaveLength(0);
+    });
+  });
+
+  describe('setAccountPreference', () => {
+    it('sends the Account the server derived, the name and the value to api.set_preference with the service role', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'saved'}}));
+      expect(await setAccountPreference({accountId: ACCOUNT.toUpperCase(), name: 'theme', value: 'dark'}, {env: environment(), fetch})).toBe('saved');
+      expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/set_preference');
+      expect(calls[0].init.headers).toMatchObject({'content-profile': 'api', authorization: `Bearer ${SERVICE_KEY}`});
+      expect(calls[0].body).toEqual({p_account_id: ACCOUNT, p_name: 'theme', p_value: 'dark'});
+    });
+
+    it('sends a null language ("match my device"), and only for the language', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'saved'}}));
+      expect(await setAccountPreference({accountId: ACCOUNT, name: 'locale', value: null}, {env: environment(), fetch})).toBe('saved');
+      expect(calls[0].body).toEqual({p_account_id: ACCOUNT, p_name: 'locale', p_value: null});
+      for (const name of ['theme', 'detail', 'guidance']) {
+        await expect(setAccountPreference({accountId: ACCOUNT, name, value: null}, {env: environment(), fetch}), name).rejects.toThrow(TypeError);
+      }
+      expect(calls).toHaveLength(1);
+    });
+
+    it.each(['saved', 'denied'] as const)('maps the %s outcome', async (outcome) => {
+      const {fetch} = endpoint(() => ({body: {outcome}}));
+      expect(await setAccountPreference({accountId: ACCOUNT, name: 'detail', value: 'technical'}, {env: environment(), fetch})).toBe(outcome);
+    });
+
+    it.each([
+      ['an outcome it does not know', {outcome: 'ok'}],
+      ['an adoption\'s outcome', {outcome: 'created'}],
+      ['no outcome', {}],
+    ])('treats %s as no answer at all, never as a saved choice', async (_name, body) => {
+      const {fetch} = endpoint(() => ({body}));
+      await expect(setAccountPreference({accountId: ACCOUNT, name: 'theme', value: 'dark'}, {env: environment(), fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+
+    it('fails closed when the database cannot be reached, errors, or refuses the call', async () => {
+      const input = {accountId: ACCOUNT, name: 'theme', value: 'dark'};
+      await expect(setAccountPreference(input, {env: environment(), fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({retryable: true});
+      await expect(setAccountPreference(input, {env: environment(), fetch: endpoint(() => ({status: 500, body: {}})).fetch})).rejects.toMatchObject({retryable: true});
+      await expect(setAccountPreference(input, {env: environment(), fetch: endpoint(() => ({status: 400, body: {code: '22023'}})).fetch})).rejects.toMatchObject({retryable: false, code: '22023'});
+    });
+
+    it('refuses a bad Account, name or value without calling the database', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'saved'}}));
+      await expect(setAccountPreference({accountId: 'nope', name: 'theme', value: 'dark'}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      for (const name of ['', 'font', 'Theme', 'theme; drop', 'locale ', undefined, 7]) {
+        await expect(setAccountPreference({accountId: ACCOUNT, name: name as never, value: 'dark'}, {env: environment(), fetch}), String(name)).rejects.toThrow(TypeError);
+      }
+      for (const value of ['', 'x'.repeat(40), 7, undefined]) {
+        await expect(setAccountPreference({accountId: ACCOUNT, name: 'theme', value: value as never}, {env: environment(), fetch}), String(value)).rejects.toThrow(TypeError);
+      }
       expect(calls).toHaveLength(0);
     });
   });

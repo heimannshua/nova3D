@@ -93,6 +93,8 @@ export async function removeAccountData(client: Client, data: CommittedData) {
   await client.query('begin');
   try {
     const accounts = `(select id from identity.accounts where user_id = any($1))`;
+    // The preferences record references its Account with ON DELETE RESTRICT, so it goes before the Account does.
+    await client.query(`delete from identity.account_preferences where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.fresh_authentications where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.step_up_nonces where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.session_grants where account_id in ${accounts}`, [data.users]);

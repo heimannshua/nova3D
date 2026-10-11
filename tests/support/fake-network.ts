@@ -18,7 +18,11 @@ export type Outage = {
   mode?: 'down' | 'error';
 };
 
-/** Makes the accounts API fail for the user until the returned function (or `restore`) is called. */
+/**
+ * Makes the accounts API fail for the user until the returned function (or `restore`) is called. The key is the
+ * user's ID, or for the preferences functions (adopt_preferences, set_preference), which name only an Account, the
+ * ACCOUNT's ID.
+ */
 export function startOutage(userId: string, outage: Outage = {}) {
   writeFileSync(join(fakeNetworkDirectory(), userId), JSON.stringify(outage));
   return () => endOutage(userId);

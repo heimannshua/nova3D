@@ -449,3 +449,71 @@ describe('step-up (Story 1.4b) has one way in, one way to decide and one way to 
     }
   });
 });
+
+describe('the preferences record (Story 1.4d) has one way in, one way to change, and nothing a client chooses', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+
+  it('reaches the database in lib/accounts.ts and in the only two places that use it: adoption (the access module, for the proxy; the Server Action when the record is missing) and the change (the Server Action)', () => {
+    expect(callers('adoptPreferences')).toEqual(['app/account/preference-actions.ts', 'lib/access.ts', 'lib/accounts.ts']);
+    expect(callers('setAccountPreference')).toEqual(['app/account/preference-actions.ts', 'lib/accounts.ts']);
+  });
+
+  it('adopts the device\'s cookies in the proxy only, through the one function that never throws', () => {
+    expect(callers('adoptDevicePreferences')).toEqual(['lib/access.ts', 'proxy.ts']);
+    expect(callers('adoptDeviceChoices')).toEqual(['proxy.ts']);
+  });
+
+  it('calls the Server Action from the provider only: the one place a choice is saved from the browser', () => {
+    expect(callers('savePreference')).toEqual(['app/account/preference-actions.ts', 'components/preferences-provider.tsx']);
+    expect(callers('attemptPreferenceSave')).toEqual(['components/preferences-provider.tsx', 'lib/preference-actions.ts']);
+  });
+
+  it('keeps the table in the database: nothing in the application names it, and nothing reads a record except through the authorization', () => {
+    for (const file of sources) expect(withoutComments(read(file)), file).not.toMatch(/account_preferences/);
+    for (const file of sources.filter((candidate) => candidate !== 'lib/accounts.ts')) expect(withoutComments(read(file)), file).not.toMatch(/['"`](?:adopt_preferences|set_preference)['"`]/);
+  });
+
+  it('makes the Server Action a Server Action behind withActiveAccount that takes a name and a value and nothing else', () => {
+    const source = read('app/account/preference-actions.ts');
+    expect(source.trimStart()).toMatch(/^'use server';/);
+    const code = withoutComments(source);
+    expect(code).toMatch(/export async function savePreference\(name: string, value: string \| null\)/);
+    expect(code).toMatch(/return withActiveAccount\(/);
+    // The Account is read from the verified access, never from an argument, a form field, a header or the URL.
+    expect(code).toMatch(/access\.account/);
+    for (const forbidden of [/\bformData\b/i, /\bsearchParams\b/, /\brequest\.url\b/, /\bnew URL\(\s*request/, /accountId\s*:\s*(?:name|value)\b/]) expect(code).not.toMatch(forbidden);
+    // Only one function is exported (a 'use server' file may export nothing else).
+    expect([...code.matchAll(/^export\s/gm)]).toHaveLength(1);
+    // It parses what it is given before anything is asked.
+    expect(code.indexOf('parsePreferenceChange(')).toBeGreaterThan(-1);
+    expect(code.indexOf('parsePreferenceChange(')).toBeLessThan(code.indexOf('withActiveAccount('));
+  });
+
+  it('asks for the Account in the layout only when the request carries an Auth session cookie, and falls back to the cookies when it cannot', () => {
+    const code = withoutComments(read('lib/preferences.server.ts'));
+    expect(code).toMatch(/isAuthSessionCookieName/);
+    expect(code.indexOf('isAuthSessionCookieName')).toBeGreaterThan(-1);
+    expect(code.indexOf('isAuthSessionCookieName')).toBeLessThan(code.indexOf('getAccess()'));
+    expect(code).toMatch(/access === null \|\| access\.state === 'unavailable'/);
+    expect(code).toMatch(/access\.state !== 'active'/);
+  });
+
+  it('keeps the browser-bound pieces free of the server-only modules', () => {
+    for (const file of ['components/login-preferences.tsx', 'components/ui/preference-notice.tsx', 'components/ui/choice.tsx', 'components/preferences-provider.tsx', 'lib/preference-actions.ts', 'lib/preferences.ts']) {
+      const source = withoutComments(read(file));
+      expect(source, file).not.toMatch(/from '@\/lib\/accounts'|from '@\/lib\/access'|from '@\/lib\/auth'|from '@\/lib\/preferences\.server'|node:crypto|next\/headers/);
+    }
+  });
+
+  it('writes the cookie copy of a preference in the Server Action only, and never httpOnly (the sign-in page and the kit read it in the browser)', () => {
+    const writers = sources.filter((file) => /preferenceCookieNames/.test(withoutComments(read(file)))).sort();
+    expect(writers).toEqual(['app/account/preference-actions.ts', 'lib/preferences.ts']);
+    expect(withoutComments(read('app/account/preference-actions.ts'))).not.toMatch(/httpOnly\s*:\s*true/);
+  });
+});

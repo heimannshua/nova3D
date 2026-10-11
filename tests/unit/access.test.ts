@@ -1,6 +1,7 @@
 import {describe, expect, it, vi} from 'vitest';
 import type {ActivationReceipt, GrantReceipt, SessionAuthorization} from '@/lib/accounts';
 import {
+  adoptDevicePreferences,
   apiCsrfInvalid,
   apiDenial,
   apiDenialResponse,
@@ -47,8 +48,8 @@ const authError = (name: string, status?: number, code?: string) => Object.assig
 /** What api.authorize_session answers: nothing but the state unless the state is active. */
 const authorization = (state: SessionAuthorization['state'], extra: Partial<SessionAuthorization> = {}): SessionAuthorization =>
   state === 'active'
-    ? {state, accountId: ACCOUNT, workspaceId: WORKSPACE, role: 'member', epoch: 1, ...extra}
-    : {state, accountId: null, workspaceId: null, role: null, epoch: null};
+    ? {state, accountId: ACCOUNT, workspaceId: WORKSPACE, role: 'member', epoch: 1, preferences: null, ...extra}
+    : {state, accountId: null, workspaceId: null, role: null, epoch: null, preferences: null};
 const person = {id: USER, email: 'person@example.com', sessionId: SESSION};
 
 describe('readUser: who is signed in, according to Auth', () => {
@@ -257,8 +258,24 @@ describe('resolveAccess: the live authorization of the verified session', () => 
     expect(await resolveAccess(signedIn(), {authorize})).toEqual({
       state: 'active',
       user: {id: USER, email: 'Person@Example.com', sessionId: SESSION},
-      account: {accountId: ACCOUNT, workspaceId: WORKSPACE, role: 'administrator', epoch: 3},
+      account: {accountId: ACCOUNT, workspaceId: WORKSPACE, role: 'administrator', epoch: 3, preferences: null},
     });
+  });
+
+  it('carries the Account\'s preferences record on the active answer, read from what the database returned (Story 1.4d)', async () => {
+    const record = {locale: 'he', theme: 'dark', detail: 'technical', guidance: 'dismissed'};
+    const result = await resolveAccess(signedIn(), {authorize: authorizeOf(authorization('active', {preferences: record}))});
+    expect(result).toMatchObject({state: 'active', account: {accountId: ACCOUNT, preferences: record}});
+    // No language chosen is a record too.
+    const following = await resolveAccess(signedIn(), {authorize: authorizeOf(authorization('active', {preferences: {...record, locale: null}}))});
+    expect(following).toMatchObject({state: 'active', account: {preferences: {...record, locale: null}}});
+  });
+
+  it('has no record for an Account the database holds none for, and for one it holds something unreadable for: never a reason to refuse access', async () => {
+    for (const preferences of [null, {}, {theme: 'neon'}, {locale: 'fr', theme: 'dark', detail: 'simple', guidance: 'shown'}, 'dark']) {
+      const result = await resolveAccess(signedIn(), {authorize: authorizeOf(authorization('active', {preferences: preferences as never}))});
+      expect(result, JSON.stringify(preferences)).toMatchObject({state: 'active', account: {accountId: ACCOUNT, preferences: null}});
+    }
   });
 
   it('asks one question, about the verified user and the session of the verified token, and nothing else', async () => {
@@ -332,8 +349,8 @@ describe('resolveAccess: the live authorization of the verified session', () => 
       authorization('active', {accountId: null}),
       authorization('active', {role: null}),
       authorization('active', {epoch: null}),
-      {state: 'frozen' as never, accountId: ACCOUNT, workspaceId: WORKSPACE, role: 'member', epoch: 1},
-      {state: undefined as never, accountId: ACCOUNT, workspaceId: WORKSPACE, role: 'member', epoch: 1},
+      {state: 'frozen' as never, accountId: ACCOUNT, workspaceId: WORKSPACE, role: 'member', epoch: 1, preferences: null},
+      {state: undefined as never, accountId: ACCOUNT, workspaceId: WORKSPACE, role: 'member', epoch: 1, preferences: null},
     ];
     for (const answer of malformed) {
       expect(await resolveAccess(signedIn(), {authorize: authorizeOf(answer), log: quiet}), JSON.stringify(answer)).toEqual({state: 'unavailable'});
@@ -351,7 +368,7 @@ describe('decideAccess: the I/O matrix for a private path', () => {
   const states: Record<string, Access> = {
     signedOut: {state: 'signed-out'},
     unregistered: {state: 'unregistered', user},
-    active: {state: 'active', user, account: {accountId: ACCOUNT, workspaceId: WORKSPACE, role: 'member', epoch: 1}},
+    active: {state: 'active', user, account: {accountId: ACCOUNT, workspaceId: WORKSPACE, role: 'member', epoch: 1, preferences: null}},
     disabled: {state: 'disabled', user},
     refused: {state: 'refused'},
     sessionEnded: {state: 'session-ended', reason: 'revoked', user},
@@ -497,7 +514,7 @@ describe('apiDenial: a private /api path answers JSON, never a redirect', () => 
   });
 
   it('lets an active Account with a valid grant through, and nothing else', () => {
-    expect(apiDenial({state: 'active', user: person, account: {accountId: ACCOUNT, workspaceId: WORKSPACE, role: 'member', epoch: 1}})).toBeNull();
+    expect(apiDenial({state: 'active', user: person, account: {accountId: ACCOUNT, workspaceId: WORKSPACE, role: 'member', epoch: 1, preferences: null}})).toBeNull();
     expect(apiDenial({state: 'something-new'} as never)).toEqual({status: 503, error: 'auth_unavailable', retryable: true});
   });
 });
@@ -815,5 +832,45 @@ describe('one time budget for a whole decision', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('adoptDevicePreferences: a first sign-in adopts the device (Story 1.4d)', () => {
+  const device = {locale: 'he', theme: 'dark', detail: 'technical', guidance: 'dismissed'} as const;
+  const account = {accountId: ACCOUNT};
+
+  it('hands the Account the server derived and the device\'s four choices to the database, and returns what it said', async () => {
+    for (const outcome of ['created', 'exists', 'denied'] as const) {
+      const adopt = vi.fn(async () => outcome);
+      expect(await adoptDevicePreferences(account, device, {adopt})).toBe(outcome);
+      expect(adopt).toHaveBeenCalledWith({accountId: ACCOUNT, ...device}, expect.any(Number));
+    }
+  });
+
+  it('is given the time left in its budget, and no more than the adoption limit', async () => {
+    const adopt = vi.fn(async (_input: unknown, timeoutMs: number) => (timeoutMs > 0 && timeoutMs <= 3000 ? ('created' as const) : ('denied' as const)));
+    expect(await adoptDevicePreferences(account, device, {adopt})).toBe('created');
+  });
+
+  it('adopts a device with no language chosen as null', async () => {
+    const adopt = vi.fn(async () => 'created' as const);
+    await adoptDevicePreferences(account, {...device, locale: null}, {adopt});
+    expect(adopt).toHaveBeenCalledWith(expect.objectContaining({locale: null}), expect.any(Number));
+  });
+
+  it('never throws and never blocks: a database that fails or hangs is "failed", logged by name and message only', async () => {
+    const log = vi.fn();
+    expect(await adoptDevicePreferences(account, device, {adopt: async () => { throw new TypeError('fetch failed'); }, log})).toBe('failed');
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0][1]).toBe('TypeError: fetch failed');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('dark');
+    expect(await adoptDevicePreferences(account, device, {adopt: () => new Promise(() => undefined), log, timeoutMs: 20})).toBe('failed');
+    expect(log).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not start when no time is left', async () => {
+    const adopt = vi.fn(async () => 'created' as const);
+    expect(await adoptDevicePreferences(account, device, {adopt, log: quiet, budget: {remaining: () => 0}})).toBe('failed');
+    expect(adopt).not.toHaveBeenCalled();
   });
 });

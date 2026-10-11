@@ -108,6 +108,15 @@ describe('CI contract', () => {
     expect(stop?.if).toContain(`steps.${start?.id}.conclusion != 'skipped'`);
   });
 
+  it('checks the Markdown it ships, the manual staging guide included, for broken local links (Story 1.4d)', () => {
+    const check = steps.find((step) => step.run?.includes('scripts/ci/check-repository.mjs'));
+    expect(check, 'the repository check is a CI step').toBeDefined();
+    const script = read('scripts/ci/check-repository.mjs');
+    for (const file of ['README.md', 'docs/deployment-setup.md', 'docs/auth-setup.md', 'docs/staging.md', 'docs/provisioning.md', 'docs/secrets.md']) expect(script, file).toContain(`'${file}'`);
+    // The guide the script names exists, and so do the files it points at.
+    for (const file of ['docs/staging.md', 'docs/provisioning.md', 'docs/secrets.md']) expect(() => read(file), file).not.toThrow();
+  });
+
   it('cancels superseded runs of the same ref', () => {
     expect(workflow.concurrency?.['cancel-in-progress']).toBe(true);
     expect(workflow.concurrency?.group).toContain('github.ref');

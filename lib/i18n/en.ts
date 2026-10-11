@@ -184,7 +184,7 @@ export const en = {
   // Settings
   'settings.eyebrow': 'Account',
   'settings.title': 'Settings',
-  'settings.lede': 'Choose how nova3D looks and reads for you. These choices are kept on this device until your account can hold them.',
+  'settings.lede': 'Choose how nova3D looks and reads for you. These choices belong to your account, so they follow you to every device you sign in on.',
   'settings.language.title': 'Language',
   'settings.language.help': 'nova3D follows your device language until you choose one here.',
   'settings.language.device': 'Match my device',
@@ -215,6 +215,8 @@ export const en = {
   'settings.announce.detailTechnical': 'Technical detail on.',
   'settings.announce.guidance': 'Introduction restored on Home.',
   'settings.announce.failed': 'That choice could not be kept. Check that cookies are allowed for this site.',
+  'settings.saveFailed.title': 'Choice not saved',
+  'settings.announce.saveFailed': 'That choice could not be saved just now, so it was undone. Try again in a moment.',
   'settings.sessions.title': 'Other sessions',
   'settings.sessions.help': 'Signs you out of every other browser and device where you are signed in. This one stays signed in.',
   'settings.sessions.signOutOthers': 'Sign out my other sessions',
@@ -227,6 +229,7 @@ export const en = {
   'settings.sessions.failed': 'We could not sign out your other sessions just now. Try again in a moment.',
 
   // Shared states
+  'notice.dismiss': 'Dismiss',
   'state.emptyTitle': 'Nothing here yet',
   'state.emptyBody': 'When there is something to show, it will appear here.',
   'state.errorTitle': 'Something went wrong',
@@ -286,6 +289,7 @@ export const en = {
   'login.error.unknown': 'Sign-in could not be completed.',
   'login.error.startFailed': 'Google sign-in could not be started. Try again.',
   'login.retry': 'Try again',
+  'login.prefs.title': 'Language and appearance',
 
   // Registration (Story 1.3). Failures are deliberately generic: they never say whether a code exists.
   'register.eyebrow': 'Invitation',

@@ -30,6 +30,7 @@ const committedInvitationIds = committed.invitationIds;
 describe('schema, access and AC-8: anon and authenticated can execute and read nothing', () => {
   const tables = {
     identity: [
+      'account_preferences',
       'accounts',
       'audit_events',
       'fresh_authentications',
@@ -45,6 +46,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
   };
   const apiFunctions = [
     'account_status',
+    'adopt_preferences',
     'authorize_session',
     'before_user_created',
     'complete_step_up',
@@ -60,6 +62,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'revoke_grants',
     'revoke_invitation',
     'seed_preauthorization',
+    'set_preference',
     'start_step_up',
     'use_marker',
     'verify_csrf',
@@ -82,7 +85,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
          from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname in ('identity', 'projects') and c.relkind = 'r' order by 1`,
     );
-    expect(found).toHaveLength(11);
+    expect(found).toHaveLength(12);
     for (const row of found) expect(row, row.name).toMatchObject({rls: true, policies: 0});
   });
 
@@ -194,6 +197,8 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
       const calls = [
         'select * from api.account_status(gen_random_uuid())',
         'select * from api.authorize_session(gen_random_uuid(), gen_random_uuid())',
+        `select * from api.adopt_preferences(gen_random_uuid(), null, 'dark', 'simple', 'shown')`,
+        `select * from api.set_preference(gen_random_uuid(), 'theme', 'dark')`,
         'select * from api.issue_grant(gen_random_uuid(), gen_random_uuid())',
         `select * from api.revoke_grants('seed', 'test', gen_random_uuid())`,
         `select * from api.confirm_registration(gen_random_uuid(), gen_random_uuid(), repeat('a', 64))`,
@@ -264,6 +269,8 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
       const bodies: Record<string, unknown> = {
         account_status: {p_user_id: randomUUID()},
         authorize_session: {p_user_id: randomUUID(), p_session_id: randomUUID()},
+        adopt_preferences: {p_account_id: randomUUID(), p_locale: null, p_theme: 'dark', p_detail: 'simple', p_guidance: 'shown'},
+        set_preference: {p_account_id: randomUUID(), p_name: 'theme', p_value: 'dark'},
         issue_grant: {p_user_id: randomUUID(), p_session_id: randomUUID()},
         issue_csrf: {p_user_id: randomUUID(), p_session_id: randomUUID(), p_csrf_hash: codeHash()},
         verify_csrf: {p_user_id: randomUUID(), p_session_id: randomUUID(), p_csrf_hash: codeHash()},
@@ -1248,7 +1255,8 @@ describe('AC-7: pre-authorizations are seeded once and consumed at the first ver
       for (let again = 0; again < 5; again += 1) expect((await svc.consume(impostor.id)).outcome).toBe('refused');
       expect(await count(client, 'select count(*) as n from identity.audit_events where actor = $1', [`user:${impostor.id}`])).toBe(1);
       // Another user is audited separately.
-      const other = await addUser(client, {email: email.replace('admin-', 'ADMIN-'), subject: 'a-third-subject'});
+      // A third spelling. (It was 'ADMIN-', which equals the impostor's spelling whenever the random tag has no letter in it.)
+      const other = await addUser(client, {email: email.replace('admin-', 'Admin-'), subject: 'a-third-subject'});
       expect((await svc.consume(other.id)).outcome).toBe('refused');
       expect(await count(client, 'select count(*) as n from identity.audit_events where actor = $1', [`user:${other.id}`])).toBe(1);
     });

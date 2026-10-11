@@ -29,6 +29,10 @@ type Net = {
   grant: 'issued' | 'exists' | 'disabled' | 'subject_mismatch' | 'revoked' | 'error500' | 'unreachable';
   /** What api.issue_csrf does (Story 1.4c): an outcome, or a failure. */
   csrf: 'issued' | 'exists' | 'denied' | 'error500' | 'unreachable';
+  /** Whether an active answer carries the Account's preferences record (Story 1.4d): `record`, or `none` for an Account with no record yet. */
+  preferences: 'record' | 'none';
+  /** What api.adopt_preferences does (Story 1.4d): an outcome, or a failure. */
+  adopt: 'created' | 'exists' | 'denied' | 'error500' | 'unreachable';
 };
 
 let net: Net;
@@ -75,7 +79,13 @@ async function stubbedFetch(input: unknown, init: RequestInit = {}): Promise<Res
     if (net.authorization === 'error500') return json({message: 'boom'}, 500);
     if (net.authorization === 'forbidden') return json({code: '42501', message: 'permission denied'}, 403);
     const active = net.authorization === 'active';
-    return json({state: net.authorization, account_id: active ? ACCOUNT : null, workspace_id: active ? ACCOUNT : null, role: active ? 'member' : null, epoch: active ? 1 : null});
+    const preferences = active && net.preferences === 'record' ? {locale: 'en', theme: 'light', detail: 'simple', guidance: 'shown'} : null;
+    return json({state: net.authorization, account_id: active ? ACCOUNT : null, workspace_id: active ? ACCOUNT : null, role: active ? 'member' : null, epoch: active ? 1 : null, preferences});
+  }
+  if (url.pathname === '/rest/v1/rpc/adopt_preferences') {
+    if (net.adopt === 'unreachable') throw new TypeError('fetch failed');
+    if (net.adopt === 'error500') return json({message: 'boom'}, 500);
+    return json({outcome: net.adopt});
   }
   if (url.pathname === '/rest/v1/rpc/issue_grant') {
     if (net.grant === 'unreachable') throw new TypeError('fetch failed');
@@ -97,7 +107,7 @@ async function stubbedFetch(input: unknown, init: RequestInit = {}): Promise<Res
 }
 
 beforeEach(() => {
-  net = {user: 'ok', authorization: 'active', grant: 'issued', preauth: 'none', logout: 'ok', csrf: 'issued'};
+  net = {user: 'ok', authorization: 'active', grant: 'issued', preauth: 'none', logout: 'ok', csrf: 'issued', preferences: 'record', adopt: 'created'};
   calls = [];
   errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   warnings = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -1120,5 +1130,124 @@ describe('the CSRF cookie (Story 1.4c)', () => {
     const again = await run('/projects', {navigation: true, csrf: tokenOf(csrfSetCookie(first))});
     expect(csrfSetCookie(again)).toBeUndefined();
     expect(issued()).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+describe('a first sign-in adopts the device\'s preferences (Story 1.4d)', () => {
+  const adoptions = () => rpcs().filter((call) => call.path.endsWith('/adopt_preferences'));
+  const choose = (cookies: Record<string, string>) => Object.entries(cookies).map(([name, value]) => `nova3d-${name}=${value}`).join('; ');
+  const withDevice = (cookies: Record<string, string>) => `${cookieName}=${session()}; ${choose(cookies)}`;
+
+  beforeEach(() => {
+    net.preferences = 'none';
+  });
+
+  it('adopts the device\'s four choices on an Account\'s first page navigation, handing the database the Account of the verified session and the valid cookies', async () => {
+    const response = await run('/', {navigation: true, cookie: withDevice({locale: 'he', theme: 'dark', detail: 'technical', guidance: 'dismissed'})});
+    expect(passes(response)).toBe(true);
+    expect(adoptions()).toHaveLength(1);
+    expect(JSON.parse(adoptions()[0].body)).toEqual({p_account_id: ACCOUNT, p_locale: 'he', p_theme: 'dark', p_detail: 'technical', p_guidance: 'dismissed'});
+    expect(adoptions()[0].headers.authorization).toBe('Bearer service-role-key');
+    expect(adoptions()[0].headers['content-profile']).toBe('api');
+  });
+
+  it('adopts the defaults, with no language chosen, from a device with no cookies', async () => {
+    await run('/projects', {navigation: true});
+    expect(JSON.parse(adoptions()[0].body)).toEqual({p_account_id: ACCOUNT, p_locale: null, p_theme: 'light', p_detail: 'simple', p_guidance: 'shown'});
+  });
+
+  it('treats a tampered cookie as absent: the default for it, and the good cookies still adopted', async () => {
+    await run('/', {navigation: true, cookie: withDevice({locale: 'klingon', theme: 'neon', detail: 'technical', guidance: '<b>'})});
+    expect(JSON.parse(adoptions()[0].body)).toEqual({p_account_id: ACCOUNT, p_locale: null, p_theme: 'light', p_detail: 'technical', p_guidance: 'shown'});
+  });
+
+  it('never takes the Account from the request: the cookies cannot name one', async () => {
+    await run('/', {navigation: true, cookie: `${cookieName}=${session()}; nova3d-account=9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d; nova3d-theme=dark`, headers: {'x-account-id': 'other'}});
+    expect(JSON.parse(adoptions()[0].body).p_account_id).toBe(ACCOUNT);
+    expect(JSON.stringify(adoptions()[0].body)).not.toContain('9a1b2c3d');
+  });
+
+  it('adopts on any page of the Account, and renders it', async () => {
+    for (const path of ['/', '/projects', '/progress', '/settings', '/nope']) {
+      calls = [];
+      const response = await run(path, {navigation: true});
+      expect(passes(response), path).toBe(true);
+      expect(adoptions(), path).toHaveLength(1);
+    }
+  });
+
+  it('adopts nothing once the Account has a record: a new device, with other cookies, changes nothing and asks nothing', async () => {
+    net.preferences = 'record';
+    const response = await run('/', {navigation: true, cookie: withDevice({locale: 'he', theme: 'dark'})});
+    expect(passes(response)).toBe(true);
+    expect(adoptions()).toEqual([]);
+    // The cookies it carries are left alone: nothing is set but the CSRF token.
+    expect(setCookies(response).filter((value) => value.startsWith('nova3d-') && !value.startsWith(`${csrfCookieName}=`))).toEqual([]);
+  });
+
+  it('adopts only on a document navigation: not a client-side navigation, a prefetch, a Server Action, or a speculative load', async () => {
+    await run('/projects', {headers: {rsc: '1', 'sec-fetch-dest': 'empty'}});
+    await run('/projects', {headers: {'next-router-prefetch': '1'}});
+    await run('/projects', {navigation: true, headers: {'sec-purpose': 'prefetch'}});
+    await run('/projects', {method: 'POST', navigation: true});
+    await run('/projects', {headers: {'sec-fetch-dest': 'image', accept: 'image/png'}});
+    expect(adoptions()).toEqual([]);
+  });
+
+  it('adopts for an Account only: not for a signed-out visitor, an identity with no Account, or a session that is not let in', async () => {
+    await run('/projects', {navigation: true, cookie: null});
+    for (const state of ['unregistered', 'disabled', 'revoked', 'no_grant', 'expired', 'subject_mismatch', 'unreachable', 'error500'] as const) {
+      net.authorization = state;
+      await run('/projects', {navigation: true});
+    }
+    net.authorization = 'unregistered';
+    await run('/register', {navigation: true});
+    expect(adoptions()).toEqual([]);
+  });
+
+  it('does not adopt for /api, a public path (the sign-in page has no Account), or a refused origin', async () => {
+    await run('/api/projects', {navigation: true});
+    await run('/login', {navigation: true});
+    await run('/projects', {navigation: true, headers: {origin: 'https://evil.example', 'sec-fetch-site': 'cross-site'}, method: 'POST'});
+    expect(adoptions()).toEqual([]);
+  });
+
+  it('never blocks the page: a database that fails, errors or says no still renders it, and the next navigation tries again', async () => {
+    for (const adopt of ['unreachable', 'error500', 'denied'] as const) {
+      net.adopt = adopt;
+      calls = [];
+      errors.mockClear();
+      const response = await run('/projects', {navigation: true});
+      expect(passes(response), adopt).toBe(true);
+      expect(response.status).toBe(200);
+      expect(adoptions(), adopt).toHaveLength(1);
+      // Still no record on the next navigation: it is tried again.
+      calls = [];
+      expect(passes(await run('/projects', {navigation: true})), adopt).toBe(true);
+      expect(adoptions(), adopt).toHaveLength(1);
+    }
+  });
+
+  it('logs a failure as the error\'s name and message only, never the choices or the cookies', async () => {
+    net.adopt = 'unreachable';
+    await run('/', {navigation: true, cookie: withDevice({locale: 'he', theme: 'dark'})});
+    const printed = JSON.stringify(errors.mock.calls);
+    expect(printed).toContain('The device preferences could not be adopted');
+    expect(printed).toContain('AccountsUnavailableError: The accounts database did not answer.');
+    expect(printed).not.toMatch(/dark|nova3d-|Bearer|service-role-key/);
+  });
+
+  it('does not delay or change the CSRF token: both are done for the same navigation', async () => {
+    const response = await run('/', {navigation: true});
+    expect(setCookies(response).some((value) => value.startsWith(`${csrfCookieName}=`))).toBe(true);
+    expect(adoptions()).toHaveLength(1);
+  });
+
+  it('adopts for a session whose CSRF cookie is already there, and the other way round', async () => {
+    const token = 'A'.repeat(43);
+    await run('/', {navigation: true, csrf: token});
+    expect(adoptions()).toHaveLength(1);
+    expect(rpcs().filter((call) => call.path.endsWith('/issue_csrf'))).toEqual([]);
   });
 });

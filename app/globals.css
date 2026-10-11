@@ -699,7 +699,8 @@ main { flex: 1; min-inline-size: 0; }
 .activity-time { color: var(--text-muted); font-size: var(--text-xs); }
 
 .toolbar { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-block-start: var(--space-5); }
-.search-box { display: flex; flex: 1 1 14rem; align-items: center; gap: var(--space-2); max-inline-size: 24rem; min-block-size: var(--target); padding-inline: var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-card); color: var(--text-muted); }
+/* min-inline-size: 0 lets the box shrink to a narrow screen at enlarged text: a flex item's automatic minimum is its content's, and the field's own default width (twenty characters) is wider than a phone at 200%. */
+.search-box { display: flex; flex: 1 1 14rem; align-items: center; gap: var(--space-2); min-inline-size: 0; max-inline-size: 24rem; min-block-size: var(--target); padding-inline: var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-card); color: var(--text-muted); }
 .search-box input { flex: 1; min-inline-size: 0; border: 0; outline: 0; background: transparent; color: var(--text); }
 .search-box input::placeholder { color: var(--text-muted); opacity: 1; }
 .search-box:has(input:focus-visible) { outline: 0.1875rem solid var(--focus); outline-offset: 0.125rem; }
@@ -750,6 +751,9 @@ main { flex: 1; min-inline-size: 0; }
 .preview-line { padding-block: var(--space-1); }
 .sessions-action { display: grid; justify-items: start; gap: var(--space-3); margin-block-start: var(--space-4); }
 .sessions-action .notice { margin-block-start: 0; }
+/* A choice that could not be saved to the Account and was undone: in the flow, at the top of the page content, never over it. */
+.preference-notice { inline-size: 100%; max-inline-size: 78rem; margin-inline: auto; padding: var(--space-4) var(--gutter) 0; }
+.preference-notice .notice { margin-block-start: 0; align-items: center; flex-wrap: wrap; }
 .guidance-replay { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-block-start: var(--space-4); }
 .settings-state { color: var(--text-muted); font-size: var(--text-sm); }
 
@@ -778,6 +782,10 @@ main { flex: 1; min-inline-size: 0; }
 .auth-hint, .auth-footnote { color: var(--text-muted); font-size: var(--text-xs); }
 .auth-hint { margin-block-start: var(--space-2); }
 .auth-footnote { margin-block-start: var(--space-5); text-align: center; }
+
+/* The language and appearance choice on the sign-in page (Story 1.4d): two radio groups, side by side while there is room. */
+.auth-preferences { display: grid; gap: var(--space-3); margin-block-start: var(--space-5); padding-block-start: var(--space-4); border-block-start: 1px solid var(--border); }
+.choice-group-pair { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); margin-block-start: 0; }
 
 /* The registration form (Story 1.3). The code is Latin text, so the field reads left to right in Hebrew too. */
 .auth-form { display: grid; gap: var(--space-4); }

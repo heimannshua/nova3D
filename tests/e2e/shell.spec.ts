@@ -1,28 +1,16 @@
-import AxeBuilder from '@axe-core/playwright';
-import {expect, test, type BrowserContext, type Page} from '@playwright/test';
+import {expect, test, type Page} from '@playwright/test';
 import {translate, type Locale, type MessageKey} from '../../lib/i18n';
+import {announcer, cookieValue as cookie, overflowReport as overflow, setFontSize, setPreferences, variants, violations} from '../support/e2e-helpers';
 
-// Story 1.2: the accessible, localized shell. The real shell is behind sign-in and no test login exists
-// until Story 1.4, so these flows run on the synthetic design kit (/kit), which renders the same shell,
-// the shared patterns and the Settings controls. Unless SYNTHETIC_DATA_ENABLED=true the kit is not public:
-// a signed-out browser is redirected to sign-in and a signed-in one gets a 404.
+// Story 1.2: the accessible, localized shell. These flows run on the synthetic design kit (/kit), which renders
+// the same shell, the shared patterns and the Settings controls with no one signed in. Unless
+// SYNTHETIC_DATA_ENABLED=true the kit is not public: a signed-out browser is redirected to sign-in and a signed-in
+// one gets a 404. The same shell on the REAL routes, signed in (Home, My Projects, In Progress, Settings and the
+// 404 page), is covered by signed-in-shell.spec.ts since Story 1.4d, and what a signed-in person's choices do by
+// preferences.spec.ts.
 // Every flow runs on both projects: `desktop` (sidebar) and `phone` (bottom bar).
 
-type Variant = {name: string; locale: Locale; theme: 'light' | 'dark'};
-const variants: Variant[] = [
-  {name: 'English, light', locale: 'en', theme: 'light'},
-  {name: 'English, dark', locale: 'en', theme: 'dark'},
-  {name: 'Hebrew, light', locale: 'he', theme: 'light'},
-  {name: 'Hebrew, dark', locale: 'he', theme: 'dark'},
-];
-
-const wcag = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
 const label = (locale: Locale, key: MessageKey, params?: Record<string, string | number>) => translate(locale, key, params);
-
-async function setPreferences(context: BrowserContext, baseURL: string, preferences: {locale?: string; theme?: string; detail?: string; guidance?: string}) {
-  const cookies = Object.entries(preferences).map(([name, value]) => ({name: `nova3d-${name}`, value: String(value), url: baseURL}));
-  if (cookies.length) await context.addCookies(cookies);
-}
 
 // In CI the design kit must be there: a skipped test would read as a pass. On a developer machine without
 // SYNTHETIC_DATA_ENABLED=true the kit is off, so its tests skip with a reason instead of failing.
@@ -41,45 +29,7 @@ async function openKit(page: Page) {
   await expect(page.locator('main h1')).toBeVisible();
 }
 
-async function violations(page: Page) {
-  const results = await new AxeBuilder({page}).withTags(wcag).analyze();
-  return results.violations.map((violation) => ({
-    rule: violation.id,
-    impact: violation.impact,
-    help: violation.help,
-    targets: violation.nodes.slice(0, 5).map((node) => `${node.target.join(' ')} :: ${node.failureSummary?.split('\n').slice(0, 3).join(' | ')}`),
-  }));
-}
-
-const announcer = (page: Page) => page.locator('[data-announcer]');
-const cookie = async (context: BrowserContext, name: string) => (await context.cookies()).find((candidate) => candidate.name === name)?.value;
 const mainNav = (page: Page, locale: Locale) => page.getByRole('navigation', {name: label(locale, 'a11y.mainNavigation')});
-
-async function setFontSize(page: Page, pixels: number) {
-  const session = await page.context().newCDPSession(page);
-  // The browser's own "font size" setting, which is what enlarged text really changes (it also moves rem breakpoints).
-  await session.send('Page.setFontSizes', {fontSizes: {standard: pixels, fixed: pixels}});
-}
-
-async function overflow(page: Page) {
-  return page.evaluate(() => {
-    const width = document.documentElement.clientWidth;
-    const clipped = [...document.querySelectorAll<HTMLElement>('body *')]
-      .filter((element) => {
-        const box = element.getBoundingClientRect();
-        const style = getComputedStyle(element);
-        if (box.width === 0 || style.visibility === 'hidden' || element.closest('.visually-hidden, .skip-link')) return false;
-        // Something inside a box that clips it (decorative art in a card, say) cannot widen the page.
-        for (let parent = element.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
-          if (getComputedStyle(parent).overflowX !== 'visible') return false;
-        }
-        return box.right > width + 1 || box.left < -1;
-      })
-      .slice(0, 6)
-      .map((element) => `${element.tagName.toLowerCase()}.${element.className} ${Math.round(element.getBoundingClientRect().left)}..${Math.round(element.getBoundingClientRect().right)}`);
-    return {scroll: document.documentElement.scrollWidth - width, clipped};
-  });
-}
 
 test('the design kit is served in the synthetic test environment', async ({page}) => {
   // Every kit flow below depends on this. It never skips: a redirect (flag off, signed out) or a 404 fails it.

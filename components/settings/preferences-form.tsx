@@ -7,6 +7,7 @@ import {details, themes, type Detail, type Theme} from '@/lib/preferences';
 import {usePreferences} from '../preferences-provider';
 import {useAnnounce} from '../ui/announcer';
 import {Button} from '../ui/button';
+import {Choice} from '../ui/choice';
 import {Explanation} from '../ui/explain';
 import {TextSpan} from '../ui/text-span';
 
@@ -21,21 +22,14 @@ function Section({id, title, help, children}: {id: string; title: string; help: 
   );
 }
 
-function Choice({name, value, checked, onChange, children}: {name: string; value: string; checked: boolean; onChange: () => void; children: ReactNode}) {
-  return (
-    <label className="choice">
-      <input type="radio" name={name} value={value} checked={checked} onChange={onChange}/>
-      <span className="choice-text">{children}</span>
-    </label>
-  );
-}
-
 const themeLabels = {light: 'settings.theme.light', dark: 'settings.theme.dark'} as const satisfies Record<Theme, MessageKey>;
 const detailLabels = {simple: 'settings.detail.simple', technical: 'settings.detail.technical'} as const satisfies Record<Detail, MessageKey>;
 
 /**
- * Language, light or dark, how much explanation, and the introduction. Each choice takes effect at once,
- * is kept on this device, and is announced. None of them touches evidence or decisions.
+ * Language, light or dark, how much explanation, and the introduction. Each choice takes effect at once and is
+ * announced. For a signed-in person it is saved to their Account, so it follows them to every device (a save that
+ * fails is undone and says so: components/ui/preference-notice.tsx); anywhere else it is kept on this device. None
+ * of them touches evidence or decisions.
  */
 export function PreferencesForm() {
   const {t, locale} = useI18n();

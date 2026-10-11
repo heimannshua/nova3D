@@ -130,6 +130,12 @@ export function createHarness() {
       verifyCsrf: (userId: string, sessionId: string, hash: string) => call('select outcome from api.verify_csrf($1, $2, $3)', [userId, sessionId, hash]),
       useMarker: (userId: string, sessionId: string, actionClass: string, startedAfter: Date | string | null = null) =>
         call('select outcome from api.use_marker($1, $2, $3, $4)', [userId, sessionId, actionClass, startedAfter]),
+      // Story 1.4d: the preferences record. The defaults are the ones a device with no cookies adopts.
+      adoptPreferences: (accountId: string, values: {locale?: string | null; theme?: string; detail?: string; guidance?: string} = {}) =>
+        call('select outcome from api.adopt_preferences($1, $2, $3, $4, $5)', [accountId, values.locale ?? null, values.theme ?? 'light', values.detail ?? 'simple', values.guidance ?? 'shown']),
+      setPreference: (accountId: string, name: string, value: string | null) => call('select outcome from api.set_preference($1, $2, $3)', [accountId, name, value]),
+      /** The preferences record the live authorization of a session carries (null for none, and in every state but active). */
+      authorizedPreferences: async (userId: string, sessionId: string) => (await call('select state, preferences from api.authorize_session($1, $2)', [userId, sessionId])) as {state: string; preferences: Record<string, unknown> | null},
       raiseEpoch: (accountId: string, actor = 'seed:local:test') =>
         call('select account_id, epoch::integer as epoch from api.raise_authorization_epoch($1, $2)', [accountId, actor]),
       seed: (email: string, role: string, actor = 'seed:local:test') => call('select * from api.seed_preauthorization($1, $2, $3)', [email, role, actor]),

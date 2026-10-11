@@ -39,6 +39,16 @@ export function isAuthCookieName(name: string, supabaseUrl: string | undefined =
 }
 
 /**
+ * Whether a cookie is THIS project's session cookie itself (or one numbered chunk of it): the cookie a signed-in
+ * browser carries. Not the PKCE verifier cookies a sign-in under way leaves, which say nothing about a session.
+ */
+export function isAuthSessionCookieName(name: string, supabaseUrl: string | undefined = process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  const base = authCookieBase(supabaseUrl);
+  if (!base) return false;
+  return new RegExp(`^${escapeForPattern(base)}(?:\\.\\d+)?$`).test(name);
+}
+
+/**
  * Whether a cookie is one of THIS project's PKCE verifier cookies and nothing else: the fixed `-code-verifier`,
  * the `-flows-code-verifier` index and the per-flow `-flow-<id>-code-verifier` slots. Never the session cookie.
  */

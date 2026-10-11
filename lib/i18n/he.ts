@@ -185,7 +185,7 @@ export const he: Record<MessageKey, Message> = {
   // Settings
   'settings.eyebrow': 'חשבון',
   'settings.title': 'הגדרות',
-  'settings.lede': 'בחרו איך nova3D נראית ונקראת עבורכם. הבחירות נשמרות במכשיר הזה עד שהחשבון שלכם יוכל להחזיק אותן.',
+  'settings.lede': 'בחרו איך nova3D נראית ונקראת עבורכם. הבחירות שייכות לחשבון שלכם, ולכן הן מלוות אתכם בכל מכשיר שתתחברו בו.',
   'settings.language.title': 'שפה',
   'settings.language.help': 'nova3D פועלת בשפת המכשיר שלכם עד שתבחרו שפה כאן.',
   'settings.language.device': 'לפי המכשיר שלי',
@@ -216,6 +216,8 @@ export const he: Record<MessageKey, Message> = {
   'settings.announce.detailTechnical': 'הפירוט הטכני פועל.',
   'settings.announce.guidance': 'ההיכרות הוחזרה לדף הבית.',
   'settings.announce.failed': 'לא ניתן היה לשמור את הבחירה. ודאו שעוגיות מותרות באתר הזה.',
+  'settings.saveFailed.title': 'הבחירה לא נשמרה',
+  'settings.announce.saveFailed': 'לא ניתן היה לשמור את הבחירה כרגע, ולכן היא בוטלה. נסו שוב בעוד רגע.',
   'settings.sessions.title': 'הפעלות אחרות',
   'settings.sessions.help': 'מנתק אתכם מכל שאר הדפדפנים והמכשירים שבהם אתם מחוברים. ההפעלה הזו נשארת מחוברת.',
   'settings.sessions.signOutOthers': 'התנתקות מההפעלות האחרות שלי',
@@ -229,6 +231,7 @@ export const he: Record<MessageKey, Message> = {
   'settings.sessions.failed': 'לא ניתן היה לנתק את ההפעלות האחרות כרגע. נסו שוב בעוד רגע.',
 
   // Shared states
+  'notice.dismiss': 'סגירה',
   'state.emptyTitle': 'אין כאן עדיין כלום',
   'state.emptyBody': 'כשיהיה מה להציג, זה יופיע כאן.',
   'state.errorTitle': 'משהו השתבש',
@@ -288,6 +291,7 @@ export const he: Record<MessageKey, Message> = {
   'login.error.unknown': 'לא ניתן היה להשלים את ההתחברות.',
   'login.error.startFailed': 'לא ניתן היה להתחיל את ההתחברות עם Google. נסו שוב.',
   'login.retry': 'לנסות שוב',
+  'login.prefs.title': 'שפה ומראה',
 
   // Registration (Story 1.3). Failures are deliberately generic: they never say whether a code exists.
   'register.eyebrow': 'הזמנה',

@@ -21,15 +21,16 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// The language, direction and theme are decided on the server from the device preference cookies
-// (and Accept-Language), so the first HTML is already right and nothing flashes. Reading the request
-// makes every page dynamic, which is acceptable for a private app. Light is the default; dark is only ever chosen.
+// The language, direction and theme are decided on the server, so the first HTML is already right and nothing
+// flashes: from the Account's stored record when the request belongs to an active Account that has one (Story
+// 1.4d; lib/preferences.server.ts), otherwise from the device preference cookies and Accept-Language. Reading the
+// request makes every page dynamic, which is acceptable for a private app. Light is the default; dark is only ever chosen.
 export default async function RootLayout({children}: Readonly<{children: ReactNode}>) {
-  const {preferences, deviceLocale, localeOverridden} = await getRequestPreferences();
+  const {preferences, deviceLocale, localeOverridden, accountBacked} = await getRequestPreferences();
   return (
     <html lang={preferences.locale} dir={directionOf(preferences.locale)} data-theme={preferences.theme}>
       <body>
-        <PreferencesProvider initial={preferences} deviceLocale={deviceLocale} localeOverridden={localeOverridden}>
+        <PreferencesProvider initial={preferences} deviceLocale={deviceLocale} localeOverridden={localeOverridden} accountBacked={accountBacked}>
           <AnnouncerProvider>
             <SkipLink/>
             <Shell>{children}</Shell>

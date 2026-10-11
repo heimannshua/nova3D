@@ -660,7 +660,7 @@ describe('a NULL refuses; it never falls through as "not different"', () => {
        language sql security definer set search_path = '' as $$ ${body} $$`;
 
   it('start_step_up refuses when the authorization is absent or all NULL, and writes no nonce', async () => {
-    for (const body of ['select null::api.session_authorization', 'select (null, null, null, null, null)::api.session_authorization', `select ('active', null, null, null, null)::api.session_authorization`]) {
+    for (const body of ['select null::api.session_authorization', 'select (null, null, null, null, null, null)::api.session_authorization', `select ('active', null, null, null, null, null)::api.session_authorization`]) {
       await inTx(async (client) => {
         const m = await member(client);
         await replace(client, nullAuthorization(body));
@@ -679,7 +679,7 @@ describe('a NULL refuses; it never falls through as "not different"', () => {
       const flow = await start(client, m, {actionClass: 'account_deletion'});
       const session = await signInAgain(client, m.user.id);
       expect((await svc.completeStepUp(m.user.id, session, flow.secret, flow.verifier)).outcome).toBe('accepted');
-      for (const body of ['select null::api.session_authorization', 'select (null, null, null, null, null)::api.session_authorization', `select ('active', null, null, null, null)::api.session_authorization`]) {
+      for (const body of ['select null::api.session_authorization', 'select (null, null, null, null, null, null)::api.session_authorization', `select ('active', null, null, null, null, null)::api.session_authorization`]) {
         await replace(client, nullAuthorization(body));
         expect(await svc.useMarker(m.user.id, session, 'account_deletion', new Date(0)), body).toEqual({outcome: 'denied'});
       }

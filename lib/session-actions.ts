@@ -15,7 +15,7 @@ export type SessionAction = (previous: SessionActionState) => Promise<SessionAct
 export const unexpectedResponseMessage = 'An unexpected response was received from the server.';
 
 /** Loads this page again, which asks the proxy afresh: it sends the person wherever they now belong. */
-const reloadHere = () => window.location.assign(window.location.href);
+export const reloadHere = () => window.location.assign(window.location.href);
 
 /**
  * Calls a sign-out action and reads what comes back.

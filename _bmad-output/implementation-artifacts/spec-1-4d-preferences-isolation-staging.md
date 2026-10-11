@@ -2,7 +2,8 @@
 title: 'Story 1.4d: Account preferences, the isolation proof, the staging guide and signed-in shell coverage'
 type: 'feature'
 created: '2026-10-11'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: '9ca8e71c40241c967d4e22a08a7db39e09d7160d'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -59,14 +60,14 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/20261011140000_account_preferences.sql` -- table, `api.adopt_preferences`, `api.set_preference`, extended `api.authorize_session` and `api.preflight` -- AC-7
-- [ ] `lib/accounts.ts`, `lib/access.ts`, `lib/auth.ts`, `lib/preferences.server.ts`, `proxy.ts` -- typed calls, the record carried in `AccessAccount`, effective preferences, adoption -- AC-7
-- [ ] `app/account/actions.ts` (or a sibling), `components/preferences-provider.tsx`, `preferences-form.tsx`, `guidance-card.tsx`, `app/layout.tsx` -- persisted change with undo on failure, a small notice component that announces a failed save, account wording for Settings -- AC-7
-- [ ] `components/login-form.tsx` (or a child), `lib/i18n/{en,he}.ts` -- language and theme choice on the sign-in page; new strings -- AC-7
-- [ ] `tests/integration/isolation.test.ts` -- two Accounts over REST, database roles, `api` functions, storage bucket, composite references, table-by-table closure with a forward guard -- AC-1
-- [ ] `docs/staging.md` and a unit test that it names every migration; link from `deployment-setup.md` and `auth-setup.md` -- manual push procedure
-- [ ] `tests/e2e/signed-in-shell.spec.ts` (shared helpers move to `e2e-helpers.ts`), `tests/e2e/preferences.spec.ts` -- real routes and the 404 page: keyboard, menus and dialogs, enlarged text, high contrast, axe in four variants, on both projects; first sign-in, new device, change from another device, sign-in page choice -- AC-1, AC-7
-- [ ] Unit tests for every matrix row; `lib/accounts.ts` keeps its guard by test, with its header note and the deferred entry updated (no `server-only` package); `README.md`, `docs/auth-setup.md`, `deferred-work.md` -- housekeeping
+- [x] `supabase/migrations/20261011140000_account_preferences.sql` -- table, `api.adopt_preferences`, `api.set_preference`, extended `api.authorize_session` and `api.preflight` -- AC-7
+- [x] `lib/accounts.ts`, `lib/access.ts`, `lib/auth.ts`, `lib/preferences.server.ts`, `proxy.ts` -- typed calls, the record carried in `AccessAccount`, effective preferences, adoption -- AC-7
+- [x] `app/account/actions.ts` (or a sibling), `components/preferences-provider.tsx`, `preferences-form.tsx`, `guidance-card.tsx`, `app/layout.tsx` -- persisted change with undo on failure, a small notice component that announces a failed save, account wording for Settings -- AC-7
+- [x] `components/login-form.tsx` (or a child), `lib/i18n/{en,he}.ts` -- language and theme choice on the sign-in page; new strings -- AC-7
+- [x] `tests/integration/isolation.test.ts` -- two Accounts over REST, database roles, `api` functions, storage bucket, composite references, table-by-table closure with a forward guard -- AC-1
+- [x] `docs/staging.md` and a unit test that it names every migration; link from `deployment-setup.md` and `auth-setup.md` -- manual push procedure
+- [x] `tests/e2e/signed-in-shell.spec.ts` (shared helpers move to `e2e-helpers.ts`), `tests/e2e/preferences.spec.ts` -- real routes and the 404 page: keyboard, menus and dialogs, enlarged text, high contrast, axe in four variants, on both projects; first sign-in, new device, change from another device, sign-in page choice -- AC-1, AC-7
+- [x] Unit tests for every matrix row; `lib/accounts.ts` keeps its guard by test, with its header note and the deferred entry updated (no `server-only` package); `README.md`, `docs/auth-setup.md`, `deferred-work.md` -- housekeeping
 
 **Acceptance Criteria:**
 - Given preferences chosen on a device before sign-in, when an Account first signs in, then they become its stored preferences and a new device renders them after sign-in (AC-7).
@@ -78,7 +79,7 @@ context:
 
 ## Design Notes
 
-Why the record rides on `authorize_session`: the gate already makes that call twice per page, so the record costs a primary-key read, not a round trip, and cannot disagree with the Account being authorized. Why the layout renders from it instead of rewriting cookies in the proxy: a cross-device change shows on the next navigation with no cookie plumbing, and cookies stay only the copy that serves pages with no Account. The layout asks `getAccess()` only when the request carries an Auth session cookie, so the sign-in page and the kit cost nothing signed out; an unavailable or non-active answer falls back to the cookies. Adoption in the proxy covers every way a first session starts (callback claim, registration, `/register` claim), as the CSRF issue did. A shared device means a new Account's first sign-in adopts whatever the last person left in the cookies; they are not sensitive and the person can change them. Storage: Supabase ships no policy on `storage.objects`, so browsers are denied by default; the suite pins that no policy exists and that a private bucket's objects stay unreachable, which Story 1.12's gateway builds on.
+Why the record rides on `authorize_session`: the gate already makes that call twice per page, so the record costs a primary-key read, not a round trip, and cannot disagree with the Account being authorized. Why the layout renders from it instead of rewriting cookies in the proxy: a cross-device change shows on the next navigation with no cookie plumbing, and cookies stay only the copy that serves pages with no Account. The layout asks `getAccess()` only when the request carries an Auth session cookie, so the sign-in page and the kit cost nothing signed out; an unavailable or non-active answer falls back to the cookies. Adoption in the proxy covers every first session that ends in a full page load (the callback claim, the `/register` claim), as the CSRF issue does; the registration form's landing is a Server Action redirect, which the browser follows as a client-side navigation, so that Account adopts at its next full page load (recorded in `deferred-work.md`). A shared device means a new Account's first sign-in adopts whatever the last person left in the cookies; they are not sensitive and the person can change them. Storage: Supabase ships no policy on `storage.objects`, so browsers are denied by default; the suite pins that no policy exists and that a private bucket's objects stay unreachable, which Story 1.12's gateway builds on.
 
 ## Verification
 
@@ -90,3 +91,72 @@ Why the record rides on `authorize_session`: the gate already makes that call tw
 
 **Manual checks (if no CLI):**
 - Read `docs/staging.md` as Josh on Windows: every command works in PowerShell, nothing assumes a bash shell, nothing is applied by the build.
+
+## Suggested Review Order
+
+**The record and how it reaches a request**
+
+- The table: one row per Account, CHECK constraints equal to the allowed values, closed to every browser role.
+  [`account_preferences.sql:33`](../../supabase/migrations/20261011140000_account_preferences.sql#L33)
+
+- Adoption inserts only when there is no record; saving validates one name and value and refuses an inactive Account.
+  [`account_preferences.sql:87`](../../supabase/migrations/20261011140000_account_preferences.sql#L87)
+
+- The live authorization carries the record in its active answer: one primary-key read, no extra round trip.
+  [`account_preferences.sql:247`](../../supabase/migrations/20261011140000_account_preferences.sql#L247)
+
+- A first sign-in adopts the device's valid cookies in the proxy, on a full page load, and never blocks the page.
+  [`proxy.ts:113`](../../proxy.ts#L113)
+
+- The record wins for an active Account; every other state, or a failed read, falls back to the cookies.
+  [`preferences.server.ts:30`](../../lib/preferences.server.ts#L30)
+
+**Changing a preference while signed in**
+
+- One Server Action: verified Account, validated name and value, record first, cookie copy only after it is saved.
+  [`preference-actions.ts:62`](../../app/account/preference-actions.ts#L62)
+
+- Saves run in order, a throw or a hang never wedges the queue, and a redirect counts as ended.
+  [`preference-actions.ts:83`](../../lib/preference-actions.ts#L83)
+
+- The provider applies a choice at once, undoes it if the save fails, and holds back a render older than the choices on screen.
+  [`preferences-provider.tsx:119`](../../components/preferences-provider.tsx#L119)
+
+- The failed-save notice: announced once per failure, in the shell and on the screens without one.
+  [`preference-notice.tsx:40`](../../components/ui/preference-notice.tsx#L40)
+
+- The sign-in page offers language and light or dark as radio groups, so it still has one button.
+  [`login-preferences.tsx:26`](../../components/login-preferences.tsx#L26)
+
+**The isolation proof**
+
+- Two real Accounts, then every path: REST, database roles, `api` functions with the other Account's IDs.
+  [`isolation.test.ts:133`](../../tests/integration/isolation.test.ts#L133)
+
+- A private bucket stays unreachable to the other Account, and no storage policy exists to open it.
+  [`isolation.test.ts:366`](../../tests/integration/isolation.test.ts#L366)
+
+- Composite foreign keys keep a reference inside one Workspace (scratch tables, rolled back).
+  [`isolation.test.ts:496`](../../tests/integration/isolation.test.ts#L496)
+
+- Catalog-driven closure of every Identity, Projects and Lifecycle table, with a forward guard shown to fail.
+  [`isolation.test.ts:698`](../../tests/integration/isolation.test.ts#L698)
+
+**Staging guide and the signed-in shell**
+
+- The manual push procedure: link, migrations, Auth settings from a scratch copy, seed, deploy, verify.
+  [`staging.md:45`](../../docs/staging.md#L45)
+
+- The real routes and the 404 page behind a forged session: axe in four variants, keyboard, text size, contrast.
+  [`signed-in-shell.spec.ts:59`](../../tests/e2e/signed-in-shell.spec.ts#L59)
+
+- A defect the kit could not show: the search field pushed My Projects sideways at 200% text on a phone.
+  [`globals.css:703`](../../app/globals.css#L703)
+
+**Docs and tests (supporting)**
+
+- What the record is, how it is adopted, and what the isolation suite proves.
+  [`auth-setup.md:156`](../../docs/auth-setup.md#L156)
+
+- The rule that a stale server render never undoes a later choice, as a pure function with tests that can fail.
+  [`preferences.ts:177`](../../lib/preferences.ts#L177)

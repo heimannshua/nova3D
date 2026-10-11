@@ -15,7 +15,10 @@
 //                            can count how many authorizations a page costs.
 //
 // A call is attributed to the user by the `p_user_id` it carries, or by the `user:<id>` actor of a
-// revocation. Everything else, Auth included, goes through untouched.
+// revocation. The preferences functions (Story 1.4d) name only an Account, so a call that carries a
+// `p_account_id` and neither of those is attributed to that ACCOUNT's ID: a test that wants the preferences
+// functions to fail, or to count them, uses the Account's ID as the key. Everything else, Auth included,
+// goes through untouched.
 //
 // It refuses to load unless playwright.config.ts has said it may: NOVA3D_FAKE_NETWORK must be `playwright`,
 // and NOVA3D_FAKE_NETWORK_DIR must name the private directory (made with mkdtemp) the run controls it through.
@@ -37,7 +40,8 @@ function subjectOf(body) {
   if (typeof body.p_user_id === 'string' && uuid.test(body.p_user_id)) return body.p_user_id.toLowerCase();
   const actor = typeof body.p_actor === 'string' ? body.p_actor : '';
   const id = actor.startsWith('user:') ? actor.slice(5) : '';
-  return uuid.test(id) ? id.toLowerCase() : null;
+  if (uuid.test(id)) return id.toLowerCase();
+  return typeof body.p_account_id === 'string' && uuid.test(body.p_account_id) ? body.p_account_id.toLowerCase() : null;
 }
 
 function plan(userId, name) {

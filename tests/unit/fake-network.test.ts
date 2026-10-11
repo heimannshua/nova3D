@@ -108,6 +108,26 @@ describe('what it does to a call', () => {
     expect(byActor('system:authorization')).toEqual({outcome: '200', reached: 1});
   });
 
+  it('attributes a call that names only an Account (the preferences functions, Story 1.4d) to that Account\'s ID, and a call that names a user to the user', () => {
+    const ACCOUNT = '7a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d';
+    const byAccount = (account: string, rpc = 'set_preference') => JSON.parse(run(script(account, rpc, `{p_account_id: '${account}', p_name: 'theme', p_value: 'dark'}`), allowed()).stdout) as {outcome: string; reached: number};
+    // Nothing switched on for the Account: through, and counted under the Account's ID.
+    expect(byAccount(ACCOUNT)).toEqual({outcome: '200', reached: 1});
+    expect(readFileSync(join(directory, `${ACCOUNT}.calls`), 'utf8')).toBe('set_preference\n');
+    // Switched on for the Account's ID: the preferences call fails, narrowed to its function.
+    writeFileSync(join(directory, ACCOUNT), JSON.stringify({rpc: ['set_preference']}));
+    expect(byAccount(ACCOUNT)).toEqual({outcome: 'TypeError:fetch failed', reached: 0});
+    expect(byAccount(ACCOUNT, 'adopt_preferences')).toEqual({outcome: '200', reached: 1});
+    // A user's switch does not catch an Account's call, and the other way round.
+    rmSync(join(directory, ACCOUNT));
+    writeFileSync(join(directory, USER), '');
+    expect(byAccount(ACCOUNT)).toEqual({outcome: '200', reached: 1});
+    expect(call(USER)).toEqual({outcome: 'TypeError:fetch failed', reached: 0});
+    // A call that names a user AND an Account is the user's.
+    const both = JSON.parse(run(script(USER, 'revoke_grants', `{p_user_id: '${USER}', p_account_id: '${ACCOUNT}'}`), allowed()).stdout) as {outcome: string};
+    expect(both.outcome).toBe('TypeError:fetch failed');
+  });
+
   it('counts the calls it sees, by function name, for the user the call names', () => {
     call(USER, 'authorize_session');
     call(USER, 'issue_grant');

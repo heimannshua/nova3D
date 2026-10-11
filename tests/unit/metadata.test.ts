@@ -2,7 +2,10 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const request = vi.hoisted(() => ({cookies: {} as Record<string, string>, acceptLanguage: null as string | null}));
 vi.mock('next/headers', () => ({
-  cookies: async () => ({get: (name: string) => (name in request.cookies ? {name, value: request.cookies[name]} : undefined)}),
+  cookies: async () => ({
+    get: (name: string) => (name in request.cookies ? {name, value: request.cookies[name]} : undefined),
+    getAll: () => Object.entries(request.cookies).map(([name, value]) => ({name, value})),
+  }),
   headers: async () => ({get: (name: string) => (name.toLowerCase() === 'accept-language' ? request.acceptLanguage : null)}),
 }));
 

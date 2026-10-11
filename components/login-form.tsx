@@ -5,6 +5,7 @@ import {createBrowserClient} from '@supabase/ssr';
 import {useI18n} from '@/lib/i18n/react';
 import {signInErrorKey, signInNoticeKey, startGoogleSignIn} from '@/lib/sign-in';
 import type {MessageKey} from '@/lib/i18n';
+import {LoginPreferences} from './login-preferences';
 import {BrandMark} from './shell/brand';
 import {Button, LinkButton} from './ui/button';
 import {Notice} from './ui/states';
@@ -62,6 +63,7 @@ export function LoginForm({initialError, initialNotice}: {initialError?: string;
         </Button>
         {!googleAvailable ? <p className="auth-hint">{t('login.notConfigured')}</p> : null}
         <p className="auth-footnote">{t('login.footnote')}</p>
+        <LoginPreferences/>
       </section>
     </main>
   );

@@ -1,5 +1,6 @@
 import {NextResponse, type NextRequest} from 'next/server';
 import {
+  adoptDevicePreferences,
   apiDenial,
   apiDenialResponse,
   apiNotConfigured,
@@ -16,6 +17,7 @@ import {
   type ApiDenial,
 } from '@/lib/access';
 import {hasSupabaseConfig} from '@/lib/auth-config';
+import {recordFromCookies} from '@/lib/preferences';
 import {isPublicPath} from '@/lib/public-paths';
 import {csrfCookieName, csrfCookieOptions, decideOrigin, isCsrfToken, isDocumentNavigation, isSecureRequest, originInputOf, type OriginRefusal} from '@/lib/request-integrity';
 import {signInErrorPath, type SignInErrorCode} from '@/lib/sign-in';
@@ -95,6 +97,25 @@ async function pageCsrfCookie(request: NextRequest, api: boolean, access: Access
   return {name: csrfCookieName, value: token, options: csrfCookieOptions(isSecureRequest(request.headers.get('x-forwarded-proto'), request.nextUrl.protocol))};
 }
 
+/**
+ * A person's first sign-in adopts the device's choices (Story 1.4d): on an authorized page navigation whose active
+ * answer carries no preferences record, the valid cookies (language, light or dark, explanation detail, first-use
+ * guidance; an absent or tampered one is the default, and a language no cookie chose is "follow the device")
+ * become the Account's record, once. It covers every way a first session starts that ends in a full page load (the
+ * sign-in callback's redirect, the `/register` claim); the registration form's landing is a Server Action redirect,
+ * which is a client-side navigation, and adopts at the next full page load. The database inserts only
+ * when there is still no record, so two first requests at once leave one, and a record that exists is never
+ * touched: from then on the record wins and the cookies are only a copy. Only a document navigation adopts, like
+ * the CSRF cookie: a prefetch, a client-side navigation or an /api call has not opened the page. A failure is
+ * logged (the error's name and message only) and never blocks the page, which renders from the cookies; the next
+ * navigation tries again.
+ */
+async function adoptDeviceChoices(request: NextRequest, api: boolean, access: Access) {
+  if (api || access.state !== 'active' || access.account.preferences !== null) return;
+  if (!isDocumentNavigation(request.method, request.headers)) return;
+  await adoptDevicePreferences(access.account, recordFromCookies((name) => request.cookies.get(name)?.value));
+}
+
 function deny(request: NextRequest, error: SignInErrorCode) {
   return clearLegacyCookie(request, NextResponse.redirect(new URL(signInErrorPath(error), request.url), redirectStatus(request)));
 }
@@ -113,7 +134,8 @@ function deny(request: NextRequest, error: SignInErrorCode) {
  * Request integrity (Story 1.4c) comes after the access decision, so a request that is denied keeps its 401, 403
  * or redirect: a request that would otherwise go on, and every request to a public path, is refused with a 403
  * unless it is safe (GET, HEAD, OPTIONS) or its Origin is this application's. A page request that goes on may
- * also be handed its session's CSRF token cookie (pageCsrfCookie).
+ * also be handed its session's CSRF token cookie (pageCsrfCookie), and is the moment an Account with no preferences
+ * record adopts the device's cookies (adoptDeviceChoices).
  *
  * One more thing happens here, because only the proxy (and routes and actions) can clear cookies: a person
  * who signed in BEFORE their address was pre-authorized has no Account, and the sign-in callback, which
@@ -150,7 +172,9 @@ export async function proxy(request: NextRequest) {
       }
       const refusal = originRefusal(request);
       if (refusal) return refuseOrigin(request, api, refusal, client);
-      return clearLegacyCookie(request, client.next(await pageCsrfCookie(request, api, access)));
+      // The two never depend on each other, and neither throws or blocks the page: one round trip's time, not two.
+      const [csrfCookie] = await Promise.all([pageCsrfCookie(request, api, access), adoptDeviceChoices(request, api, access)]);
+      return clearLegacyCookie(request, client.next(csrfCookie));
     }
 
     // A refusal that signs the person out does it on a page request. A Server Action that is refused (a form

@@ -11,6 +11,7 @@ import {useAnnounce} from '../ui/announcer';
 import {Button} from '../ui/button';
 import {Icon, type IconName} from '../ui/icon';
 import {Popover} from '../ui/popover';
+import {PreferenceSaveNotice} from '../ui/preference-notice';
 import {mainContentId} from '../ui/skip-link';
 import {Notice} from '../ui/states';
 import {Brand} from './brand';
@@ -173,7 +174,16 @@ export function Shell({children, pathname: pathnameOverride, initialCreateOpen =
     setAccountOpen(false);
   }
 
-  if (isChromeless(pathname)) return <>{children}</>;
+  // The sign-in, registration and step-up screens have no shell, but a visitor who holds a session can still change
+  // a language or a theme on the first of them, and a save that fails there must say so too.
+  if (isChromeless(pathname)) {
+    return (
+      <>
+        <PreferenceSaveNotice/>
+        {children}
+      </>
+    );
+  }
 
   return (
     <ShellProvider value={actions}>
@@ -226,7 +236,10 @@ export function Shell({children, pathname: pathnameOverride, initialCreateOpen =
             </div>
             <SyntheticBanner/>
           </header>
-          <main id={mainContentId} tabIndex={-1}>{children}</main>
+          <main id={mainContentId} tabIndex={-1}>
+            <PreferenceSaveNotice/>
+            {children}
+          </main>
         </div>
         {createOpen ? <CreateDialog onClose={() => setCreateOpen(false)}/> : null}
       </div>

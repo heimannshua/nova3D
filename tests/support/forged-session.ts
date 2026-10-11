@@ -1,6 +1,6 @@
 import {randomBytes, randomUUID} from 'node:crypto';
 import {Client} from 'pg';
-import {checkMarker, hashClientAddress, hashKey, issueGrant, issueInvitation, raiseAuthorizationEpoch, registerWithCode, revokeInvitation, revokeSessionGrant, seedPreauthorization, startStepUp, type MarkerOutcome} from '../../lib/accounts';
+import {adoptPreferences, checkMarker, hashClientAddress, hashKey, issueGrant, issueInvitation, raiseAuthorizationEpoch, registerWithCode, revokeInvitation, revokeSessionGrant, seedPreauthorization, startStepUp, type MarkerOutcome} from '../../lib/accounts';
 import {insertAuthUser, releaseOrigins, removeAccountData, type CommittedData, type TestUser, type UserOptions} from './accounts-data';
 import {sessionCookieName, sessionCookieValue} from './session-cookie';
 import {serverEnv} from './server-env';
@@ -169,6 +169,23 @@ export function accountsWorld() {
   const invitationStatus = async (invitationId: string) => (await db.query('select status from identity.invitations where id = $1', [invitationId])).rows[0]?.status as string | undefined;
   const sessionExists = async (sessionId: string) => (await db.query('select 1 from auth.sessions where id = $1', [sessionId])).rowCount === 1;
 
+  // Preferences (Story 1.4d) ---------------------------------------------------------------------------
+
+  /** The Account's preferences record as stored, or undefined when it has none. */
+  const preferencesOf = async (user: TestUser) =>
+    (
+      await db.query(
+        'select p.locale, p.theme, p.detail, p.guidance from identity.account_preferences p join identity.accounts a on a.id = p.account_id where a.user_id = $1',
+        [user.id],
+      )
+    ).rows[0] as {locale: string | null; theme: string; detail: string; guidance: string} | undefined;
+  /** Gives the Account a record the way its first sign-in would (`adopt`), so the next navigation does not adopt the device's cookies. */
+  const adoptPreferencesFor = async (user: TestUser, values: {locale?: string | null; theme?: string; detail?: string; guidance?: string} = {}) => {
+    const account = await accountOf(user);
+    const receipt = await adoptPreferences({accountId: account.id, locale: values.locale ?? null, theme: values.theme ?? 'light', detail: values.detail ?? 'simple', guidance: values.guidance ?? 'shown'}, {env});
+    if (receipt !== 'created') throw new Error(`The test record was not created (${receipt}).`);
+  };
+
   // Step-up (Story 1.4b) ------------------------------------------------------------------------------
 
   /** The fresh-authentication markers of the user's Account, oldest first. */
@@ -217,6 +234,7 @@ export function accountsWorld() {
     env, stack, db, connect, close, signedInUser, issueCode, revokeCode, preauthorize, activate, registerWithoutGrant, restoreSession, grant, extraSession, revokeGrant, raiseEpoch, ageGrant, ageCsrf, grantOf, grantsOf, auditEvents,
     resetLimiter, setStatus, accountOf, workspacesOf, commandsOf, invitationStatus, sessionExists,
     markersOf, noncesOf, startStepUpFrom, markerOutcome, ageNonces, adoptUser, authSessionsOf, hasGrantAtAll,
+    preferencesOf, adoptPreferencesFor,
   };
 }
 

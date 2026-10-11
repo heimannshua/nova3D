@@ -6,7 +6,9 @@
 // audited seed command (scripts/seed-accounts.mjs) imports it directly through Node type stripping,
 // where that package throws. Instead it refuses to load in a browser, uses node:crypto (which a client
 // bundle cannot resolve), and tests/unit/accounts.test.ts fails if a client component, or anything under
-// components/, imports it.
+// components/, imports it. Story 1.4d looked at this again and left it as it is: the `server-only` package
+// would be a new dependency (an ask-first decision) and the seed script still imports this module, so the
+// guard stays by test. Which module may call which typed call is pinned by tests/unit/gate-structure.test.ts.
 //
 // Like lib/environment.ts it uses erasable TypeScript syntax only and relative `.ts` imports.
 //
@@ -241,13 +243,18 @@ export type AccountState = {
 export type AuthorizationState = 'active' | 'unregistered' | 'disabled' | 'no_session' | 'no_grant' | 'revoked' | 'expired' | 'idle' | 'stale_epoch' | 'subject_mismatch';
 export const authorizationStates: readonly AuthorizationState[] = ['active', 'unregistered', 'disabled', 'no_session', 'no_grant', 'revoked', 'expired', 'idle', 'stale_epoch', 'subject_mismatch'];
 
-/** The Account, Workspace, role and epoch are present only when the state is `active`. */
+/**
+ * The Account, Workspace, role and epoch are present only when the state is `active`. So is `preferences`
+ * (Story 1.4d), and even then it is null for an Account with no record: the Account's preferences record as the
+ * database returned it, unvalidated (lib/preferences.ts `parsePreferenceRecord` is what reads it).
+ */
 export type SessionAuthorization = {
   state: AuthorizationState;
   accountId: string | null;
   workspaceId: string | null;
   role: Role | null;
   epoch: number | null;
+  preferences: Record<string, unknown> | null;
 };
 
 export const grantOutcomes = ['issued', 'exists', 'revoked', 'expired', 'idle', 'stale', 'no_account', 'disabled', 'no_session', 'subject_mismatch'] as const;
@@ -463,13 +470,16 @@ const count = (value: unknown) => (typeof value === 'number' && Number.isInteger
 export async function authorizeSession(userId: string, sessionId: string, options: AccountsOptions = {}): Promise<SessionAuthorization> {
   const row = await callRow('authorize_session', {p_user_id: requireUuid('userId', userId), p_session_id: requireUuid('sessionId', sessionId)}, options);
   const state = oneOf(row.state, authorizationStates);
-  if (state !== 'active') return {state, accountId: null, workspaceId: null, role: null, epoch: null};
+  if (state !== 'active') return {state, accountId: null, workspaceId: null, role: null, epoch: null, preferences: null};
   const accountId = text(row.account_id);
   const role = roleOf(row.role);
   const epoch = count(row.epoch);
   // An active answer that does not name its Account, role and epoch is not an answer.
   if (!accountId || !role || epoch === null) throw unexpected();
-  return {state, accountId, workspaceId: text(row.workspace_id), role, epoch};
+  // The preferences record is not part of the decision: an answer without one (or with one that is not an object)
+  // is an Account with no record, never a reason to refuse access.
+  const preferences = typeof row.preferences === 'object' && row.preferences !== null && !Array.isArray(row.preferences) ? (row.preferences as Row) : null;
+  return {state, accountId, workspaceId: text(row.workspace_id), role, epoch, preferences};
 }
 
 /**
@@ -520,6 +530,69 @@ export async function verifyCsrf(input: {userId: string; sessionId: string; hash
     options,
   );
   return oneOf(row.outcome, csrfCheckOutcomes);
+}
+
+/**
+ * api.adopt_preferences: `created` (the Account had no record and now has the device's), `exists` (it already had
+ * one, left as it was; this is also what the loser of two first requests at once gets) or `denied` (no such
+ * Account, or it is not active).
+ */
+export const preferenceAdoptionOutcomes = ['created', 'exists', 'denied'] as const;
+export type PreferenceAdoptionOutcome = (typeof preferenceAdoptionOutcomes)[number];
+/** api.set_preference: `saved`, or `denied` (no such Account, or it is not active). */
+export const preferenceSaveOutcomes = ['saved', 'denied'] as const;
+export type PreferenceSaveOutcome = (typeof preferenceSaveOutcomes)[number];
+
+const preferenceNamePattern = /^(?:locale|theme|detail|guidance)$/;
+// A preference value is a short word; anything longer is not one, whatever the database would say.
+const maxPreferenceValue = 16;
+function requirePreferenceText(name: string, value: string | null, allowNull: boolean) {
+  if (value === null && allowNull) return null;
+  if (typeof value !== 'string' || !value || value.length > maxPreferenceValue) throw new TypeError(`${name} must be a short word${allowNull ? ' or null' : ''}`);
+  return value;
+}
+
+/**
+ * Adopts the device's choices as the Account's preferences record, when the Account has none (Story 1.4d). The
+ * Account is the one the server derived from the verified session, never a client's. The values are the device's
+ * valid cookies, already checked against the allowed sets (lib/preferences.ts `recordFromCookies`); the database
+ * checks them again and refuses a value outside the sets. An existing record is never touched. If this throws,
+ * nothing is known to be stored: the page goes on with the cookies and the next navigation tries again.
+ */
+export async function adoptPreferences(
+  input: {accountId: string; locale: string | null; theme: string; detail: string; guidance: string},
+  options: AccountsOptions = {},
+): Promise<PreferenceAdoptionOutcome> {
+  const row = await callRow(
+    'adopt_preferences',
+    {
+      p_account_id: requireUuid('accountId', input.accountId),
+      p_locale: requirePreferenceText('locale', input.locale, true),
+      p_theme: requirePreferenceText('theme', input.theme, false),
+      p_detail: requirePreferenceText('detail', input.detail, false),
+      p_guidance: requirePreferenceText('guidance', input.guidance, false),
+    },
+    options,
+  );
+  return oneOf(row.outcome, preferenceAdoptionOutcomes);
+}
+
+/**
+ * Saves one preference of the Account (Story 1.4d). The Account is the one the server derived from the verified
+ * session, never a client's. `value` is null only for the language ("match my device"). The database checks the
+ * name and the value against the allowed sets and refuses anything else. Only `saved` means the record holds it.
+ */
+export async function setAccountPreference(
+  input: {accountId: string; name: string; value: string | null},
+  options: AccountsOptions = {},
+): Promise<PreferenceSaveOutcome> {
+  if (typeof input.name !== 'string' || !preferenceNamePattern.test(input.name)) throw new TypeError('name must be a preference name');
+  const row = await callRow(
+    'set_preference',
+    {p_account_id: requireUuid('accountId', input.accountId), p_name: input.name, p_value: requirePreferenceText('value', input.value, input.name === 'locale')},
+    options,
+  );
+  return oneOf(row.outcome, preferenceSaveOutcomes);
 }
 
 const actorPattern = /^[a-z][a-z_]*(?::[A-Za-z0-9_-]{1,64}){0,2}$/;

@@ -31,7 +31,9 @@ type DismissInput = {
 /**
  * Dismisses the guidance and says so. If the browser refuses the cookie nothing changes: the card stays,
  * focus stays put, and the failure is announced like any other refused preference. After a successful
- * dismissal focus moves to the page content only when the card had it.
+ * dismissal focus moves to the page content only when the card had it. For a signed-in person the dismissal is
+ * saved to their Account in the background (Story 1.4d): if that fails the card comes back and the failed save
+ * is announced (components/ui/preference-notice.tsx), so nothing here waits for it.
  */
 export function dismissGuidance({setPreference, announce, t, locale, cardHadFocus, focusMain}: DismissInput): boolean {
   if (!setPreference('guidance', 'dismissed')) {
@@ -45,7 +47,8 @@ export function dismissGuidance({setPreference, announce, t, locale, cardHadFocu
 
 /**
  * First-use guidance in ordinary language, one step per workflow stage. It is dismissible, and
- * Settings can bring it back. Dismissal is a device preference, so it stays dismissed after a reload.
+ * Settings can bring it back. Dismissal is a preference (the Account's when signed in, the device's otherwise),
+ * so it stays dismissed after a reload.
  */
 export function GuidanceCard() {
   const {t, locale} = useI18n();

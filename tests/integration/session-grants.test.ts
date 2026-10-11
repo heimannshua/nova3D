@@ -877,7 +877,7 @@ describe('the same calls over REST, as the application makes them', () => {
 
     expect(await issueGrant(account.user.id, account.sessionId, options)).toEqual({outcome: 'issued', accountId: account.accountId, epoch: 1});
     expect(await issueGrant(account.user.id, second, options)).toMatchObject({outcome: 'issued'});
-    expect(await authorizeSession(account.user.id, account.sessionId, options)).toEqual({state: 'active', accountId: account.accountId, workspaceId: account.workspaceId, role: 'member', epoch: 1});
+    expect(await authorizeSession(account.user.id, account.sessionId, options)).toEqual({state: 'active', accountId: account.accountId, workspaceId: account.workspaceId, role: 'member', epoch: 1, preferences: null});
 
     const actor = `user:${account.user.id}`;
     expect(await revokeAccountGrants({accountId: account.accountId, exceptSessionId: account.sessionId, actor, reason: 'sign_out_others'}, options)).toEqual({revoked: 1, live: 1});
@@ -885,7 +885,7 @@ describe('the same calls over REST, as the application makes them', () => {
     expect((await authorizeSession(account.user.id, account.sessionId, options)).state).toBe('active');
 
     expect(await raiseAuthorizationEpoch({accountId: account.accountId, actor}, options)).toEqual({accountId: account.accountId, epoch: 2});
-    expect(await authorizeSession(account.user.id, account.sessionId, options)).toEqual({state: 'stale_epoch', accountId: null, workspaceId: null, role: null, epoch: null});
+    expect(await authorizeSession(account.user.id, account.sessionId, options)).toEqual({state: 'stale_epoch', accountId: null, workspaceId: null, role: null, epoch: null, preferences: null});
     expect(await revokeGrantsBelowEpoch({accountId: account.accountId, belowEpoch: 2, actor, reason: 'epoch'}, options)).toEqual({revoked: 1, live: 0});
     expect((await authorizeSession(account.user.id, account.sessionId, options)).state).toBe('revoked');
     expect(await revokeSessionGrant({sessionId: account.sessionId, userId: account.user.id, actor, reason: 'sign_out'}, options)).toEqual({revoked: 0, live: 0});
@@ -1168,6 +1168,7 @@ describe('the preflight', () => {
   const tablesRead = [
     'identity.session_grants',
     'identity.accounts',
+    'identity.account_preferences',
     'identity.step_up_nonces',
     'identity.fresh_authentications',
     'auth.sessions',
@@ -1176,7 +1177,7 @@ describe('the preflight', () => {
   ];
 
   // The functions run as their owner. Hand this one to `anon`, which can use the auth schema but read none of
-  // its tables, give it the right to read only some of the seven, inside a transaction that is rolled back,
+  // its tables, give it the right to read only some of the eight, inside a transaction that is rolled back,
   // and see what the preflight says. (Everything granted here is undone with the transaction.)
   async function ownedByRoleThatCanRead(client: Client, readable: string[]) {
     await client.query('grant usage on schema api, identity to anon');
@@ -1185,7 +1186,7 @@ describe('the preflight', () => {
     await client.query('alter function api.preflight() owner to anon');
   }
 
-  it('answers ok when the role it runs as can read all seven tables (the control for the next cases)', async () => {
+  it('answers ok when the role it runs as can read all eight tables (the control for the next cases)', async () => {
     await inTx(async (client) => {
       await ownedByRoleThatCanRead(client, tablesRead);
       expect(await api(client).preflight()).toEqual({ok: true});

@@ -24,6 +24,7 @@
 // user, the stored session, the authorization) share one overall time budget, so three slow answers cannot
 // take three times as long.
 import {
+  adoptPreferences,
   authorizeSession,
   completeStepUp,
   consumePreauthorization,
@@ -32,11 +33,13 @@ import {
   type ActivationReceipt,
   type CsrfIssueOutcome,
   type GrantReceipt,
+  type PreferenceAdoptionOutcome,
   type Role,
   type SessionAuthorization,
   type StepUpReceipt,
 } from '@/lib/accounts';
 import {createBudget, withinBudget, type Budget} from '@/lib/deadline';
+import {parsePreferenceRecord, type PreferenceRecord} from '@/lib/preferences';
 import {hashCsrfToken, newCsrfToken} from '@/lib/request-integrity';
 import {signInErrorPath} from '@/lib/sign-in';
 import {stepUpReturnPaths} from '@/lib/step-up';
@@ -58,9 +61,17 @@ export const signInTimeoutMs = 10_000;
 /** How long issuing a CSRF token may take before the page goes on without one. */
 export const csrfIssueTimeoutMs = 3000;
 
+/** How long adopting the device's preferences may take before the page goes on with the cookies. */
+export const preferenceAdoptTimeoutMs = 3000;
+
 /** The verified user and the ID of the Auth session that is making this request. */
 export type AccessUser = {id: string; email: string; sessionId: string};
-export type AccessAccount = {accountId: string; workspaceId: string | null; role: Role; epoch: number};
+/**
+ * `preferences` is the Account's stored preferences record (Story 1.4d), or null when it has none (or the database
+ * answered with something that is not a record): it rides on the live authorization, so it cannot disagree with the
+ * Account being authorized, and it never changes the decision.
+ */
+export type AccessAccount = {accountId: string; workspaceId: string | null; role: Role; epoch: number; preferences: PreferenceRecord | null};
 
 /** Why a verified session has no valid grant. */
 export type SessionEndedReason = 'no_grant' | 'revoked' | 'expired' | 'idle' | 'stale_epoch';
@@ -281,7 +292,13 @@ export async function resolveAccess(client: AuthReader | null, options: AccessOp
         return {
           state: 'active',
           user: read.user,
-          account: {accountId: authorization.accountId, workspaceId: authorization.workspaceId, role: authorization.role, epoch: authorization.epoch},
+          account: {
+            accountId: authorization.accountId,
+            workspaceId: authorization.workspaceId,
+            role: authorization.role,
+            epoch: authorization.epoch,
+            preferences: parsePreferenceRecord(authorization.preferences),
+          },
         };
       }
   }
@@ -581,5 +598,30 @@ export async function issueCsrfToken(
   } catch (error) {
     log('The CSRF token could not be issued; the page goes on without one.', describe(error));
     return null;
+  }
+}
+
+/**
+ * Adopts the device's choices as the Account's preferences record (Story 1.4d), for an active Account that has
+ * none: a person's first sign-in. `device` is what the device's valid cookies come to (recordFromCookies: an absent
+ * or tampered cookie is the default, and a language no cookie chose is null). The database inserts only when the
+ * Account still has no record, so two first requests at once leave one record (`exists` for the second) and an
+ * existing record is never touched. Returns the database's outcome, or `failed` when it could not be asked: that is
+ * logged (the error's name and message only) and never blocks the page, which goes on with the cookies, and the next navigation tries again.
+ * It never throws and logs no value.
+ */
+export async function adoptDevicePreferences(
+  account: Pick<AccessAccount, 'accountId'>,
+  device: PreferenceRecord,
+  options: {adopt?: (input: {accountId: string} & PreferenceRecord, timeoutMs: number) => Promise<PreferenceAdoptionOutcome>; log?: AccessOptions['log']; timeoutMs?: number; budget?: Budget} = {},
+): Promise<PreferenceAdoptionOutcome | 'failed'> {
+  const log = options.log ?? defaultLog;
+  const budget = options.budget ?? createBudget(options.timeoutMs ?? preferenceAdoptTimeoutMs);
+  const adopt = options.adopt ?? ((input: {accountId: string} & PreferenceRecord, timeoutMs: number) => adoptPreferences(input, {timeoutMs}));
+  try {
+    return await withinBudget(budget, (remaining) => adopt({accountId: account.accountId, ...device}, remaining));
+  } catch (error) {
+    log('The device preferences could not be adopted; the page goes on with the cookies.', describe(error));
+    return 'failed';
   }
 }

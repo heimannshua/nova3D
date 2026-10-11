@@ -737,9 +737,31 @@ test.describe('how many authorization calls a request costs', () => {
     expect(page.status()).toBe(200);
     expect(callsFor(user.id)).toEqual(['authorize_session', 'authorize_session']);
 
+    // A path under /api that has no handler is answered by the 404 page, which is a page of the root layout, and since
+    // Story 1.4d the layout asks for the Account (to render its preferences) when the request carries a session: the
+    // proxy's call and the layout's. Both share the same memoized answer inside the render, so it is never three.
     forgetCalls(user.id);
-    await context.request.get(flaky(baseURL!, '/api/anything'), {maxRedirects: 0});
+    const missing = await context.request.get(flaky(baseURL!, '/api/anything'), {maxRedirects: 0});
+    expect(missing.status()).toBe(404);
+    expect(callsFor(user.id)).toEqual(['authorize_session', 'authorize_session']);
+  });
+
+  test('the root layout asks for the Account only when there is a session, and shares the page\'s answer (Story 1.4d)', async ({context, baseURL}) => {
+    const user = await member();
+    await signIn(context, baseURL!, user);
+    // A public page with a session: the proxy asks nobody, the layout asks once.
+    forgetCalls(user.id);
+    const kit = await context.request.get(flaky(baseURL!, '/kit'));
+    expect(kit.status()).toBe(200);
     expect(callsFor(user.id)).toEqual(['authorize_session']);
+    // A private page: the proxy's and the one the layout, the metadata and the page share.
+    forgetCalls(user.id);
+    expect((await context.request.get(flaky(baseURL!, '/progress'))).status()).toBe(200);
+    expect(callsFor(user.id)).toEqual(['authorize_session', 'authorize_session']);
+    // A page that does not exist is a page of the layout too.
+    forgetCalls(user.id);
+    expect((await context.request.get(flaky(baseURL!, '/no-such-page'))).status()).toBe(404);
+    expect(callsFor(user.id)).toEqual(['authorize_session', 'authorize_session']);
   });
 
   test('issues no grant on a private request, however often it is made', async ({context, baseURL}) => {

@@ -5,7 +5,10 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 // The root layout reads the request, so the request is faked here: cookies and Accept-Language.
 const request = vi.hoisted(() => ({cookies: {} as Record<string, string>, acceptLanguage: null as string | null}));
 vi.mock('next/headers', () => ({
-  cookies: async () => ({get: (name: string) => (name in request.cookies ? {name, value: request.cookies[name]} : undefined)}),
+  cookies: async () => ({
+    get: (name: string) => (name in request.cookies ? {name, value: request.cookies[name]} : undefined),
+    getAll: () => Object.entries(request.cookies).map(([name, value]) => ({name, value})),
+  }),
   headers: async () => ({get: (name: string) => (name.toLowerCase() === 'accept-language' ? request.acceptLanguage : null)}),
 }));
 
@@ -34,7 +37,7 @@ import type {Preferences} from '@/lib/preferences';
 function withPreferences(preferences: Partial<Preferences>, node: ReactNode, extra: Partial<PreferencesContextValue> = {}) {
   const merged = {...fallbackPreferences, ...preferences};
   return (
-    <PreferencesContext value={{preferences: merged, deviceLocale: merged.locale, localeOverridden: false, setPreference: () => true, setLocale: () => merged.locale, ...extra}}>
+    <PreferencesContext value={{preferences: merged, deviceLocale: merged.locale, localeOverridden: false, setPreference: () => true, setLocale: () => merged.locale, saveFailure: 0, dismissSaveFailure: () => undefined, ...extra}}>
       <I18nProvider locale={merged.locale}>{node}</I18nProvider>
     </PreferencesContext>
   );
