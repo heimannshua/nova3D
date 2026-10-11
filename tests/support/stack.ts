@@ -1,4 +1,6 @@
 import {execFileSync} from 'node:child_process';
+import {randomBytes} from 'node:crypto';
+import type {Client} from 'pg';
 
 export type Stack = {apiUrl: string; anonKey: string; serviceKey: string; dbUrl: string; jwtSecret: string | undefined};
 
@@ -29,4 +31,27 @@ export function localStack(): Stack {
 export function jwtSecretOf(stack: Stack) {
   if (!stack.jwtSecret) throw new Error('`supabase status -o env` did not report JWT_SECRET, which this test needs to sign a token.');
   return stack.jwtSecret;
+}
+
+/**
+ * The application environment for a test that calls the accounts API from Node, built from the running stack
+ * alone: its URL and keys (`supabase status`), the identity of its database, and fresh random hashing keys.
+ * It reads no .env file, so the test passes the same with a stale `.env.local` (one that points at a hosted
+ * project) or none. The browser tests are the exception: they must use the keys the server under test runs
+ * with, and read them from the same files the server does (server-env.ts).
+ */
+export async function stackEnvironment(client: Client): Promise<Record<string, string>> {
+  const stack = localStack();
+  const {rows} = await client.query('select instance_id from lifecycle.instance_identity');
+  if (rows.length !== 1) throw new Error('The local stack has no single lifecycle.instance_identity row.');
+  return {
+    APP_ENV: 'local',
+    NEXT_PUBLIC_APP_ENV: 'local',
+    NEXT_PUBLIC_SUPABASE_URL: stack.apiUrl,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: stack.anonKey,
+    SUPABASE_SERVICE_ROLE_KEY: stack.serviceKey,
+    INSTANCE_ID: String(rows[0].instance_id),
+    INVITATION_HASH_KEY: randomBytes(32).toString('base64'),
+    RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64'),
+  };
 }

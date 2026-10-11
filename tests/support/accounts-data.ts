@@ -55,6 +55,16 @@ export async function insertAuthUser(client: Client, options: UserOptions = {}):
   return {id, email, subject};
 }
 
+/**
+ * A live Auth session of the user, as GoTrue would hold it. A session grant can be issued only for a session
+ * Auth has, and Auth deletes a user's sessions with the user.
+ */
+export async function insertAuthSession(client: Client, userId: string): Promise<string> {
+  const id = randomUUID();
+  await client.query(`insert into auth.sessions (id, user_id, created_at, updated_at, aal, refreshed_at) values ($1, $2, now(), now(), 'aal1', now())`, [id, userId]);
+  return id;
+}
+
 export type CommittedData = {
   users: string[];
   emails: string[];
@@ -68,6 +78,7 @@ export async function removeAccountData(client: Client, data: CommittedData) {
   await client.query('begin');
   try {
     const accounts = `(select id from identity.accounts where user_id = any($1))`;
+    await client.query(`delete from identity.session_grants where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.registration_commands where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.invitations where redeemed_account_id in ${accounts} or code_hash = any($2) or id = any($3)`, [data.users, data.hashes, data.invitationIds]);
     await client.query(`delete from identity.preauthorizations where account_id in ${accounts} or email = any($2)`, [data.users, data.emails]);

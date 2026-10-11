@@ -48,7 +48,7 @@ export type CheckOptions = {
    * server needs. The audited seed command asks only for the keys its command uses.
    */
   hashKeys?: readonly HashKeyName[];
-  /** Also ask the accounts API (api.account_status) for the nil UUID and expect `none`: the hosted preflight. */
+  /** Also call the accounts API's api.preflight, which really reads the tables the gate depends on, and expect ok: the hosted preflight. */
   accountsApi?: boolean;
 };
 const base64Text = /^[A-Za-z0-9+/_-]+={0,2}$/;
@@ -264,14 +264,13 @@ export async function fetchInstanceIdentity(
   return {identity: {environment: row.environment, instance_id: row.instance_id}};
 }
 
-/** The user ID the preflight asks about: no Auth user has it, so the answer must be `none`. */
-export const nilUserId = '00000000-0000-0000-0000-000000000000';
-
 /**
- * The hosted preflight for Story 1.3: calls api.account_status for the nil UUID with the service role and
- * expects `none`. It fails with one line when the `api` schema is not exposed, the migrations are not
- * applied, the service key is wrong, or the database does not answer. It cannot tell an unseeded database
- * from a seeded one, and does not try: an unseeded deployment locks everyone out (see docs/deployment-setup.md).
+ * The hosted preflight (Stories 1.3 and 1.4a): calls api.preflight with the service role, which reads one row
+ * at most of each table the gate depends on (the grants, the Accounts, and Auth's sessions and identities) and
+ * answers ok. It fails with one line when the `api` schema is not exposed, the migrations are not applied, the
+ * service key is wrong, a privilege on one of those tables is missing (the hosted `auth` tables in
+ * particular), or the database does not answer. It cannot tell an unseeded database from a seeded one, and does not try: an unseeded deployment
+ * locks everyone out (see docs/deployment-setup.md).
  */
 export async function checkAccountsApi(env: Env, fetchImpl: IdentityFetch = fetch, timeoutMs = 5000): Promise<IdentityRead> {
   const base = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -293,10 +292,10 @@ export async function checkAccountsApi(env: Env, fetchImpl: IdentityFetch = fetc
   let response: Response;
   try {
     // redirect: 'error' so the service key can never follow a redirect to another host.
-    response = await fetchImpl(`${origin}/rest/v1/rpc/account_status`, {
+    response = await fetchImpl(`${origin}/rest/v1/rpc/preflight`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({p_user_id: nilUserId}),
+      body: JSON.stringify({}),
       redirect: 'error',
       signal: AbortSignal.timeout(timeoutMs),
       cache: 'no-store',
@@ -308,7 +307,7 @@ export async function checkAccountsApi(env: Env, fetchImpl: IdentityFetch = fetc
   }
   if (!response.ok) {
     return {
-      error: `the accounts API cannot be verified: ${origin} answered HTTP ${response.status} for api.account_status (is the api schema exposed, the Story 1.3 migrations applied and the service key right?)`,
+      error: `the accounts API cannot be verified: ${origin} answered HTTP ${response.status} for api.preflight (is the api schema exposed, the Story 1.3 and 1.4a migrations applied, the service key right and every table it reads readable?)`,
       retryable: response.status >= 500,
     };
   }
@@ -316,10 +315,10 @@ export async function checkAccountsApi(env: Env, fetchImpl: IdentityFetch = fetc
   try {
     body = await response.json();
   } catch {
-    return {error: 'the accounts API cannot be verified: api.account_status did not answer with JSON', retryable: false};
+    return {error: 'the accounts API cannot be verified: api.preflight did not answer with JSON', retryable: false};
   }
-  if (typeof body !== 'object' || body === null || (body as {status?: unknown}).status !== 'none') {
-    return {error: 'the accounts API cannot be verified: api.account_status did not answer "none" for the nil UUID (is the Story 1.3 migration applied to this database?)', retryable: false};
+  if (typeof body !== 'object' || body === null || (body as {ok?: unknown}).ok !== true) {
+    return {error: 'the accounts API cannot be verified: api.preflight did not answer ok (are the Story 1.3 and 1.4a migrations applied to this database?)', retryable: false};
   }
   return {};
 }

@@ -29,16 +29,22 @@ const committedInvitationIds = committed.invitationIds;
 // ---------------------------------------------------------------------------------------------------
 describe('schema, access and AC-8: anon and authenticated can execute and read nothing', () => {
   const tables = {
-    identity: ['accounts', 'audit_events', 'invitations', 'preauthorizations', 'rate_limit_counters', 'registration_attempts', 'registration_commands'],
+    identity: ['accounts', 'audit_events', 'invitations', 'preauthorizations', 'rate_limit_counters', 'registration_attempts', 'registration_commands', 'session_grants'],
     projects: ['workspaces'],
   };
   const apiFunctions = [
     'account_status',
+    'authorize_session',
     'before_user_created',
+    'confirm_registration',
     'consume_preauthorization',
+    'issue_grant',
     'issue_invitation',
     'list_invitations',
+    'preflight',
+    'raise_authorization_epoch',
     'register_with_code',
+    'revoke_grants',
     'revoke_invitation',
     'seed_preauthorization',
     'withdraw_preauthorization',
@@ -60,7 +66,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
          from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname in ('identity', 'projects') and c.relkind = 'r' order by 1`,
     );
-    expect(found).toHaveLength(8);
+    expect(found).toHaveLength(9);
     for (const row of found) expect(row, row.name).toMatchObject({rls: true, policies: 0});
   });
 
@@ -78,7 +84,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
           where n.nspname in ('identity', 'projects') and c.relkind in ('r', 'S')`,
         [role],
       );
-      expect(objects.length).toBeGreaterThanOrEqual(9);
+      expect(objects.length).toBeGreaterThanOrEqual(10);
       for (const object of objects) expect(object.any_privilege, `${role} on ${object.name}`).toBe(false);
     }
     // PUBLIC (grantee 0) appears in no ACL of any schema, table or sequence either.
@@ -171,6 +177,12 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     await inTx(async (client) => {
       const calls = [
         'select * from api.account_status(gen_random_uuid())',
+        'select * from api.authorize_session(gen_random_uuid(), gen_random_uuid())',
+        'select * from api.issue_grant(gen_random_uuid(), gen_random_uuid())',
+        `select * from api.revoke_grants('seed', 'test', gen_random_uuid())`,
+        `select * from api.confirm_registration(gen_random_uuid(), gen_random_uuid(), repeat('a', 64))`,
+        'select * from api.preflight()',
+        `select * from api.raise_authorization_epoch(gen_random_uuid(), 'seed')`,
         'select * from api.consume_preauthorization(gen_random_uuid())',
         `select * from api.register_with_code(gen_random_uuid(), gen_random_uuid(), repeat('a', 64), repeat('b', 64))`,
         `select * from api.seed_preauthorization('a@b.co', 'member', 'seed')`,
@@ -235,6 +247,12 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     it('refuses anon and authenticated on every api function with a database permission error', async () => {
       const bodies: Record<string, unknown> = {
         account_status: {p_user_id: randomUUID()},
+        authorize_session: {p_user_id: randomUUID(), p_session_id: randomUUID()},
+        issue_grant: {p_user_id: randomUUID(), p_session_id: randomUUID()},
+        revoke_grants: {p_actor: 'seed', p_reason: 'test', p_session_id: randomUUID()},
+        confirm_registration: {p_user_id: randomUUID(), p_command_id: randomUUID(), p_code_hash: codeHash()},
+        preflight: {},
+        raise_authorization_epoch: {p_account_id: randomUUID(), p_actor: 'seed'},
         consume_preauthorization: {p_user_id: randomUUID()},
         register_with_code: {p_user_id: randomUUID(), p_command_id: randomUUID(), p_code_hash: codeHash(), p_origin_hash: originHash()},
         seed_preauthorization: {p_email: 'a@b.co', p_role: 'member', p_actor: 'seed'},

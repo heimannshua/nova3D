@@ -2,7 +2,8 @@
 title: 'Story 1.4a: Session grants and live authorization'
 type: 'feature'
 created: '2026-10-10'
-status: 'draft'
+status: 'done'
+baseline_commit: 'f29b60ee7a370fa009bf77d69a19ab69a985ba09'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -60,12 +61,12 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/*` -- `identity.session_grants`, `accounts.authorization_epoch`; `api.issue_grant`, `api.authorize_session`, `api.revoke_grants` (session, Account, below-epoch) and an epoch bump; audit events; RLS on, no policies, closed by default -- AC-2, 6, 8, 10, 11
-- [ ] `lib/accounts.ts`, `lib/access.ts`, `lib/auth.ts`, `proxy.ts` -- one authorization call per request (memoized in the page with React `cache()`), retryable denial, JSON for `/api`, pinned-subject recheck -- AC-2, 3, 6, 10
-- [ ] `app/auth/callback/route.ts`, `app/register/actions.ts`, `lib/access.ts` -- issue the grant on sign-in, claim and registration -- AC-8
-- [ ] Account menu sign-out and Settings "sign out my other sessions" (Server Actions, localized, phone and desktop) -- AC-8, 11
-- [ ] `tests/` -- migration and every matrix row at the database; forged sessions issue grants; browser flows for revoked, expired, idle, stale-epoch, sign-out, other-sessions, outage (fake network) and `/api` JSON, on desktop and phone in English and Hebrew with axe -- all ACs
-- [ ] `docs/auth-setup.md`, `deferred-work.md` -- cutover note (all sessions end), resolved and remaining items -- housekeeping
+- [x] `supabase/migrations/*` -- `identity.session_grants`, `accounts.authorization_epoch`; `api.issue_grant`, `api.authorize_session`, `api.revoke_grants` (session, Account, below-epoch) and an epoch bump; audit events; RLS on, no policies, closed by default -- AC-2, 6, 8, 10, 11
+- [x] `lib/accounts.ts`, `lib/access.ts`, `lib/auth.ts`, `proxy.ts` -- one authorization call per request (memoized in the page with React `cache()`), retryable denial, JSON for `/api`, pinned-subject recheck -- AC-2, 3, 6, 10
+- [x] `app/auth/callback/route.ts`, `app/register/actions.ts`, `lib/access.ts` -- issue the grant on sign-in, claim and registration -- AC-8
+- [x] Account menu sign-out and Settings "sign out my other sessions" (Server Actions, localized, phone and desktop) -- AC-8, 11
+- [x] `tests/` -- migration and every matrix row at the database; forged sessions issue grants; browser flows for revoked, expired, idle, stale-epoch, sign-out, other-sessions, outage (fake network) and `/api` JSON, on desktop and phone in English and Hebrew with axe -- all ACs
+- [x] `docs/auth-setup.md`, `deferred-work.md` -- cutover note (all sessions end), resolved and remaining items -- housekeeping
 
 **Acceptance Criteria:**
 - Given a valid JWT with a revoked, expired, idle, stale-epoch or missing grant, or an inactive Account, when a private request arrives, then it is refused even if the UI is bypassed.
@@ -86,3 +87,49 @@ Part B left `getUser()` as the proof of identity; the session ID comes from the 
 - `npm run typecheck && npm run lint && npm run build` -- expected: exit 0
 - `supabase start && npm test` -- expected: unit and migration tests pass, every matrix row covered
 - `CI=1 npm run test:e2e` (clean scratch copy) -- expected: all flows pass on both projects
+
+## Suggested Review Order
+
+**The decision (the core idea)**
+
+- One call answers "which Account" and "is this session's grant valid": Account state, then grant, then the pinned Google subject.
+  [`session_grants.sql:223`](../../supabase/migrations/20261010130000_session_grants.sql#L223)
+
+- The session ID is the `session_id` of the token Auth has just verified for that user, never an input; a token that names none is `unavailable`.
+  [`access.ts:151`](../../lib/access.ts#L151)
+
+- Every grant state becomes one access state (signed out, session ended, refused, disabled, unregistered, active); anything unexpected is `unavailable`.
+  [`access.ts:228`](../../lib/access.ts#L228)
+
+**Granting and revoking**
+
+- Issue: idempotent, never revives a revoked grant, refuses a session Auth does not have and an identity that is not the pinned one.
+  [`session_grants.sql:144`](../../supabase/migrations/20261010130000_session_grants.sql#L144)
+
+- The one revocation primitive (session, Account, below an epoch), final and audited per grant; the epoch only rises.
+  [`session_grants.sql:308`](../../supabase/migrations/20261010130000_session_grants.sql#L308)
+
+- Where a grant is issued: callback and `/register` claim share one function, registration has its own call.
+  [`access.ts:408`](../../lib/access.ts#L408)
+
+- A retried registration gets its grant only if the database confirms this command and code created the Account, so a stolen old cookie cannot buy one.
+  [`session_grants.sql:414`](../../supabase/migrations/20261010130000_session_grants.sql#L414)
+
+- Sign-out revokes first and keeps the session, saying so, if that cannot be recorded.
+  [`actions.ts:24`](../../app/account/actions.ts#L24)
+
+**Every request**
+
+- The proxy: one authorization per private request, JSON for `/api`, refreshed cookies carried on a denial.
+  [`proxy.ts:71`](../../proxy.ts#L71)
+
+- The page asks again, once per render.
+  [`auth.ts:37`](../../lib/auth.ts#L37)
+
+**Tests (supporting)**
+
+- Every matrix row at the database, including the races.
+  [`session-grants.test.ts`](../../tests/integration/session-grants.test.ts)
+
+- Browser flows on desktop and phone, with the fake network for outages.
+  [`authorization.spec.ts`](../../tests/e2e/authorization.spec.ts)

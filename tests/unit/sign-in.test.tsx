@@ -3,9 +3,9 @@ import {describe, expect, it, vi} from 'vitest';
 import {LoginForm} from '@/components/login-form';
 import {locales, translate, type Locale, type MessageKey} from '@/lib/i18n';
 import {I18nProvider} from '@/lib/i18n/react';
-import {signInErrorCodes, signInErrorKey, signInErrorPath, startGoogleSignIn, type OAuthClient} from '@/lib/sign-in';
+import {signedOutPath, signInErrorCodes, signInErrorKey, signInErrorPath, signInNoticeCodes, signInNoticeKey, startGoogleSignIn, type OAuthClient} from '@/lib/sign-in';
 
-const render = (locale: Locale, initialError?: string) => renderToStaticMarkup(<I18nProvider locale={locale}><LoginForm initialError={initialError}/></I18nProvider>);
+const render = (locale: Locale, initialError?: string, initialNotice?: string) => renderToStaticMarkup(<I18nProvider locale={locale}><LoginForm initialError={initialError} initialNotice={initialNotice}/></I18nProvider>);
 const alertText = (markup: string) => /<div class="notice notice-danger" role="alert">[\s\S]*?<p class="notice-text">([^<]*)<\/p>/.exec(markup)?.[1];
 
 const expectedKey: Record<string, MessageKey> = {
@@ -14,6 +14,7 @@ const expectedKey: Record<string, MessageKey> = {
   not_allowed: 'login.error.not_allowed',
   auth_not_configured: 'login.error.auth_not_configured',
   not_signed_in: 'login.error.not_signed_in',
+  session_ended: 'login.error.session_ended',
   account_disabled: 'login.error.account_disabled',
 };
 
@@ -21,7 +22,7 @@ const expectedKey: Record<string, MessageKey> = {
 const prototypeNames = ['constructor', '__proto__', 'hasOwnProperty', 'toString', 'valueOf', 'isPrototypeOf'];
 
 describe('sign-in error codes (the ?error= query string)', () => {
-  it('knows exactly the six codes the sign-in routes, the proxy and the pages send back', () => {
+  it('knows exactly the seven codes the sign-in routes, the proxy and the pages send back', () => {
     expect([...signInErrorCodes].sort()).toEqual(Object.keys(expectedKey).sort());
   });
 
@@ -45,6 +46,52 @@ describe('sign-in error codes (the ?error= query string)', () => {
     it('shows no error when there is no code', () => {
       expect(render(locale)).not.toContain('role="alert"');
     });
+  });
+
+  describe.each(locales)('the retry link in %s', (locale) => {
+    const retry = (markup: string) => /<a [^>]*href="\/"[^>]*>[\s\S]*?<\/a>/.exec(markup)?.[0];
+
+    it('is offered when the check could not be made: the session was kept, so asking Home again is the retry', () => {
+      const link = retry(render(locale, 'auth_unavailable'));
+      expect(link).toContain(translate(locale, 'login.retry'));
+      expect(link).not.toContain('<a href="/login');
+    });
+
+    it.each(['auth_failed', 'not_allowed', 'auth_not_configured', 'not_signed_in', 'account_disabled', 'bogus'])('is not offered for %s, which asking again cannot fix', (code) => {
+      expect(retry(render(locale, code))).toBeUndefined();
+    });
+
+    it('is not offered when there is no error', () => {
+      expect(retry(render(locale))).toBeUndefined();
+    });
+  });
+
+  describe.each(locales)('the signed-out notice in %s', (locale) => {
+    const noticeText = (markup: string) => /<div class="notice notice-info" role="status">[\s\S]*?<p class="notice-text">([^<]*)<\/p>/.exec(markup)?.[1];
+
+    it('says the person has been signed out, as a notice and not as an alert', () => {
+      const markup = render(locale, undefined, 'signed_out');
+      expect(noticeText(markup)).toBe(translate(locale, 'login.notice.signed_out'));
+      expect(markup).not.toContain('role="alert"');
+    });
+
+    it.each(['bogus', '', 'SIGNED_OUT', 'constructor', '__proto__'])('shows nothing for the unknown notice %j', (code) => {
+      expect(noticeText(render(locale, undefined, code))).toBeUndefined();
+      expect(render(locale, undefined, code)).not.toContain('role="status"');
+    });
+
+    it('gives way to an error: a failure is never shown beside a "signed out" that did not happen', () => {
+      const markup = render(locale, 'auth_failed', 'signed_out');
+      expect(noticeText(markup)).toBeUndefined();
+      expect(alertText(markup)).toBe(translate(locale, 'login.error.auth_failed'));
+    });
+  });
+
+  it('knows its notices by own property only, and builds the path of a deliberate sign-out in one place', () => {
+    expect(signInNoticeCodes).toEqual(['signed_out']);
+    expect(signInNoticeKey('signed_out')).toBe('login.notice.signed_out');
+    for (const code of [undefined, '', 'nope', ...prototypeNames]) expect(signInNoticeKey(code)).toBeNull();
+    expect(signedOutPath).toBe('/login?notice=signed_out');
   });
 
   it('builds the path every redirect uses from the code, so no caller spells the query string itself', () => {

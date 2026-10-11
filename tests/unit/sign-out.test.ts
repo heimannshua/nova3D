@@ -71,13 +71,14 @@ describe('which cookies are this project’s session', () => {
 });
 
 describe('signOutQuietly', () => {
-  const client = (signOut: (options: {scope: 'global' | 'local'}) => Promise<unknown>) => ({auth: {signOut}});
+  const client = (signOut: (options: {scope: 'global' | 'local' | 'others'}) => Promise<unknown>) => ({auth: {signOut}});
 
-  it('ends every session by default, and only this browser’s when asked', async () => {
+  it('ends every session by default, only this browser’s when asked, and every session but this one for "others"', async () => {
     const signOut = vi.fn(async () => ({error: null}));
     await signOutQuietly(client(signOut));
     await signOutQuietly(client(signOut), 'local');
-    expect(signOut.mock.calls).toEqual([[{scope: 'global'}], [{scope: 'local'}]]);
+    await signOutQuietly(client(signOut), 'others');
+    expect(signOut.mock.calls).toEqual([[{scope: 'global'}], [{scope: 'local'}], [{scope: 'others'}]]);
   });
 
   it('does nothing without a client', async () => {

@@ -4,7 +4,10 @@
 // session cookies itself.
 import {withDeadline} from '../deadline';
 
+/** What ending a person's session can mean: every session of the user, or this browser's. */
 export type SignOutScope = 'global' | 'local';
+/** What Auth can be asked to end. `others` (every session but this one) belongs to "sign out my other sessions" alone; ending a browser's session never takes it. */
+export type AuthSignOutScope = SignOutScope | 'others';
 
 /** How long Auth may take to end a session before the sign-out gives up and the cookies are expired anyway. */
 export const signOutTimeoutMs = 5000;
@@ -35,7 +38,7 @@ export function isAuthCookieName(name: string, supabaseUrl: string | undefined =
   return new RegExp(`^${escapeForPattern(base)}(?:-code-verifier|-flows-code-verifier|-flow-[A-Za-z0-9_-]{8,64}-code-verifier)?(?:\\.\\d+)?$`).test(name);
 }
 
-type SignOutClient = {auth: {signOut(options: {scope: SignOutScope}): Promise<unknown>}};
+type SignOutClient = {auth: {signOut(options: {scope: AuthSignOutScope}): Promise<unknown>}};
 type Log = (message: string, detail: string) => void;
 const defaultLog: Log = (message, detail) => console.error(message, detail);
 
@@ -44,11 +47,12 @@ const nameOf = (error: unknown) => (typeof error === 'object' && error !== null 
 
 /**
  * Ends the session at Auth. `global` revokes every session of the user (a disabled or refused identity),
- * `local` only this browser's (a person switching Google accounts, or an outage: it must not log every
- * device out). Never throws and never waits past the deadline: a failure, a timeout, or an answer that
+ * `local` only this browser's (a person switching Google accounts, signing out, or an outage: it must not
+ * log every device out), `others` every session but this one (sign out my other sessions; the cookies stay).
+ * Never throws and never waits past the deadline: a failure, a timeout, or an answer that
  * carries an `error` is logged by name, and the caller still expires the cookies.
  */
-export async function signOutQuietly(client: SignOutClient | null, scope: SignOutScope = 'global', options: {log?: Log; timeoutMs?: number} = {}) {
+export async function signOutQuietly(client: SignOutClient | null, scope: AuthSignOutScope = 'global', options: {log?: Log; timeoutMs?: number} = {}) {
   if (!client) return;
   const log = options.log ?? defaultLog;
   try {

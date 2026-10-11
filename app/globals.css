@@ -480,6 +480,9 @@ p.text-span, div.text-span { display: block; text-align: start; }
 .popover-note { margin-block-start: var(--space-3); color: var(--text-muted); font-size: var(--text-sm); }
 .account-card { display: flex; align-items: center; gap: var(--space-3); }
 .account-card small { display: block; color: var(--text-muted); }
+.account-signout { margin-block-start: var(--space-3); }
+.account-signout .btn { inline-size: 100%; }
+.popover-panel .notice { margin-block-start: var(--space-3); }
 .avatar { display: grid; flex: none; place-items: center; inline-size: 2.5rem; block-size: 2.5rem; border-radius: 50%; background: var(--action-soft); color: var(--action-soft-text); font-weight: 700; }
 
 /* ---------- Brand ---------- */
@@ -745,6 +748,8 @@ main { flex: 1; min-inline-size: 0; }
 .language-preview, .detail-example { margin-block-start: var(--space-4); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--surface-sunken); }
 .language-preview .eyebrow, .detail-example .eyebrow { margin-block-end: var(--space-1); }
 .preview-line { padding-block: var(--space-1); }
+.sessions-action { display: grid; justify-items: start; gap: var(--space-3); margin-block-start: var(--space-4); }
+.sessions-action .notice { margin-block-start: 0; }
 .guidance-replay { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-block-start: var(--space-4); }
 .settings-state { color: var(--text-muted); font-size: var(--text-sm); }
 

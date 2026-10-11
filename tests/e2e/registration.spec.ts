@@ -1,8 +1,8 @@
-import AxeBuilder from '@axe-core/playwright';
 import {randomBytes} from 'node:crypto';
-import {expect, test, type BrowserContext, type Page} from '@playwright/test';
-import {translate, type Locale, type MessageKey} from '../../lib/i18n';
-import {accountsWorld, type AccountsWorld, type ForgedUser} from '../support/forged-session';
+import {expect, test, type Page} from '@playwright/test';
+import type {Locale} from '../../lib/i18n';
+import {alertOf, label, mainNav, overflow, signIn, violations, watchForProblems} from '../support/e2e-helpers';
+import {accountsWorld, type AccountsWorld} from '../support/forged-session';
 
 // Story 1.3 Part B: registration and live-Account gating, in a real browser against the production build
 // and the local Supabase stack. Local Google sign-in cannot be driven, so each test forges a session
@@ -16,8 +16,6 @@ import {accountsWorld, type AccountsWorld, type ForgedUser} from '../support/for
 
 test.describe.configure({mode: 'serial'});
 
-const wcag = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
-const label = (locale: Locale, key: MessageKey, params?: Record<string, string | number>) => translate(locale, key, params);
 const unknownCode = 'ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ';
 
 let world: AccountsWorld;
@@ -32,39 +30,9 @@ test.beforeEach(async () => {
   await world.resetLimiter();
 });
 
-async function signIn(context: BrowserContext, baseURL: string, user: ForgedUser, preferences: {locale?: Locale; theme?: 'light' | 'dark'} = {}) {
-  const cookies = [{name: user.cookie.name, value: user.cookie.value, url: baseURL}];
-  for (const [name, value] of Object.entries(preferences)) cookies.push({name: `nova3d-${name}`, value, url: baseURL});
-  await context.addCookies(cookies);
-}
-
-async function violations(page: Page) {
-  const results = await new AxeBuilder({page}).withTags(wcag).analyze();
-  return results.violations.map((violation) => ({
-    rule: violation.id,
-    impact: violation.impact,
-    help: violation.help,
-    targets: violation.nodes.slice(0, 5).map((node) => `${node.target.join(' ')} :: ${node.failureSummary?.split('\n').slice(0, 3).join(' | ')}`),
-  }));
-}
-
-// Nothing the page or the browser reports as an error: no React warning, no failed request.
-function watchForProblems(page: Page) {
-  const problems: string[] = [];
-  page.on('console', (message) => {
-    if (['error', 'warning'].includes(message.type())) problems.push(`${message.type()}: ${message.text()}`);
-  });
-  page.on('pageerror', (error) => problems.push(`pageerror: ${error.message}`));
-  return problems;
-}
-
-// The message box, not Next.js's own empty route announcer, which is also an alert.
-const alertOf = (page: Page) => page.locator('.notice[role="alert"]');
-const overflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 const commandId = (page: Page) => page.locator('input[name="commandId"]').inputValue();
 const codeField = (page: Page, locale: Locale) => page.getByRole('textbox', {name: label(locale, 'register.code.label'), exact: true});
 const submitButton = (page: Page, locale: Locale) => page.getByRole('button', {name: label(locale, 'register.submit')});
-const mainNav = (page: Page, locale: Locale) => page.getByRole('navigation', {name: label(locale, 'a11y.mainNavigation')});
 
 async function register(page: Page, locale: Locale, code: string) {
   await codeField(page, locale).fill(code);
@@ -193,6 +161,9 @@ test.describe('registering with a code', () => {
     expect(await world.workspacesOf(person)).toBe(1);
     expect(await world.invitationStatus(invitationId)).toBe('redeemed');
     expect(await world.commandsOf(person)).toEqual([sent]);
+    // Registering issued the grant of this session, so the person is let in at once and no second grant exists.
+    expect(await world.grantsOf(person)).toEqual([person.sessionId]);
+    expect(await world.auditEvents('session.issued', `session:${person.sessionId}`)).toHaveLength(1);
 
     // /register is for strangers: an Account goes Home.
     await page.goto('/register');
@@ -460,6 +431,8 @@ test.describe('an address pre-authorized after its owner first signed in (the cu
     expect(await world.accountOf(person)).toMatchObject({status: 'active', role: 'member', source: 'preauthorization', google_subject: person.subject});
     expect(await world.workspacesOf(person)).toBe(1);
     expect(await world.sessionExists(person.sessionId)).toBe(true);
+    // The claim issued the grant of the session that made it, so that same session carries on.
+    expect(await world.grantsOf(person)).toEqual([person.sessionId]);
   });
 
   test('turns a second Google identity with the same address away, signs it out everywhere, and says so', async ({page, context, baseURL, browser}) => {
@@ -481,6 +454,7 @@ test.describe('an address pre-authorized after its owner first signed in (the cu
     await expect(page).toHaveURL(`${baseURL}/login?error=not_allowed`);
     await expect(alertOf(page)).toHaveText(label('he', 'login.error.not_allowed'));
     expect(await world.accountOf(impostor)).toBeUndefined();
+    expect(await world.grantsOf(impostor)).toEqual([]);
     expect(await world.sessionExists(impostor.sessionId)).toBe(false);
     expect((await context.cookies()).filter((cookie) => cookie.name === impostor.cookie.name && cookie.value !== '')).toEqual([]);
   });

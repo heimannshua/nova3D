@@ -2,8 +2,10 @@
 // Usage: node scripts/check-env.mjs [--live | --deployment]
 //   (no flag)     label and format checks only; reads no network
 //   --live        also compares APP_ENV and INSTANCE_ID with the instance_identity row, and asks the
-//                 accounts API (api.account_status, nil UUID) for `none`: the api schema must be exposed
-//                 and the Story 1.3 migrations applied. It cannot tell whether the accounts are seeded.
+//                 accounts API (api.preflight, which reads the tables the gate depends on, Auth's sessions
+//                 and identities included) for ok: the api schema must be exposed, the Story 1.3 and 1.4a
+//                 migrations applied and the privileges in place. It cannot tell whether the accounts are
+//                 seeded.
 //   --deployment  the build step: does nothing unless VERCEL is set, then behaves like --live
 // Previews never read the database. No secret is printed.
 import {isPreview, validateEnvironment, verifyInstanceIdentity} from '../lib/environment.ts';

@@ -2,6 +2,7 @@
 
 import {useI18n} from '@/lib/i18n/react';
 import {PreferencesForm} from './preferences-form';
+import {SessionsSection} from './sessions-section';
 
 /** The Settings page body (S-01). It is a client component so its words change the moment the language does. */
 export function SettingsContent() {
@@ -12,6 +13,7 @@ export function SettingsContent() {
       <h1>{t('settings.title')}</h1>
       <p className="lede">{t('settings.lede')}</p>
       <PreferencesForm/>
+      <SessionsSection/>
     </div>
   );
 }

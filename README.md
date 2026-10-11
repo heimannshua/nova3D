@@ -16,10 +16,10 @@ npm run dev                       # http://127.0.0.1:3000
 | Command | What it does |
 | --- | --- |
 | `npm run typecheck`, `npm run lint`, `npm run build` | static checks and a credential-free production build |
-| `npm run check:env -- --live` | verifies `APP_ENV` and `INSTANCE_ID` against the database's identity row, and that the accounts API (`api.account_status`) answers; the Vercel deployment build runs the same check |
+| `npm run check:env -- --live` | verifies `APP_ENV` and `INSTANCE_ID` against the database's identity row, and that the accounts API answers (`api.preflight`, which reads the tables the gate depends on); the Vercel deployment build runs the same check |
 | `npm test` | Vitest unit and integration suites (integration needs `supabase start`) |
 | `npm run test:env` | the environment guardrails, against fixture environments |
-| `npm run test:e2e` | Playwright browser flows against a production build and the local stack; registration and gating forge Google sessions (see [docs/auth-setup.md](docs/auth-setup.md)) |
+| `npm run test:e2e` | Playwright browser flows against a production build and the local stack; registration, gating and session grants forge Google sessions, and run a second server with a fake network for the outage flows (see [docs/auth-setup.md](docs/auth-setup.md)) |
 | `npm run seed:accounts -- <command>` | the audited seed command (Story 1.3): `preauthorize`, `unauthorize --email <address>`, `issue --name <label>` or `issue --general`, `list`, `revoke --id <id>`; see [docs/auth-setup.md](docs/auth-setup.md) |
 | `node --env-file-if-exists=.env.staging scripts/check-provisioning.mjs --story <id> --env staging` | reports which external accounts, keys and spend limits due by that story are still missing (see below); `npm run check:provisioning -- --story <id> --env staging` loads the same file itself |
 | `npm run render:provisioning` | renders `provisioning/ledger.json` to `docs/provisioning.md` (CI checks it is current) |
@@ -48,7 +48,7 @@ The application is a modular monolith. The architecture (AR-2) makes each module
 | Module | Owns | In the seed |
 | --- | --- | --- |
 | Lifecycle | environment identity, restore ledger, tombstones | `lifecycle.instance_identity` (the only table), `lib/environment.ts`, `instrumentation.ts`, `scripts/check-env.mjs` |
-| Identity | Accounts, sessions, invitations, audit events | Story 1.3: schemas `identity` and `projects` (unexposed) behind the `api` functions, `lib/accounts.ts`, `scripts/seed-accounts.mjs`, migrations `*_accounts.sql` and `*_api.sql`; Google sign-in gated by the live Account: `lib/access.ts` (the one decision), `lib/auth.ts`, `lib/supabase/`, `proxy.ts`, `app/login/`, `app/auth/callback/`, `app/register/` (registration with an invitation code) |
+| Identity | Accounts, sessions, invitations, audit events | Story 1.3: schemas `identity` and `projects` (unexposed) behind the `api` functions, `lib/accounts.ts`, `scripts/seed-accounts.mjs`, migrations `*_accounts.sql` and `*_api.sql`; Google sign-in gated by the live Account: `lib/access.ts` (the one decision), `lib/auth.ts`, `lib/supabase/`, `proxy.ts`, `app/login/`, `app/auth/callback/`, `app/register/` (registration with an invitation code). Story 1.4a: session grants and live authorization (`*_session_grants.sql`, `api.authorize_session`, `api.issue_grant`, `api.revoke_grants`), sign-out and "sign out my other sessions" (`app/account/`, `lib/session-actions.ts`) |
 | Projects, Evidence, Geometry, Manufacturing, Artifacts, Jobs, Usage and notifications | their own records | nothing yet |
 | Preferences | language, light or dark, explanation detail and first-use guidance | four first-party device cookies (`nova3d-locale`, `nova3d-theme`, `nova3d-detail`, `nova3d-guidance`): `lib/preferences.ts`, `lib/preferences.server.ts`, `components/preferences-provider.tsx`; Story 1.4 adds the Account-owned record |
 | Interface (shell, localization, design tokens) | the shared tokens, English and Hebrew catalogs, and the accessible patterns every screen inherits | `app/globals.css`, `lib/i18n/`, `components/ui/`, `components/shell/`, `app/settings/`; the Hebrew catalog is a machine-drafted first pass awaiting native review (see `deferred-work.md`) |

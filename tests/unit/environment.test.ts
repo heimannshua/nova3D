@@ -1,6 +1,6 @@
 import {randomBytes} from 'node:crypto';
 import {describe, expect, it} from 'vitest';
-import {checkAccountsApi, checkInstanceIdentity, compareIdentity, nilUserId, decodeHashKey, fetchInstanceIdentity, hashKeyProblem, identityMismatchHint, isLoopbackUrl, parseEmailList, parseEnvValue, sameKey, validateEnvironment, verifyInstanceIdentity, type Env, type IdentityFetch} from '@/lib/environment';
+import {checkAccountsApi, checkInstanceIdentity, compareIdentity, decodeHashKey, fetchInstanceIdentity, hashKeyProblem, identityMismatchHint, isLoopbackUrl, parseEmailList, parseEnvValue, sameKey, validateEnvironment, verifyInstanceIdentity, type Env, type IdentityFetch} from '@/lib/environment';
 
 const INSTANCE = '3f0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c44';
 const SERVICE_KEY = 'fixture-service-key-must-never-be-returned';
@@ -486,7 +486,7 @@ describe('which hashing keys a run needs (the seed command asks only for its own
 });
 
 describe('the accounts API preflight (check-env --live)', () => {
-  const none = {status: 'none', account_id: null, workspace_id: null, role: null};
+  const none = {ok: true};
   type Seen = {url: string; init?: RequestInit};
   const recorder = (response: () => Response | Promise<Response>) => {
     const seen: Seen[] = [];
@@ -498,14 +498,13 @@ describe('the accounts API preflight (check-env --live)', () => {
   };
   const jsonResponse = (status: number, body: unknown) => () => new Response(JSON.stringify(body), {status});
 
-  it('asks api.account_status for the nil UUID with the service role, and accepts none', async () => {
+  it('calls api.preflight with the service role, and accepts ok', async () => {
     const {seen, fetchImpl} = recorder(jsonResponse(200, none));
     expect(await checkAccountsApi(staging, fetchImpl)).toEqual({});
     expect(seen).toHaveLength(1);
-    expect(seen[0].url).toBe('https://abcdefgh.supabase.co/rest/v1/rpc/account_status');
+    expect(seen[0].url).toBe('https://abcdefgh.supabase.co/rest/v1/rpc/preflight');
     expect(seen[0].init?.method).toBe('POST');
-    expect(JSON.parse(String(seen[0].init?.body))).toEqual({p_user_id: nilUserId});
-    expect(nilUserId).toBe('00000000-0000-0000-0000-000000000000');
+    expect(JSON.parse(String(seen[0].init?.body))).toEqual({});
     const headers = seen[0].init?.headers as Record<string, string>;
     expect(headers['content-profile']).toBe('api');
     expect(headers.apikey).toBe(SERVICE_KEY);
@@ -539,13 +538,15 @@ describe('the accounts API preflight (check-env --live)', () => {
   });
 
   it.each([
-    ['anything but none', {status: 'active', account_id: 'x'}],
+    ['anything but ok', {ok: false}],
+    ['ok as text', {ok: 'true'}],
+    ['the answer of another function', {state: 'unregistered'}],
     ['an empty answer', {}],
     ['a list', [none]],
     ['null', null],
   ])('fails when the answer is %s', async (_name, body) => {
     const result = await checkAccountsApi(staging, recorder(jsonResponse(200, body)).fetchImpl);
-    expect(result.error).toContain('did not answer "none" for the nil UUID');
+    expect(result.error).toContain('api.preflight did not answer ok');
     expect(result.retryable).toBe(false);
   });
 
@@ -573,7 +574,7 @@ describe('the accounts API preflight (check-env --live)', () => {
     expect(calls).toEqual(['/rest/v1/instance_identity']);
     calls.length = 0;
     expect(await checkInstanceIdentity(staging, both, {accountsApi: true})).toEqual({errors: [], retryable: false});
-    expect(calls).toEqual(['/rest/v1/instance_identity', '/rest/v1/rpc/account_status']);
+    expect(calls).toEqual(['/rest/v1/instance_identity', '/rest/v1/rpc/preflight']);
   });
 
   it('fails the check when the preflight fails, and keeps the retry flag of the failure', async () => {

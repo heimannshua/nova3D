@@ -1,9 +1,24 @@
+import {mkdtempSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join, resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
 import {defineConfig, devices} from '@playwright/test';
 
 const port = Number(process.env.PORT ?? 4173);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error(`PORT must be a positive integer up to 65535 (received "${process.env.PORT}").`);
 }
+// The second application server, for the flows that need the accounts database to fail for one user
+// (tests/e2e/authorization.spec.ts). It is the same build, with a fake network preloaded into it.
+const flakyPort = port + 1;
+if (flakyPort > 65535) throw new Error('PORT + 1 must also be a valid port.');
+// The fake network is controlled through a private directory made here, once: Playwright loads this file in
+// the process that starts the servers and again in each worker, and the workers inherit the variable the first
+// load sets. The directory name is random (mkdtemp, mode 0700) and is removed when the run ends.
+if (!process.env.NOVA3D_FAKE_NETWORK_DIR) process.env.NOVA3D_FAKE_NETWORK_DIR = mkdtempSync(join(tmpdir(), 'nova3d-fake-network-'));
+// A file URL has no spaces or quotes to get wrong, and an existing NODE_OPTIONS is kept.
+const fakeNetworkPreload = `--import ${pathToFileURL(resolve(import.meta.dirname, 'tests/support/fake-network.mjs')).href}`;
+const nodeOptions = [process.env.NODE_OPTIONS, fakeNetworkPreload].filter(Boolean).join(' ');
 
 // Browser flows run against the production build (`npm run build` first). The server verifies its
 // environment identity on startup, so run it against the Supabase CLI stack with `.env.local`
@@ -14,6 +29,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,
+  globalTeardown: './tests/support/fake-network-teardown.ts',
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', {open: 'never'}]] : 'list',
@@ -25,12 +41,27 @@ export default defineConfig({
     {name: 'desktop', use: {...devices['Desktop Chrome']}},
     {name: 'phone', use: {...devices['Pixel 7']}},
   ],
-  webServer: {
-    command: `npm run start -- --hostname 127.0.0.1 --port ${port}`,
-    url: `http://127.0.0.1:${port}/api/health`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-    stdout: 'pipe',
-    stderr: 'pipe',
-  },
+  webServer: [
+    {
+      command: `npm run start -- --hostname 127.0.0.1 --port ${port}`,
+      url: `http://127.0.0.1:${port}/api/health`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+    {
+      // The same build with tests/support/fake-network.mjs preloaded. Nothing reaches it but the tests that
+      // ask for it, and the fake network fails nothing until a test switches it on for one user. It is never
+      // an already-running server: one that was not started with the preload (or with another directory)
+      // would let the outage tests pass or fail for the wrong reason.
+      command: `npm run start -- --hostname 127.0.0.1 --port ${flakyPort}`,
+      url: `http://127.0.0.1:${flakyPort}/api/health`,
+      env: {NODE_OPTIONS: nodeOptions, NOVA3D_FAKE_NETWORK: 'playwright', NOVA3D_FAKE_NETWORK_DIR: process.env.NOVA3D_FAKE_NETWORK_DIR},
+      reuseExistingServer: false,
+      timeout: 60_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+  ],
 });

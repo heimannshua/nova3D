@@ -155,6 +155,19 @@ describe('global shell (G-01, UX-DR24)', () => {
     expect(settings.match(new RegExp(`id="${fragment}"`, 'g'))).toHaveLength(1);
   });
 
+  it.each(locales)('offers "sign out my other sessions" in Settings, as a form with one button, in %s', (locale) => {
+    const settings = renderToStaticMarkup(withPreferences({locale}, <AnnouncerProvider><SettingsContent/></AnnouncerProvider>));
+    const t = createTranslator(locale);
+    expect(settings).toContain(`>${t('settings.sessions.title')}</h2>`);
+    expect(settings).toContain(t('settings.sessions.help'));
+    const button = new RegExp(`<button type="submit" class="btn btn-secondary">[\\s\\S]*?<span>${t('settings.sessions.signOutOthers')}</span></button>`);
+    expect(settings).toMatch(button);
+    expect(settings.match(/id="sessions"/g)).toHaveLength(1);
+    // No result is shown before the button is pressed.
+    expect(settings).not.toContain(t('settings.sessions.done'));
+    expect(settings).not.toContain(t('settings.sessions.failed'));
+  });
+
   it('renders the sign-in page without the shell', () => {
     const markup = renderToStaticMarkup(withPreferences({}, <Shell pathname="/login"><p>sign in</p></Shell>));
     expect(markup).toBe('<p>sign in</p>');

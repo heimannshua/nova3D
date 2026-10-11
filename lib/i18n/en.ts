@@ -49,7 +49,10 @@ export const en = {
   'notifications.sampleBody': '{project} has a research plan waiting for you.',
   'account.title': 'Account',
   'account.sampleName': 'Sample account',
-  'account.note': 'Your real account details and sign-out arrive in a later release.',
+  'account.note': 'Your real account details arrive in a later release.',
+  'account.signOut': 'Sign out',
+  'account.signingOut': 'Signing out…',
+  'account.signOutFailed': 'We could not sign you out just now, so you are still signed in. Try again in a moment.',
 
   // Home
   'home.greeting': 'Good morning, {name}',
@@ -211,6 +214,16 @@ export const en = {
   'settings.announce.detailTechnical': 'Technical detail on.',
   'settings.announce.guidance': 'Introduction restored on Home.',
   'settings.announce.failed': 'That choice could not be kept. Check that cookies are allowed for this site.',
+  'settings.sessions.title': 'Other sessions',
+  'settings.sessions.help': 'Signs you out of every other browser and device where you are signed in. This one stays signed in.',
+  'settings.sessions.signOutOthers': 'Sign out my other sessions',
+  'settings.sessions.pending': 'Signing out your other sessions…',
+  'settings.sessions.done': {
+    one: '{count} other session was signed out. This one stays signed in.',
+    other: '{count} other sessions were signed out. This one stays signed in.',
+  },
+  'settings.sessions.none': 'No other sessions were signed in. This one stays signed in.',
+  'settings.sessions.failed': 'We could not sign out your other sessions just now. Try again in a moment.',
 
   // Shared states
   'state.emptyTitle': 'Nothing here yet',
@@ -265,9 +278,12 @@ export const en = {
   'login.error.not_allowed': 'That Google account cannot be used to sign in to nova3D. If you think that is a mistake, contact the operator of this nova3D instance.',
   'login.error.auth_not_configured': 'Google sign-in is not configured for this environment yet.',
   'login.error.not_signed_in': 'Sign in with an invited Google account to continue.',
+  'login.error.session_ended': 'Your session ended. Sign in again.',
+  'login.notice.signed_out': 'You have been signed out.',
   'login.error.account_disabled': 'This account is disabled, so it cannot sign in. Contact the operator of this nova3D instance for help.',
   'login.error.unknown': 'Sign-in could not be completed.',
   'login.error.startFailed': 'Google sign-in could not be started. Try again.',
+  'login.retry': 'Try again',
 
   // Registration (Story 1.3). Failures are deliberately generic: they never say whether a code exists.
   'register.eyebrow': 'Invitation',

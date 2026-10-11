@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from 'vitest';
-import {withDeadline} from '@/lib/deadline';
+import {createBudget, withDeadline, withinBudget} from '@/lib/deadline';
 
 describe('withDeadline', () => {
   it('settles like the work when it is quick, and leaves no timer behind', async () => {
@@ -42,6 +42,70 @@ describe('withDeadline', () => {
       expect(unhandled).not.toHaveBeenCalled();
     } finally {
       process.off('unhandledRejection', unhandled);
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('createBudget and withinBudget', () => {
+  it('counts down from the moment it is made, and never goes below zero', () => {
+    vi.useFakeTimers();
+    try {
+      const budget = createBudget(1000);
+      expect(budget.remaining()).toBe(1000);
+      vi.advanceTimersByTime(400);
+      expect(budget.remaining()).toBe(600);
+      vi.advanceTimersByTime(5000);
+      expect(budget.remaining()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('tells each step how much is left, and settles like the step when it is quick', async () => {
+    vi.useFakeTimers();
+    try {
+      const budget = createBudget(1000);
+      const told: number[] = [];
+      expect(await withinBudget(budget, async (left) => { told.push(left); return 'a'; })).toBe('a');
+      await vi.advanceTimersByTimeAsync(300);
+      expect(await withinBudget(budget, async (left) => { told.push(left); return 'b'; })).toBe('b');
+      expect(told).toEqual([1000, 700]);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('starts no step when no time is left, and says why', async () => {
+    vi.useFakeTimers();
+    try {
+      const budget = createBudget(500);
+      vi.advanceTimersByTime(500);
+      const step = vi.fn(async () => 'never');
+      await expect(withinBudget(budget, step)).rejects.toThrow('no time left in the budget');
+      expect(step).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('gives up on a step that outlasts the budget, at the budget and not before or after', async () => {
+    vi.useFakeTimers();
+    try {
+      const budget = createBudget(1000);
+      await vi.advanceTimersByTimeAsync(250);
+      const pending = withinBudget(budget, () => new Promise(() => undefined));
+      const outcome = expect(pending).rejects.toThrow('no answer within 750 ms');
+      await vi.advanceTimersByTimeAsync(749);
+      let settled = false;
+      void pending.catch(() => (settled = true));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await outcome;
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
       vi.useRealTimers();
     }
   });

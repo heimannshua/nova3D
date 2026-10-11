@@ -33,8 +33,8 @@ globalThis.fetch = (input, init) => {
 const preload = `--import=data:text/javascript,${encodeURIComponent(forwardFixtureHost)}`;
 
 let rows = [];
-// What api.account_status answers (the accounts API preflight): an HTTP status and a JSON body.
-const accountsOk = () => ({status: 200, body: {status: 'none', account_id: null, workspace_id: null, role: null}});
+// What api.preflight answers (the accounts API preflight): an HTTP status and a JSON body.
+const accountsOk = () => ({status: 200, body: {ok: true}});
 let accountsAnswer = accountsOk();
 let origin = '';
 let server;
@@ -47,7 +47,7 @@ before(async () => {
     request.on('end', () => {
       requests.push({url: request.url, method: request.method, headers: request.headers, body});
       const authorized = request.headers.apikey === SERVICE_KEY && request.headers.authorization === `Bearer ${SERVICE_KEY}`;
-      if (authorized && request.method === 'POST' && request.headers['content-profile'] === 'api' && request.url === '/rest/v1/rpc/account_status') {
+      if (authorized && request.method === 'POST' && request.headers['content-profile'] === 'api' && request.url === '/rest/v1/rpc/preflight') {
         response.writeHead(accountsAnswer.status, {'content-type': 'application/json'}).end(JSON.stringify(accountsAnswer.body));
         return;
       }
@@ -238,17 +238,17 @@ describe('the accounts API preflight (Story 1.3)', () => {
     accountsAnswer = accountsOk();
   };
 
-  it('--live asks api.account_status for the nil UUID with the service role and says so', async () => {
+  it('--live calls api.preflight with the service role and says so', async () => {
     fixtureRows();
     const before = requests.length;
     const result = await run(local(), '--live');
     passed(result);
     assert.match(result.stdout, /the accounts API answered/);
-    const asked = requests.slice(before).find((request) => request.url === '/rest/v1/rpc/account_status');
-    assert.ok(asked, 'account_status was not called');
+    const asked = requests.slice(before).find((request) => request.url === '/rest/v1/rpc/preflight');
+    assert.ok(asked, 'authorize_session was not called');
     assert.equal(asked.method, 'POST');
     assert.equal(asked.headers['content-profile'], 'api');
-    assert.deepEqual(JSON.parse(asked.body), {p_user_id: '00000000-0000-0000-0000-000000000000'});
+    assert.deepEqual(JSON.parse(asked.body), {});
   });
 
   it('--live fails in one line when the api schema is not exposed, the migrations are missing or the key is refused', async () => {
@@ -263,10 +263,10 @@ describe('the accounts API preflight (Story 1.3)', () => {
     }
   });
 
-  it('--live fails when the answer is not none', async () => {
+  it('--live fails when the answer is not ok', async () => {
     fixtureRows();
-    accountsAnswer = {status: 200, body: {status: 'active', account_id: 'x'}};
-    rejected(await run(local(), '--live'), 'did not answer "none" for the nil UUID');
+    accountsAnswer = {status: 200, body: {ok: false}};
+    rejected(await run(local(), '--live'), 'api.preflight did not answer ok');
   });
 
   it('the deployment build runs it too, and fails closed', async () => {

@@ -3,10 +3,10 @@
 import {useState} from 'react';
 import {createBrowserClient} from '@supabase/ssr';
 import {useI18n} from '@/lib/i18n/react';
-import {signInErrorKey, startGoogleSignIn} from '@/lib/sign-in';
+import {signInErrorKey, signInNoticeKey, startGoogleSignIn} from '@/lib/sign-in';
 import type {MessageKey} from '@/lib/i18n';
 import {BrandMark} from './shell/brand';
-import {Button} from './ui/button';
+import {Button, LinkButton} from './ui/button';
 import {Notice} from './ui/states';
 import {mainContentId} from './ui/skip-link';
 
@@ -21,10 +21,12 @@ function getBrowserClient() {
   }
 }
 
-export function LoginForm({initialError}: {initialError?: string}) {
+export function LoginForm({initialError, initialNotice}: {initialError?: string; initialNotice?: string}) {
   const {t} = useI18n();
   // The error is kept as a catalog key, not as text, so it follows the language if that changes.
   const [error, setError] = useState<MessageKey | null>(() => signInErrorKey(initialError));
+  // A notice reports something that worked (a deliberate sign-out), so it is not an error and never an alert.
+  const notice = signInNoticeKey(initialNotice);
   const [busy, setBusy] = useState(false);
   const [googleAvailable] = useState(() => Boolean(getBrowserClient()));
 
@@ -44,7 +46,17 @@ export function LoginForm({initialError}: {initialError?: string}) {
         <p className="eyebrow">{t('login.eyebrow')}</p>
         <h1 id="login-title">{t('login.title')}</h1>
         <p className="auth-lede">{t('login.lede')}</p>
-        {error ? <Notice tone="danger" role="alert">{t(error)}</Notice> : null}
+        {notice && !error ? <Notice tone="info" role="status">{t(notice)}</Notice> : null}
+        {error ? (
+          <Notice
+            tone="danger"
+            role="alert"
+            // A check that could not be made keeps the session, so asking again at Home is the retry.
+            action={error === 'login.error.auth_unavailable' ? <LinkButton href="/" variant="secondary" prefetch={false}>{t('login.retry')}</LinkButton> : undefined}
+          >
+            {t(error)}
+          </Notice>
+        ) : null}
         <Button variant="primary" className="auth-google" onClick={signInWithGoogle} disabled={busy || !googleAvailable}>
           {t('login.google')}
         </Button>

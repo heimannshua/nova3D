@@ -12,7 +12,9 @@ const mocks = vi.hoisted(() => ({
   createSupabaseServerClient: vi.fn(),
   endSession: vi.fn(),
   registerWithCode: vi.fn(),
-  accountStatus: vi.fn(),
+  authorizeSession: vi.fn(),
+  issueGrant: vi.fn(),
+  confirmRegistration: vi.fn(),
   headers: vi.fn(),
 }));
 vi.mock('next/headers', () => ({headers: mocks.headers}));
@@ -25,13 +27,17 @@ vi.mock('@/lib/supabase/server', () => ({createSupabaseServerClient: mocks.creat
 vi.mock('@/lib/accounts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/accounts')>()),
   registerWithCode: mocks.registerWithCode,
-  accountStatus: mocks.accountStatus,
+  authorizeSession: mocks.authorizeSession,
+  issueGrant: mocks.issueGrant,
+  confirmRegistration: mocks.confirmRegistration,
 }));
 
 import {AccountsConfigError, AccountsUnavailableError} from '@/lib/accounts';
 import {registerWithInvitation, switchGoogleAccount} from '@/app/register/actions';
+import {sessionReader} from '../support/access-token';
 
 const USER = '5f0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c44';
+const SESSION = '3b1c9a3e-6a3e-4f19-9d0e-0a4f5e2c8d11';
 const OTHER_USER = '1c0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c99';
 const COMMAND = 'c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f';
 const CODE = '7H2K-9QXM-AB12-CD34-EF56-GH78-JK90-MN12';
@@ -54,10 +60,14 @@ const redirected = async (work: Promise<unknown>) => {
   return null;
 };
 
-type Auth = {getUser: ReturnType<typeof vi.fn>; signOut: ReturnType<typeof vi.fn>};
+type Auth = {getUser: ReturnType<typeof vi.fn>; signOut: ReturnType<typeof vi.fn>; getSession: ReturnType<typeof vi.fn>};
 let auth: Auth;
-const accountIs = (status: 'none' | 'active' | 'disabled') =>
-  mocks.accountStatus.mockResolvedValue({status, accountId: status === 'none' ? null : 'acc', workspaceId: null, role: status === 'none' ? null : 'member'});
+const accountIs = (state: 'unregistered' | 'active' | 'disabled' | 'no_grant' | 'revoked' | 'expired' | 'idle' | 'stale_epoch' | 'subject_mismatch') =>
+  mocks.authorizeSession.mockResolvedValue(
+    state === 'active'
+      ? {state, accountId: 'acc', workspaceId: null, role: 'member', epoch: 1}
+      : {state, accountId: null, workspaceId: null, role: null, epoch: null},
+  );
 
 beforeEach(() => {
   auth = {
@@ -66,12 +76,15 @@ beforeEach(() => {
       error: null,
     })),
     signOut: vi.fn(),
+    getSession: vi.fn(sessionReader(USER, SESSION).getSession),
   };
   mocks.createSupabaseServerClient.mockReset().mockImplementation(async () => ({auth}));
   mocks.endSession.mockReset();
   mocks.registerWithCode.mockReset().mockResolvedValue(receipt('registered'));
-  mocks.accountStatus.mockReset();
-  accountIs('none');
+  mocks.authorizeSession.mockReset();
+  mocks.issueGrant.mockReset().mockResolvedValue({outcome: 'issued', accountId: 'acc', epoch: 1});
+  mocks.confirmRegistration.mockReset().mockResolvedValue(true);
+  accountIs('unregistered');
   mocks.headers.mockReset().mockResolvedValue(new Headers());
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
@@ -99,6 +112,59 @@ describe('a valid code', () => {
   it('answers a replayed receipt as a success', async () => {
     mocks.registerWithCode.mockResolvedValue({...receipt('registered'), replayed: true});
     expect(await redirected(registerWithInvitation(initial, form()))).toBe('/');
+  });
+});
+
+describe('the session grant (Story 1.4a)', () => {
+  it('issues the grant of the verified session once the Account exists, before it lands on Home', async () => {
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/');
+    expect(mocks.issueGrant).toHaveBeenCalledTimes(1);
+    expect(mocks.issueGrant.mock.calls[0].slice(0, 2)).toEqual([USER, SESSION]);
+    expect(mocks.endSession).not.toHaveBeenCalled();
+  });
+
+  it('ignores a session or user in the form: the grant is for the session of the verified token', async () => {
+    await redirected(registerWithInvitation(initial, form({sessionId: OTHER_USER, session_id: OTHER_USER, userId: OTHER_USER})));
+    expect(mocks.issueGrant.mock.calls[0].slice(0, 2)).toEqual([USER, SESSION]);
+  });
+
+  it('issues a grant for a replayed registration too: the session may be a new one', async () => {
+    mocks.registerWithCode.mockResolvedValue({...receipt('registered'), replayed: true});
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/');
+    expect(mocks.issueGrant).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['refused', 'limited', 'disabled'])('issues no grant for a %s registration', async (outcome) => {
+    mocks.registerWithCode.mockResolvedValue(receipt(outcome));
+    await redirected(registerWithInvitation(initial, form()));
+    expect(mocks.issueGrant).not.toHaveBeenCalled();
+  });
+
+  it('issues no grant when no Account is created: a failed call, a signed-out visitor, an existing Account', async () => {
+    mocks.registerWithCode.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
+    await registerWithInvitation(initial, form());
+    mocks.registerWithCode.mockReset();
+    accountIs('active');
+    await redirected(registerWithInvitation(initial, form()));
+    accountIs('revoked');
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=session_ended');
+    expect(mocks.issueGrant).not.toHaveBeenCalled();
+  });
+
+  it('signs out this browser and sends the person to sign-in when the grant cannot be recorded: the Account exists, signing in again issues it', async () => {
+    mocks.issueGrant.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=auth_unavailable');
+    expect(mocks.endSession).toHaveBeenCalledTimes(1);
+    expect(mocks.endSession.mock.calls[0][1]).toBe('local');
+  });
+
+  it('signs out everywhere when the grant is refused: a disabled Account or a changed Google identity', async () => {
+    mocks.issueGrant.mockResolvedValue({outcome: 'disabled', accountId: 'acc', epoch: 1});
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=account_disabled');
+    expect(mocks.endSession.mock.calls[0][1]).toBe('global');
+    mocks.issueGrant.mockResolvedValue({outcome: 'subject_mismatch', accountId: 'acc', epoch: 1});
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=not_allowed');
+    expect(mocks.endSession.mock.calls[1][1]).toBe('global');
   });
 });
 
@@ -142,7 +208,7 @@ describe('the input is bounded before any work is done', () => {
   const untouched = () => {
     expect(mocks.createSupabaseServerClient).not.toHaveBeenCalled();
     expect(auth.getUser).not.toHaveBeenCalled();
-    expect(mocks.accountStatus).not.toHaveBeenCalled();
+    expect(mocks.authorizeSession).not.toHaveBeenCalled();
     expect(mocks.registerWithCode).not.toHaveBeenCalled();
   };
 
@@ -196,7 +262,7 @@ describe('an unreachable database fails closed and keeps the command ID', () => 
   });
 
   it('shows the retry message, keeps the ID and registers no one when the Account check cannot be made', async () => {
-    mocks.accountStatus.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
+    mocks.authorizeSession.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
     expect(await registerWithInvitation(initial, form())).toEqual({commandId: COMMAND, error: 'unavailable'});
     expect(mocks.registerWithCode).not.toHaveBeenCalled();
   });
@@ -255,6 +321,13 @@ describe('who may register', () => {
     expect(mocks.registerWithCode).not.toHaveBeenCalled();
   });
 
+  it('signs a changed Google identity out everywhere it can, says so, and registers no one', async () => {
+    accountIs('subject_mismatch');
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=not_allowed');
+    expect(mocks.endSession).toHaveBeenCalledTimes(1);
+    expect(mocks.registerWithCode).not.toHaveBeenCalled();
+  });
+
   it('signs a disabled Account out, and registers no one', async () => {
     accountIs('disabled');
     expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=account_disabled');
@@ -274,5 +347,74 @@ describe('use a different Google account', () => {
     expect(await redirected(switchGoogleAccount())).toBe('/login');
     expect(mocks.endSession).toHaveBeenCalledTimes(1);
     expect(mocks.endSession.mock.calls[0][1]).toBe('local');
+  });
+});
+
+describe('a registration retried after its answer was lost: an Account, but no grant for this session', () => {
+  beforeEach(() => {
+    accountIs('no_grant');
+    mocks.registerWithCode.mockResolvedValue({...receipt('registered'), replayed: true});
+  });
+
+  it('replays the command, has the database confirm that this command and code created the Account, and then issues the grant', async () => {
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/');
+    expect(mocks.registerWithCode).toHaveBeenCalledTimes(1);
+    expect(mocks.registerWithCode.mock.calls[0][0]).toMatchObject({userId: USER, commandId: COMMAND, code: CODE});
+    expect(mocks.confirmRegistration).toHaveBeenCalledWith({userId: USER, commandId: COMMAND, code: CODE});
+    expect(mocks.issueGrant).toHaveBeenCalledTimes(1);
+    expect(mocks.issueGrant.mock.calls[0].slice(0, 2)).toEqual([USER, SESSION]);
+    expect(mocks.endSession).not.toHaveBeenCalled();
+  });
+
+  it('gives a session that merely holds a user with an Account no grant: another command or code is not the one that registered it', async () => {
+    mocks.confirmRegistration.mockResolvedValue(false);
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=session_ended');
+    expect(mocks.issueGrant).not.toHaveBeenCalled();
+  });
+
+  it('does not take a registration that is not a replay for the original: the database must still confirm it, and a fresh one never counts', async () => {
+    mocks.registerWithCode.mockResolvedValue({...receipt('registered'), replayed: false});
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=session_ended');
+    expect(mocks.confirmRegistration).not.toHaveBeenCalled();
+    expect(mocks.issueGrant).not.toHaveBeenCalled();
+  });
+
+  it.each(['refused', 'limited'])('turns a %s answer into an ended session: an Account already exists, so no code can help', async (outcome) => {
+    mocks.registerWithCode.mockResolvedValue(receipt(outcome));
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=session_ended');
+    expect(mocks.issueGrant).not.toHaveBeenCalled();
+  });
+
+  it('signs a disabled Account out with its message', async () => {
+    mocks.registerWithCode.mockResolvedValue(receipt('disabled'));
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=account_disabled');
+    expect(mocks.endSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the command and asks for a retry when the database cannot confirm, and issues nothing', async () => {
+    mocks.confirmRegistration.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
+    expect(await registerWithInvitation(initial, form())).toEqual({commandId: COMMAND, error: 'unavailable'});
+    expect(mocks.issueGrant).not.toHaveBeenCalled();
+  });
+
+  it('signs this browser out, and says unavailable, when the grant cannot be recorded after a confirmed replay', async () => {
+    mocks.issueGrant.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=auth_unavailable');
+    expect(mocks.endSession.mock.calls[0][1]).toBe('local');
+  });
+
+  it.each(['revoked', 'expired', 'idle', 'stale_epoch'] as const)('is only for a session that never had a grant: a %s one is turned away without a replay', async (state) => {
+    accountIs(state);
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=session_ended');
+    expect(mocks.registerWithCode).not.toHaveBeenCalled();
+    expect(mocks.confirmRegistration).not.toHaveBeenCalled();
+  });
+
+  it('a user without an Account never reaches the confirmation: a new registration is not a replay', async () => {
+    accountIs('unregistered');
+    mocks.registerWithCode.mockResolvedValue(receipt('registered'));
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/');
+    expect(mocks.confirmRegistration).not.toHaveBeenCalled();
+    expect(mocks.issueGrant).toHaveBeenCalledTimes(1);
   });
 });

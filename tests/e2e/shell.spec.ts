@@ -351,10 +351,11 @@ test.describe('menus and dialogs close the way people expect (AC-3)', () => {
         await page.keyboard.press('Tab');
         expect(await page.evaluate(() => Boolean(document.activeElement?.closest('.popover-panel')))).toBe(true);
       }
-      // Blank space: the bottom edge of the page heading, which cannot take focus. On a phone the open panel
-      // covers the heading's upper part, so aim below it.
-      const heading = page.locator('main h1');
-      await heading.click({position: {x: 4, y: (await heading.boundingBox())!.height - 3}});
+      // Blank space: the bottom edge of the page's main region, below its content. It takes focus only when a
+      // script gives it focus (tabindex -1), so a click there is the case the menu must hand focus back from.
+      // (On a phone the open panel covers the top of the page, the heading included, so aim at the bottom.)
+      const main = page.locator('main');
+      await main.click({position: {x: 4, y: (await main.boundingBox())!.height - 3}});
       await expect(region).toHaveCount(0);
       await expect(trigger).toHaveAttribute('aria-expanded', 'false');
       await expect(trigger).toBeFocused();

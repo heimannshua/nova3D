@@ -41,6 +41,8 @@ export function createSupabaseProxyClient(request: NextRequest) {
     supabase,
     /** Lets the request through to the page, with any refreshed session. */
     next: () => carry(NextResponse.next({request})),
+    /** Carries any refreshed (or cleared) session cookies on a response the proxy built itself, such as a JSON denial. */
+    respond: (response: NextResponse) => carry(response),
     /** Sends the browser elsewhere, keeping any refreshed (or cleared) session cookies. */
     redirect: (location: URL, status: 303 | 307 = 307) => carry(NextResponse.redirect(location, status)),
     /** Expires every Auth cookie the request carried, for a refusal that must not stay signed in. */

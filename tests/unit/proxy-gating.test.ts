@@ -22,8 +22,10 @@ type Net = {
   preauth: 'none' | 'registered' | 'active' | 'refused' | 'disabled' | 'error500' | 'unreachable';
   /** What POST /auth/v1/logout does. */
   logout: 'ok' | 'hangs' | 'unreachable';
-  /** What api.account_status does: an Account state, or a failure. */
-  account: {status: 'none' | 'active' | 'disabled'} | 'error500' | 'forbidden' | 'unreachable';
+  /** What api.authorize_session does: the state of the user's session, or a failure. */
+  authorization: 'active' | 'unregistered' | 'disabled' | 'no_session' | 'no_grant' | 'revoked' | 'expired' | 'idle' | 'stale_epoch' | 'subject_mismatch' | 'error500' | 'forbidden' | 'unreachable';
+  /** What api.issue_grant does: a receipt outcome, or a failure. */
+  grant: 'issued' | 'exists' | 'disabled' | 'subject_mismatch' | 'revoked' | 'error500' | 'unreachable';
 };
 
 let net: Net;
@@ -64,12 +66,17 @@ async function stubbedFetch(input: unknown, init: RequestInit = {}): Promise<Res
       token_type: 'bearer', expires_in: 3600, expires_at: issuedAt + 3600, refresh_token: 'refreshed-refresh-token', user: userBody(),
     });
   }
-  if (url.pathname === '/rest/v1/rpc/account_status') {
-    if (net.account === 'unreachable') throw new TypeError('fetch failed');
-    if (net.account === 'error500') return json({message: 'boom'}, 500);
-    if (net.account === 'forbidden') return json({code: '42501', message: 'permission denied'}, 403);
-    const active = net.account.status !== 'none';
-    return json({status: net.account.status, account_id: active ? ACCOUNT : null, workspace_id: active ? ACCOUNT : null, role: active ? 'member' : null});
+  if (url.pathname === '/rest/v1/rpc/authorize_session') {
+    if (net.authorization === 'unreachable') throw new TypeError('fetch failed');
+    if (net.authorization === 'error500') return json({message: 'boom'}, 500);
+    if (net.authorization === 'forbidden') return json({code: '42501', message: 'permission denied'}, 403);
+    const active = net.authorization === 'active';
+    return json({state: net.authorization, account_id: active ? ACCOUNT : null, workspace_id: active ? ACCOUNT : null, role: active ? 'member' : null, epoch: active ? 1 : null});
+  }
+  if (url.pathname === '/rest/v1/rpc/issue_grant') {
+    if (net.grant === 'unreachable') throw new TypeError('fetch failed');
+    if (net.grant === 'error500') return json({message: 'boom'}, 500);
+    return json({outcome: net.grant, account_id: ACCOUNT, epoch: 1});
   }
   if (url.pathname === '/rest/v1/rpc/consume_preauthorization') {
     if (net.preauth === 'unreachable') throw new TypeError('fetch failed');
@@ -81,7 +88,7 @@ async function stubbedFetch(input: unknown, init: RequestInit = {}): Promise<Res
 }
 
 beforeEach(() => {
-  net = {user: 'ok', account: {status: 'active'}, preauth: 'none', logout: 'ok'};
+  net = {user: 'ok', authorization: 'active', grant: 'issued', preauth: 'none', logout: 'ok'};
   calls = [];
   errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   vi.stubGlobal('fetch', vi.fn(stubbedFetch));
@@ -143,11 +150,11 @@ describe('an active Account', () => {
     expect(destination(await run('/register'))).toBe('/');
   });
 
-  it('asks Auth who is signed in with the cookie token, and the database about that ID only', async () => {
+  it('asks Auth who is signed in with the cookie token, and the database about that user and the session of that token only', async () => {
     await run('/projects');
     const auth = calls.find((call) => call.path === '/auth/v1/user')!;
     expect(auth.headers.authorization).toMatch(/^Bearer eyJ/);
-    expect(rpcs().map((call) => [call.path, JSON.parse(call.body)])).toEqual([['/rest/v1/rpc/account_status', {p_user_id: USER}]]);
+    expect(rpcs().map((call) => [call.path, JSON.parse(call.body)])).toEqual([['/rest/v1/rpc/authorize_session', {p_user_id: USER, p_session_id: SESSION}]]);
     // The accounts call is the service role's alone, and goes through the api schema.
     expect(rpcs()[0].headers.authorization).toBe('Bearer service-role-key');
     expect(rpcs()[0].headers['content-profile']).toBe('api');
@@ -161,7 +168,7 @@ describe('an active Account', () => {
 
 describe('a Google identity without an Account', () => {
   beforeEach(() => {
-    net.account = {status: 'none'};
+    net.authorization = 'unregistered';
   });
 
   it.each(['/', '/projects', '/progress', '/settings', '/nope', '/kit'])('reaches only /register: %s is redirected there', async (path) => {
@@ -183,7 +190,7 @@ describe('a Google identity without an Account', () => {
 
 describe('a disabled Account', () => {
   beforeEach(() => {
-    net.account = {status: 'disabled'};
+    net.authorization = 'disabled';
   });
 
   it.each(['/', '/projects', '/register', '/nope'])('is signed out at %s and sent to sign-in with account_disabled', async (path) => {
@@ -238,9 +245,9 @@ describe('a disabled Account', () => {
 
 describe('a failure while deciding denies access (fail closed)', () => {
   const cases: [string, Partial<Net>][] = [
-    ['the accounts database is unreachable', {account: 'unreachable'}],
-    ['the accounts database answers 500', {account: 'error500'}],
-    ['the accounts database refuses the call', {account: 'forbidden'}],
+    ['the accounts database is unreachable', {authorization: 'unreachable'}],
+    ['the accounts database answers 500', {authorization: 'error500'}],
+    ['the accounts database refuses the call', {authorization: 'forbidden'}],
     ['Auth is unreachable', {user: 'unreachable'}],
     ['Auth answers 500', {user: 'error500'}],
   ];
@@ -256,17 +263,17 @@ describe('a failure while deciding denies access (fail closed)', () => {
   });
 
   it('does not sign the person out for an outage, so they can come back when it clears', async () => {
-    net.account = 'unreachable';
+    net.authorization = 'unreachable';
     const response = await run('/');
     expect(calls.some((call) => call.path === '/auth/v1/logout')).toBe(false);
     expect(setCookies(response).some((value) => value.startsWith(`${cookieName}=;`))).toBe(false);
   });
 
   it('logs the failure by name and never prints a token, a key or the cookie', async () => {
-    net.account = 'error500';
+    net.authorization = 'error500';
     await run('/');
     const printed = JSON.stringify(errors.mock.calls);
-    expect(printed).toContain('Account check failed closed');
+    expect(printed).toContain('Authorization failed closed');
     for (const secret of ['service-role-key', 'anon-key', 'eyJ', 'base64-', SECRET]) expect(printed).not.toContain(secret);
   });
 
@@ -314,7 +321,7 @@ describe('a session that Auth refreshes while it is checked', () => {
   });
 
   it('keeps the new session on a redirect too, or the next request would present a used refresh token', async () => {
-    net.account = {status: 'none'};
+    net.authorization = 'unregistered';
     const response = await run('/projects', {cookie: `${cookieName}=${expired()}`});
     expect(destination(response)).toBe('/register');
     expect(setCookies(response).some((value) => value.startsWith(`${cookieName}=`) && !value.startsWith(`${cookieName}=;`))).toBe(true);
@@ -342,7 +349,7 @@ describe('Auth answers that are not "no session" fail closed', () => {
 
 describe('an identity that signed in before its address was pre-authorized (the cutover case)', () => {
   beforeEach(() => {
-    net.account = {status: 'none'};
+    net.authorization = 'unregistered';
   });
   const consumed = () => rpcs().filter((call) => call.path.endsWith('/consume_preauthorization'));
 
@@ -366,7 +373,7 @@ describe('an identity that signed in before its address was pre-authorized (the 
     expect(destination(response)).toBe('/');
     expect(calls.some((call) => call.path === '/auth/v1/logout')).toBe(false);
     // And from then on the gate sees the Account.
-    net.account = {status: 'active'};
+    net.authorization = 'active';
     expect(passes(await run('/projects'))).toBe(true);
   });
 
@@ -401,7 +408,7 @@ describe('an identity that signed in before its address was pre-authorized (the 
   it('does not consume anything for a post (the registration action), an active Account or a signed-out visitor', async () => {
     net.preauth = 'registered';
     expect(passes(await run('/register', {method: 'POST'}))).toBe(true);
-    net.account = {status: 'active'};
+    net.authorization = 'active';
     expect(destination(await run('/register'))).toBe('/');
     expect(consumed()).toEqual([]);
     expect(destination(await run('/register', {cookie: null}))).toBe('/login?error=not_signed_in');
@@ -411,7 +418,7 @@ describe('an identity that signed in before its address was pre-authorized (the 
 
 describe('every sign-out is bounded by a deadline and by the cookies', () => {
   it.each(['hangs', 'unreachable'] as const)('ends a disabled Account in the redirect and an expired cookie when the logout %s', async (logout) => {
-    net.account = {status: 'disabled'};
+    net.authorization = 'disabled';
     net.logout = logout;
     vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']});
     try {
@@ -426,11 +433,239 @@ describe('every sign-out is bounded by a deadline and by the cookies', () => {
   });
 
   it('leaves other projects\' cookies alone when it expires the session', async () => {
-    net.account = {status: 'disabled'};
+    net.authorization = 'disabled';
     const response = await run('/', {cookie: `${cookieName}=${session()}; sb-other-auth-token=keep; sb-other-auth-token.0=keep`});
     const names = setCookies(response).map((value) => value.split('=')[0]);
     expect(names).toContain(cookieName);
     expect(names).not.toContain('sb-other-auth-token');
     expect(names).not.toContain('sb-other-auth-token.0');
+  });
+});
+
+describe('session grants (Story 1.4a)', () => {
+  it.each(['no_grant', 'revoked', 'expired', 'idle', 'stale_epoch'] as const)('a valid token whose grant is %s is told its session ended, whatever the path', async (state) => {
+    net.authorization = state;
+    for (const path of ['/', '/projects', '/progress', '/settings', '/register', '/nope']) {
+      const response = await run(path);
+      expect(response.status, path).toBe(307);
+      expect(destination(response), path).toBe('/login?error=session_ended');
+      expect(passes(response), path).toBe(false);
+    }
+  });
+
+  it('a session Auth no longer has, as far as the database can see, is simply signed out', async () => {
+    net.authorization = 'no_session';
+    expect(destination(await run('/projects'))).toBe('/login?error=not_signed_in');
+  });
+
+  it('does not sign a person out of Auth, or expire the cookie, for a session that holds no grant: signing in again replaces it', async () => {
+    net.authorization = 'revoked';
+    const response = await run('/projects');
+    expect(calls.some((call) => call.path === '/auth/v1/logout')).toBe(false);
+    expect(setCookies(response).some((value) => value.startsWith(`${cookieName}=;`))).toBe(false);
+  });
+
+  it('refuses a Server Action from a session without a grant with a 303 to sign-in, never a replayed body', async () => {
+    net.authorization = 'revoked';
+    const response = await run('/settings', {method: 'POST'});
+    expect(response.status).toBe(303);
+    expect(destination(response)).toBe('/login?error=session_ended');
+  });
+
+  it('lets a POST to /register through for a session that has an Account and no grant (a retried registration), and for nothing else', async () => {
+    net.authorization = 'no_grant';
+    expect(passes(await run('/register', {method: 'POST'}))).toBe(true);
+    expect(destination(await run('/register', {method: 'GET'}))).toBe('/login?error=session_ended');
+    expect(destination(await run('/settings', {method: 'POST'}))).toBe('/login?error=session_ended');
+    for (const state of ['revoked', 'expired', 'idle', 'stale_epoch'] as const) {
+      net.authorization = state;
+      expect(destination(await run('/register', {method: 'POST'})), state).toBe('/login?error=session_ended');
+    }
+  });
+
+  it('signs a changed Google identity out of every device and says not_allowed', async () => {
+    net.authorization = 'subject_mismatch';
+    const response = await run('/projects');
+    expect(destination(response)).toBe('/login?error=not_allowed');
+    expect(calls.find((call) => call.path === '/auth/v1/logout')?.search).toContain('scope=global');
+    expect(setCookies(response).some((value) => value.startsWith(`${cookieName}=;`))).toBe(true);
+  });
+
+  it('signs out a changed Google identity on a page request exactly as before; a Server Action it posts gets the redirect only, and the page request that follows finishes the sign-out', async () => {
+    net.authorization = 'subject_mismatch';
+    const posted = await run('/settings', {method: 'POST'});
+    expect(posted.status).toBe(303);
+    expect(destination(posted)).toBe('/login?error=not_allowed');
+    expect(calls.some((call) => call.path === '/auth/v1/logout')).toBe(false);
+    expect(setCookies(posted).some((value) => value.startsWith(`${cookieName}=;`))).toBe(false);
+
+    const page = await run('/settings');
+    expect(page.status).toBe(307);
+    expect(destination(page)).toBe('/login?error=not_allowed');
+    expect(calls.find((call) => call.path === '/auth/v1/logout')?.search).toContain('scope=global');
+    expect(setCookies(page).some((value) => value.startsWith(`${cookieName}=;`))).toBe(true);
+  });
+
+  it('answers a changed Google identity the same way on every request, not only the first: the database keeps saying so', async () => {
+    net.authorization = 'subject_mismatch';
+    for (let request = 0; request < 3; request += 1) expect(destination(await run('/projects')), `request ${request + 1}`).toBe('/login?error=not_allowed');
+  });
+
+  it('asks the database once for each private request, with the session of the token and never anything the client sent', async () => {
+    const request = new NextRequest('http://127.0.0.1:4173/projects', {
+      headers: {cookie: `${cookieName}=${session()}`, 'x-session-id': '11111111-1111-4111-8111-111111111111', 'x-user-id': '22222222-2222-4222-8222-222222222222'},
+    });
+    await proxy(request);
+    expect(rpcs().map((call) => JSON.parse(call.body))).toEqual([{p_user_id: USER, p_session_id: SESSION}]);
+  });
+
+  it('fails closed, and keeps the session, when the token Auth verified names no session', async () => {
+    const response = await run('/', {cookie: `${cookieName}=${sessionCookieValue({supabaseUrl: SUPABASE, userId: USER, email: 'person@example.com', sessionId: 'not-a-session', jwtSecret: SECRET})}`});
+    expect(destination(response)).toBe('/login?error=auth_unavailable');
+    expect(rpcs()).toEqual([]);
+    expect(calls.some((call) => call.path === '/auth/v1/logout')).toBe(false);
+  });
+
+  it('issues the grant of the session when the registration screen claims a pre-authorization, and sends the person Home', async () => {
+    net.authorization = 'unregistered';
+    net.preauth = 'registered';
+    const response = await run('/register');
+    expect(destination(response)).toBe('/');
+    const issued = rpcs().filter((call) => call.path.endsWith('/issue_grant'));
+    expect(issued.map((call) => JSON.parse(call.body))).toEqual([{p_user_id: USER, p_session_id: SESSION}]);
+    expect(issued[0].headers.authorization).toBe('Bearer service-role-key');
+  });
+
+  it('issues no grant when there is nothing to claim', async () => {
+    net.authorization = 'unregistered';
+    expect(passes(await run('/register'))).toBe(true);
+    expect(rpcs().some((call) => call.path.endsWith('/issue_grant'))).toBe(false);
+  });
+
+  it.each(['unreachable', 'error500'] as const)('signs out this browser only, as unavailable, when the grant cannot be issued (%s)', async (failure) => {
+    net.authorization = 'unregistered';
+    net.preauth = 'registered';
+    net.grant = failure;
+    const response = await run('/register');
+    expect(destination(response)).toBe('/login?error=auth_unavailable');
+    expect(calls.find((call) => call.path === '/auth/v1/logout')?.search).toContain('scope=local');
+    expect(setCookies(response).some((value) => value.startsWith(`${cookieName}=;`))).toBe(true);
+  });
+
+  it('honors nothing cached: the same request after a revocation is refused, and after an outage is denied', async () => {
+    expect(passes(await run('/projects'))).toBe(true);
+    net.authorization = 'revoked';
+    expect(destination(await run('/projects'))).toBe('/login?error=session_ended');
+    net.authorization = 'unreachable';
+    expect(destination(await run('/projects'))).toBe('/login?error=auth_unavailable');
+    net.authorization = 'active';
+    expect(passes(await run('/projects'))).toBe(true);
+    expect(rpcs()).toHaveLength(4);
+  });
+});
+
+describe('a private /api path answers JSON, never HTML or a redirect', () => {
+  const body = async (response: Response) => response.json();
+  const jsonContent = (response: Response) => expect(response.headers.get('content-type')).toMatch(/^application\/json/);
+
+  it('answers 401 to a signed-out client', async () => {
+    const response = await run('/api/projects', {cookie: null});
+    expect(response.status).toBe(401);
+    jsonContent(response);
+    expect(response.headers.get('location')).toBeNull();
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await body(response)).toEqual({error: 'not_signed_in', retryable: false});
+  });
+
+  it.each(['no_grant', 'revoked', 'expired', 'idle', 'stale_epoch'] as const)('answers 401 session_ended to a valid token whose grant is %s', async (state) => {
+    net.authorization = state;
+    const response = await run('/api/projects');
+    expect(response.status).toBe(401);
+    expect(await body(response)).toEqual({error: 'session_ended', retryable: false});
+  });
+
+  it('answers 401 not_signed_in, not session_ended, when Auth itself has no session', async () => {
+    net.user = 'revoked';
+    expect(await body(await run('/api/projects'))).toEqual({error: 'not_signed_in', retryable: false});
+    net.user = 'ok';
+    net.authorization = 'no_session';
+    expect(await body(await run('/api/projects'))).toEqual({error: 'not_signed_in', retryable: false});
+  });
+
+  it('answers 403 to an identity with no Account, even on a path the page table would let it reach', async () => {
+    net.authorization = 'unregistered';
+    for (const path of ['/api/projects', '/api/register']) {
+      const response = await run(path);
+      expect(response.status, path).toBe(403);
+      expect(await body(response)).toEqual({error: 'account_required', retryable: false});
+    }
+  });
+
+  it('answers 403 to a disabled Account and signs it out', async () => {
+    net.authorization = 'disabled';
+    const response = await run('/api/projects', {method: 'POST'});
+    expect(response.status).toBe(403);
+    expect(await body(response)).toEqual({error: 'account_disabled', retryable: false});
+    expect(calls.find((call) => call.path === '/auth/v1/logout')?.search).toContain('scope=global');
+    expect(setCookies(response).some((value) => value.startsWith(`${cookieName}=;`))).toBe(true);
+  });
+
+  it('answers 403 to a changed Google identity and signs it out everywhere', async () => {
+    net.authorization = 'subject_mismatch';
+    const response = await run('/api/projects');
+    expect(response.status).toBe(403);
+    expect(await body(response)).toEqual({error: 'not_allowed', retryable: false});
+    expect(setCookies(response).some((value) => value.startsWith(`${cookieName}=;`))).toBe(true);
+  });
+
+  it.each([
+    ['the database is unreachable', {authorization: 'unreachable'}],
+    ['the database answers 500', {authorization: 'error500'}],
+    ['Auth is unreachable', {user: 'unreachable'}],
+    ['Auth answers 500', {user: 'error500'}],
+  ] as [string, Partial<Net>][])('answers a retryable 503 when %s, and keeps the session', async (_name, change) => {
+    Object.assign(net, change);
+    const response = await run('/api/projects');
+    expect(response.status).toBe(503);
+    jsonContent(response);
+    expect(response.headers.get('retry-after')).toBe('5');
+    expect(await body(response)).toEqual({error: 'auth_unavailable', retryable: true});
+    expect(calls.some((call) => call.path === '/auth/v1/logout')).toBe(false);
+    expect(setCookies(response).some((value) => value.startsWith(`${cookieName}=;`))).toBe(false);
+  });
+
+  it('answers 503 JSON, not a redirect, when the proxy itself fails or Supabase is not configured', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => { throw new Error('boom'); }));
+    expect((await run('/api/projects')).status).toBe(503);
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
+    const response = await run('/api/projects');
+    expect(response.status).toBe(503);
+    expect(await body(response)).toEqual({error: 'auth_not_configured', retryable: false});
+  });
+
+  it('lets an active Account with a valid grant through', async () => {
+    const response = await run('/api/projects');
+    expect(passes(response)).toBe(true);
+  });
+
+  it('keeps /api/health public and asks nobody', async () => {
+    const response = await run('/api/health', {cookie: null});
+    expect(passes(response)).toBe(true);
+    expect(calls).toEqual([]);
+  });
+
+  it('carries the session Auth refreshed while it decided, or the next request would present a used refresh token', async () => {
+    net.authorization = 'revoked';
+    const response = await run('/api/projects', {cookie: `${cookieName}=${session({issuedAt: Math.floor(Date.now() / 1000) - 7200})}`});
+    expect(response.status).toBe(401);
+    expect(calls.some((call) => call.path === '/auth/v1/token')).toBe(true);
+    expect(setCookies(response).some((value) => value.startsWith(`${cookieName}=`) && !value.startsWith(`${cookieName}=;`))).toBe(true);
+  });
+
+  it('does not treat a path that only starts with the letters api as an API path', async () => {
+    net.authorization = 'revoked';
+    const response = await run('/apiary');
+    expect(response.status).toBe(307);
+    expect(destination(response)).toBe('/login?error=session_ended');
   });
 });

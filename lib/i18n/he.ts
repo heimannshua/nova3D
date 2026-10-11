@@ -50,7 +50,10 @@ export const he: Record<MessageKey, Message> = {
   'notifications.sampleBody': 'תוכנית מחקר ממתינה לכם בפרויקט {project}.',
   'account.title': 'חשבון',
   'account.sampleName': 'חשבון לדוגמה',
-  'account.note': 'פרטי החשבון האמיתי והיציאה ממנו יגיעו בגרסה מאוחרת יותר.',
+  'account.note': 'פרטי החשבון האמיתי יגיעו בגרסה מאוחרת יותר.',
+  'account.signOut': 'התנתקות',
+  'account.signingOut': 'מתנתקים…',
+  'account.signOutFailed': 'לא ניתן היה להתנתק כרגע, ולכן אתם עדיין מחוברים. נסו שוב בעוד רגע.',
 
   // Home
   'home.greeting': 'בוקר טוב, {name}',
@@ -212,6 +215,17 @@ export const he: Record<MessageKey, Message> = {
   'settings.announce.detailTechnical': 'הפירוט הטכני פועל.',
   'settings.announce.guidance': 'ההיכרות הוחזרה לדף הבית.',
   'settings.announce.failed': 'לא ניתן היה לשמור את הבחירה. ודאו שעוגיות מותרות באתר הזה.',
+  'settings.sessions.title': 'הפעלות אחרות',
+  'settings.sessions.help': 'מנתק אתכם מכל שאר הדפדפנים והמכשירים שבהם אתם מחוברים. ההפעלה הזו נשארת מחוברת.',
+  'settings.sessions.signOutOthers': 'התנתקות מההפעלות האחרות שלי',
+  'settings.sessions.pending': 'מתנתקים מההפעלות האחרות…',
+  'settings.sessions.done': {
+    one: 'הפעלה אחרת אחת נותקה. ההפעלה הזו נשארת מחוברת.',
+    two: 'שתי הפעלות אחרות נותקו. ההפעלה הזו נשארת מחוברת.',
+    other: '{count} הפעלות אחרות נותקו. ההפעלה הזו נשארת מחוברת.',
+  },
+  'settings.sessions.none': 'לא הייתה אף הפעלה אחרת מחוברת. ההפעלה הזו נשארת מחוברת.',
+  'settings.sessions.failed': 'לא ניתן היה לנתק את ההפעלות האחרות כרגע. נסו שוב בעוד רגע.',
 
   // Shared states
   'state.emptyTitle': 'אין כאן עדיין כלום',
@@ -266,9 +280,12 @@ export const he: Record<MessageKey, Message> = {
   'login.error.not_allowed': 'לא ניתן להשתמש בחשבון Google הזה כדי להתחבר ל-nova3D. אם נראה לכם שזו טעות, פנו למפעיל המופע של nova3D.',
   'login.error.auth_not_configured': 'התחברות עם Google עדיין לא הוגדרה בסביבה הזו.',
   'login.error.not_signed_in': 'התחברו עם חשבון Google שהוזמן כדי להמשיך.',
+  'login.error.session_ended': 'ההפעלה הסתיימה. התחברו שוב.',
+  'login.notice.signed_out': 'התנתקתם.',
   'login.error.account_disabled': 'החשבון הזה מושבת ולכן אי אפשר להתחבר איתו. פנו למפעיל המופע של nova3D לקבלת עזרה.',
   'login.error.unknown': 'לא ניתן היה להשלים את ההתחברות.',
   'login.error.startFailed': 'לא ניתן היה להתחיל את ההתחברות עם Google. נסו שוב.',
+  'login.retry': 'לנסות שוב',
 
   // Registration (Story 1.3). Failures are deliberately generic: they never say whether a code exists.
   'register.eyebrow': 'הזמנה',

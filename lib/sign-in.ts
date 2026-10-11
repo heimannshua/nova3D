@@ -7,6 +7,7 @@ const errorMessages = {
   not_allowed: 'login.error.not_allowed',
   auth_not_configured: 'login.error.auth_not_configured',
   not_signed_in: 'login.error.not_signed_in',
+  session_ended: 'login.error.session_ended',
   account_disabled: 'login.error.account_disabled',
 } as const satisfies Record<string, MessageKey>;
 
@@ -18,6 +19,25 @@ export const signInErrorCodes = Object.keys(errorMessages);
 /** The path that shows a sign-in error. The one place the query string is built. */
 export function signInErrorPath(code: SignInErrorCode) {
   return `/login?error=${code}`;
+}
+
+// Notices the sign-in page shows in the query string. Unlike an error, a notice reports something that
+// worked (a deliberate sign-out), so it is not styled or announced as a failure.
+const noticeMessages = {
+  signed_out: 'login.notice.signed_out',
+} as const satisfies Record<string, MessageKey>;
+
+export type SignInNoticeCode = keyof typeof noticeMessages;
+
+export const signInNoticeCodes = Object.keys(noticeMessages);
+
+/** Where a deliberate sign-out lands: the sign-in page, saying so. */
+export const signedOutPath = '/login?notice=signed_out';
+
+/** The message for a notice code from the query string, or null for no code or an unknown one (own properties only). */
+export function signInNoticeKey(code: string | undefined): MessageKey | null {
+  if (!code || !Object.hasOwn(noticeMessages, code)) return null;
+  return noticeMessages[code as SignInNoticeCode];
 }
 
 /**

@@ -1,7 +1,7 @@
 import {createHash, randomBytes, randomUUID} from 'node:crypto';
 import {Client} from 'pg';
 import {afterAll, beforeAll} from 'vitest';
-import {insertAuthUser, removeAccountData, type TestUser, type UserOptions} from './accounts-data';
+import {insertAuthSession, insertAuthUser, removeAccountData, type TestUser, type UserOptions} from './accounts-data';
 import {localStack} from './stack';
 
 export type {TestUser, UserOptions};
@@ -73,6 +73,9 @@ export function createHarness() {
   /** An Auth user as GoTrue would leave it after a Google sign-in (inserted directly: the hook only guards GoTrue). */
   const addUser = (client: Client, options: UserOptions = {}): Promise<TestUser> => insertAuthUser(client, options);
 
+  /** A live Auth session of the user (removed with the user), which a session grant needs. */
+  const addSession = (client: Client, userId: string): Promise<string> => insertAuthSession(client, userId);
+
   /** One statement as a role, isolated by a savepoint so a denial does not abort the surrounding transaction. */
   async function attempt(client: Client, role: string | null, sql: string, params: unknown[] = []): Promise<Attempt> {
     await client.query('savepoint attempt');
@@ -102,6 +105,24 @@ export function createHarness() {
         call('select * from api.register_with_code($1, $2, $3, $4)', [userId, options.command ?? randomUUID(), hash, options.origin ?? originHash()]),
       consume: (userId: string) => call('select * from api.consume_preauthorization($1)', [userId]),
       status: (userId: string) => call('select * from api.account_status($1)', [userId]),
+      // Epochs are bigint, which node-postgres returns as text; they are small, so the harness hands back numbers.
+      authorize: (userId: string, sessionId: string) =>
+        call('select state, account_id, workspace_id, role, epoch::integer as epoch from api.authorize_session($1, $2)', [userId, sessionId]),
+      issueGrant: (userId: string, sessionId: string) => call('select outcome, account_id, epoch::integer as epoch from api.issue_grant($1, $2)', [userId, sessionId]),
+      revokeGrants: (options: {session?: string; user?: string; account?: string; except?: string; below?: number; actor?: string; reason?: string}) =>
+        call('select revoked, live from api.revoke_grants($1, $2, $3, $4, $5, $6, $7)', [
+          options.actor ?? 'seed:local:test',
+          options.reason ?? 'test',
+          options.session ?? null,
+          options.user ?? null,
+          options.account ?? null,
+          options.except ?? null,
+          options.below ?? null,
+        ]),
+      confirmRegistration: (userId: string, commandId: string, hash: string) => call('select confirmed from api.confirm_registration($1, $2, $3)', [userId, commandId, hash]),
+      preflight: () => call('select ok from api.preflight()', []),
+      raiseEpoch: (accountId: string, actor = 'seed:local:test') =>
+        call('select account_id, epoch::integer as epoch from api.raise_authorization_epoch($1, $2)', [accountId, actor]),
       seed: (email: string, role: string, actor = 'seed:local:test') => call('select * from api.seed_preauthorization($1, $2, $3)', [email, role, actor]),
       withdraw: (email: string, actor = 'seed:local:test') => call('select * from api.withdraw_preauthorization($1, $2)', [email, actor]),
       // A general code replaces the current one by default, so a test never depends on (or fails because of) a
@@ -119,5 +140,5 @@ export function createHarness() {
   const failuresOf = async (client: Client, origin: string) =>
     Number((await client.query(`select coalesce(sum(failures), 0) as n from identity.rate_limit_counters where scope = 'origin' and key_hash = $1`, [origin])).rows[0].n);
 
-  return {db, connect, committed, cleanup, inTx, addUser, attempt, rows, api, count, invitationStatus, failuresOf};
+  return {db, connect, committed, cleanup, inTx, addUser, addSession, attempt, rows, api, count, invitationStatus, failuresOf};
 }

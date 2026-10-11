@@ -6,8 +6,10 @@ import {
   AccountsConfigError,
   AccountsUnavailableError,
   accountStatus,
+  authorizeSession,
   canonicalizeInvitationCode,
   clientAddressFromHeaders,
+  confirmRegistration,
   consumePreauthorization,
   generateInvitationCode,
   hashClientAddress,
@@ -15,12 +17,17 @@ import {
   hashKey,
   invitationCodeBytes,
   invitationCodeEntropyBits,
+  issueGrant,
   issueInvitation,
   listInvitations,
   looksLikeInvitationCode,
   normalizeClientAddress,
+  raiseAuthorizationEpoch,
   registerWithCode,
+  revokeAccountGrants,
+  revokeGrantsBelowEpoch,
   revokeInvitation,
+  revokeSessionGrant,
   seedPreauthorization,
   withdrawPreauthorization,
 } from '@/lib/accounts';
@@ -502,6 +509,195 @@ describe('the other calls', () => {
     expect(JSON.stringify(listed)).not.toMatch(/hash|code/i);
     const odd = endpoint(() => ({body: {not: 'a list'}}));
     await expect(listInvitations({env: environment(), fetch: odd.fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+describe('session grants (Story 1.4a)', () => {
+  const SESSION = '3b1c9a3e-6a3e-4f19-9d0e-0a4f5e2c8d11';
+  const OTHER_SESSION = '4c2d0b4f-7b4f-4a2a-8e1f-1b5a6f3d9e22';
+  const ACCOUNT = '7a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d';
+  const active = {state: 'active', account_id: ACCOUNT, workspace_id: 'w1', role: 'member', epoch: 2};
+
+  describe('authorizeSession', () => {
+    it('sends the user and the session to api.authorize_session with the service role, and nothing else', async () => {
+      const {calls, fetch} = endpoint(() => ({body: active}));
+      expect(await authorizeSession(USER, SESSION.toUpperCase(), {env: environment(), fetch})).toEqual({state: 'active', accountId: ACCOUNT, workspaceId: 'w1', role: 'member', epoch: 2});
+      expect(calls).toHaveLength(1);
+      expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/authorize_session');
+      expect(calls[0].init.headers).toMatchObject({'content-profile': 'api', authorization: `Bearer ${SERVICE_KEY}`});
+      expect(calls[0].body).toEqual({p_user_id: USER, p_session_id: SESSION});
+      expect(JSON.stringify(calls[0].body)).not.toContain(SERVICE_KEY);
+    });
+
+    it.each(['unregistered', 'disabled', 'no_session', 'no_grant', 'revoked', 'expired', 'idle', 'stale_epoch', 'subject_mismatch'] as const)('answers %s with the state and nothing of the Account', async (state) => {
+      const {fetch} = endpoint(() => ({body: {state, account_id: ACCOUNT, workspace_id: 'w1', role: 'administrator', epoch: 5}}));
+      expect(await authorizeSession(USER, SESSION, {env: environment(), fetch})).toEqual({state, accountId: null, workspaceId: null, role: null, epoch: null});
+    });
+
+    it('accepts an active Account that has no Workspace row with a null Workspace', async () => {
+      const {fetch} = endpoint(() => ({body: {...active, workspace_id: null}}));
+      expect(await authorizeSession(USER, SESSION, {env: environment(), fetch})).toMatchObject({state: 'active', workspaceId: null});
+    });
+
+    it.each([
+      ['a state it does not know', {state: 'frozen'}],
+      ['no state', {}],
+      ['active without an Account', {...active, account_id: null}],
+      ['active without a role', {...active, role: 'owner'}],
+      ['active without an epoch', {...active, epoch: null}],
+      ['active with a fractional epoch', {...active, epoch: 1.5}],
+      ['an array', [active]],
+      ['text', 'active'],
+    ])('treats %s as no answer at all', async (_name, body) => {
+      const {fetch} = endpoint(() => ({body}));
+      await expect(authorizeSession(USER, SESSION, {env: environment(), fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+
+    it('fails closed when the database cannot be reached, errors, or refuses the call', async () => {
+      await expect(authorizeSession(USER, SESSION, {env: environment(), fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({retryable: true});
+      await expect(authorizeSession(USER, SESSION, {env: environment(), fetch: endpoint(() => ({status: 503, body: {}})).fetch})).rejects.toMatchObject({retryable: true, status: 503});
+      await expect(authorizeSession(USER, SESSION, {env: environment(), fetch: endpoint(() => ({status: 403, body: {code: '42501'}})).fetch})).rejects.toMatchObject({retryable: false, code: '42501'});
+    });
+
+    it('refuses an ID that is not a UUID without calling the database', async () => {
+      const {calls, fetch} = endpoint(() => ({body: active}));
+      await expect(authorizeSession('not-a-uuid', SESSION, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      await expect(authorizeSession(USER, "x'; drop table", {env: environment(), fetch})).rejects.toThrow(TypeError);
+      expect(calls).toHaveLength(0);
+    });
+  });
+
+  describe('issueGrant', () => {
+    it('sends the user and the session, and returns the receipt', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'issued', account_id: ACCOUNT, epoch: 1}}));
+      expect(await issueGrant(USER, SESSION, {env: environment(), fetch})).toEqual({outcome: 'issued', accountId: ACCOUNT, epoch: 1});
+      expect(calls[0].url).toMatch(/\/rpc\/issue_grant$/);
+      expect(calls[0].body).toEqual({p_user_id: USER, p_session_id: SESSION});
+    });
+
+    it.each(['issued', 'exists', 'revoked', 'expired', 'idle', 'stale', 'disabled', 'no_session', 'subject_mismatch'] as const)('maps the %s outcome, with the Account and epoch it names', async (outcome) => {
+      const {fetch} = endpoint(() => ({body: {outcome, account_id: ACCOUNT, epoch: 4}}));
+      expect(await issueGrant(USER, SESSION, {env: environment(), fetch})).toEqual({outcome, accountId: ACCOUNT, epoch: 4});
+    });
+
+    it('maps no_account, which names neither an Account nor an epoch', async () => {
+      const {fetch} = endpoint(() => ({body: {outcome: 'no_account', account_id: null, epoch: null}}));
+      expect(await issueGrant(USER, SESSION, {env: environment(), fetch})).toEqual({outcome: 'no_account', accountId: null, epoch: null});
+    });
+
+    it.each([
+      ['an outcome it does not know', {outcome: 'granted', account_id: ACCOUNT, epoch: 1}],
+      ['an Account\'s outcome with no epoch', {outcome: 'exists', account_id: ACCOUNT, epoch: null}],
+      ['an Account\'s outcome with an epoch that is not a number', {outcome: 'issued', account_id: ACCOUNT, epoch: 'one'}],
+      ['an Account\'s outcome with no Account', {outcome: 'issued', account_id: null, epoch: 1}],
+    ])('treats %s as no answer at all', async (_name, body) => {
+      const {fetch} = endpoint(() => ({body}));
+      await expect(issueGrant(USER, SESSION, {env: environment(), fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+
+    it('refuses a bad ID without calling', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'issued', account_id: ACCOUNT, epoch: 1}}));
+      await expect(issueGrant(USER, 'nope', {env: environment(), fetch})).rejects.toThrow(TypeError);
+      expect(calls).toHaveLength(0);
+    });
+  });
+
+  describe('revocation', () => {
+    const actor = `user:${USER}`;
+    const reply = (revoked: number, live = revoked) => endpoint(() => ({body: {revoked, live}}));
+
+    it('revokes one session, optionally for one user, naming only IDs the server took from a verified session', async () => {
+      const {calls, fetch} = reply(1);
+      expect(await revokeSessionGrant({sessionId: SESSION, userId: USER, actor, reason: 'sign_out'}, {env: environment(), fetch})).toEqual({revoked: 1, live: 1});
+      expect(calls[0].url).toMatch(/\/rpc\/revoke_grants$/);
+      expect(calls[0].body).toEqual({p_actor: actor, p_reason: 'sign_out', p_session_id: SESSION, p_user_id: USER});
+      await revokeSessionGrant({sessionId: SESSION, actor: 'system:authorization', reason: 'recovery'}, {env: environment(), fetch});
+      expect(calls[1].body).toEqual({p_actor: 'system:authorization', p_reason: 'recovery', p_session_id: SESSION, p_user_id: null});
+    });
+
+    it('revokes every grant of an Account, sparing one session when asked', async () => {
+      const {calls, fetch} = reply(3, 2);
+      expect(await revokeAccountGrants({accountId: ACCOUNT, exceptSessionId: OTHER_SESSION, actor, reason: 'sign_out_others'}, {env: environment(), fetch})).toEqual({revoked: 3, live: 2});
+      expect(calls[0].body).toEqual({p_actor: actor, p_reason: 'sign_out_others', p_account_id: ACCOUNT, p_except_session_id: OTHER_SESSION});
+      await revokeAccountGrants({accountId: ACCOUNT, actor, reason: 'disabled'}, {env: environment(), fetch});
+      expect(calls[1].body).toMatchObject({p_account_id: ACCOUNT, p_except_session_id: null});
+    });
+
+    it('revokes the grants of an Account that were issued under a lower epoch', async () => {
+      const {calls, fetch} = reply(2, 0);
+      expect(await revokeGrantsBelowEpoch({accountId: ACCOUNT, belowEpoch: 4, actor, reason: 'recovery'}, {env: environment(), fetch})).toEqual({revoked: 2, live: 0});
+      expect(calls[0].body).toEqual({p_actor: actor, p_reason: 'recovery', p_account_id: ACCOUNT, p_below_epoch: 4});
+    });
+
+    it('raises an epoch', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {account_id: ACCOUNT, epoch: 3}}));
+      expect(await raiseAuthorizationEpoch({accountId: ACCOUNT, actor}, {env: environment(), fetch})).toEqual({accountId: ACCOUNT, epoch: 3});
+      expect(calls[0].url).toMatch(/\/rpc\/raise_authorization_epoch$/);
+      expect(calls[0].body).toEqual({p_account_id: ACCOUNT, p_actor: actor});
+      const unknown = endpoint(() => ({body: {account_id: ACCOUNT, epoch: null}}));
+      expect(await raiseAuthorizationEpoch({accountId: ACCOUNT, actor}, {env: environment(), fetch: unknown.fetch})).toEqual({accountId: ACCOUNT, epoch: null});
+    });
+
+    it('does not read an epoch that is not a number as an unknown Account: it is no answer at all', async () => {
+      for (const epoch of ['3', 1.5, -1, true, {}, undefined]) {
+        const {fetch} = endpoint(() => ({body: epoch === undefined ? {account_id: ACCOUNT} : {account_id: ACCOUNT, epoch}}));
+        await expect(raiseAuthorizationEpoch({accountId: ACCOUNT, actor}, {env: environment(), fetch}), String(epoch)).rejects.toBeInstanceOf(AccountsUnavailableError);
+      }
+    });
+
+    it('refuses an actor, a reason or an ID of the wrong shape without calling the database', async () => {
+      const {calls, fetch} = reply(0);
+      const options = {env: environment(), fetch};
+      await expect(revokeSessionGrant({sessionId: SESSION, actor: 'Not An Actor', reason: 'sign_out'}, options)).rejects.toThrow(TypeError);
+      await expect(revokeSessionGrant({sessionId: SESSION, actor, reason: 'Sign Out!'}, options)).rejects.toThrow(TypeError);
+      await expect(revokeSessionGrant({sessionId: 'nope', actor, reason: 'sign_out'}, options)).rejects.toThrow(TypeError);
+      await expect(revokeAccountGrants({accountId: 'nope', actor, reason: 'x'}, options)).rejects.toThrow(TypeError);
+      await expect(revokeGrantsBelowEpoch({accountId: ACCOUNT, belowEpoch: 0, actor, reason: 'x'}, options)).rejects.toThrow(TypeError);
+      await expect(revokeGrantsBelowEpoch({accountId: ACCOUNT, belowEpoch: 1.5, actor, reason: 'x'}, options)).rejects.toThrow(TypeError);
+      await expect(raiseAuthorizationEpoch({accountId: ACCOUNT, actor: ''}, options)).rejects.toThrow(TypeError);
+      expect(calls).toHaveLength(0);
+    });
+
+    it('throws, so the caller knows nothing was recorded, when the database fails or answers nonsense', async () => {
+      const options = (fetch: ReturnType<typeof endpoint>['fetch']) => ({env: environment(), fetch});
+      await expect(revokeSessionGrant({sessionId: SESSION, actor, reason: 'sign_out'}, options(async () => { throw new TypeError('fetch failed'); }))).rejects.toMatchObject({retryable: true, outcomeUnknown: true});
+      await expect(revokeSessionGrant({sessionId: SESSION, actor, reason: 'sign_out'}, options(endpoint(() => ({status: 500, body: {}})).fetch))).rejects.toBeInstanceOf(AccountsUnavailableError);
+      for (const body of [{revoked: 'many', live: 0}, {revoked: -1, live: 0}, {revoked: 1}, {revoked: 1, live: 2}, {live: 1}]) {
+        await expect(revokeAccountGrants({accountId: ACCOUNT, actor, reason: 'x'}, options(endpoint(() => ({body})).fetch)), JSON.stringify(body)).rejects.toBeInstanceOf(AccountsUnavailableError);
+      }
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+describe('confirmRegistration (Story 1.4a)', () => {
+  const COMMAND_ID = '9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d';
+
+  it('sends the hash of the code, never the code, and returns what the database confirms', async () => {
+    const env = environment();
+    const code = generateInvitationCode();
+    const yes = endpoint(() => ({body: {confirmed: true}}));
+    expect(await confirmRegistration({userId: USER, commandId: COMMAND_ID, code}, {env, fetch: yes.fetch})).toBe(true);
+    expect(yes.calls[0].url).toMatch(/\/rpc\/confirm_registration$/);
+    expect(yes.calls[0].body).toEqual({p_user_id: USER, p_command_id: COMMAND_ID, p_code_hash: hashInvitationCode(code, hashKey(env, 'INVITATION_HASH_KEY'))});
+    expect(JSON.stringify(yes.calls[0].body)).not.toContain(code);
+    const no = endpoint(() => ({body: {confirmed: false}}));
+    expect(await confirmRegistration({userId: USER, commandId: COMMAND_ID, code}, {env, fetch: no.fetch})).toBe(false);
+  });
+
+  it('is false, without calling the database, for something that is not shaped like a code', async () => {
+    const {calls, fetch} = endpoint(() => ({body: {confirmed: true}}));
+    expect(await confirmRegistration({userId: USER, commandId: COMMAND_ID, code: 'nope'}, {env: environment(), fetch})).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('treats an answer that is not a plain true or false as no answer, and a missing key as an error', async () => {
+    const code = generateInvitationCode();
+    for (const body of [{}, {confirmed: 'true'}, {confirmed: 1}, [true]]) {
+      await expect(confirmRegistration({userId: USER, commandId: COMMAND_ID, code}, {env: environment(), fetch: endpoint(() => ({body})).fetch}), JSON.stringify(body)).rejects.toBeInstanceOf(AccountsUnavailableError);
+    }
+    await expect(confirmRegistration({userId: USER, commandId: COMMAND_ID, code}, {env: {...environment(), INVITATION_HASH_KEY: undefined}, fetch: endpoint(() => ({body: {confirmed: true}})).fetch})).rejects.toBeInstanceOf(AccountsConfigError);
   });
 });
 

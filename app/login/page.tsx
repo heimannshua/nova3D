@@ -7,8 +7,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return {title: t('meta.login')};
 }
 
-export default async function LoginPage({searchParams}: {searchParams: Promise<{error?: string | string[]}>}) {
+export default async function LoginPage({searchParams}: {searchParams: Promise<{error?: string | string[]; notice?: string | string[]}>}) {
   const params = await searchParams;
-  const error = Array.isArray(params.error) ? params.error[0] : params.error;
-  return <LoginForm initialError={error} />;
+  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+  return <LoginForm initialError={first(params.error)} initialNotice={first(params.notice)} />;
 }

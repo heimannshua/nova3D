@@ -13,3 +13,26 @@ export function withDeadline<T>(work: Promise<T>, milliseconds: number): Promise
   });
   return Promise.race([work, deadline]).finally(() => clearTimeout(timer));
 }
+
+/** One overall allowance of time for a chain of calls, so three slow calls cannot take three times as long. */
+export type Budget = {
+  /** Milliseconds left, never below zero. */
+  remaining(): number;
+};
+
+/** A budget of `milliseconds`, counted from now. */
+export function createBudget(milliseconds: number): Budget {
+  const end = Date.now() + milliseconds;
+  return {remaining: () => Math.max(0, end - Date.now())};
+}
+
+/**
+ * Runs one step of a chain inside its budget. `step` is told how many milliseconds are left (so it can hand
+ * the same limit to the network call it makes) and is not started at all when none are. Settles like the step,
+ * or rejects when the budget runs out first.
+ */
+export function withinBudget<T>(budget: Budget, step: (remainingMs: number) => Promise<T>): Promise<T> {
+  const remaining = budget.remaining();
+  if (remaining <= 0) return Promise.reject(new Error('no time left in the budget'));
+  return withDeadline(step(remaining), remaining);
+}

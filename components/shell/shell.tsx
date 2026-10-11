@@ -2,12 +2,17 @@
 
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
-import {useMemo, useState, type ReactNode} from 'react';
+import {useEffect, useMemo, useState, type ReactNode} from 'react';
+import {signOut} from '@/app/account/actions';
 import {useI18n} from '@/lib/i18n/react';
 import {sampleAccount, sampleProjectById} from '@/lib/mock-data';
+import {useSessionAction} from '../use-session-action';
+import {useAnnounce} from '../ui/announcer';
+import {Button} from '../ui/button';
 import {Icon, type IconName} from '../ui/icon';
 import {Popover} from '../ui/popover';
 import {mainContentId} from '../ui/skip-link';
+import {Notice} from '../ui/states';
 import {Brand} from './brand';
 import {CreateDialog} from './create-dialog';
 import {isChromeless, isCurrent, parentRoute} from './routes';
@@ -82,6 +87,44 @@ function NotificationsMenu({open, onOpenChange}: {open: boolean; onOpenChange: (
   );
 }
 
+/**
+ * The Account panel. It is mounted only while the menu is open, so what a failed sign-out said is gone when
+ * the menu closes and reopens. Signing out revokes the session's grant first; if that cannot be recorded the
+ * session is kept and the person is told, so they can try again; a sign-out that worked leaves the page for
+ * sign-in. The pending state and the failure are announced through the page's one live region.
+ */
+function AccountPanel() {
+  const {t, locale} = useI18n();
+  const announce = useAnnounce();
+  const {state, formAction, pending, onSubmit} = useSessionAction(signOut);
+
+  useEffect(() => {
+    if (pending) announce(t('account.signingOut'), locale);
+  }, [pending, announce, t, locale]);
+  useEffect(() => {
+    if (state.outcome === 'unavailable') announce(t('account.signOutFailed'), locale);
+  }, [state, announce, t, locale]);
+
+  return (
+    <>
+      <div className="account-card">
+        <span className="avatar" aria-hidden="true">{sampleAccount.initial}</span>
+        <div>
+          <strong>{sampleAccount.name}</strong>
+          <small>{t('account.sampleName')}</small>
+        </div>
+      </div>
+      <p className="popover-note">{t('account.note')}</p>
+      {!pending && state.outcome === 'unavailable' ? <Notice tone="danger">{t('account.signOutFailed')}</Notice> : null}
+      <form action={formAction} onSubmit={onSubmit} className="account-signout">
+        <Button variant="secondary" type="submit" aria-disabled={pending ? true : undefined}>
+          {pending ? t('account.signingOut') : t('account.signOut')}
+        </Button>
+      </form>
+    </>
+  );
+}
+
 function AccountMenu({open, onOpenChange}: {open: boolean; onOpenChange: (open: boolean) => void}) {
   const {t} = useI18n();
   return (
@@ -93,14 +136,7 @@ function AccountMenu({open, onOpenChange}: {open: boolean; onOpenChange: (open: 
       onOpenChange={onOpenChange}
       triggerClassName="account-trigger"
     >
-      <div className="account-card">
-        <span className="avatar" aria-hidden="true">{sampleAccount.initial}</span>
-        <div>
-          <strong>{sampleAccount.name}</strong>
-          <small>{t('account.sampleName')}</small>
-        </div>
-      </div>
-      <p className="popover-note">{t('account.note')}</p>
+      <AccountPanel/>
     </Popover>
   );
 }

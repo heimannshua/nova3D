@@ -230,6 +230,35 @@ export type AccountState = {
   role: Role | null;
 };
 
+/**
+ * What api.authorize_session says about a user's session. Only `active` is access. `unregistered` is a user
+ * with no Account (it may reach the registration screen), `disabled` an Account that is disabled, and the
+ * rest are a session that holds no valid grant: Auth no longer has the session (`no_session`), none issued,
+ * revoked, older than 30 days, idle for more than 7, issued under an older epoch than the Account's, or
+ * (`subject_mismatch`) an Auth user whose Google identity is no longer the one pinned to the Account.
+ */
+export type AuthorizationState = 'active' | 'unregistered' | 'disabled' | 'no_session' | 'no_grant' | 'revoked' | 'expired' | 'idle' | 'stale_epoch' | 'subject_mismatch';
+export const authorizationStates: readonly AuthorizationState[] = ['active', 'unregistered', 'disabled', 'no_session', 'no_grant', 'revoked', 'expired', 'idle', 'stale_epoch', 'subject_mismatch'];
+
+/** The Account, Workspace, role and epoch are present only when the state is `active`. */
+export type SessionAuthorization = {
+  state: AuthorizationState;
+  accountId: string | null;
+  workspaceId: string | null;
+  role: Role | null;
+  epoch: number | null;
+};
+
+export const grantOutcomes = ['issued', 'exists', 'revoked', 'expired', 'idle', 'stale', 'no_account', 'disabled', 'no_session', 'subject_mismatch'] as const;
+export type GrantOutcome = (typeof grantOutcomes)[number];
+export type GrantReceipt = {outcome: GrantOutcome; accountId: string | null; epoch: number | null};
+/**
+ * How many grants a revocation ended (`revoked`; a grant that was already revoked is not counted) and, of
+ * those, how many were still valid (`live`): the sessions a person is told were signed out.
+ */
+export type GrantRevocation = {revoked: number; live: number};
+export type EpochReceipt = {accountId: string; epoch: number | null};
+
 export type PreauthorizationReceipt = {
   preauthorizationId: string;
   role: Role;
@@ -377,7 +406,11 @@ export async function consumePreauthorization(userId: string, options: AccountsO
   };
 }
 
-/** The Account state of an Auth user: none, active or disabled. */
+/**
+ * The Account state of an Auth user: none, active or disabled. Story 1.4a's gate no longer uses it
+ * (`authorizeSession` answers the Account and the session's grant in one call); it stays as the plain
+ * Account read of Story 1.3, which has its own tests.
+ */
 export async function accountStatus(userId: string, options: AccountsOptions = {}): Promise<AccountState> {
   const row = await callRow('account_status', {p_user_id: requireUuid('userId', userId)}, options);
   return {
@@ -386,6 +419,138 @@ export async function accountStatus(userId: string, options: AccountsOptions = {
     workspaceId: text(row.workspace_id),
     role: roleOf(row.role),
   };
+}
+
+const count = (value: unknown) => (typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null);
+
+/**
+ * The live authorization of a private request (Story 1.4a): the Account state, then the session grant, in one
+ * call. The user ID is the verified Auth user's and the session ID the one in the verified access token; the
+ * caller never takes either from a client. Anything but `active` is not access. Fails closed: if the database
+ * cannot be reached this throws.
+ */
+export async function authorizeSession(userId: string, sessionId: string, options: AccountsOptions = {}): Promise<SessionAuthorization> {
+  const row = await callRow('authorize_session', {p_user_id: requireUuid('userId', userId), p_session_id: requireUuid('sessionId', sessionId)}, options);
+  const state = oneOf(row.state, authorizationStates);
+  if (state !== 'active') return {state, accountId: null, workspaceId: null, role: null, epoch: null};
+  const accountId = text(row.account_id);
+  const role = roleOf(row.role);
+  const epoch = count(row.epoch);
+  // An active answer that does not name its Account, role and epoch is not an answer.
+  if (!accountId || !role || epoch === null) throw unexpected();
+  return {state, accountId, workspaceId: text(row.workspace_id), role, epoch};
+}
+
+/**
+ * Issues the grant of the verified session, once it belongs to an active Account (Story 1.4a). Idempotent:
+ * `issued` the first time and `exists` after. Anything else is not a grant: a revoked or stale one, a
+ * session Auth does not have, a disabled Account, or a Google identity that is not the pinned one.
+ */
+export async function issueGrant(userId: string, sessionId: string, options: AccountsOptions = {}): Promise<GrantReceipt> {
+  const row = await callRow('issue_grant', {p_user_id: requireUuid('userId', userId), p_session_id: requireUuid('sessionId', sessionId)}, options);
+  const outcome = oneOf(row.outcome, grantOutcomes);
+  // Every answer but "no such Account" comes from a known Account, which has an epoch.
+  if (outcome === 'no_account') return {outcome, accountId: null, epoch: null};
+  const accountId = text(row.account_id);
+  const epoch = count(row.epoch);
+  if (!accountId || epoch === null) throw unexpected();
+  return {outcome, accountId, epoch};
+}
+
+const actorPattern = /^[a-z][a-z_]*(?::[A-Za-z0-9_-]{1,64}){0,2}$/;
+const reasonPattern = /^[a-z][a-z_]{0,39}$/;
+
+function requireActor(actor: string, reason?: string) {
+  if (!actorPattern.test(actor)) throw new TypeError('actor must look like "user:<id>" or "system:<name>"');
+  if (reason !== undefined && !reasonPattern.test(reason)) throw new TypeError('reason must be lower-case words joined by underscores');
+}
+
+async function revokeGrants(args: Row, options: AccountsOptions): Promise<GrantRevocation> {
+  const row = await callRow('revoke_grants', args, options);
+  const revoked = count(row.revoked);
+  const live = count(row.live);
+  if (revoked === null || live === null || live > revoked) throw unexpected();
+  return {revoked, live};
+}
+
+/**
+ * Ends the grant of one session (Story 1.4a): sign-out. Pass `userId` to require that the grant is that
+ * user's. A session with no grant, or one already revoked, ends nothing and is not an error. If this throws
+ * the revocation was not recorded, and the caller must not end the session.
+ */
+export async function revokeSessionGrant(
+  input: {sessionId: string; userId?: string; actor: string; reason: string},
+  options: AccountsOptions = {},
+): Promise<GrantRevocation> {
+  requireActor(input.actor, input.reason);
+  return revokeGrants(
+    {
+      p_actor: input.actor,
+      p_reason: input.reason,
+      p_session_id: requireUuid('sessionId', input.sessionId),
+      p_user_id: input.userId === undefined ? null : requireUuid('userId', input.userId),
+    },
+    options,
+  );
+}
+
+/** Ends every grant of an Account, leaving `exceptSessionId` standing when given: "sign out my other sessions", and (Stories 1.5, 1.6) disabling and recovery. */
+export async function revokeAccountGrants(
+  input: {accountId: string; exceptSessionId?: string; actor: string; reason: string},
+  options: AccountsOptions = {},
+): Promise<GrantRevocation> {
+  requireActor(input.actor, input.reason);
+  return revokeGrants(
+    {
+      p_actor: input.actor,
+      p_reason: input.reason,
+      p_account_id: requireUuid('accountId', input.accountId),
+      p_except_session_id: input.exceptSessionId === undefined ? null : requireUuid('exceptSessionId', input.exceptSessionId),
+    },
+    options,
+  );
+}
+
+/** Ends every grant of an Account that was issued under an epoch lower than `belowEpoch`. */
+export async function revokeGrantsBelowEpoch(
+  input: {accountId: string; belowEpoch: number; actor: string; reason: string},
+  options: AccountsOptions = {},
+): Promise<GrantRevocation> {
+  requireActor(input.actor, input.reason);
+  if (!Number.isSafeInteger(input.belowEpoch) || input.belowEpoch < 1) throw new TypeError('belowEpoch must be a positive integer');
+  return revokeGrants(
+    {p_actor: input.actor, p_reason: input.reason, p_account_id: requireUuid('accountId', input.accountId), p_below_epoch: input.belowEpoch},
+    options,
+  );
+}
+
+/** Raises an Account's authorization epoch by one, which refuses every grant issued before it. `epoch` is null for an unknown Account. */
+export async function raiseAuthorizationEpoch(input: {accountId: string; actor: string}, options: AccountsOptions = {}): Promise<EpochReceipt> {
+  requireActor(input.actor);
+  const row = await callRow('raise_authorization_epoch', {p_account_id: requireUuid('accountId', input.accountId), p_actor: input.actor}, options);
+  // The database answers null for an Account that does not exist. Anything else must be a real epoch: a
+  // value that is not a number for an Account that does exist is no answer, and must not read as "unknown".
+  if (row.epoch === null) return {accountId: text(row.account_id) ?? input.accountId, epoch: null};
+  const epoch = count(row.epoch);
+  if (epoch === null) throw unexpected();
+  return {accountId: text(row.account_id) ?? input.accountId, epoch};
+}
+
+/**
+ * Whether this registration command, with this code, created the user's Account: the proof a retried
+ * registration needs before its session may be given a grant (the Account exists, the first attempt's answer
+ * was lost, and the session never got its grant). Any other session of a user that has an Account fails this,
+ * so it cannot buy a grant by posting a code. Only the hash of the code leaves this module.
+ */
+export async function confirmRegistration(input: {userId: string; commandId: string; code: string}, options: AccountsOptions = {}): Promise<boolean> {
+  const env = options.env ?? process.env;
+  const userId = requireUuid('userId', input.userId);
+  const commandId = requireUuid('commandId', input.commandId);
+  const key = hashKey(env, 'INVITATION_HASH_KEY');
+  if (!looksLikeInvitationCode(input.code)) return false;
+  const row = await callRow('confirm_registration', {p_user_id: userId, p_command_id: commandId, p_code_hash: hashInvitationCode(input.code, key)}, options);
+  if (typeof row.confirmed !== 'boolean') throw unexpected();
+  return row.confirmed;
 }
 
 /**

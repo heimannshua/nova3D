@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {Client} from 'pg';
-import {hashClientAddress, hashKey, issueInvitation, registerWithCode, revokeInvitation, seedPreauthorization} from '../../lib/accounts';
+import {hashClientAddress, hashKey, issueGrant, issueInvitation, raiseAuthorizationEpoch, registerWithCode, revokeInvitation, revokeSessionGrant, seedPreauthorization} from '../../lib/accounts';
 import {insertAuthUser, releaseOrigins, removeAccountData, type CommittedData, type TestUser, type UserOptions} from './accounts-data';
 import {sessionCookieName, sessionCookieValue} from './session-cookie';
 import {serverEnv} from './server-env';
@@ -76,13 +76,71 @@ export function accountsWorld() {
     if (receipt.outcome !== 'revoked') throw new Error(`The test code was not revoked (${receipt.outcome}).`);
   }
 
-  /** Gives the user an Account by redeeming a fresh code, exactly as the registration screen does. */
-  async function activate(user: ForgedUser) {
+  /**
+   * Gives the user an Account by redeeming a fresh code, exactly as the registration screen does, and issues the
+   * grant of their forged session, as the application does when a session becomes an Account's. Pass
+   * `{grant: false}` for a session that predates session grants (an existing session at the cutover).
+   */
+  async function activate(user: ForgedUser, options: {grant?: boolean} = {}) {
     const {code} = await issueCode(`e2e ${user.id.slice(0, 8)}`);
     const receipt = await registerWithCode({userId: user.id, commandId: randomUUID(), code, clientAddress: null}, {env});
     if (receipt.outcome !== 'registered') throw new Error(`The test Account was not created (${receipt.outcome}).`);
+    if (options.grant !== false) await grant(user, user.sessionId);
     return receipt;
   }
+
+  /**
+   * Registers the user with a fresh code under the given command ID and issues NO grant: what a registration
+   * whose answer was lost leaves behind (the Account exists, the session has no grant). Returns the code, which
+   * the person typed and the form still holds.
+   */
+  async function registerWithoutGrant(user: TestUser, commandId: string) {
+    const {code} = await issueCode(`e2e retry ${user.id.slice(0, 8)}`);
+    const receipt = await registerWithCode({userId: user.id, commandId, code, clientAddress: null}, {env});
+    if (receipt.outcome !== 'registered') throw new Error(`The test Account was not created (${receipt.outcome}).`);
+    return code;
+  }
+
+  /** Puts back an Auth session that Auth deleted (a sign-out), so a test can tell the grant's refusal from Auth's. */
+  async function restoreSession(user: TestUser, sessionId: string) {
+    await db.query(`insert into auth.sessions (id, user_id, created_at, updated_at, aal, refreshed_at) values ($1, $2, now(), now(), 'aal1', now())`, [sessionId, user.id]);
+  }
+
+  /** Issues the grant of a session of the user's, as the callback does at sign-in. */
+  async function grant(user: TestUser, sessionId: string) {
+    const receipt = await issueGrant(user.id, sessionId, {env});
+    if (receipt.outcome !== 'issued' && receipt.outcome !== 'exists') throw new Error(`The test grant was not issued (${receipt.outcome}).`);
+    return receipt;
+  }
+
+  /** Another signed-in session of the same user (another browser or device), with its own cookie. It has no grant until `grant` is called. */
+  async function extraSession(user: TestUser): Promise<{sessionId: string; cookie: {name: string; value: string}}> {
+    const sessionId = randomUUID();
+    await db.query(`insert into auth.sessions (id, user_id, created_at, updated_at, aal, refreshed_at) values ($1, $2, now(), now(), 'aal1', now())`, [sessionId, user.id]);
+    const value = sessionCookieValue({supabaseUrl: stack.apiUrl, userId: user.id, email: user.email, sessionId, jwtSecret: jwtSecretOf(stack)});
+    return {sessionId, cookie: {name: sessionCookieName(env.NEXT_PUBLIC_SUPABASE_URL!), value}};
+  }
+
+  /** Ends the grant of a session the way sign-out does. */
+  const revokeGrant = (user: TestUser, sessionId: string, reason = 'sign_out') => revokeSessionGrant({sessionId, userId: user.id, actor: `user:${user.id}`, reason}, {env});
+  /** Raises the Account's authorization epoch, which refuses every grant issued before. */
+  const raiseEpoch = async (user: TestUser) => {
+    const account = await accountOf(user);
+    return raiseAuthorizationEpoch({accountId: account.id, actor: 'seed:local:e2e'}, {env});
+  };
+  /** Moves a grant back in time: when it was issued, and when it was last used, as days before now. */
+  const ageGrant = (sessionId: string, issuedDaysAgo: number, usedDaysAgo = 0) =>
+    db.query(
+      `update identity.session_grants set issued_at = clock_timestamp() - $2 * interval '1 day', last_used_at = clock_timestamp() - $3 * interval '1 day' where session_id = $1`,
+      [sessionId, issuedDaysAgo, usedDaysAgo],
+    );
+  const grantOf = async (sessionId: string) => (await db.query('select * from identity.session_grants where session_id = $1', [sessionId])).rows[0] as
+    | {session_id: string; epoch: string; issued_at: Date; last_used_at: Date; revoked_at: Date | null; revoked_by: string | null; revoked_reason: string | null}
+    | undefined;
+  const grantsOf = async (user: TestUser) =>
+    (await db.query('select g.session_id from identity.session_grants g join identity.accounts a on a.id = g.account_id where a.user_id = $1 order by g.issued_at', [user.id])).rows.map((row) => row.session_id as string);
+  const auditEvents = async (action: string, target: string) =>
+    (await db.query('select actor, action, target from identity.audit_events where action = $1 and target = $2 order by id', [action, target])).rows as {actor: string; action: string; target: string}[];
 
   /** Forgets the failures the shared test origin has counted, so the 5-per-15-minutes limit never trips between tests. */
   async function resetLimiter() {
@@ -98,7 +156,10 @@ export function accountsWorld() {
   const invitationStatus = async (invitationId: string) => (await db.query('select status from identity.invitations where id = $1', [invitationId])).rows[0]?.status as string | undefined;
   const sessionExists = async (sessionId: string) => (await db.query('select 1 from auth.sessions where id = $1', [sessionId])).rowCount === 1;
 
-  return {env, stack, db, connect, close, signedInUser, issueCode, revokeCode, preauthorize, activate, resetLimiter, setStatus, accountOf, workspacesOf, commandsOf, invitationStatus, sessionExists};
+  return {
+    env, stack, db, connect, close, signedInUser, issueCode, revokeCode, preauthorize, activate, registerWithoutGrant, restoreSession, grant, extraSession, revokeGrant, raiseEpoch, ageGrant, grantOf, grantsOf, auditEvents,
+    resetLimiter, setStatus, accountOf, workspacesOf, commandsOf, invitationStatus, sessionExists,
+  };
 }
 
 export type AccountsWorld = ReturnType<typeof accountsWorld>;

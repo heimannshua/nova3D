@@ -93,3 +93,13 @@ describe('expireAuthCookies', () => {
     expect(store.deleted.sort()).toEqual([...ours].sort());
   });
 });
+
+describe('the scopes a browser session can be ended with', () => {
+  it('are local and global: "others" is an Auth-only scope that ending a browser session never takes (checked by the type checker)', async () => {
+    const signOut = vi.fn(async () => ({error: null}));
+    // @ts-expect-error 'others' would end every session but this one, and leave this one standing.
+    await endSession(clientOf(signOut), 'others');
+    // The compiler is the guard; at run time the value is passed on untouched, which is why the type matters.
+    expect(signOut).toHaveBeenCalledWith({scope: 'others'});
+  });
+});

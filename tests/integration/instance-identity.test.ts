@@ -193,7 +193,7 @@ describe('check-env --live against the local stack', () => {
     const good = await check(environment(rows[0].instance_id));
     expect(good.code, good.stderr).toBe(0);
     expect(good.stdout).toContain('Instance identity verified');
-    // The accounts API preflight ran too: api.account_status for the nil UUID answered `none` on the real stack.
+    // The accounts API preflight ran too: api.preflight read the grants, Accounts and Auth's sessions and identities on the real stack.
     expect(good.stdout).toContain('the accounts API answered');
 
     const bad = await check(environment('11111111-1111-4111-8111-111111111111'));

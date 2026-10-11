@@ -1,6 +1,6 @@
 import {NextResponse} from 'next/server';
-import {claimPreauthorization, decideSignIn, gatingTimeoutMs, isOutageError, readUser, type SignInDecision} from '@/lib/access';
-import {withDeadline} from '@/lib/deadline';
+import {claimPreauthorization, decideSignIn, isOutageError, readUser, signInTimeoutMs, type SignInDecision} from '@/lib/access';
+import {createBudget, withinBudget} from '@/lib/deadline';
 import {signInErrorPath} from '@/lib/sign-in';
 import {createSupabaseServerClient, endSession, expireAuthCookies} from '@/lib/supabase/server';
 
@@ -9,8 +9,10 @@ const describe = (error: unknown) => (error instanceof Error ? `${error.name}: $
 // Where Google sends the browser back to. A verified Google identity can always finish signing in; what it
 // may then reach depends on its Account. The seeded address of an invited person becomes an Account here,
 // at its first sign-in. Everything else is decided by lib/access.ts. A failure of any step, or a service
-// that does not answer in time, signs the person out and says so; an outage ends only this browser's
-// session, because it says nothing about the person's other devices.
+// that does not answer in time signs the person out and says so; an outage ends only this browser's
+// session, because it says nothing about the person's other devices. The whole chain (the code exchange, the
+// user, the pre-authorization, the grant) shares one time budget. The session the grant is issued for is the
+// one in the token the code exchange has just returned, checked against the user Auth then vouches for.
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const to = (path: string) => NextResponse.redirect(new URL(path, url));
@@ -24,9 +26,10 @@ export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return to(signInErrorPath('auth_unavailable'));
 
+  const budget = createBudget(signInTimeoutMs);
   let exchanged: Awaited<ReturnType<typeof supabase.auth.exchangeCodeForSession>> | null = null;
   try {
-    exchanged = await withDeadline(supabase.auth.exchangeCodeForSession(code), gatingTimeoutMs);
+    exchanged = await withinBudget(budget, () => supabase.auth.exchangeCodeForSession(code));
   } catch (error) {
     console.error('Google sign-in could not be completed (Auth did not answer).', describe(error));
   }
@@ -42,8 +45,8 @@ export async function GET(request: Request) {
   }
 
   // Who signed in, from Auth itself; then the pre-authorization for that user's verified address.
-  const read = await readUser(supabase);
-  const decision: SignInDecision = read.kind === 'user' ? await claimPreauthorization(read.user) : decideSignIn(read, null);
+  const read = await readUser(supabase, {budget, accessToken: exchanged.data.session?.access_token});
+  const decision: SignInDecision = read.kind === 'user' ? await claimPreauthorization(read.user, {budget}) : decideSignIn(read, null);
   if (decision.signOut) await endSession(supabase, decision.scope);
   return to(decision.to);
 }
