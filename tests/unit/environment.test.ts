@@ -1,12 +1,16 @@
 import {randomBytes} from 'node:crypto';
 import {describe, expect, it} from 'vitest';
-import {checkAccountsApi, checkInstanceIdentity, compareIdentity, decodeHashKey, fetchInstanceIdentity, hashKeyProblem, identityMismatchHint, isLoopbackUrl, parseEmailList, parseEnvValue, sameKey, validateEnvironment, verifyInstanceIdentity, type Env, type IdentityFetch} from '@/lib/environment';
+import {appOriginProblem, checkAccountsApi, checkInstanceIdentity, compareIdentity, decodeHashKey, fetchInstanceIdentity, hashKeyProblem, identityMismatchHint, isLoopbackUrl, parseEmailList, parseEnvValue, sameKey, validateEnvironment, verifyInstanceIdentity, type Env, type IdentityFetch} from '@/lib/environment';
 
 const INSTANCE = '3f0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c44';
 const SERVICE_KEY = 'fixture-service-key-must-never-be-returned';
 
-// Both hashing keys are required outside a preview (Story 1.3 Part B), so a complete environment holds them.
-const hashKeys = (): Env => ({INVITATION_HASH_KEY: randomBytes(32).toString('base64'), RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64')});
+// All three hashing keys are required outside a preview (Story 1.3 Part B; the recovery key is Story 1.6), so a complete environment holds them.
+const hashKeys = (): Env => ({
+  INVITATION_HASH_KEY: randomBytes(32).toString('base64'),
+  RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64'),
+  RECOVERY_HASH_KEY: randomBytes(32).toString('base64'),
+});
 
 const staging: Env = {
   APP_ENV: 'staging',
@@ -20,10 +24,15 @@ const staging: Env = {
   SYNTHETIC_DATA_ENABLED: 'true',
   VERCEL: '1',
   VERCEL_ENV: 'production',
+  // Staging and production send the recovery mail through Resend and build its link from APP_ORIGIN (Story 1.6).
+  RESEND_API_KEY: 'resend-fixture-key-must-never-be-returned',
+  APP_ORIGIN: 'https://nova3d-staging.example.test',
   ...hashKeys(),
 };
 
-const noKeys: Env = {INVITATION_HASH_KEY: undefined, RATE_LIMIT_HASH_KEY: undefined};
+const noKeys: Env = {INVITATION_HASH_KEY: undefined, RATE_LIMIT_HASH_KEY: undefined, RECOVERY_HASH_KEY: undefined};
+// A preview holds neither the mail key nor anything else of the recovery mail's own.
+const noMail: Env = {RESEND_API_KEY: undefined, APP_ORIGIN: undefined};
 const answer = (status: number, body: unknown): IdentityFetch => async () => new Response(JSON.stringify(body), {status});
 
 describe('isLoopbackUrl', () => {
@@ -41,7 +50,7 @@ describe('validateEnvironment', () => {
   });
 
   it('requires ADMINISTRATOR_EMAIL and INSTANCE_ID everywhere, previews included', () => {
-    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys};
+    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys, ...noMail};
     expect(validateEnvironment(preview)).toEqual([]);
     expect(validateEnvironment({...preview, ADMINISTRATOR_EMAIL: undefined}).join()).toContain('ADMINISTRATOR_EMAIL');
     expect(validateEnvironment({...preview, INSTANCE_ID: undefined}).join()).toContain('INSTANCE_ID');
@@ -185,7 +194,7 @@ describe('verifyInstanceIdentity', () => {
 
   it('never reads the database for a preview', async () => {
     let calls = 0;
-    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys};
+    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys, ...noMail};
     const errors = await verifyInstanceIdentity(preview, async () => { calls += 1; return new Response('[]'); });
     expect(errors).toEqual([]);
     expect(calls).toBe(0);
@@ -336,12 +345,12 @@ describe('hash keys (Story 1.3)', () => {
 
   it('are required outside a preview, so the server does not start without them', () => {
     expect(validateEnvironment(staging)).toEqual([]);
-    for (const name of ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY']) {
+    for (const name of ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY', 'RECOVERY_HASH_KEY']) {
       for (const value of [undefined, '', '  ']) {
         expect(validateEnvironment({...staging, [name]: value}).join('\n'), `${name}=${JSON.stringify(value)}`).toContain(`missing required variables: ${name}`);
       }
     }
-    expect(validateEnvironment({...staging, ...noKeys}).join('\n')).toContain('missing required variables: INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY');
+    expect(validateEnvironment({...staging, ...noKeys}).join('\n')).toContain('missing required variables: INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY, RECOVERY_HASH_KEY');
     // The local environment is held to the same rule.
     const local = {...staging, APP_ENV: 'local', NEXT_PUBLIC_APP_ENV: 'local', VERCEL: undefined, VERCEL_ENV: undefined, NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321'};
     expect(validateEnvironment(local)).toEqual([]);
@@ -349,7 +358,7 @@ describe('hash keys (Story 1.3)', () => {
   });
 
   it('are not required in a preview, which must not hold them', () => {
-    expect(validateEnvironment({...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys})).toEqual([]);
+    expect(validateEnvironment({...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys, ...noMail})).toEqual([]);
   });
 
   it('are checked for shape when present, without printing the value', () => {
@@ -376,18 +385,18 @@ describe('hash keys (Story 1.3)', () => {
   });
 
   it('are named by the preview rule: a preview or development deployment must hold neither', () => {
-    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys};
+    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys, ...noMail};
     expect(validateEnvironment(preview)).toEqual([]);
-    for (const name of ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY']) {
+    for (const name of ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY', 'RECOVERY_HASH_KEY', 'RESEND_API_KEY']) {
       for (const environment of ['preview', 'development']) {
         const value = good();
         const errors = validateEnvironment({...preview, VERCEL_ENV: environment, [name]: value});
-        expect(errors.join('\n'), `${environment} ${name}`).toMatch(new RegExp(`hold no Supabase, database or Stripe variables or account hashing keys: ${name}$`, 'm'));
+        expect(errors.join('\n'), `${environment} ${name}`).toMatch(new RegExp(`hold no Supabase, database or Stripe variables, account hashing keys or mail key: ${name}$`, 'm'));
         expect(errors.join('\n')).not.toContain(value);
       }
     }
-    const both = validateEnvironment({...preview, INVITATION_HASH_KEY: good(), RATE_LIMIT_HASH_KEY: good()});
-    expect(both.join()).toContain('INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY');
+    const all = validateEnvironment({...preview, INVITATION_HASH_KEY: good(), RATE_LIMIT_HASH_KEY: good(), RECOVERY_HASH_KEY: good(), RESEND_API_KEY: 'mail-key-value'});
+    expect(all.join()).toContain('INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY, RECOVERY_HASH_KEY, RESEND_API_KEY');
     // A deployment that is not a preview may hold them.
     expect(validateEnvironment({...staging, INVITATION_HASH_KEY: good(), RATE_LIMIT_HASH_KEY: good()})).toEqual([]);
   });
@@ -449,8 +458,8 @@ describe('which hashing keys a run needs (the seed command asks only for its own
   const good = () => randomBytes(32).toString('base64');
   const withoutKeys = {...staging, ...noKeys};
 
-  it('requires both by default, as the server does', () => {
-    expect(validateEnvironment(withoutKeys).join('\n')).toContain('missing required variables: INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY');
+  it('requires every one by default, as the server does', () => {
+    expect(validateEnvironment(withoutKeys).join('\n')).toContain('missing required variables: INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY, RECOVERY_HASH_KEY');
   });
 
   it('requires none when a command hashes nothing', () => {
@@ -462,6 +471,7 @@ describe('which hashing keys a run needs (the seed command asks only for its own
     expect(validateEnvironment(only, {hashKeys: ['INVITATION_HASH_KEY']})).toEqual([]);
     expect(validateEnvironment(withoutKeys, {hashKeys: ['INVITATION_HASH_KEY']}).join('\n')).toContain('missing required variables: INVITATION_HASH_KEY');
     expect(validateEnvironment(withoutKeys, {hashKeys: ['INVITATION_HASH_KEY']}).join('\n')).not.toContain('RATE_LIMIT_HASH_KEY');
+    expect(validateEnvironment(withoutKeys, {hashKeys: ['INVITATION_HASH_KEY']}).join('\n')).not.toContain('RECOVERY_HASH_KEY');
   });
 
   it('does not judge a key the command does not use, however it is set', () => {
@@ -480,7 +490,7 @@ describe('which hashing keys a run needs (the seed command asks only for its own
   });
 
   it('never asks a preview for keys, whatever the run needs', () => {
-    const preview = {...withoutKeys, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined};
+    const preview = {...withoutKeys, ...noMail, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined};
     expect(validateEnvironment(preview, {hashKeys: ['INVITATION_HASH_KEY']})).toEqual([]);
   });
 });
@@ -597,8 +607,120 @@ describe('the accounts API preflight (check-env --live)', () => {
     expect((await checkInstanceIdentity(staging, mismatch, {accountsApi: true})).errors.join()).toContain('instance mismatch');
     expect(calls).toHaveLength(1);
     calls.length = 0;
-    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys};
+    const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys, ...noMail};
     expect(await checkInstanceIdentity(preview, mismatch, {accountsApi: true})).toEqual({errors: [], retryable: false});
     expect(calls).toEqual([]);
+  });
+});
+
+describe('the recovery variables (Story 1.6)', () => {
+  const good = () => randomBytes(32).toString('base64');
+  const production: Env = {...staging, APP_ENV: 'production', NEXT_PUBLIC_APP_ENV: 'production', SYNTHETIC_DATA_ENABLED: 'false', PAID_ADAPTERS_ENABLED: 'true', APP_ORIGIN: 'https://nova3d.example.test'};
+  const local: Env = {...staging, APP_ENV: 'local', NEXT_PUBLIC_APP_ENV: 'local', VERCEL: undefined, VERCEL_ENV: undefined, NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321', RESEND_API_KEY: undefined, APP_ORIGIN: undefined};
+  const preview: Env = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys, ...noMail};
+
+  it('make a complete staging, production and local environment', () => {
+    expect(validateEnvironment(staging)).toEqual([]);
+    expect(validateEnvironment(production)).toEqual([]);
+    // Locally the mail goes to the stack's Mailpit and the link uses the request's origin: neither variable is needed.
+    expect(validateEnvironment(local)).toEqual([]);
+  });
+
+  it('require RESEND_API_KEY and APP_ORIGIN in staging and production, and name the variable that is missing', () => {
+    for (const environment of [staging, production]) {
+      for (const name of ['RESEND_API_KEY', 'APP_ORIGIN']) {
+        for (const value of [undefined, '', '  ']) {
+          expect(validateEnvironment({...environment, [name]: value}).join('\n'), `${environment.APP_ENV} ${name}=${JSON.stringify(value)}`).toContain(`missing required variables: ${name}`);
+        }
+      }
+      expect(validateEnvironment({...environment, ...noMail}).join('\n')).toContain('missing required variables: RESEND_API_KEY, APP_ORIGIN');
+    }
+  });
+
+  it('do not require them locally or in a preview (which must not hold the mail key)', () => {
+    expect(validateEnvironment({...local, ...noMail})).toEqual([]);
+    expect(validateEnvironment(preview)).toEqual([]);
+  });
+
+  it('are not asked of a run that sends no mail: the audited seed command', () => {
+    expect(validateEnvironment({...staging, ...noMail}, {mail: false})).toEqual([]);
+    expect(validateEnvironment({...production, ...noMail}, {mail: false})).toEqual([]);
+    // ... though a value that is there is still judged.
+    expect(validateEnvironment({...staging, APP_ORIGIN: 'http://nova3d.example.test'}, {mail: false}).join()).toContain('APP_ORIGIN must be an https origin');
+  });
+
+  it('reject a placeholder, naming the variable and never printing a value', () => {
+    for (const [name, placeholder] of [['RESEND_API_KEY', '<staging-resend-api-key>'], ['APP_ORIGIN', '<staging-app-origin>'], ['RECOVERY_HASH_KEY', '<staging-recovery-hash-key>']] as const) {
+      const errors = validateEnvironment({...staging, [name]: placeholder});
+      expect(errors.join('\n'), name).toContain('placeholder values are not allowed');
+      expect(errors.join('\n'), name).toContain(name);
+    }
+  });
+
+  it('judge RESEND_API_KEY only for being one token, and never print it', () => {
+    expect(validateEnvironment({...staging, RESEND_API_KEY: 'a-key-with-no-spaces'})).toEqual([]);
+    const spaced = 'a key with spaces that must not be echoed';
+    const errors = validateEnvironment({...staging, RESEND_API_KEY: spaced});
+    expect(errors.join('\n')).toContain('RESEND_API_KEY must be one token without spaces');
+    expect(errors.join('\n')).not.toContain(spaced);
+  });
+
+  it('check RECOVERY_HASH_KEY for shape like the other keys, and that it differs from each of them', () => {
+    const bad = 'short-recovery-secret';
+    const errors = validateEnvironment({...staging, RECOVERY_HASH_KEY: bad});
+    expect(errors.join('\n')).toContain('RECOVERY_HASH_KEY must decode to at least 32 bytes');
+    expect(errors.join('\n')).not.toContain(bad);
+    const same = good();
+    expect(validateEnvironment({...staging, INVITATION_HASH_KEY: same, RECOVERY_HASH_KEY: same}).join('\n')).toContain('INVITATION_HASH_KEY and RECOVERY_HASH_KEY must be different keys');
+    expect(validateEnvironment({...staging, RATE_LIMIT_HASH_KEY: same, RECOVERY_HASH_KEY: same}).join('\n')).toContain('RATE_LIMIT_HASH_KEY and RECOVERY_HASH_KEY must be different keys');
+    // The same key spelled another way is still the same key.
+    const bytes = randomBytes(32);
+    expect(validateEnvironment({...staging, INVITATION_HASH_KEY: bytes.toString('base64'), RECOVERY_HASH_KEY: bytes.toString('base64url')}).join('\n')).toContain('must be different keys');
+    // Two of three the same is two reports of one problem, and the third is fine.
+    expect(validateEnvironment({...staging, INVITATION_HASH_KEY: same, RATE_LIMIT_HASH_KEY: same}).join('\n').match(/must be different keys/g)).toHaveLength(1);
+  });
+
+  it('are named by the preview rule: a preview must hold neither the recovery key nor the mail key', () => {
+    for (const name of ['RECOVERY_HASH_KEY', 'RESEND_API_KEY']) {
+      const value = `a-value-for-${name.toLowerCase()}-that-must-not-be-printed`;
+      const errors = validateEnvironment({...preview, [name]: value});
+      expect(errors.join('\n'), name).toContain(name);
+      expect(errors.join('\n'), name).not.toContain(value);
+    }
+    // APP_ORIGIN is no secret: a preview may hold it.
+    expect(validateEnvironment({...preview, APP_ORIGIN: 'https://nova3d-preview.example.test'})).toEqual([]);
+  });
+
+  describe('APP_ORIGIN', () => {
+    it.each(['https://nova3d.example.test', 'https://nova3d.example.test:8443', 'https://a.b.example.test'])('accepts %s for staging and production', (origin) => {
+      expect(appOriginProblem(origin, 'staging')).toBeNull();
+      expect(appOriginProblem(origin, 'production')).toBeNull();
+      expect(validateEnvironment({...staging, APP_ORIGIN: origin})).toEqual([]);
+    });
+
+    it.each([
+      ['http://nova3d.example.test', 'must be an https origin for staging and production'],
+      ['https://nova3d.example.test/', 'must be an origin and nothing more'],
+      ['https://nova3d.example.test/recover', 'must be an origin and nothing more'],
+      ['https://nova3d.example.test?x=1', 'must be an origin and nothing more'],
+      ['https://nova3d.example.test#x', 'must be an origin and nothing more'],
+      ['https://user:pass@nova3d.example.test', 'must be an origin and nothing more'],
+      ['nova3d.example.test', 'must be an origin such as'],
+      ['not a url', 'must be an origin such as'],
+    ])('rejects %s', (origin, problem) => {
+      expect(appOriginProblem(origin, 'staging')).toContain(problem);
+      const errors = validateEnvironment({...staging, APP_ORIGIN: origin});
+      expect(errors.join('\n')).toContain(`APP_ORIGIN ${problem}`);
+    });
+
+    it('lets a local environment hold an http origin, which it never reads', () => {
+      expect(appOriginProblem('http://127.0.0.1:4173', 'local')).toBeNull();
+      expect(validateEnvironment({...local, APP_ORIGIN: 'http://127.0.0.1:4173'})).toEqual([]);
+    });
+
+    it('is not a secret: a value that is wrong is quoted in no error', () => {
+      const value = 'https://nova3d.example.test/with/a/path';
+      expect(validateEnvironment({...staging, APP_ORIGIN: value}).join('\n')).not.toContain(value);
+    });
   });
 });

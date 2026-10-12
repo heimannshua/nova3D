@@ -23,9 +23,9 @@ const requiredVariables = [
 ];
 const supabaseVariables = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
 // A preview must hold none of these: any SUPABASE_* or NEXT_PUBLIC_SUPABASE_* variable, a database
-// URL, POSTGRES_* or STRIPE_*, or the account hashing keys (Story 1.3). Previews are protected by this
-// rejection, not by a database check.
-const previewForbiddenName = /^(?:(?:NEXT_PUBLIC_)?SUPABASE_|POSTGRES_|(?:NEXT_PUBLIC_)?STRIPE_)|^DATABASE_URL$|^(?:INVITATION|RATE_LIMIT)_HASH_KEY$/;
+// URL, POSTGRES_* or STRIPE_*, the account hashing keys (Story 1.3), the recovery hashing key and the mail key
+// (Story 1.6). Previews are protected by this rejection, not by a database check.
+const previewForbiddenName = /^(?:(?:NEXT_PUBLIC_)?SUPABASE_|POSTGRES_|(?:NEXT_PUBLIC_)?STRIPE_)|^DATABASE_URL$|^(?:INVITATION|RATE_LIMIT|RECOVERY)_HASH_KEY$|^RESEND_API_KEY$/;
 // Bare words are anchored so a real value such as todos@example.com is not mistaken for a placeholder.
 const placeholder = /^(?:replace-with-|<[^>]+>)|^(?:changeme|todo)$/i;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -36,9 +36,10 @@ export const isEmailAddress = (value: string) => value.length <= maxEmailLength 
 const loopbackHost = /^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\])$/;
 
 // Story 1.3: keys under which invitation codes and client addresses are hashed before they reach the
-// database. Required at startup everywhere except a preview (which must not hold them), and checked for
-// shape whenever they are set.
-export const hashKeyVariables = ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY'] as const;
+// database; Story 1.6 adds the one under which an Administrator recovery token is hashed. Required at
+// startup everywhere except a preview (which must not hold them), and checked for shape whenever they are
+// set. Every one is a different key.
+export const hashKeyVariables = ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY', 'RECOVERY_HASH_KEY'] as const;
 export type HashKeyName = (typeof hashKeyVariables)[number];
 export const minHashKeyBytes = 32;
 
@@ -50,6 +51,12 @@ export type CheckOptions = {
   hashKeys?: readonly HashKeyName[];
   /** Also call the accounts API's api.preflight, which really reads the tables the gate depends on, and expect ok: the hosted preflight. */
   accountsApi?: boolean;
+  /**
+   * Whether a staging or production environment must also hold what sends the recovery mail: RESEND_API_KEY and
+   * APP_ORIGIN (Story 1.6). Defaults to true, which is what the server needs. The audited seed command, which sends no
+   * mail, turns it off.
+   */
+  mail?: boolean;
 };
 const base64Text = /^[A-Za-z0-9+/_-]+={0,2}$/;
 
@@ -125,13 +132,36 @@ export function isHttpsUrl(value: string) {
   }
 }
 
+/**
+ * Why APP_ORIGIN (the origin of the application's own links, Story 1.6) is unusable, or null: it must be an origin and
+ * nothing more (a scheme and a host, optionally a port; no path, query, fragment or credentials), and https for staging
+ * and production. Locally the recovery link is built from the request's own origin and this is not read.
+ */
+export function appOriginProblem(value: string, environment?: string): string | null {
+  const text = value.trim();
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    return 'must be an origin such as https://nova3d.example (a scheme and a host)';
+  }
+  if (url.origin === 'null' || url.origin !== text || url.username || url.password) {
+    return 'must be an origin and nothing more: a scheme and a host (and a port), with no path, query, fragment or credentials';
+  }
+  if ((environment === 'staging' || environment === 'production') && url.protocol !== 'https:') return 'must be an https origin for staging and production';
+  return null;
+}
+
 /** Label and format checks. Reads no network. Returns one message per problem. */
 export function validateEnvironment(env: Env, options: CheckOptions = {}): string[] {
   const errors: string[] = [];
   const environment = env.APP_ENV;
   const preview = isPreview(env);
   const keys = options.hashKeys ?? hashKeyVariables;
-  const needed = preview ? requiredVariables : [...requiredVariables, ...supabaseVariables, ...keys];
+  // Hosted environments send the recovery mail through Resend and build its link from APP_ORIGIN (Story 1.6); the local
+  // stack sends it to its own Mailpit and uses the request's origin.
+  const hostedMail = !preview && options.mail !== false && (environment === 'staging' || environment === 'production') ? ['RESEND_API_KEY', 'APP_ORIGIN'] : [];
+  const needed = preview ? requiredVariables : [...requiredVariables, ...supabaseVariables, ...keys, ...hostedMail];
 
   const missing = needed.filter((name) => !env[name]?.trim());
   const placeholders = needed.filter((name) => isPlaceholder(env[name]));
@@ -153,9 +183,19 @@ export function validateEnvironment(env: Env, options: CheckOptions = {}): strin
     const problem = env[name]?.trim() ? hashKeyProblem(env[name]!) : null;
     if (problem) errors.push(`${name} ${problem}`);
   }
-  const [invitationKey, rateLimitKey] = hashKeyVariables.map((name) => (keys.includes(name) ? env[name]?.trim() ?? '' : ''));
-  if (invitationKey && rateLimitKey && !hashKeyProblem(invitationKey) && !hashKeyProblem(rateLimitKey) && sameKey(invitationKey, rateLimitKey)) {
-    errors.push('INVITATION_HASH_KEY and RATE_LIMIT_HASH_KEY must be different keys');
+  // No two hashing keys are the same key: a hash under one must never be valid under another.
+  const usable = keys.filter((name) => env[name]?.trim() && !hashKeyProblem(env[name]!));
+  for (const [index, first] of usable.entries()) {
+    for (const second of usable.slice(index + 1)) {
+      if (sameKey(env[first]!, env[second]!)) errors.push(`${first} and ${second} must be different keys`);
+    }
+  }
+  if (env.RESEND_API_KEY?.trim() && !isPlaceholder(env.RESEND_API_KEY) && /\s/.test(env.RESEND_API_KEY.trim())) {
+    errors.push('RESEND_API_KEY must be one token without spaces');
+  }
+  if (env.APP_ORIGIN?.trim() && !isPlaceholder(env.APP_ORIGIN)) {
+    const problem = appOriginProblem(env.APP_ORIGIN, environment);
+    if (problem) errors.push(`APP_ORIGIN ${problem}`);
   }
   if (env.SEED_ACCOUNT_EMAILS?.trim() && !parseEmailList(env.SEED_ACCOUNT_EMAILS).every(isEmailAddress)) {
     errors.push(`SEED_ACCOUNT_EMAILS must be a comma-separated list of email addresses (each at most ${maxEmailLength} characters)`);
@@ -180,7 +220,7 @@ export function validateEnvironment(env: Env, options: CheckOptions = {}): strin
     if (env.SYNTHETIC_DATA_ENABLED !== 'true') errors.push('preview/development requires SYNTHETIC_DATA_ENABLED=true');
     if (env.PAID_ADAPTERS_ENABLED !== 'false') errors.push('preview/development requires PAID_ADAPTERS_ENABLED=false');
     const held = Object.keys(env).filter((name) => previewForbiddenName.test(name) && env[name]);
-    if (held.length) errors.push(`preview/development deployments must hold no Supabase, database or Stripe variables or account hashing keys: ${held.sort().join(', ')}`);
+    if (held.length) errors.push(`preview/development deployments must hold no Supabase, database or Stripe variables, account hashing keys or mail key: ${held.sort().join(', ')}`);
   }
   if (environment === 'production' && env.SYNTHETIC_DATA_ENABLED === 'true') errors.push('production cannot enable synthetic data');
 

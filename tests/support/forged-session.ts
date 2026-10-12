@@ -1,6 +1,6 @@
 import {randomBytes, randomUUID} from 'node:crypto';
 import {Client} from 'pg';
-import {adoptPreferences, checkMarker, hashClientAddress, hashKey, issueGrant, issueInvitation, raiseAuthorizationEpoch, registerWithCode, revokeInvitation, revokeSessionGrant, seedPreauthorization, startStepUp, type MarkerOutcome} from '../../lib/accounts';
+import {adoptPreferences, checkMarker, hashClientAddress, hashKey, hashRecoveryToken, issueGrant, issueInvitation, raiseAuthorizationEpoch, registerWithCode, revokeInvitation, revokeSessionGrant, seedPreauthorization, startStepUp, type MarkerOutcome} from '../../lib/accounts';
 import {insertAuthUser, releaseOrigins, removeAccountData, type CommittedData, type TestUser, type UserOptions} from './accounts-data';
 import {sessionCookieName, sessionCookieValue} from './session-cookie';
 import {serverEnv} from './server-env';
@@ -326,6 +326,7 @@ export function accountsWorld() {
     await db.query(`delete from identity.account_preferences where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.fresh_authentications where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.step_up_nonces where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from identity.recovery_tokens where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.session_grants where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.registration_commands where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.invitations where redeemed_account_id in ${accounts}`, [user.id]);
@@ -339,6 +340,71 @@ export function accountsWorld() {
    */
   const holdFlakyAccounts = () => db.query(`select pg_advisory_lock(hashtextextended('nova3d-e2e:flaky-accounts', 0))`);
   const releaseFlakyAccounts = () => db.query(`select pg_advisory_unlock(hashtextextended('nova3d-e2e:flaky-accounts', 0))`);
+
+  // Administrator recovery (Story 1.6) ------------------------------------------------------------------
+
+  /**
+   * Every recovery token, oldest first, as the database holds it. There is ONE recovery in the whole database (a global
+   * limit, one outstanding token), so this is not filtered by Account: the recovery tests are serial and clear the table
+   * between cases (`clearRecoveryTokens`).
+   */
+  const recoveryTokens = async () =>
+    (await db.query('select id, account_id, token_hash, issued_at, expires_at, used_at, voided_at from identity.recovery_tokens order by issued_at')).rows as {
+      id: string;
+      account_id: string;
+      token_hash: string;
+      issued_at: Date;
+      expires_at: Date;
+      used_at: Date | null;
+      voided_at: Date | null;
+    }[];
+  /** Empties the recovery table: the global limits would otherwise carry one case's issuance into the next. */
+  const clearRecoveryTokens = () => db.query('delete from identity.recovery_tokens');
+  /** Puts a recovery token in the table the way api.issue_recovery would (hash only), issued `ageMinutes` ago and valid for 15 minutes from then. */
+  async function insertRecoveryToken(user: TestUser, token: string, options: {ageMinutes?: number} = {}) {
+    const account = await accountOf(user);
+    const hash = hashRecoveryToken(token, hashKey(env, 'RECOVERY_HASH_KEY'));
+    await db.query(
+      `insert into identity.recovery_tokens (account_id, token_hash, issued_at, expires_at)
+       values ($1, $2, clock_timestamp() - $3 * interval '1 minute', clock_timestamp() - $3 * interval '1 minute' + interval '15 minutes')`,
+      [account.id, hash, options.ageMinutes ?? 0],
+    );
+    return hash;
+  }
+  /** Moves every recovery token back in time by this many minutes: a token that was issued, and so expires, earlier. */
+  const ageRecoveryTokens = (minutes: number) =>
+    db.query(`update identity.recovery_tokens set issued_at = issued_at - $1 * interval '1 minute', expires_at = expires_at - $1 * interval '1 minute'`, [minutes]);
+  /** The marker rows of the user's Account with where they came from (a step-up's carries a nonce, a recovery's does not). */
+  const markerSources = async (user: TestUser) =>
+    (await db.query('select m.session_id, m.action_class, m.source, m.nonce_id from identity.fresh_authentications m join identity.accounts a on a.id = m.account_id where a.user_id = $1 order by m.issued_at', [user.id])).rows as {
+      session_id: string;
+      action_class: string;
+      source: string;
+      nonce_id: string | null;
+    }[];
+  /** The epoch and every grant of the user's Account (revoked or not), oldest first, for the effects of a recovery. */
+  const grantRows = async (user: TestUser) =>
+    (await db.query('select g.session_id, g.epoch::int as epoch, g.revoked_at, g.revoked_reason from identity.session_grants g join identity.accounts a on a.id = g.account_id where a.user_id = $1 order by g.issued_at', [user.id])).rows as {
+      session_id: string;
+      epoch: number;
+      revoked_at: Date | null;
+      revoked_reason: string | null;
+    }[];
+  /** Audit events by action whose actor or target names this Account or user, oldest first (the append-only trail keeps them after the test). */
+  const auditFor = async (action: string, accountId: string) =>
+    (await db.query('select actor, action, target from identity.audit_events where action = $1 and target = $2 order by id', [action, `account:${accountId}`])).rows as {actor: string; action: string; target: string}[];
+  /** The audit events of an action that name no target (an unknown token), newest first, with their time. */
+  const untargetedAudit = async (action: string) =>
+    (await db.query('select actor, action, target, occurred_at from identity.audit_events where action = $1 and target is null order by id desc limit 5', [action])).rows as {actor: string; action: string; target: string | null; occurred_at: Date}[];
+
+  /**
+   * Removes whatever an earlier, aborted run left under this address: the Account and everything that hangs on it, and the Auth
+   * user. Auth's email is unique, so a user a crashed run left behind would stop the next run from making its own.
+   */
+  async function purgeUserByEmail(email: string) {
+    const ids = (await db.query('select id from auth.users where email = $1', [email])).rows.map((row) => row.id as string);
+    if (ids.length) await removeAccountData(db, {users: ids, emails: [email], origins: [], hashes: [], invitationIds: []});
+  }
 
   /** A general code, issued the way the seed command issues one. Returns its code (the person who registers will type it). */
   async function issueGeneralCode() {
@@ -371,6 +437,7 @@ export function accountsWorld() {
     preferencesOf, adoptPreferencesFor,
     auditBy, makeAdministrator, forgeMarker, expireMarker, invitationRow, invitationByLabel, invitationsIssuedBy, unusedGeneralId, takeGeneralCode, releaseGeneralCode, holdFlakyInvitations, releaseFlakyInvitations, issueGeneralCode, activateWithCode,
     workspaceIdOf, liveSession, eraseAccount, holdFlakyAccounts, releaseFlakyAccounts,
+    recoveryTokens, clearRecoveryTokens, insertRecoveryToken, ageRecoveryTokens, markerSources, grantRows, auditFor, untargetedAudit, purgeUserByEmail,
   };
 }
 

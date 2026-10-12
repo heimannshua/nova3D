@@ -2,7 +2,8 @@
 title: 'Story 1.6: Recover the sole Administrator securely'
 type: 'feature'
 created: '2026-10-12'
-status: 'in-progress'
+status: 'done'
+baseline_commit: '2afe892243785786a855954a9eee4499afd4c66d'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -67,11 +68,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/*_administrator_recovery.sql`, `lib/accounts.ts`, `lib/recovery.ts` -- the table; issue, void, check and redeem functions; nullable nonce and `source` on the marker; preflight probes; hashing and typed calls -- AC-1, AC-2, AC-3
-- [ ] `lib/mailer.ts`, `lib/auth-admin.ts`, `lib/environment.ts`, the three `.env*.example`, `scripts/{setup-env,test-env}.mjs` -- the mailer and Admin API client; `RECOVERY_HASH_KEY`, `RESEND_API_KEY`, `APP_ORIGIN` in the contract (previews forbid the first two) -- AC-1, AC-4
-- [ ] `app/recover/{page,actions}`, `app/recover/confirm/page`, `components/`, `lib/public-paths.ts`, `components/shell/routes.ts`, the sign-in link, `lib/i18n/{en,he}.ts` -- both pages, two actions, wording -- AC-1, AC-2, AC-3
-- [ ] `tests/` -- every matrix row: unit (mailer on both transports with faked `fetch`, recipient and token placement, action order and failures, no token in any log), integration (issue and both limits, eligibility, check states, the transaction's effects and rollback, a race on two connections, marker use, closure, preflight), browser (desktop: request, mail from Mailpit, scanner GET, redeem, old session gone, marker works, replay, expiry, limit, two windows, axe in four variants, 320 px at 200% text, keyboard focus; phone: render, axe, overflow); update the structural tests -- all ACs
-- [ ] `provisioning/ledger.json`, `docs/*`, `README.md`, `deferred-work.md` -- the attestation, a hosted check, resolved and remaining entries -- housekeeping
+- [x] `supabase/migrations/*_administrator_recovery.sql`, `lib/accounts.ts`, `lib/recovery.ts` -- the table; issue, void, check and redeem functions; nullable nonce and `source` on the marker; preflight probes; hashing and typed calls -- AC-1, AC-2, AC-3
+- [x] `lib/mailer.ts`, `lib/auth-admin.ts`, `lib/environment.ts`, the three `.env*.example`, `scripts/{setup-env,test-env}.mjs` -- the mailer and Admin API client; `RECOVERY_HASH_KEY`, `RESEND_API_KEY`, `APP_ORIGIN` in the contract (previews forbid the first two) -- AC-1, AC-4
+- [x] `app/recover/{page,actions}`, `app/recover/confirm/page`, `components/`, `lib/public-paths.ts`, `components/shell/routes.ts`, the sign-in link, `lib/i18n/{en,he}.ts` -- both pages, two actions, wording -- AC-1, AC-2, AC-3
+- [x] `tests/` -- every matrix row: unit (mailer on both transports with faked `fetch`, recipient and token placement, action order and failures, no token in any log), integration (issue and both limits, eligibility, check states, the transaction's effects and rollback, a race on two connections, marker use, closure, preflight), browser (desktop: request, mail from Mailpit, scanner GET, redeem, old session gone, marker works, replay, expiry, limit, two windows, axe in four variants, 320 px at 200% text, keyboard focus; phone: render, axe, overflow); update the structural tests -- all ACs
+- [x] `provisioning/ledger.json`, `docs/*`, `README.md`, `deferred-work.md` -- the attestation, a hosted check, resolved and remaining entries -- housekeeping
 
 **Acceptance Criteria:**
 - Given the configured sole Administrator, when recovery is requested, then only the verified email receives the protected link, the response exposes nothing of other Workspaces, and both pages work on phone and desktop.
@@ -99,3 +100,105 @@ Recovery is a global singleton: one outstanding token and a global limit. So the
 
 **Manual checks (if no CLI):**
 - Open `/recover` and the confirmation page on a phone-width window in Hebrew and dark: every state reads in words and the button is reachable by keyboard.
+
+## Suggested Review Order
+
+**The redemption, the heart of the story**
+
+- Start here: the redemption in its order, with which failures end the session and which keep it.
+  [`recovery.ts:182`](../../lib/recovery.ts#L182)
+
+- The one transaction under a lock on the Account; any refusal undoes all of it.
+  [`20261012140000_administrator_recovery.sql:370`](../../supabase/migrations/20261012140000_administrator_recovery.sql#L370)
+
+- The thin Server Action: cookies are written only once the outcome is known.
+  [`actions.ts:41`](../../app/recover/actions.ts#L41)
+
+- The client that holds the minted session's cookies back, so a losing window leaves the browser untouched.
+  [`server.ts:44`](../../lib/supabase/server.ts#L44)
+
+- A deadline now says the call was in flight, which is what separates "unknown" from "never sent".
+  [`deadline.ts:10`](../../lib/deadline.ts#L10)
+
+**Issuing a token and sending it**
+
+- The request sequence: issue, mail, and the three answers the page may learn.
+  [`recovery.ts:80`](../../lib/recovery.ts#L80)
+
+- Issuance under one advisory lock: eligibility, the two global limits, one outstanding token.
+  [`20261012140000_administrator_recovery.sql:178`](../../supabase/migrations/20261012140000_administrator_recovery.sql#L178)
+
+- The token lives in the link's fragment, so no server, log or Referer ever sees it.
+  [`recovery.ts:64`](../../lib/recovery.ts#L64)
+
+- Staging and production use `APP_ORIGIN`, never the request, for where the link points.
+  [`recovery.ts:54`](../../lib/recovery.ts#L54)
+
+- The recipient is not a parameter: Resend hosted, Mailpit locally.
+  [`mailer.ts:127`](../../lib/mailer.ts#L127)
+
+- Auth's Admin API makes the link for the Auth user's own address.
+  [`auth-admin.ts:52`](../../lib/auth-admin.ts#L52)
+
+**What the database stores and checks**
+
+- The closed token table: only the keyed hash, 15 minutes, final once used or voided.
+  [`20261012140000_administrator_recovery.sql:58`](../../supabase/migrations/20261012140000_administrator_recovery.sql#L58)
+
+- Who is eligible: the active Administrator whose verified Google address and pinned subject match.
+  [`20261012140000_administrator_recovery.sql:139`](../../supabase/migrations/20261012140000_administrator_recovery.sql#L139)
+
+- The read-only check a scanner's GET can never get past.
+  [`20261012140000_administrator_recovery.sql:294`](../../supabase/migrations/20261012140000_administrator_recovery.sql#L294)
+
+- The only edit to the step-up marker table: an optional nonce and a `source`.
+  [`20261012140000_administrator_recovery.sql:105`](../../supabase/migrations/20261012140000_administrator_recovery.sql#L105)
+
+- A failed send is audited, and voids the token only when the refusal was definitive.
+  [`20261012140000_administrator_recovery.sql:251`](../../supabase/migrations/20261012140000_administrator_recovery.sql#L251)
+
+- The build's preflight carries every earlier probe and adds the new ones.
+  [`20261012140000_administrator_recovery.sql:457`](../../supabase/migrations/20261012140000_administrator_recovery.sql#L457)
+
+- Typed calls to the four functions, refusals as values.
+  [`accounts.ts:1147`](../../lib/accounts.ts#L1147)
+
+**Pages and routing**
+
+- The one-button request form.
+  [`recover-form.tsx:36`](../../components/recover-form.tsx#L36)
+
+- The confirmation form moves the token out of the address bar before anything is pressed.
+  [`recover-confirm-form.tsx:71`](../../components/recover-confirm-form.tsx#L71)
+
+- Both pages are public; the sign-in page carries the quiet link.
+  [`public-paths.ts:5`](../../lib/public-paths.ts#L5)
+  [`login-form.tsx:69`](../../components/login-form.tsx#L69)
+
+- The success notice on Administration; the number only changes the words.
+  [`page.tsx:21`](../../app/admin/page.tsx#L21)
+
+**Environment contract and housekeeping**
+
+- `APP_ORIGIN` must be an https origin and nothing more; `RECOVERY_HASH_KEY` joins the hash keys.
+  [`environment.ts:140`](../../lib/environment.ts#L140)
+
+- The hosted attestation Josh runs on staging, including the no-other-credential check.
+  [`ledger.json:356`](../../provisioning/ledger.json#L356)
+
+- The hosted verification steps, and what recovery does and does not cover.
+  [`auth-setup.md:323`](../../docs/auth-setup.md#L323)
+
+**Tests**
+
+- The transaction's effects, rollback and marker, at the database.
+  [`administrator-recovery.test.ts:758`](../../tests/integration/administrator-recovery.test.ts#L758)
+
+- Two windows on real connections: exactly one recovers.
+  [`administrator-recovery.test.ts:1067`](../../tests/integration/administrator-recovery.test.ts#L1067)
+
+- Every order and failure of the redemption, with injected collaborators.
+  [`recovery.test.ts:146`](../../tests/unit/recovery.test.ts#L146)
+
+- The browser flows: redeem, replay, expiry, two windows, an outage.
+  [`recovery.spec.ts:276`](../../tests/e2e/recovery.spec.ts#L276)

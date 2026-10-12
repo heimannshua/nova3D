@@ -1,8 +1,8 @@
 // Story 1.3 (Part A). The application side of invitation-only Accounts: invitation code generation,
 // keyed hashing, and typed calls to the `api` schema with the service role.
 //
-// SERVER-ONLY. This module reads INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY and the service-role key,
-// none of which may reach a browser. It is not marked with the `server-only` package because the
+// SERVER-ONLY. This module reads INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY, RECOVERY_HASH_KEY and the
+// service-role key, none of which may reach a browser. It is not marked with the `server-only` package because the
 // audited seed command (scripts/seed-accounts.mjs) imports it directly through Node type stripping,
 // where that package throws. Instead it refuses to load in a browser, uses node:crypto (which a client
 // bundle cannot resolve), and tests/unit/accounts.test.ts fails if a client component, or anything under
@@ -17,7 +17,8 @@
 // No function here logs, and no error message contains a code, an address, a hash or a key.
 import {createHmac, randomBytes} from 'node:crypto';
 import {isIPv4, isIPv6} from 'node:net';
-import {decodeHashKey, hashKeyProblem, hashKeyVariables, isPlaceholder, type Env} from './environment.ts';
+import {decodeHashKey, hashKeyProblem, hashKeyVariables, isEmailAddress, isPlaceholder, type Env} from './environment.ts';
+import {recoveryTokenPattern} from './recovery-state.ts';
 import {consumedStepUpClasses, stepUpClasses, type StepUpClass} from './step-up.ts';
 
 if (typeof window !== 'undefined') {
@@ -1078,4 +1079,140 @@ export async function recordAccountRefusal(
     options,
   );
   return oneOf(row.outcome, accountRefusalOutcomes);
+}
+
+// Administrator recovery (Story 1.6) ---------------------------------------------------------------------------
+
+/** 32 random bytes from the operating system's CSPRNG: 256 bits. The token travels once, in the mailed link's fragment. */
+export const recoveryTokenBytes = 32;
+
+/** A new recovery token: 32 random bytes as 43 URL-safe characters. Only its keyed hash is ever stored; it is never logged. */
+export function newRecoveryToken(random: (size: number) => Uint8Array = randomBytes): string {
+  const bytes = random(recoveryTokenBytes);
+  if (bytes.length !== recoveryTokenBytes) throw new Error('The random source returned the wrong number of bytes.');
+  return Buffer.from(bytes).toString('base64url');
+}
+
+/** Whether a value is shaped like a token this module makes. Anything else cannot be one (and is still hashed and refused like any unknown token). */
+export function isRecoveryToken(value: unknown): value is string {
+  return typeof value === 'string' && recoveryTokenPattern.test(value);
+}
+
+/**
+ * Hex HMAC-SHA-256 of a recovery token under RECOVERY_HASH_KEY: what the database stores and compares. The input is cut
+ * to a bounded length first, so a request cannot make this hash an arbitrary amount of text.
+ */
+export function hashRecoveryToken(token: unknown, key: Uint8Array) {
+  return hmacHex(key, 'nova3d/recovery-token/v1', typeof token === 'string' ? token.slice(0, 256) : '');
+}
+
+/**
+ * The configured Administrator address, the only one recovery serves and the only one it mails: ADMINISTRATOR_EMAIL, lower
+ * case, from the server's own environment. It is never a parameter of a call, so no request can supply one.
+ */
+function administratorAddress(env: Env) {
+  const value = env.ADMINISTRATOR_EMAIL?.trim().toLowerCase();
+  if (!value || isPlaceholder(value)) throw new AccountsConfigError('ADMINISTRATOR_EMAIL is not set');
+  if (!isEmailAddress(value)) throw new AccountsConfigError('ADMINISTRATOR_EMAIL is not an email address');
+  return value;
+}
+
+/**
+ * api.issue_recovery: `issued` (a token now exists until `expiresAt`: the caller mails the link that carries `token`, which
+ * exists nowhere else), `limited` (an issuance in the last 15 minutes, or 5 in the last 24 hours; nothing was issued) or
+ * `refused` (no eligible Administrator, or the pinned Google subject no longer matches; nothing was issued).
+ */
+export type RecoveryIssuance = {outcome: 'issued'; token: string; expiresAt: string} | {outcome: 'limited'} | {outcome: 'refused'};
+
+/** Why a recovery token cannot be redeemed. `administrator`: the Account is not, or is no longer, the one eligible Administrator. */
+export const recoveryRefusals = ['unknown', 'used', 'expired', 'voided', 'administrator'] as const;
+export type RecoveryRefusal = (typeof recoveryRefusals)[number];
+
+/** api.check_recovery: `valid` carries the Auth user to mint a session for and its own address; anything else says why not. */
+export type RecoveryCheck = {outcome: 'valid'; userId: string; email: string} | {outcome: RecoveryRefusal};
+
+/** api.redeem_recovery: `redeemed` carries how many OTHER Auth sessions were ended and the Account's new epoch. */
+export type RecoveryRedemption = {outcome: 'redeemed'; sessionsEnded: number; epoch: number} | {outcome: RecoveryRefusal};
+
+/** api.void_recovery: `voided`, `recorded` (audited, the token left as it was) or `not_found`. */
+export const recoveryVoidOutcomes = ['voided', 'recorded', 'not_found'] as const;
+export type RecoveryVoidOutcome = (typeof recoveryVoidOutcomes)[number];
+
+/**
+ * Issues a recovery token for the configured Administrator (Story 1.6). The token is made here (32 random bytes) and only
+ * its HMAC under RECOVERY_HASH_KEY goes to the database; it is returned for the caller to put in the one mailed link and
+ * nowhere else. The address is ADMINISTRATOR_EMAIL from `options.env`, never an argument. If this throws an
+ * AccountsUnavailableError the token may or may not have been stored, and nobody holds it: nothing usable exists.
+ */
+export async function issueRecovery(options: AccountsOptions = {}): Promise<RecoveryIssuance> {
+  const env = options.env ?? process.env;
+  const key = hashKey(env, 'RECOVERY_HASH_KEY');
+  const administrator = administratorAddress(env);
+  const token = newRecoveryToken();
+  const row = await callRow('issue_recovery', {p_token_hash: hashRecoveryToken(token, key), p_administrator_email: administrator}, options);
+  const outcome = oneOf(row.outcome, ['issued', 'limited', 'refused'] as const);
+  if (outcome !== 'issued') return {outcome};
+  const expiresAt = text(row.expires_at);
+  // An issuance that does not say when it expires is not one the caller may mail.
+  if (!expiresAt) throw unexpected();
+  return {outcome, token, expiresAt};
+}
+
+/**
+ * Records that the recovery mail could not be sent (`recovery.mail_failed`) and, when `definitive` (the provider refused
+ * the message, so it was not sent), voids the token so nothing usable remains. A failure whose outcome is unknown (a timeout:
+ * the mail may have gone out) is not definitive, and leaves the token as it was.
+ */
+export async function voidRecovery(input: {token: string; definitive: boolean}, options: AccountsOptions = {}): Promise<RecoveryVoidOutcome> {
+  const env = options.env ?? process.env;
+  const key = hashKey(env, 'RECOVERY_HASH_KEY');
+  const row = await callRow('void_recovery', {p_token_hash: hashRecoveryToken(input.token, key), p_definitive: input.definitive === true}, options);
+  return oneOf(row.outcome, recoveryVoidOutcomes);
+}
+
+/**
+ * Whether a token from a request can be redeemed, and for which Auth user (Story 1.6). Changes nothing about the token; a
+ * refusal is audited by the database. The token is whatever the request carried: it is cut to a bounded length, hashed
+ * like any other, and an unknown one is simply `unknown`. The configured address is `options.env`'s, never an argument.
+ */
+export async function checkRecovery(input: {token: string}, options: AccountsOptions = {}): Promise<RecoveryCheck> {
+  const env = options.env ?? process.env;
+  const key = hashKey(env, 'RECOVERY_HASH_KEY');
+  const administrator = administratorAddress(env);
+  const row = await callRow('check_recovery', {p_token_hash: hashRecoveryToken(input.token, key), p_administrator_email: administrator}, options);
+  const outcome = oneOf(row.outcome, ['valid', ...recoveryRefusals] as const);
+  if (outcome !== 'valid') return {outcome};
+  const userId = text(row.user_id);
+  const email = text(row.email);
+  // A token that is valid for nobody is not valid.
+  if (!userId || !uuidPattern.test(userId) || !email) throw unexpected();
+  return {outcome, userId: userId.toLowerCase(), email};
+}
+
+/**
+ * The transaction (Story 1.6): redeems the token for the verified user and the session in the verified access token that
+ * the Auth Admin API's link has just minted. ONE database transaction under a lock on the Account marks the token used,
+ * raises the epoch, revokes every grant of the Account, deletes the person's other Auth sessions, grants this session and
+ * gives it the fresh-authentication marker; any refusal undoes all of it. If this throws an AccountsUnavailableError with
+ * `outcomeUnknown`, the transaction may have committed: the caller must NOT end the session it holds, and tells the person
+ * to open Administration.
+ */
+export async function redeemRecoveryToken(input: {token: string; userId: string; sessionId: string}, options: AccountsOptions = {}): Promise<RecoveryRedemption> {
+  const env = options.env ?? process.env;
+  const key = hashKey(env, 'RECOVERY_HASH_KEY');
+  const administrator = administratorAddress(env);
+  const userId = requireUuid('userId', input.userId);
+  const sessionId = requireUuid('sessionId', input.sessionId);
+  const row = await callRow(
+    'redeem_recovery',
+    {p_token_hash: hashRecoveryToken(input.token, key), p_administrator_email: administrator, p_user_id: userId, p_session_id: sessionId},
+    options,
+  );
+  const outcome = oneOf(row.outcome, ['redeemed', ...recoveryRefusals] as const);
+  if (outcome !== 'redeemed') return {outcome};
+  const sessionsEnded = count(row.sessions_ended);
+  const epoch = count(row.epoch);
+  // A redemption that does not say what it ended, or the epoch it moved the Account to, is not an answer.
+  if (sessionsEnded === null || epoch === null) throw unexpected();
+  return {outcome, sessionsEnded, epoch};
 }

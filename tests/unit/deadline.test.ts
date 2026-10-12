@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from 'vitest';
-import {createBudget, withDeadline, withinBudget} from '@/lib/deadline';
+import {createBudget, DeadlineError, withDeadline, withinBudget} from '@/lib/deadline';
 
 describe('withDeadline', () => {
   it('settles like the work when it is quick, and leaves no timer behind', async () => {
@@ -21,6 +21,24 @@ describe('withDeadline', () => {
       await vi.advanceTimersByTimeAsync(250);
       await outcome;
       expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('rejects with a DeadlineError, so a caller can tell a call that was in flight from a step that was never started', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = withDeadline(new Promise(() => undefined), 250);
+      const outcome = pending.catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(250);
+      const error = await outcome;
+      expect(error).toBeInstanceOf(DeadlineError);
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('no answer within 250 ms');
+      // A step that is never started (nothing left in the budget) is a plain Error, not a DeadlineError.
+      const spent = createBudget(0);
+      await expect(withinBudget(spent, async () => 'never')).rejects.not.toBeInstanceOf(DeadlineError);
     } finally {
       vi.useRealTimers();
     }

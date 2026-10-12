@@ -180,6 +180,7 @@ describe('check-env --live against the local stack', () => {
     SYNTHETIC_DATA_ENABLED: 'true',
     INVITATION_HASH_KEY: randomBytes(32).toString('base64'),
     RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64'),
+    RECOVERY_HASH_KEY: randomBytes(32).toString('base64'),
   });
   const check = (env: Record<string, string>) =>
     new Promise<{code: number; stdout: string; stderr: string}>((done) => {

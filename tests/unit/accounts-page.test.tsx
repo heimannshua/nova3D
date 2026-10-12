@@ -158,6 +158,43 @@ describe.each(locales)('the Administration index in %s', (locale) => {
   });
 });
 
+describe.each(locales)('the Administration index after a recovery (Story 1.6) in %s', (locale) => {
+  const render = (recovered: number | null | undefined, confirmation: Confirmation = 'confirmed') =>
+    renderToStaticMarkup(
+      <I18nProvider locale={locale}>
+        <AdminContent confirmation={confirmation} recovered={recovered}/>
+      </I18nProvider>,
+    );
+
+  it('says nothing about a recovery when there was none', () => {
+    for (const recovered of [null, undefined]) {
+      expect(render(recovered)).not.toContain(t(locale, 'admin.recovered.none'));
+      expect(text(render(recovered))).not.toContain(text(t(locale, 'admin.recovered', {count: 2})));
+    }
+  });
+
+  it.each([1, 2, 5])('says, as a status and not an alert, that the person is back in and how many other sessions were signed out: %i', (count) => {
+    const markup = render(count);
+    expect(text(markup)).toContain(t(locale, 'admin.recovered', {count}));
+    expect(markup).toMatch(/<div class="notice notice-success" role="status">[\s\S]*?<\/div>/);
+    expect(markup).not.toContain('role="alert"');
+  });
+
+  it('says there were none to sign out when there were none', () => {
+    expect(text(render(0))).toContain(t(locale, 'admin.recovered.none'));
+  });
+
+  it('comes before the notice that the person has confirmed it is them, which the recovered session holds too', () => {
+    const markup = render(2, 'confirmed');
+    expect(markup.indexOf('notice-success')).toBeLessThan(markup.lastIndexOf('notice-success'));
+    expect(text(markup).indexOf(t(locale, 'admin.recovered', {count: 2}))).toBeLessThan(text(markup).indexOf(t(locale, 'admin.confirm.ok')));
+  });
+
+  it('shows only the number it is given, as text: it grants nothing', () => {
+    expect(render(7)).not.toMatch(/recovered=|href="[^"]*recovered/);
+  });
+});
+
 describe('what a finished action says above the list', () => {
   const states: [string, AccountActionState][] = [
     ['disabled', {outcome: 'disabled', sessionsEnded: 2, jobsCancelled: 3, cancellationsFailed: 0}],

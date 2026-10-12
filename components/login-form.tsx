@@ -3,6 +3,7 @@
 import {useState} from 'react';
 import {createBrowserClient} from '@supabase/ssr';
 import {useI18n} from '@/lib/i18n/react';
+import {recoverPath} from '@/lib/recovery-state';
 import {signInErrorKey, signInNoticeKey, startGoogleSignIn} from '@/lib/sign-in';
 import type {MessageKey} from '@/lib/i18n';
 import {LoginPreferences} from './login-preferences';
@@ -63,6 +64,10 @@ export function LoginForm({initialError, initialNotice}: {initialError?: string;
         </Button>
         {!googleAvailable ? <p className="auth-hint">{t('login.notConfigured')}</p> : null}
         <p className="auth-footnote">{t('login.footnote')}</p>
+        {/* The one way back in without Google, for the Administrator alone (Story 1.6): quiet, because it is almost never needed. */}
+        <div className="auth-switch">
+          <LinkButton href={recoverPath} variant="quiet" prefetch={false}>{t('login.recover')}</LinkButton>
+        </div>
         <LoginPreferences/>
       </section>
     </main>

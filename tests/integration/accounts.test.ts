@@ -37,6 +37,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
       'invitations',
       'preauthorizations',
       'rate_limit_counters',
+      'recovery_tokens',
       'registration_attempts',
       'registration_commands',
       'session_grants',
@@ -49,6 +50,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'adopt_preferences',
     'authorize_session',
     'before_user_created',
+    'check_recovery',
     'complete_step_up',
     'confirm_registration',
     'consume_preauthorization',
@@ -58,12 +60,14 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'issue_csrf',
     'issue_grant',
     'issue_invitation',
+    'issue_recovery',
     'list_accounts',
     'list_invitations',
     'preflight',
     'raise_authorization_epoch',
     'record_account_refusal',
     'record_invitation_refusal',
+    'redeem_recovery',
     'register_with_code',
     'revoke_grants',
     'revoke_invitation',
@@ -72,6 +76,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'start_step_up',
     'use_marker',
     'verify_csrf',
+    'void_recovery',
     'withdraw_preauthorization',
   ];
 
@@ -91,7 +96,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
          from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname in ('identity', 'projects') and c.relkind = 'r' order by 1`,
     );
-    expect(found).toHaveLength(12);
+    expect(found).toHaveLength(13);
     for (const row of found) expect(row, row.name).toMatchObject({rls: true, policies: 0});
   });
 
@@ -214,6 +219,10 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
         `select * from api.record_account_refusal(gen_random_uuid(), 'account.denied', null)`,
         `select * from api.disable_account('seed', gen_random_uuid())`,
         `select * from api.enable_account('seed', gen_random_uuid())`,
+        `select * from api.issue_recovery(repeat('a', 64), 'admin@example.test')`,
+        `select * from api.void_recovery(repeat('a', 64), false)`,
+        `select * from api.check_recovery(repeat('a', 64), 'admin@example.test')`,
+        `select * from api.redeem_recovery(repeat('a', 64), 'admin@example.test', gen_random_uuid(), gen_random_uuid())`,
         'select * from api.guard_operation(gen_random_uuid(), 1)',
         'select * from api.list_accounts()',
         'select * from api.consume_preauthorization(gen_random_uuid())',
@@ -295,6 +304,10 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
         disable_account: {p_actor: 'seed', p_account_id: randomUUID()},
         enable_account: {p_actor: 'seed', p_account_id: randomUUID()},
         guard_operation: {p_account_id: randomUUID(), p_epoch: 1},
+        issue_recovery: {p_token_hash: codeHash(), p_administrator_email: 'admin@example.test'},
+        void_recovery: {p_token_hash: codeHash(), p_definitive: false},
+        check_recovery: {p_token_hash: codeHash(), p_administrator_email: 'admin@example.test'},
+        redeem_recovery: {p_token_hash: codeHash(), p_administrator_email: 'admin@example.test', p_user_id: randomUUID(), p_session_id: randomUUID()},
         list_accounts: {},
         consume_preauthorization: {p_user_id: randomUUID()},
         register_with_code: {p_user_id: randomUUID(), p_command_id: randomUUID(), p_code_hash: codeHash(), p_origin_hash: originHash()},

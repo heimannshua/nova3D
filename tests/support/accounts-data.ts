@@ -97,6 +97,8 @@ export async function removeAccountData(client: Client, data: CommittedData) {
     await client.query(`delete from identity.account_preferences where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.fresh_authentications where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.step_up_nonces where account_id in ${accounts}`, [data.users]);
+    // The recovery tokens (Story 1.6) reference their Account with ON DELETE RESTRICT too.
+    await client.query(`delete from identity.recovery_tokens where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.session_grants where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.registration_commands where account_id in ${accounts}`, [data.users]);
     // Codes the Administrator's page made (Story 1.11) are issued by `user:<Auth user ID>`, which a test user may be.

@@ -15,6 +15,8 @@ const app = join(root, 'app');
 const exempt: Record<string, string> = {
   'app/login/page.tsx': 'the sign-in page is public',
   'app/kit/page.tsx': 'the design kit is public only while synthetic data is on, and answers 404 otherwise',
+  'app/recover/page.tsx': 'Administrator recovery (Story 1.6) exists for the one person who cannot sign in: one button, no input, no session and no database read on the page; its action mails the configured address only',
+  'app/recover/confirm/page.tsx': 'the page the mailed link opens (Story 1.6): a GET only renders, the token is in the URL fragment which no server receives, and the Server Action behind its one button does the checking',
 };
 /** The registration page asks for the opposite: a signed-in identity that has no Account yet. */
 const registration = 'app/register/page.tsx';
@@ -83,6 +85,16 @@ describe('page guards', () => {
 
   it('keeps the exempt pages from asking for an Account they could never require', () => {
     for (const file of Object.keys(exempt)) expect(callsRequireActiveAccount(source(file)), file).toBe(false);
+  });
+
+  it('keeps the two recovery pages to what makes them safe to be public: no session, no database, no request data, only the form and its action', () => {
+    for (const file of ['app/recover/page.tsx', 'app/recover/confirm/page.tsx']) {
+      const code = source(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+      // No gate, no Account, no database call, no cookie or header, and no search parameter: the page reads nothing the visitor chose.
+      expect(code, file).not.toMatch(/requireActiveAccount|requireAdministrator|requireUnregisteredIdentity|getAccess|@\/lib\/accounts|@\/lib\/access|searchParams|cookies\(|headers\(|process\.env/);
+      // It renders exactly one component, handing it the Server Action that component's button submits.
+      expect(code, file).toMatch(/<Recover(?:Confirm)?Form (?:request|redeem)=\{(?:requestRecovery|redeemRecovery)\}\/>/);
+    }
   });
 
   it('recognises a call to requireAdministrator and not a comment, an import or a missing await', () => {

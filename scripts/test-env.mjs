@@ -20,8 +20,13 @@ const INSTANCE = '3f0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c44';
 const OTHER_INSTANCE = '9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d';
 const DB_PASSWORD = 'db-password-must-never-be-printed';
 const STRIPE_KEY = 'sk_test_must_never_be_printed';
-// The two account hashing keys (Story 1.3): random, at least 32 bytes, different from each other.
-const hashKeys = () => ({INVITATION_HASH_KEY: randomBytes(32).toString('base64'), RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64')});
+// The three hashing keys (Story 1.3, and the recovery key of Story 1.6): random, at least 32 bytes, different from each other.
+const hashKeys = () => ({
+  INVITATION_HASH_KEY: randomBytes(32).toString('base64'),
+  RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64'),
+  RECOVERY_HASH_KEY: randomBytes(32).toString('base64'),
+});
+const MAIL_KEY = 'resend-fixture-key-must-never-be-printed';
 const FIXTURE_HOST = 'https://fixture.supabase.co';
 // An address nothing listens on: connections are refused at once and cannot race a freed port.
 const NOTHING_LISTENS = 'https://127.0.0.1:1';
@@ -82,10 +87,11 @@ const local = () => ({
   SYNTHETIC_DATA_ENABLED: 'true',
   ...hashKeys(),
 });
-const staging = () => ({...local(), APP_ENV: 'staging', NEXT_PUBLIC_APP_ENV: 'staging', NEXT_PUBLIC_SUPABASE_URL: FIXTURE_HOST});
-// A preview holds no Supabase variables and neither hashing key.
+// Staging and production send the recovery mail through Resend and build its link from APP_ORIGIN (Story 1.6).
+const staging = () => ({...local(), APP_ENV: 'staging', NEXT_PUBLIC_APP_ENV: 'staging', NEXT_PUBLIC_SUPABASE_URL: FIXTURE_HOST, RESEND_API_KEY: MAIL_KEY, APP_ORIGIN: 'https://nova3d-staging.example.test'});
+// A preview holds no Supabase variables, no hashing key and no mail key.
 const preview = () => {
-  const {NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY, ...rest} = staging();
+  const {NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY, RECOVERY_HASH_KEY, RESEND_API_KEY, ...rest} = staging();
   return {...rest, VERCEL: '1', VERCEL_ENV: 'preview'};
 };
 const deployment = () => ({...staging(), VERCEL: '1', VERCEL_ENV: 'production'});
@@ -163,6 +169,8 @@ describe('identity matrix', () => {
       STRIPE_WEBHOOK_SECRET: STRIPE_KEY,
       INVITATION_HASH_KEY: randomBytes(32).toString('base64'),
       RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64'),
+      RECOVERY_HASH_KEY: randomBytes(32).toString('base64'),
+      RESEND_API_KEY: MAIL_KEY,
     };
     for (const [name, value] of Object.entries(forbidden)) {
       const result = await run({...preview(), [name]: value});
@@ -304,8 +312,8 @@ describe('static rules kept from the seed', () => {
     rejected(await run({...local(), INSTANCE_ID: '<staging-instance-id>'}), 'placeholder values are not allowed');
   });
 
-  it('requires both account hashing keys outside a preview (Story 1.3)', async () => {
-    for (const name of ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY']) {
+  it('requires all three hashing keys outside a preview (Stories 1.3 and 1.6)', async () => {
+    for (const name of ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY', 'RECOVERY_HASH_KEY']) {
       const {[name]: _missing, ...without} = local();
       rejected(await run(without), `missing required variables: ${name}`);
       rejected(await run({...local(), [name]: ''}), name);
@@ -314,13 +322,37 @@ describe('static rules kept from the seed', () => {
     }
     const same = randomBytes(32).toString('base64');
     rejected(await run({...local(), INVITATION_HASH_KEY: same, RATE_LIMIT_HASH_KEY: same}), 'must be different keys');
+    rejected(await run({...local(), INVITATION_HASH_KEY: same, RECOVERY_HASH_KEY: same}), 'INVITATION_HASH_KEY and RECOVERY_HASH_KEY must be different keys');
+    rejected(await run({...local(), RATE_LIMIT_HASH_KEY: same, RECOVERY_HASH_KEY: same}), 'RATE_LIMIT_HASH_KEY and RECOVERY_HASH_KEY must be different keys');
     passed(await run(local()));
     passed(await run(staging()));
+  });
+
+  it('requires the mail key and the link origin in staging and production, but not locally (Story 1.6)', async () => {
+    const production = () => ({...staging(), APP_ENV: 'production', NEXT_PUBLIC_APP_ENV: 'production', SYNTHETIC_DATA_ENABLED: 'false', PAID_ADAPTERS_ENABLED: 'true', APP_ORIGIN: 'https://nova3d.example.test'});
+    for (const environment of [staging(), production()]) {
+      for (const name of ['RESEND_API_KEY', 'APP_ORIGIN']) {
+        const {[name]: _missing, ...without} = environment;
+        rejected(await run(without), `missing required variables: ${name}`);
+      }
+      passed(await run(environment));
+    }
+    rejected(await run({...staging(), APP_ORIGIN: '<staging-app-origin>'}), 'placeholder values are not allowed');
+    rejected(await run({...staging(), APP_ORIGIN: 'http://nova3d-staging.example.test'}), 'APP_ORIGIN must be an https origin for staging and production');
+    rejected(await run({...staging(), APP_ORIGIN: 'https://nova3d-staging.example.test/recover'}), 'APP_ORIGIN must be an origin and nothing more');
+    const spaced = 'a key with spaces that must never be printed';
+    const result = await run({...staging(), RESEND_API_KEY: spaced});
+    rejected(result, 'RESEND_API_KEY must be one token without spaces');
+    assert.ok(!result.stderr.includes(spaced), 'the mail key was printed');
+    // Locally the mail goes to the stack's Mailpit and the link uses the request's origin.
+    passed(await run(local()));
   });
 
   it('does not require the keys in a preview, which must not hold them', async () => {
     passed(await run(preview()));
     rejected(await run({...preview(), RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64')}), 'RATE_LIMIT_HASH_KEY');
+    rejected(await run({...preview(), RECOVERY_HASH_KEY: randomBytes(32).toString('base64')}), 'RECOVERY_HASH_KEY');
+    rejected(await run({...preview(), RESEND_API_KEY: MAIL_KEY}), 'RESEND_API_KEY');
   });
 
   it('rejects synthetic data in production', async () => {

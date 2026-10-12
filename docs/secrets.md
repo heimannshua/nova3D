@@ -20,7 +20,7 @@ Generate on your own machine, copy straight into the store, and never paste a va
 
 ### RATE_LIMIT_HASH_KEY
 
-Story 1.3. Keyed hash (HMAC-SHA256) of the platform-reported client address for the registration and recovery rate limiter, so no raw address is kept. Read only by the application (`lib/accounts.ts`). Required at startup in every environment except a preview, which must not hold it; checked for shape (base64, at least 32 bytes, different from `INVITATION_HASH_KEY`).
+Story 1.3. Keyed hash (HMAC-SHA256) of the platform-reported client address for the registration rate limiter, so no raw address is kept. (Administrator recovery's limits, Story 1.6, are global and counted from its own rows: they use no client address and none of this key.) Read only by the application (`lib/accounts.ts`). Required at startup in every environment except a preview, which must not hold it; checked for shape (base64, at least 32 bytes, different from the other two hashing keys).
 
 - **Owner:** Administrator (Josh).
 - **Generation:** 32 random bytes from a secure generator, for example `openssl rand -base64 32`, one value per environment.
@@ -30,7 +30,7 @@ Story 1.3. Keyed hash (HMAC-SHA256) of the platform-reported client address for 
 
 ### INVITATION_HASH_KEY
 
-Story 1.3. Keyed hash (HMAC-SHA256) under which invitation codes are stored; only hashes are kept. Read only by the application (`lib/accounts.ts`) and by the audited seed command (`scripts/seed-accounts.mjs`), which hashes a code before it reaches the database. Required at startup in every environment except a preview, which must not hold it; checked for shape (base64, at least 32 bytes, different from `RATE_LIMIT_HASH_KEY`). `node scripts/setup-env.mjs local` generates both local keys and keeps valid ones.
+Story 1.3. Keyed hash (HMAC-SHA256) under which invitation codes are stored; only hashes are kept. Read only by the application (`lib/accounts.ts`) and by the audited seed command (`scripts/seed-accounts.mjs`), which hashes a code before it reaches the database. Required at startup in every environment except a preview, which must not hold it; checked for shape (base64, at least 32 bytes, different from the other two hashing keys). `node scripts/setup-env.mjs local` generates all three local keys and keeps valid ones.
 
 - **Owner:** Administrator (Josh).
 - **Generation:** 32 random bytes from a secure generator, for example `openssl rand -base64 32`, one value per environment.
@@ -40,12 +40,12 @@ Story 1.3. Keyed hash (HMAC-SHA256) under which invitation codes are stored; onl
 
 ### RECOVERY_HASH_KEY
 
-Story 1.6. Keyed hash under which the single-use Administrator recovery token is stored. Read only by the application.
+Story 1.6. Keyed hash (HMAC-SHA256, with its own domain label) under which the single-use Administrator recovery token is stored in `identity.recovery_tokens`; only hashes are kept, never a token. Read only by the application (`lib/accounts.ts`: it hashes a token when one is issued, checked, redeemed or voided). The audited seed command does not read it. Required at startup in every environment except a preview, which must not hold it; checked for shape (base64 text decoding to at least 32 bytes, different from `INVITATION_HASH_KEY` and `RATE_LIMIT_HASH_KEY` once decoded). `node scripts/setup-env.mjs local` generates it with the other two local keys and keeps a valid one.
 
 - **Owner:** Administrator (Josh).
 - **Generation:** 32 random bytes from a secure generator, for example `openssl rand -base64 32`, one value per environment.
 - **Location:** local: `.env.local`; staging: the staging Vercel project's Production-scope variables; production: the production Vercel project's variables once it exists.
-- **Rotation:** replace it in the environment's store and redeploy. At most one token is outstanding and it lasts 15 minutes, so any outstanding link simply stops working and a new one is requested.
+- **Rotation:** replace it in the environment's store and redeploy. Stored hashes depend on the key, so any outstanding recovery link stops working at once ("This link cannot be used"). That is fine: at most one token is outstanding and it lives 15 minutes. A new link can be requested once 15 minutes have passed since the last one was issued (the spacing limit counts every issuance, a link nobody can use any more included). Nothing else is keyed by it, so no other data is affected.
 - **Cadence:** yearly, and at once on suspected compromise.
 
 ## Service-signing keys
@@ -138,12 +138,12 @@ Story 8.9. The age private key (identity) that decrypts one environment's backup
 
 ### RESEND_API_KEY
 
-Story 1.6. Sends the Administrator recovery link and operational alarm mail. Read only by the application.
+Story 1.6. The Bearer credential for `POST https://api.resend.com/emails`, used to mail the Administrator recovery link from the `resend.dev` sender (`onboarding@resend.dev`); the operational alarm mail of Story 1.13 will go through the same module. Read only by the application, and only in `lib/mailer.ts`, which sends to `ADMINISTRATOR_EMAIL` alone (the recipient is not a parameter) and logs nothing. The `resend.dev` sender reaches only the address the Resend account is registered with, so that account must be the Administrator's (provisioning item `resend-account`). Required in staging and production (the server stops, and the Vercel build fails, without it), checked to be one token with no spaces; a preview must not hold it; local does not use it. The key needs sending access only.
 
 - **Owner:** Administrator (Josh).
 - **Generation:** in the Resend dashboard, an API key with sending access only, one per environment.
-- **Location:** local: not used (Inbucket catches local mail); staging: the staging Vercel project's Production-scope variables; production: the production Vercel project's variables once it exists.
-- **Rotation:** create a new key in Resend, replace it in the environment's store, redeploy, then delete the old key.
+- **Location:** local: not used (with `APP_ENV=local` the mail goes to the Supabase stack's own Mailpit, `http://127.0.0.1:54324`, and never to Resend); staging: the staging Vercel project's Production-scope variables; production: the production Vercel project's variables once it exists.
+- **Rotation:** create a new key in Resend, replace it in the environment's store, redeploy, then delete the old key. Until the new one is deployed the Recover page answers "not available right now" and the audit holds `recovery.mail_failed`; a link already mailed keeps working, because the key is not part of the token.
 - **Cadence:** yearly, and at once on suspected compromise.
 
 ### ANTHROPIC_API_KEY
@@ -372,4 +372,4 @@ Story 8.4. The separate operator key the restore tooling uses to write the resto
 
 ## Names that are not secrets
 
-These names sit beside secrets, in the provisioning ledger or in an entry above, but are not secret: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (browser-visible by design), `SUPABASE_PROJECT_REF`, `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`, `QSTASH_URL`, `UPSTASH_REDIS_REST_URL`, `VAPID_PUBLIC_KEY`, the Storage S3 access key IDs `GATEWAY_STORAGE_S3_ACCESS_KEY_ID` and `BACKUP_STORAGE_S3_ACCESS_KEY_ID`, and the Backblaze key identifiers `B2_BACKUP_KEY_ID`, `B2_MANIFEST_READ_KEY_ID`, `B2_LEDGER_READ_KEY_ID` and `B2_LEDGER_APPEND_KEY_ID`. Exposing one grants nothing on its own.
+These names sit beside secrets, in the provisioning ledger or in an entry above, but are not secret: `APP_ORIGIN` (the https origin of the deployed application, Story 1.6: the link in the recovery mail points at it, so it is required in staging and production and is an ordinary, readable setting; see `docs/deployment-setup.md`), `NEXT_PUBLIC_SUPABASE_ANON_KEY` (browser-visible by design), `SUPABASE_PROJECT_REF`, `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`, `QSTASH_URL`, `UPSTASH_REDIS_REST_URL`, `VAPID_PUBLIC_KEY`, the Storage S3 access key IDs `GATEWAY_STORAGE_S3_ACCESS_KEY_ID` and `BACKUP_STORAGE_S3_ACCESS_KEY_ID`, and the Backblaze key identifiers `B2_BACKUP_KEY_ID`, `B2_MANIFEST_READ_KEY_ID`, `B2_LEDGER_READ_KEY_ID` and `B2_LEDGER_APPEND_KEY_ID`. Exposing one grants nothing on its own.

@@ -21,6 +21,10 @@ const stagingEnv: Record<string, string | undefined> = {
   SYNTHETIC_DATA_ENABLED: 'true',
   INVITATION_HASH_KEY: randomBytes(32).toString('base64'),
   RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64'),
+  RECOVERY_HASH_KEY: randomBytes(32).toString('base64'),
+  // Staging sends the recovery mail through Resend and builds its link from APP_ORIGIN (Story 1.6).
+  RESEND_API_KEY: 'resend-startup-fixture-must-never-be-printed',
+  APP_ORIGIN: 'https://nova3d-staging.example.test',
   VERCEL: undefined,
   VERCEL_ENV: undefined,
   NEXT_RUNTIME: undefined,
@@ -152,8 +156,8 @@ describe('verifyStartupIdentity', () => {
     expect(printed()).toContain('ADMINISTRATOR_EMAIL');
   });
 
-  it('exits 1 without a hashing key, before contacting the database (Story 1.3)', async () => {
-    for (const name of ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY']) {
+  it('exits 1 without a hashing key, before contacting the database (Stories 1.3 and 1.6)', async () => {
+    for (const name of ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY', 'RECOVERY_HASH_KEY']) {
       env({[name]: undefined});
       respondWith(rowResponse('staging', INSTANCE));
       await expect(verifyStartupIdentity(noWait)).rejects.toThrow('process.exit(1)');
@@ -162,8 +166,19 @@ describe('verifyStartupIdentity', () => {
     }
   });
 
+  it('exits 1 in staging without the mail key or the link origin, before contacting the database (Story 1.6)', async () => {
+    for (const name of ['RESEND_API_KEY', 'APP_ORIGIN']) {
+      env({[name]: undefined});
+      respondWith(rowResponse('staging', INSTANCE));
+      await expect(verifyStartupIdentity(noWait)).rejects.toThrow('process.exit(1)');
+      expect(fetchStub).not.toHaveBeenCalled();
+      expect(printed()).toContain(`missing required variables: ${name}`);
+      expect(printed()).not.toContain('resend-startup-fixture');
+    }
+  });
+
   it('never contacts the database for a preview', async () => {
-    env({VERCEL: '1', VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, INVITATION_HASH_KEY: undefined, RATE_LIMIT_HASH_KEY: undefined});
+    env({VERCEL: '1', VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, INVITATION_HASH_KEY: undefined, RATE_LIMIT_HASH_KEY: undefined, RECOVERY_HASH_KEY: undefined, RESEND_API_KEY: undefined});
     respondWith(rowResponse('production', OTHER));
     await expect(verifyStartupIdentity(noWait)).resolves.toBeUndefined();
     expect(fetchStub).not.toHaveBeenCalled();

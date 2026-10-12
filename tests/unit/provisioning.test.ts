@@ -515,6 +515,7 @@ describe('items due by a story (build order, not numeric order)', () => {
     expect(through('1-5')).not.toContain('1-6');
     expect(itemsDueBy(committed, buildOrder, '1-11', 'staging').map((entry) => entry.id)).toContain('hosted-step-up-and-invitation-check');
     expect(itemsDueBy(committed, buildOrder, '1-5', 'staging').map((entry) => entry.id)).toContain('hosted-account-disable-check');
+    expect(itemsDueBy(committed, buildOrder, '1-6', 'staging').map((entry) => entry.id)).toContain('hosted-recovery-check');
     expect(through('2-5')).not.toContain('2-16');
     expect(through('8-9')).not.toContain('8-4');
     expect(through('8-4')).toContain('8-4');

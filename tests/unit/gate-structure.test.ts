@@ -374,12 +374,14 @@ describe('request integrity (Story 1.4c) has one definition and one way to check
 
   it('sends the database a hash and never a token', () => {
     // (That nothing prints a token is checked where the code runs: proxy-gating, access and auth unit tests.)
-    expect(withoutComments(read('lib/accounts.ts'))).not.toMatch(/p_csrf_token|p_token/);
+    // (`p_token_hash` is the recovery token's keyed hash, Story 1.6: a hash, never the token.)
+    expect(withoutComments(read('lib/accounts.ts'))).not.toMatch(/p_csrf_token|\bp_token\b/);
     expect(withoutComments(read('lib/accounts.ts'))).toMatch(/p_csrf_hash: input\.hash/);
   });
 
   it('removes the cookie where a browser changes session, and nowhere else', () => {
-    expect(callers('clearCsrfCookie')).toEqual(['app/account/actions.ts', 'app/auth/callback/route.ts', 'lib/csrf.server.ts']);
+    // A recovery (Story 1.6) gives the browser a different session too.
+    expect(callers('clearCsrfCookie')).toEqual(['app/account/actions.ts', 'app/auth/callback/route.ts', 'app/recover/actions.ts', 'lib/csrf.server.ts']);
   });
 
   it('needs no token for a Server Action: none checks one', () => {
@@ -787,5 +789,176 @@ describe('Account administration (Story 1.5) disables in one database call, then
   it('writes the contract down for the people who write Jobs and the file gateway', () => {
     const contract = read('docs/authority-contract.md');
     for (const needle of ['authorizeStep', 'identity.assert_operation_authority', 'api.guard_operation', 'operationOf', 'registerCanceller', 'stale_epoch', 'unreachable']) expect(contract, needle).toContain(needle);
+  });
+});
+
+describe('Administrator recovery (Story 1.6) mails one address, puts the token in a fragment, and recovers in one order', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const actions = 'app/recover/actions.ts';
+  const flow = 'lib/recovery.ts';
+  const code = (file: string) => withoutComments(read(file));
+
+  it('reaches the database in lib/accounts.ts and the one module that runs the sequences, and nowhere else', () => {
+    for (const name of ['issueRecovery', 'voidRecovery', 'checkRecovery', 'redeemRecoveryToken']) expect(callers(name), name).toEqual(['lib/accounts.ts', flow]);
+    for (const file of sources.filter((candidate) => candidate !== 'lib/accounts.ts')) expect(code(file), file).not.toMatch(/\b(?:issue|void|check|redeem)_recovery\b|recovery_tokens/);
+  });
+
+  it('sends mail from lib/mailer.ts and the one module that runs the sequences, and asks Auth\'s Admin API from lib/auth-admin.ts and the same module', () => {
+    expect(callers('sendRecoveryMail')).toEqual(['lib/mailer.ts', flow]);
+    expect(callers('generateMagicLink')).toEqual(['lib/auth-admin.ts', flow]);
+    expect(callers('recoveryMessage')).toEqual(['lib/mailer.ts']);
+  });
+
+  it('has no recipient anywhere but the environment: the mailer\'s door takes a link and options, and the address is read inside it', () => {
+    const mailer = code('lib/mailer.ts');
+    expect(mailer).toMatch(/export async function sendRecoveryMail\(link: string, options: MailerOptions = \{\}\)/);
+    expect(mailer).toMatch(/const to = recipientOf\(env\)/);
+    expect(mailer).toMatch(/env\.ADMINISTRATOR_EMAIL/);
+    // Nothing about who it goes to is a parameter of anything exported.
+    expect([...mailer.matchAll(/export (?:async )?function \w+\(([^)]*)\)/g)].map((match) => match[1]).join('\n')).not.toMatch(/\b(?:to|recipient|email|address)\b/i);
+    // And no other module reads the address: only the environment check, the typed calls and the mailer.
+    const readers = sources.filter((file) => /ADMINISTRATOR_EMAIL/.test(code(file))).sort();
+    expect(readers).toEqual(['lib/accounts.ts', 'lib/environment.ts', 'lib/mailer.ts']);
+  });
+
+  it('chooses the link\'s origin from the server\'s configuration, never from a request, in one function', () => {
+    const recovery = code(flow);
+    expect(recovery).toMatch(/export function recoveryLinkOrigin\(env: Env, requestOrigin: string \| null\)/);
+    // The request's origin is used for APP_ENV=local and for nothing else: the line that returns it is the first, and is guarded.
+    const body = recovery.slice(recovery.indexOf('export function recoveryLinkOrigin'), recovery.indexOf('export function recoveryLink('));
+    expect(body.match(/requestOrigin/g)).toHaveLength(2);
+    expect(body).toMatch(/if \(env\.APP_ENV === 'local'\) return requestOrigin;/);
+    expect(body).toMatch(/env\.APP_ORIGIN/);
+    expect(callers('recoveryLinkOrigin')).toEqual([actions, flow]);
+  });
+
+  it('puts the token in the fragment of the link in one place, and in no query string or path anywhere', () => {
+    expect(code(flow)).toMatch(/return `\$\{origin\}\$\{recoveryConfirmPath\}#\$\{token\}`;/);
+    for (const file of sources) {
+      const source = code(file);
+      expect(source, file).not.toMatch(/recover\/confirm\?|confirm\?token|searchParams\.get\(['"](?:token|t)['"]\)/);
+    }
+    // The confirmation page reads the fragment in the browser, in one component, and nothing else reads it.
+    expect(callers('tokenFromFragment')).toEqual(['components/recover-confirm-form.tsx', 'lib/recovery-state.ts']);
+    expect(code('components/recover-confirm-form.tsx')).toMatch(/tokenFromFragment\(window\.location\.hash\)/);
+    expect(code('components/recover-confirm-form.tsx')).toMatch(/window\.history\.replaceState\(/);
+  });
+
+  it('holds the token in memory only: the confirmation component never writes it to storage, a cookie, the router or the console', () => {
+    const component = code('components/recover-confirm-form.tsx');
+    expect(component).not.toMatch(/localStorage|sessionStorage|document\.cookie|indexedDB|router\.|useRouter|console\./);
+    for (const file of sources) expect(code(file), file).not.toMatch(/['"`]nova3d-recover/);
+  });
+
+  it('is two Server Actions and no route, and the pages hold only their form', () => {
+    const exported = [...code(actions).matchAll(/export async function (\w+)\(/g)].map((match) => match[1]);
+    expect(exported).toEqual(['requestRecovery', 'redeemRecovery']);
+    expect(code(actions)).not.toMatch(/^export (?!async function)/m);
+    expect(files('app/recover', (name) => /^route\./.test(name))).toEqual([]);
+    // A POST route would have to pass the mutation guard, which a person who cannot sign in cannot: the actions are the way.
+    expect(callers('requestRecovery')).toEqual([actions, 'app/recover/page.tsx']);
+    expect(callers('redeemRecovery')).toEqual([actions, 'app/recover/confirm/page.tsx']);
+  });
+
+  it('takes nothing from the request in the request action, and only the form\'s `token` in the redeem action', () => {
+    const action = code(actions);
+    const request = action.slice(action.indexOf('export async function requestRecovery'), action.indexOf('export async function redeemRecovery'));
+    for (const forbidden of [/formData/i, /\bsearchParams\b/, /\bnew URL\(/, /cookies\(\)/]) expect(request, String(forbidden)).not.toMatch(forbidden);
+    const redeem = action.slice(action.indexOf('export async function redeemRecovery'));
+    expect([...redeem.matchAll(/formData\.get\(['"]([^'"]+)['"]\)/g)].map((match) => match[1])).toEqual(['token']);
+    expect(redeem).not.toMatch(/\bsearchParams\b|\bheaders\(\)|request\.url|\bnew URL\(/);
+  });
+
+  it('mints the session on the client that holds its cookies back, and writes them only for a recovery that happened or may have', () => {
+    const action = code(actions);
+    expect(callers('createDeferredSupabaseServerClient')).toEqual([actions, 'lib/supabase/server.ts']);
+    // The ordinary client writes cookies as it goes, and the sign-out helpers expire every one the browser has: neither belongs here.
+    expect(action).not.toMatch(/createSupabaseServerClient|\bendSession\b|expireAuthCookies|setStepUpCookie/);
+    expect(action).toMatch(/signOutQuietly\(client, 'local'\)/);
+    expect(action).not.toMatch(/signOutQuietly\([^)]*'global'/);
+    // The cookies are committed in the branch for `redeemed` and `unknown`, and discarded in the other.
+    const committed = action.slice(action.indexOf("if (result.outcome === 'redeemed' || result.outcome === 'unknown')"));
+    expect(committed.indexOf('deferred.commit()')).toBeGreaterThan(-1);
+    expect(committed.indexOf('deferred.commit()')).toBeLessThan(committed.indexOf('deferred.discard()'));
+    expect([...action.matchAll(/deferred\.commit\(\)/g)]).toHaveLength(1);
+    expect([...action.matchAll(/deferred\.discard\(\)/g)]).toHaveLength(1);
+    // The CSRF cookie of the session that is replaced goes in the same branch.
+    expect(committed.indexOf('clearCsrfCookie()')).toBeGreaterThan(committed.indexOf('deferred.commit()'));
+    expect(committed.indexOf('clearCsrfCookie()')).toBeLessThan(committed.indexOf('deferred.discard()'));
+  });
+
+  it('checks, makes the link, verifies it, reads the user and redeems, in that order', () => {
+    const recovery = code(flow);
+    const body = recovery.slice(recovery.indexOf('export async function redeemRecoveryLink'));
+    const order = ['check(token', 'mint(checked.email', 'session.verify(', 'session.readUser(', 'redeem({token'].map((needle) => body.indexOf(needle));
+    expect(order.every((index) => index >= 0), order.join(',')).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    // The magic link is made for the address the check named, never the environment's or the request's.
+    expect(body).not.toMatch(/mint\((?!checked\.email)/);
+    // Only a call that was dispatched and whose outcome cannot be known keeps the session (an unknown-outcome error, or a deadline
+    // while the call was in flight); every other failure after the session exists, a call that was never sent included, ends it.
+    expect(body).toMatch(/const mayHaveCommitted = error instanceof AccountsUnavailableError \? error\.outcomeUnknown : error instanceof DeadlineError;/);
+    expect(body).toMatch(/if \(!mayHaveCommitted\) \{[\s\S]*?await endSession\(\);[\s\S]*?return unavailable;[\s\S]*?\}/);
+    expect(body).toMatch(/return \{outcome: 'unknown'\}/);
+  });
+
+  it('prints a name and a message only: no log call of the mailer, the Admin client, the flow or the actions mentions a token, a link, a hash or an address', () => {
+    const quoted = /'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"/g;
+    for (const file of ['lib/mailer.ts', 'lib/auth-admin.ts', flow, actions]) {
+      const source = code(file);
+      const calls = [...source.matchAll(/\b(?:log|console\.(?:log|info|warn|error|debug))\(([^;]*)\);/g)].map((match) => match[1].replace(quoted, ''));
+      for (const call of calls) expect(call, `${file}: ${call}`).not.toMatch(/\b(?:token|link|hashedToken|hashed|email|address|hash|origin|secret|key)\b/i);
+    }
+    // The mailer and the Admin client log nothing at all.
+    for (const file of ['lib/mailer.ts', 'lib/auth-admin.ts']) expect(code(file), file).not.toMatch(/console\.|\blog\(/);
+  });
+
+  it('never audits, stores or caches the token or its hash outside the database function that checks it', () => {
+    for (const file of sources.filter((candidate) => candidate.startsWith('app/') || candidate.startsWith('components/'))) {
+      expect(code(file), file).not.toMatch(/\bcookies\(\)\.set\([^)]*token|revalidate|unstable_cache|upstash|redis/i);
+    }
+    // The migration audits by action name and opaque target only: no function of it passes a token, hash, address or reason to the audit.
+    const migration = read('supabase/migrations/20261012140000_administrator_recovery.sql').replace(/--.*$/gm, '');
+    const audits = [...migration.matchAll(/perform identity\.record_(?:audit|audit_once|recovery_refusal)\(([^;]*)\);/g)].map((match) => match[1]);
+    expect(audits.length).toBeGreaterThan(8);
+    for (const call of audits) expect(call, call).not.toMatch(/token_hash|p_token|p_administrator_email|\bemail\b|\.email|address|p_reason/i);
+  });
+
+  it('is closed by default in the database: the table and every function of the migration are service-role only', () => {
+    const migration = read('supabase/migrations/20261012140000_administrator_recovery.sql').replace(/--.*$/gm, '');
+    expect(migration).toMatch(/alter table identity\.recovery_tokens enable row level security;/);
+    expect(migration).toMatch(/revoke all on table identity\.recovery_tokens from public, anon, authenticated, service_role;/);
+    // Every new function in `api` is granted to the service role by name, and to no other role.
+    const created = [...migration.matchAll(/create function api\.(\w+)\(([^)]*)\)/g)].map((match) => `${match[1]}(${match[2].split(',').map((parameter) => parameter.trim().split(/\s+/)[1]).join(', ')})`);
+    expect(created.sort()).toEqual(['check_recovery(text, text)', 'issue_recovery(text, text)', 'redeem_recovery(text, text, uuid, uuid)', 'void_recovery(text, boolean)']);
+    const granted = [...migration.matchAll(/grant execute on function api\.(\w+)\(([^)]*)\) to (\w+);/g)];
+    expect(granted.map((match) => `${match[1]}(${match[2]})`).sort()).toEqual(['check_recovery(text, text)', 'issue_recovery(text, text)', 'redeem_recovery(text, text, uuid, uuid)', 'void_recovery(text, boolean)']);
+    for (const grant of granted) expect(grant[3]).toBe('service_role');
+    expect(migration).not.toMatch(/grant [^;]*\b(?:anon|authenticated|public)\b/i);
+    // The helpers in `identity` are granted to nobody.
+    expect(migration).not.toMatch(/grant execute on function identity\./);
+    // No unique index on role: "the one Administrator" is decided by the configured address, not by a constraint (deferred since Story 1.3).
+    expect(migration).not.toMatch(/create unique index[^;]*\brole\b/i);
+  });
+
+  it('keeps the browser-bound pieces free of the server-only modules', () => {
+    for (const file of ['components/recover-form.tsx', 'components/recover-confirm-form.tsx', 'lib/recovery-state.ts']) {
+      expect(code(file), file).not.toMatch(/from '@\/lib\/(?:accounts|access|auth|recovery(?!-state)|mailer|auth-admin|step-up\.server|csrf\.server|supabase)[^']*'|node:crypto|next\/headers|process\.env/);
+    }
+    expect(code('lib/recovery-state.ts')).not.toMatch(/^import (?!type )/m);
+  });
+
+  it('does not enable the Email provider or any other credential: supabase/config.toml still has Google as its one provider', () => {
+    const config = read('supabase/config.toml');
+    expect(config).toMatch(/\[auth\.email\]\s*\n(?:#.*\n)*enable_signup = false/);
+    expect(config).toMatch(/\[auth\.external\.google\]\s*\n(?:#.*\n)*enabled = true/);
+    expect(config).not.toMatch(/\[auth\.(?:sms|phone)\][^[]*enable_signup = true/);
+    expect(config).not.toMatch(/enable_anonymous_sign_ins = true|enable_manual_linking = true/);
   });
 });

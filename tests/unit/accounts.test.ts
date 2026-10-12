@@ -27,6 +27,14 @@ import {
   listInvitations,
   invitationRefusalActions,
   guardOperation,
+  hashRecoveryToken,
+  isRecoveryToken,
+  issueRecovery,
+  checkRecovery,
+  newRecoveryToken,
+  redeemRecoveryToken,
+  recoveryRefusals,
+  voidRecovery,
   listAccounts,
   looksLikeInvitationCode,
   normalizeClientAddress,
@@ -1172,6 +1180,240 @@ describe('Account administration (Story 1.5)', () => {
     });
   });
 });
+
+
+// ---------------------------------------------------------------------------------------------------
+describe('Administrator recovery (Story 1.6)', () => {
+  const ADMIN_ADDRESS = 'Administrator@Example.Test';
+  const SESSION = '3b1c9a3e-6a3e-4f19-9d0e-0a4f5e2c8d11';
+  const recoveryKeyText = keyText();
+  const recoveryEnvironment = (): Env => ({...environment(), RECOVERY_HASH_KEY: recoveryKeyText, ADMINISTRATOR_EMAIL: ADMIN_ADDRESS});
+  const hashOf = (token: string) => hashRecoveryToken(token, Buffer.from(recoveryKeyText, 'base64'));
+  const issuedRow = {outcome: 'issued', expires_at: '2026-10-12T15:15:00.123456+00:00'};
+
+  describe('hashRecoveryToken', () => {
+    const recoveryKey = Buffer.from(recoveryKeyText, 'base64');
+
+    it('is the hex HMAC-SHA-256 of the token under the key, with a domain of its own', () => {
+      const token = newRecoveryToken();
+      const expected = createHmac('sha256', recoveryKey).update(`nova3d/recovery-token/v1\0${token}`).digest('hex');
+      expect(hashRecoveryToken(token, recoveryKey)).toBe(expected);
+      expect(expected).toMatch(/^[0-9a-f]{64}$/);
+      // The same text hashed as an invitation code, or under another key, is another value: a hash is good for one purpose.
+      expect(hashInvitationCode(token, recoveryKey)).not.toBe(expected);
+      expect(hashRecoveryToken(token, key())).not.toBe(expected);
+    });
+
+    it('is bounded: only the first 256 characters count, and anything that is not text is the empty token', () => {
+      expect(hashRecoveryToken('a'.repeat(300), recoveryKey)).toBe(hashRecoveryToken('a'.repeat(256), recoveryKey));
+      for (const value of [undefined, null, 42, {}, ['x']]) expect(hashRecoveryToken(value, recoveryKey)).toBe(hashRecoveryToken('', recoveryKey));
+    });
+  });
+
+  describe('issueRecovery', () => {
+    it('makes the token here, sends only its keyed hash and the configured address, and returns the token for the one mailed link', async () => {
+      const {calls, fetch} = endpoint(() => ({body: issuedRow}));
+      const issued = await issueRecovery({env: recoveryEnvironment(), fetch});
+      expect(issued.outcome).toBe('issued');
+      if (issued.outcome !== 'issued') throw new Error('unreachable');
+      expect(isRecoveryToken(issued.token)).toBe(true);
+      expect(issued.expiresAt).toBe('2026-10-12T15:15:00.123456+00:00');
+      expect(calls).toHaveLength(1);
+      expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/issue_recovery');
+      // Two arguments, no more: the database never sees the token, and the address is the environment's, lower case.
+      expect(calls[0].body).toEqual({p_token_hash: hashOf(issued.token), p_administrator_email: 'administrator@example.test'});
+      expect(JSON.stringify(calls[0].body)).not.toContain(issued.token);
+      expect(JSON.stringify(calls[0].body)).not.toContain(SERVICE_KEY);
+      expect(calls[0].init.headers).toMatchObject({'content-profile': 'api', authorization: `Bearer ${SERVICE_KEY}`});
+    });
+
+    it('takes no address: the caller cannot choose one, because the function has no parameter for it', () => {
+      expect(issueRecovery.length).toBeLessThanOrEqual(1);
+    });
+
+    it('makes a different token every time', async () => {
+      const tokens = new Set<string>();
+      for (let index = 0; index < 20; index += 1) {
+        const issued = await issueRecovery({env: recoveryEnvironment(), fetch: endpoint(() => ({body: issuedRow})).fetch});
+        if (issued.outcome === 'issued') tokens.add(issued.token);
+      }
+      expect(tokens.size).toBe(20);
+    });
+
+    it.each(['limited', 'refused'] as const)('says %s, with no token: nothing was issued, so nothing is returned that could be mailed', async (outcome) => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome, expires_at: null}}));
+      const answer = await issueRecovery({env: recoveryEnvironment(), fetch});
+      expect(answer).toEqual({outcome});
+      expect(calls).toHaveLength(1);
+    });
+
+    it.each([
+      ['an outcome it does not know', {outcome: 'sent'}],
+      ['an issuance that does not say when it expires', {outcome: 'issued', expires_at: null}],
+      ['text', 'issued'],
+      ['a list', []],
+    ])('treats %s as no answer at all', async (_name, body) => {
+      await expect(issueRecovery({env: recoveryEnvironment(), fetch: endpoint(() => ({body})).fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+
+    it('fails with a name of the setting, never a value, when it is not configured', async () => {
+      const {calls, fetch} = endpoint(() => ({body: issuedRow}));
+      const cases: [Env, RegExp][] = [
+        [{...recoveryEnvironment(), RECOVERY_HASH_KEY: undefined}, /RECOVERY_HASH_KEY is not set/],
+        [{...recoveryEnvironment(), RECOVERY_HASH_KEY: 'short'}, /RECOVERY_HASH_KEY must decode to at least 32 bytes/],
+        [{...recoveryEnvironment(), RECOVERY_HASH_KEY: '<staging-recovery-hash-key>'}, /RECOVERY_HASH_KEY is a placeholder/],
+        [{...recoveryEnvironment(), ADMINISTRATOR_EMAIL: undefined}, /ADMINISTRATOR_EMAIL is not set/],
+        [{...recoveryEnvironment(), ADMINISTRATOR_EMAIL: '<administrator-email>'}, /ADMINISTRATOR_EMAIL is not set/],
+        [{...recoveryEnvironment(), ADMINISTRATOR_EMAIL: 'not-an-address'}, /ADMINISTRATOR_EMAIL is not an email address/],
+        [{...recoveryEnvironment(), ADMINISTRATOR_EMAIL: 'a@example.test, b@example.test'}, /ADMINISTRATOR_EMAIL is not an email address/],
+      ];
+      for (const [env, message] of cases) {
+        const thrown = await issueRecovery({env, fetch}).catch((error: Error) => error);
+        expect(thrown).toBeInstanceOf(AccountsConfigError);
+        expect((thrown as Error).message).toMatch(message);
+      }
+      expect(calls).toHaveLength(0);
+    });
+
+    it('says, when it throws, that the token may have been stored and nobody holds it', async () => {
+      await expect(issueRecovery({env: recoveryEnvironment(), fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({retryable: true, outcomeUnknown: true});
+      await expect(issueRecovery({env: recoveryEnvironment(), fetch: endpoint(() => ({status: 400, body: {code: '22023'}})).fetch})).rejects.toMatchObject({retryable: false, outcomeUnknown: false, code: '22023'});
+    });
+  });
+
+  describe('voidRecovery', () => {
+    it('sends the token\'s keyed hash and whether the refusal was definitive, and maps the outcome', async () => {
+      const token = newRecoveryToken();
+      for (const outcome of ['voided', 'recorded', 'not_found'] as const) {
+        const {calls, fetch} = endpoint(() => ({body: {outcome}}));
+        expect(await voidRecovery({token, definitive: true}, {env: recoveryEnvironment(), fetch})).toBe(outcome);
+        expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/void_recovery');
+        expect(calls[0].body).toEqual({p_token_hash: hashOf(token), p_definitive: true});
+        expect(JSON.stringify(calls[0].body)).not.toContain(token);
+      }
+    });
+
+    it('is definitive only when it is exactly true', async () => {
+      for (const value of [false, undefined, null, 'true', 1] as unknown[]) {
+        const {calls, fetch} = endpoint(() => ({body: {outcome: 'recorded'}}));
+        await voidRecovery({token: newRecoveryToken(), definitive: value as boolean}, {env: recoveryEnvironment(), fetch});
+        expect(calls[0].body.p_definitive, String(value)).toBe(false);
+      }
+    });
+
+    it('treats an outcome it does not know as no answer', async () => {
+      await expect(voidRecovery({token: newRecoveryToken(), definitive: true}, {env: recoveryEnvironment(), fetch: endpoint(() => ({body: {outcome: 'gone'}})).fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+  });
+
+  describe('checkRecovery', () => {
+    const valid = {outcome: 'valid', user_id: USER.toUpperCase(), email: 'administrator@example.test'};
+
+    it('sends the token\'s keyed hash and the configured address, and says for which Auth user the token is valid', async () => {
+      const token = newRecoveryToken();
+      const {calls, fetch} = endpoint(() => ({body: valid}));
+      expect(await checkRecovery({token}, {env: recoveryEnvironment(), fetch})).toEqual({outcome: 'valid', userId: USER, email: 'administrator@example.test'});
+      expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/check_recovery');
+      expect(calls[0].body).toEqual({p_token_hash: hashOf(token), p_administrator_email: 'administrator@example.test'});
+      expect(JSON.stringify(calls[0].body)).not.toContain(token);
+    });
+
+    it.each(recoveryRefusals)('says %s, with no user and no address', async (outcome) => {
+      const {fetch} = endpoint(() => ({body: {outcome, user_id: null, email: null}}));
+      expect(await checkRecovery({token: newRecoveryToken()}, {env: recoveryEnvironment(), fetch})).toEqual({outcome});
+    });
+
+    it('hashes whatever the request carried, cut to a bounded length, and never throws for it', async () => {
+      for (const token of ['', 'short', 'x'.repeat(5000), '<script>', 'é'.repeat(43), undefined as unknown as string, 42 as unknown as string]) {
+        const {calls, fetch} = endpoint(() => ({body: {outcome: 'unknown', user_id: null, email: null}}));
+        expect(await checkRecovery({token}, {env: recoveryEnvironment(), fetch})).toEqual({outcome: 'unknown'});
+        expect(calls[0].body.p_token_hash).toBe(hashRecoveryToken(token, Buffer.from(recoveryKeyText, 'base64')));
+        expect(calls[0].body.p_token_hash).toMatch(/^[0-9a-f]{64}$/);
+      }
+    });
+
+    it.each([
+      ['an outcome it does not know', {outcome: 'maybe'}],
+      ['a valid token for nobody', {...valid, user_id: null}],
+      ['a valid token for a user that is not a UUID', {...valid, user_id: 'admin'}],
+      ['a valid token with no address', {...valid, email: null}],
+      ['text', 'valid'],
+    ])('treats %s as no answer at all', async (_name, body) => {
+      await expect(checkRecovery({token: newRecoveryToken()}, {env: recoveryEnvironment(), fetch: endpoint(() => ({body})).fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+
+    it('fails closed when the database cannot be reached', async () => {
+      await expect(checkRecovery({token: newRecoveryToken()}, {env: recoveryEnvironment(), fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({retryable: true});
+    });
+  });
+
+  describe('redeemRecoveryToken', () => {
+    const done = {outcome: 'redeemed', sessions_ended: 2, epoch: 5};
+
+    it('sends the token\'s keyed hash, the configured address, the user and the session, and maps the receipt', async () => {
+      const token = newRecoveryToken();
+      const {calls, fetch} = endpoint(() => ({body: done}));
+      expect(await redeemRecoveryToken({token, userId: USER.toUpperCase(), sessionId: SESSION.toUpperCase()}, {env: recoveryEnvironment(), fetch})).toEqual({outcome: 'redeemed', sessionsEnded: 2, epoch: 5});
+      expect(calls).toHaveLength(1);
+      expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/redeem_recovery');
+      expect(calls[0].body).toEqual({p_token_hash: hashOf(token), p_administrator_email: 'administrator@example.test', p_user_id: USER, p_session_id: SESSION});
+      expect(JSON.stringify(calls[0].body)).not.toContain(token);
+    });
+
+    it.each(recoveryRefusals)('maps %s, with no counts', async (outcome) => {
+      const {fetch} = endpoint(() => ({body: {outcome, sessions_ended: null, epoch: null}}));
+      expect(await redeemRecoveryToken({token: newRecoveryToken(), userId: USER, sessionId: SESSION}, {env: recoveryEnvironment(), fetch})).toEqual({outcome});
+    });
+
+    it('refuses a user or a session that is not a UUID, without calling the database', async () => {
+      const {calls, fetch} = endpoint(() => ({body: done}));
+      const token = newRecoveryToken();
+      await expect(redeemRecoveryToken({token, userId: 'someone', sessionId: SESSION}, {env: recoveryEnvironment(), fetch})).rejects.toThrow(TypeError);
+      await expect(redeemRecoveryToken({token, userId: USER, sessionId: "x'; drop table"}, {env: recoveryEnvironment(), fetch})).rejects.toThrow(TypeError);
+      expect(calls).toHaveLength(0);
+    });
+
+    it.each([
+      ['an outcome it does not know', {outcome: 'done'}],
+      ['a redemption that does not say what it ended', {...done, sessions_ended: null}],
+      ['a redemption that does not name the epoch', {...done, epoch: undefined}],
+      ['a negative count', {...done, sessions_ended: -1}],
+      ['a count that is not a number', {...done, sessions_ended: 'two'}],
+      ['text', 'redeemed'],
+    ])('treats %s as no answer at all', async (_name, body) => {
+      await expect(redeemRecoveryToken({token: newRecoveryToken(), userId: USER, sessionId: SESSION}, {env: recoveryEnvironment(), fetch: endpoint(() => ({body})).fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+
+    it('says, when it throws, whether the transaction may have committed', async () => {
+      const input = {token: newRecoveryToken(), userId: USER, sessionId: SESSION};
+      await expect(redeemRecoveryToken(input, {env: recoveryEnvironment(), fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({retryable: true, outcomeUnknown: true});
+      await expect(redeemRecoveryToken(input, {env: recoveryEnvironment(), fetch: endpoint(() => ({status: 503, body: {}})).fetch})).rejects.toMatchObject({retryable: true, outcomeUnknown: true});
+      await expect(redeemRecoveryToken(input, {env: recoveryEnvironment(), fetch: endpoint(() => ({status: 400, body: {code: '22023'}})).fetch})).rejects.toMatchObject({retryable: false, outcomeUnknown: false, code: '22023'});
+    });
+  });
+
+  it('keeps every database function behind its typed call: nothing else names them', () => {
+    const files = ['app', 'components', 'lib', 'scripts', 'proxy.ts'].flatMap((entry) => {
+      const path = join(root, entry);
+      return statSync(path).isDirectory() ? readdirSyncRecursive(path) : [path];
+    });
+    for (const file of files) {
+      const name = relative(root, file);
+      if (name === 'lib/accounts.ts') continue;
+      const code = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+      expect(code, name).not.toMatch(/\b(?:issue|void|check|redeem)_recovery\b|recovery_tokens/);
+    }
+  });
+});
+
+function readdirSyncRecursive(directory: string): string[] {
+  return readdirSync(directory).flatMap((name) => {
+    const path = join(directory, name);
+    if (name === 'node_modules' || name === '.next') return [];
+    if (statSync(path).isDirectory()) return readdirSyncRecursive(path);
+    return /\.(?:ts|tsx|mjs|js|jsx)$/.test(name) ? [path] : [];
+  });
+}
 
 // ---------------------------------------------------------------------------------------------------
 describe('server-only boundary', () => {

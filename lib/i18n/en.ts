@@ -15,6 +15,8 @@ export const en = {
   'meta.admin': 'Administration',
   'meta.invitations': 'Invitation codes',
   'meta.accounts': 'Accounts',
+  'meta.recover': 'Recover Administrator access',
+  'meta.recoverConfirm': 'Confirm recovery',
   'meta.projects': 'My Projects',
   'meta.progress': 'In Progress',
   'meta.kit': 'Design kit',
@@ -295,6 +297,7 @@ export const en = {
   'login.error.unknown': 'Sign-in could not be completed.',
   'login.error.startFailed': 'Google sign-in could not be started. Try again.',
   'login.retry': 'Try again',
+  'login.recover': 'Administrator recovery',
   'login.prefs.title': 'Language and appearance',
 
   // Registration (Story 1.3). Failures are deliberately generic: they never say whether a code exists.
@@ -459,6 +462,34 @@ export const en = {
   'accounts.error.denied': 'Only the Administrator can disable or re-enable an Account. Nothing was changed.',
   'accounts.error.unavailable': 'We could not reach the service, and nothing was changed. Try again in a moment.',
   'accounts.error.unknown': 'We could not tell whether that worked. Check the list below before you try again.',
+  // Administrator recovery (Story 1.6, A-03). The only way back in without Google, and only for the sole Administrator: a one-time
+  // link goes to the Administrator's own address, and nothing on these pages shows an address, a name or anyone's projects.
+  'recover.eyebrow': 'Administrator recovery',
+  'recover.title': 'Recover Administrator access',
+  'recover.lede': 'If Google sign-in is lost or not working for the Administrator, nova3D can email a one-time link to the Administrator\'s own address. The link works once, for 15 minutes, and only for the Administrator.',
+  'recover.send': 'Email me a recovery link',
+  'recover.pending': 'Sending the link…',
+  'recover.sent': 'The recovery link was sent to the Administrator\'s email address. It works once and stops working after 15 minutes. Check the spam folder too.',
+  'recover.limited': 'A recovery link was asked for a short while ago, or too many were asked for today. Wait a little, then try again.',
+  'recover.unavailable': 'Recovery is not available right now. Try again in a moment.',
+  'recover.footnote': 'Nothing on this page shows an address, a name or anyone\'s projects.',
+  'recover.back': 'Back to sign-in',
+  'recoverConfirm.eyebrow': 'Administrator recovery',
+  'recoverConfirm.title': 'Confirm recovery',
+  'recoverConfirm.lede': 'Confirming signs you in as the Administrator and signs out every other Administrator session at once. Only confirm if you asked for this link.',
+  'recoverConfirm.checking': 'Reading the link…',
+  'recoverConfirm.noscript': 'Confirming needs JavaScript, which is turned off in this browser. Turn it on, then open the link in your email again.',
+  'recoverConfirm.confirm': 'Confirm and sign in',
+  'recoverConfirm.pending': 'Signing you in…',
+  'recoverConfirm.footnote': 'Opening the link changes nothing by itself. Only this button does.',
+  'recoverConfirm.invalid.title': 'This link cannot be used',
+  'recoverConfirm.invalid': 'It has expired, was already used, or is not complete. If you reloaded this page, open the link in your email again. Otherwise, ask for a new link.',
+  'recoverConfirm.unavailable': 'We could not finish just now, and nothing was changed. The link still works if it has not expired. Try again in a moment.',
+  'recoverConfirm.unknown': 'We could not tell whether it worked. Open Administration: if it asks you to sign in, ask for a new link.',
+  'recoverConfirm.openAdmin': 'Open Administration',
+  'recoverConfirm.newLink': 'Ask for a new link',
+  'admin.recovered': {one: 'You are back in as the Administrator. {count} other session was signed out.', other: 'You are back in as the Administrator. {count} other sessions were signed out.'},
+  'admin.recovered.none': 'You are back in as the Administrator. There were no other sessions to sign out.',
 } as const satisfies Record<string, Message>;
 
 export type MessageKey = keyof typeof en;

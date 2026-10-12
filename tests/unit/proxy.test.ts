@@ -9,8 +9,15 @@ afterEach(() => vi.unstubAllEnvs());
 // without a sign-in, so it must never be public unless synthetic data is on (production forbids that).
 describe('public paths (Story 1.2)', () => {
   it('keeps the sign-in, callback and health routes public', () => {
-    expect(publicPaths).toEqual(['/login', '/auth/callback', '/api/health']);
+    expect(publicPaths).toEqual(['/login', '/auth/callback', '/api/health', '/recover', '/recover/confirm']);
     for (const path of publicPaths) expect(isPublicPath(path, {})).toBe(true);
+  });
+
+  it('makes the two recovery pages public (Story 1.6) and nothing beneath or beside them', () => {
+    for (const path of ['/recover', '/recover/confirm']) expect(isPublicPath(path, {}), path).toBe(true);
+    for (const path of ['/recover/', '/recover/confirm/', '/recover/confirm/extra', '/recover/other', '/recovery', '/recover.json', '/Recover']) {
+      expect(isPublicPath(path, {SYNTHETIC_DATA_ENABLED: 'true'}), path).toBe(false);
+    }
   });
 
   it('adds /kit only when SYNTHETIC_DATA_ENABLED is exactly true', () => {
@@ -19,7 +26,7 @@ describe('public paths (Story 1.2)', () => {
   });
 
   it('never makes any other private page public', () => {
-    for (const path of ['/', '/settings', '/projects', '/progress', '/register', '/register/extra', '/kit/extra', '/kitx']) {
+    for (const path of ['/', '/settings', '/projects', '/progress', '/register', '/register/extra', '/kit/extra', '/kitx', '/admin', '/admin/accounts', '/step-up']) {
       expect(isPublicPath(path, {SYNTHETIC_DATA_ENABLED: 'true'}), path).toBe(false);
     }
   });

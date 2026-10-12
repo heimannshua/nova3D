@@ -50,7 +50,7 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Region: us-east-1
 - Spend backstop: The organization's spend cap, left on in the billing settings. Fixed cost is about $35-40 a month; each restore drill adds a temporary project whose hourly cost is recorded at the first drill.
 - First needed: Story 1.4
-- Verification: attestation (5)
+- Verification: attestation (6)
 - Secret names by environment: staging: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF`
 - Free-tier limits relied on, with the trigger for upgrading:
   - A Free project pauses, so staging and production never run on the Free plan. Upgrade trigger: Pro before Story 1.4, so hosted-Auth checks can run.
@@ -311,7 +311,8 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Status: staging: checked from the process environment
 
 1. In Resend create an API key for staging, with sending access only.
-2. Store it as `RESEND_API_KEY` in the staging Vercel project's Production-scope variables and in your git-ignored `.env.staging`, so the check can see it. Never commit it.
+2. Store it as `RESEND_API_KEY` in the staging Vercel project's Production-scope variables and in your git-ignored `.env.staging`, so the check can see it. Never commit it. A preview must not hold it.
+3. The same Production scope (and `.env.staging`) also needs `RECOVERY_HASH_KEY` (a third hashing key, different from the other two) and `APP_ORIGIN` (the https origin of the staging deployment; not a secret): the server and the build fail without them. The mail is sent from the `resend.dev` sender, so the key's account must be the one registered with the Administrator address (`resend-account`).
 
 #### `resend-api-key-production`: Resend API key for production, stored in Vercel
 
@@ -322,8 +323,21 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Status: production: pending
 
 1. In Resend create a separate API key for production, with sending access only.
-2. Store it as `RESEND_API_KEY` in the production Vercel project's variables, once that project exists. Production values never go in a local file, an env file or the repository, so this is an attestation and not a presence check.
+2. Store it as `RESEND_API_KEY` in the production Vercel project's variables, once that project exists, together with `RECOVERY_HASH_KEY` (a third hashing key, different from the other two) and `APP_ORIGIN` (the https origin of the production deployment; not a secret), which the server and the build also require. Production values never go in a local file, an env file or the repository, so this is an attestation and not a presence check.
 3. Save an export of the production variable names outside the repository (the console shows variable names, never values), and record its file name as evidence.
+
+#### `hosted-recovery-check`: Administrator recovery run on staging with the Email provider disabled
+
+- Service: Supabase (Postgres, Auth, Storage)
+- Verification: attestation
+- Environments: staging
+- Secret names: none
+- Status: staging: pending
+
+1. Apply `supabase/migrations/20261012140000_administrator_recovery.sql` to staging by hand, before the build that uses it deploys, following `docs/staging.md` (it adds one table, four functions and an optional nonce plus a `source` column on the step-up marker table; it adds no setting or secret, and the other migrations are already there). The build's preflight now also checks for it and fails with one line if it is missing.
+2. Make sure `RECOVERY_HASH_KEY`, `RESEND_API_KEY` and `APP_ORIGIN` are set in the staging Vercel project's Production scope (`docs/secrets.md`, `docs/deployment-setup.md`). The build fails without them, and a preview must hold neither key.
+3. With the Email provider DISABLED in the staging Auth settings (Google only), run the recovery check in `docs/auth-setup.md` (Verifying Administrator recovery on hosted environments): request a link and see that only the Administrator's address receives it, that a scanner-style GET of the link changes nothing, that redeeming it signs the Administrator in at Administration with every older session gone and a fresh administration marker, that the Administrator's Auth user gained no `email` identity (`auth.identities` still holds the Google identity only) and an email or magic-link sign-in with the Email provider disabled is still refused, and that a replayed or expired link is refused. STOP and record a design change if hosted Auth refuses the Admin link API or `verifyOtp`: the Spine allows the Google provider only, so the Email provider is never the way around it.
+4. Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
 
 ### Due by Story 1.9
 

@@ -938,6 +938,7 @@ describe('the preflight probes the Story 1.5 functions and the privilege to end 
         'identity.account_preferences',
         'identity.step_up_nonces',
         'identity.fresh_authentications',
+        'identity.recovery_tokens',
         'auth.sessions',
         'auth.identities',
         'auth.mfa_amr_claims',

@@ -6,11 +6,11 @@
 //        points it at the local stack and writes INSTANCE_ID from the stack's instance_identity row.
 //        Values are never printed. When it replaces a hosted Supabase URL it first writes a
 //        one-time backup, .env.local.bak, and never overwrites an existing backup.
-//        It also generates INVITATION_HASH_KEY and RATE_LIMIT_HASH_KEY (32 random bytes each) when
-//        they are missing, still the template placeholder or malformed, and keeps a valid key as it
-//        is, so invitation hashes already stored in the local database stay valid. A trailing
-//        `# comment` on an unquoted value is not part of the key. If both keys are valid but are the
-//        same key, RATE_LIMIT_HASH_KEY is replaced.
+//        It also generates INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY and RECOVERY_HASH_KEY (32 random
+//        bytes each) when they are missing, still the template placeholder or malformed, and keeps a
+//        valid key as it is, so hashes already stored in the local database stay valid. A trailing
+//        `# comment` on an unquoted value is not part of the key. If two keys are valid but are the
+//        same key, the later one (in the order above) is replaced.
 //
 // NOVA3D_SETUP_ROOT overrides the project root (tests point it at a temporary directory).
 import {spawnSync} from 'node:child_process';
@@ -80,7 +80,7 @@ const updates = {
   INSTANCE_ID: identity.instance_id,
 };
 let text = readFileSync(destination, 'utf8');
-// Local hashing keys (Story 1.3): random, per machine, never taken from the template.
+// Local hashing keys (Stories 1.3 and 1.6): random, per machine, never taken from the template.
 const keyValues = (name) => [...text.matchAll(new RegExp(`^(?:export[ \\t]+)?${name}=(.*)$`, 'gm'))].map((match) => parseEnvValue(match[1]));
 const usable = Object.fromEntries(hashKeyVariables.map((name) => {
   const values = keyValues(name);
@@ -89,9 +89,12 @@ const usable = Object.fromEntries(hashKeyVariables.map((name) => {
 for (const name of hashKeyVariables) {
   if (usable[name] === null) updates[name] = randomBytes(32).toString('base64');
 }
-// Two valid keys that are the same key: keep the invitation key (stored hashes depend on it) and replace the other.
-if (usable.INVITATION_HASH_KEY && usable.RATE_LIMIT_HASH_KEY && sameKey(usable.INVITATION_HASH_KEY, usable.RATE_LIMIT_HASH_KEY)) {
-  updates.RATE_LIMIT_HASH_KEY = randomBytes(32).toString('base64');
+// Two valid keys that are the same key: keep the earlier one (stored hashes depend on it) and replace the later one.
+const kept = [];
+for (const name of hashKeyVariables) {
+  if (!usable[name]) continue;
+  if (kept.some((other) => sameKey(usable[other], usable[name]))) updates[name] = randomBytes(32).toString('base64');
+  else kept.push(name);
 }
 // Variables the template gained since this file was written (for example ADMINISTRATOR_EMAIL).
 for (const [, name, value] of readFileSync(source, 'utf8').matchAll(/^([A-Z][A-Z0-9_]*)=(.*)$/gm)) {

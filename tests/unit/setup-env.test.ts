@@ -180,10 +180,10 @@ describe('setup-env local', () => {
   });
 });
 
-describe('setup-env local hashing keys (Story 1.3)', () => {
-  const names = ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY'];
+describe('setup-env local hashing keys (Stories 1.3 and 1.6)', () => {
+  const names = ['INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY', 'RECOVERY_HASH_KEY'];
 
-  it('generates two different random keys of 32 bytes and never prints them', async () => {
+  it('generates three different random keys of 32 bytes and never prints them', async () => {
     const result = await setup();
     expect(result.code, result.stderr).toBe(0);
     const text = read(envFile());
@@ -195,9 +195,10 @@ describe('setup-env local hashing keys (Story 1.3)', () => {
       expect(values[0]).not.toMatch(/replace-with/);
       expect(result.stdout + result.stderr).not.toContain(values[0]);
     }
-    expect(keys[0][0]).not.toBe(keys[1][0]);
+    expect(new Set(keys.map((values) => values[0])).size).toBe(3);
     expect(result.stdout).toContain('INVITATION_HASH_KEY');
     expect(result.stdout).toContain('RATE_LIMIT_HASH_KEY');
+    expect(result.stdout).toContain('RECOVERY_HASH_KEY');
     expect(mode(envFile())).toBe(0o600);
   });
 
@@ -224,6 +225,43 @@ describe('setup-env local hashing keys (Story 1.3)', () => {
     expect(valuesOf(text, 'RATE_LIMIT_HASH_KEY')).toEqual([keep]);
     expect(result.stdout).toContain('INVITATION_HASH_KEY');
     expect(result.stdout).not.toContain('RATE_LIMIT_HASH_KEY');
+  });
+
+  it('adds RECOVERY_HASH_KEY to an environment file written before Story 1.6, and touches nothing else', async () => {
+    // A file from before the recovery key existed: the two older keys are valid and must keep their values (stored hashes depend on them).
+    const invitation = randomBytes(32).toString('base64');
+    const rateLimit = randomBytes(32).toString('base64');
+    writeFileSync(envFile(), `INVITATION_HASH_KEY=${invitation}\nRATE_LIMIT_HASH_KEY=${rateLimit}\n`, {mode: 0o600});
+    const result = await setup();
+    expect(result.code, result.stderr).toBe(0);
+    const text = read(envFile());
+    expect(valuesOf(text, 'INVITATION_HASH_KEY')).toEqual([invitation]);
+    expect(valuesOf(text, 'RATE_LIMIT_HASH_KEY')).toEqual([rateLimit]);
+    const recovery = valuesOf(text, 'RECOVERY_HASH_KEY');
+    expect(recovery).toHaveLength(1);
+    expect(hashKeyProblem(recovery[0])).toBeNull();
+    expect(recovery[0]).not.toMatch(/replace-with/);
+    expect(result.stdout).toContain('RECOVERY_HASH_KEY');
+    expect(result.stdout + result.stderr).not.toContain(recovery[0]);
+    // The template's APP_ORIGIN and RESEND_API_KEY are comments for local: they are not added.
+    expect(text).not.toMatch(/^APP_ORIGIN=|^RESEND_API_KEY=/m);
+  });
+
+  it('replaces a recovery key that is the same key as an earlier one, and keeps the earlier one', async () => {
+    const bytes = randomBytes(32);
+    const same = bytes.toString('base64');
+    const rateLimit = randomBytes(32).toString('base64');
+    writeFileSync(envFile(), `INVITATION_HASH_KEY=${same}\nRATE_LIMIT_HASH_KEY=${rateLimit}\nRECOVERY_HASH_KEY=${bytes.toString('base64url')}\n`, {mode: 0o600});
+    const result = await setup();
+    expect(result.code, result.stderr).toBe(0);
+    const text = read(envFile());
+    expect(valuesOf(text, 'INVITATION_HASH_KEY')).toEqual([same]);
+    expect(valuesOf(text, 'RATE_LIMIT_HASH_KEY')).toEqual([rateLimit]);
+    const [recovery] = valuesOf(text, 'RECOVERY_HASH_KEY');
+    expect(hashKeyProblem(recovery)).toBeNull();
+    expect(decodeHashKey(recovery).equals(bytes)).toBe(false);
+    expect(result.stdout).toContain('RECOVERY_HASH_KEY');
+    expect(result.stdout).not.toContain('INVITATION_HASH_KEY');
   });
 
   it('judges a key by its value, not by a trailing comment, and keeps it', async () => {

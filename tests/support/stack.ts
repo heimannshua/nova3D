@@ -53,5 +53,7 @@ export async function stackEnvironment(client: Client): Promise<Record<string, s
     INSTANCE_ID: String(rows[0].instance_id),
     INVITATION_HASH_KEY: randomBytes(32).toString('base64'),
     RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64'),
+    // Story 1.6: the key of the recovery token's hash.
+    RECOVERY_HASH_KEY: randomBytes(32).toString('base64'),
   };
 }

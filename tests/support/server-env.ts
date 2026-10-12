@@ -42,10 +42,10 @@ export function serverEnv(): Env {
   if (url !== stack.apiUrl.replace(/\/+$/, '')) {
     throw new Error(
       'The application under test is not pointed at the local Supabase stack. Run `supabase start` and `node scripts/setup-env.mjs local`, ' +
-        'or export NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, INSTANCE_ID, INVITATION_HASH_KEY and RATE_LIMIT_HASH_KEY for it, before building and testing.',
+        'or export NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, INSTANCE_ID, INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY and RECOVERY_HASH_KEY for it, before building and testing.',
     );
   }
-  for (const name of ['SUPABASE_SERVICE_ROLE_KEY', 'INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY']) {
+  for (const name of ['SUPABASE_SERVICE_ROLE_KEY', 'INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY', 'RECOVERY_HASH_KEY']) {
     if (!env[name]) throw new Error(`${name} is not set for the application under test (see node scripts/setup-env.mjs local).`);
   }
   return env;

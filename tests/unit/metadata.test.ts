@@ -15,6 +15,8 @@ import {generateMetadata as loginMetadata} from '@/app/login/page';
 import {generateMetadata as notFoundMetadata} from '@/app/not-found';
 import {generateMetadata as progressMetadata} from '@/app/progress/page';
 import {generateMetadata as projectsMetadata} from '@/app/projects/page';
+import {generateMetadata as recoverConfirmMetadata} from '@/app/recover/confirm/page';
+import {generateMetadata as recoverMetadata} from '@/app/recover/page';
 import {generateMetadata as settingsMetadata} from '@/app/settings/page';
 import {translate, type Locale, type MessageKey} from '@/lib/i18n';
 
@@ -30,6 +32,8 @@ const pages: [string, () => Promise<{title?: unknown}>, MessageKey][] = [
   ['progress', progressMetadata, 'meta.progress'],
   ['settings', settingsMetadata, 'meta.settings'],
   ['login', loginMetadata, 'meta.login'],
+  ['recover', recoverMetadata, 'meta.recover'],
+  ['recover confirm', recoverConfirmMetadata, 'meta.recoverConfirm'],
   ['kit', kitMetadata, 'meta.kit'],
   ['not found', notFoundMetadata, 'meta.notFound'],
 ];

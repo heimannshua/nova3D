@@ -18,15 +18,18 @@ const areas: Area[] = [
 /**
  * The Administration index (Story 1.5): the way to Invitation codes and Accounts. It is where the `administration` step-up
  * returns, so when the person has just confirmed it is them it says so, and for how long. It says nothing when they have not:
- * the pages that change something offer the step-up themselves, at the moment it is needed.
+ * the pages that change something offer the step-up themselves, at the moment it is needed. `recovered` is the number of
+ * other sessions a recovery of the Administrator's access (Story 1.6) has just signed out, or null when this is not the
+ * end of one.
  */
-export function AdminContent({confirmation}: {confirmation: Confirmation}) {
+export function AdminContent({confirmation, recovered = null}: {confirmation: Confirmation; recovered?: number | null}) {
   const {t} = useI18n();
   return (
     <div className="page page-narrow">
       <p className="eyebrow">{t('admin.eyebrow')}</p>
       <h1>{t('admin.title')}</h1>
       <p className="lede">{t('admin.lede')}</p>
+      {recovered !== null ? <div className="invite-notice"><Notice tone="success" role="status">{recovered === 0 ? t('admin.recovered.none') : t('admin.recovered', {count: recovered})}</Notice></div> : null}
       {confirmation === 'confirmed' ? <div className="invite-notice"><Notice tone="success">{t('admin.confirm.ok')}</Notice></div> : null}
       <div className="settings-form">
         {areas.map((area) => <AreaSection key={area.href} area={area}/>)}

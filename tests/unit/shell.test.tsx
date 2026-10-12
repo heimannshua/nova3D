@@ -188,6 +188,13 @@ describe('global shell (G-01, UX-DR24)', () => {
     expect(isChromeless('/step-up/')).toBe(true);
     expect(isChromeless('/step-upx')).toBe(false);
     expect(isChromeless('/settings/step-up')).toBe(false);
+    // The recovery pages are for the one person who cannot sign in, so there is no workspace to navigate (Story 1.6).
+    expect(isChromeless('/recover')).toBe(true);
+    expect(isChromeless('/recover/')).toBe(true);
+    expect(isChromeless('/recover/confirm')).toBe(true);
+    expect(isChromeless('/recovery')).toBe(false);
+    expect(isChromeless('/recoverx')).toBe(false);
+    expect(isChromeless('/settings/recover')).toBe(false);
   });
 
   it('knows its routes', () => {

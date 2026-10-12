@@ -122,6 +122,33 @@ describe('sign-in error codes (the ?error= query string)', () => {
   });
 });
 
+describe.each(locales)('the way to Administrator recovery on the sign-in page in %s (Story 1.6)', (locale) => {
+  const markup = render(locale);
+  const link = /<a [^>]*href="\/recover"[^>]*>[\s\S]*?<\/a>/.exec(markup)?.[0];
+
+  it('is a quiet link to /recover with words of its own, and not a second button', () => {
+    expect(link).toBeDefined();
+    expect(link).toContain(translate(locale, 'login.recover'));
+    expect(link).toMatch(/class="[^"]*\bbtn-quiet\b[^"]*"/);
+    expect(link).not.toMatch(/btn-primary|btn-secondary/);
+    // Google stays the one button of the page.
+    expect(markup.match(/<button\b/g)).toHaveLength(1);
+  });
+
+  it('comes after the Google button and the footnote, so it is the last thing a person reaches for', () => {
+    expect(markup.indexOf(link!)).toBeGreaterThan(markup.indexOf(translate(locale, 'login.google')));
+    expect(markup.indexOf(link!)).toBeGreaterThan(markup.indexOf(translate(locale, 'login.footnote')));
+  });
+
+  it('is shown with an error, with a notice and with neither', () => {
+    for (const html of [render(locale, 'auth_failed'), render(locale, undefined, 'signed_out'), markup]) expect(html).toContain('href="/recover"');
+  });
+
+  it('promises nothing about what recovery does: the wording names no address and no Account', () => {
+    expect(translate(locale, 'login.recover')).not.toMatch(/@|\{/);
+  });
+});
+
 describe('starting Google sign-in', () => {
   const origin = 'http://127.0.0.1:4173';
   const client = (signInWithOAuth: OAuthClient['auth']['signInWithOAuth']): OAuthClient => ({auth: {signInWithOAuth}});
