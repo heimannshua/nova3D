@@ -128,6 +128,27 @@ describe('what it does to a call', () => {
     expect(both.outcome).toBe('TypeError:fetch failed');
   });
 
+  it('fails a call that names nobody (list_invitations) only through the switch that is not per user, for everyone, and only that function', () => {
+    // No user is named, so a user's switch cannot catch it.
+    writeFileSync(join(directory, USER), '');
+    const listing = (body = '{}') => JSON.parse(run(script(USER, 'list_invitations', body), allowed()).stdout) as {outcome: string; reached: number};
+    expect(listing()).toEqual({outcome: '200', reached: 1});
+    rmSync(join(directory, USER));
+    // The global switch fails it, as a dropped connection or as a 503, whoever asks.
+    writeFileSync(join(directory, 'global.list_invitations'), JSON.stringify({mode: 'down'}));
+    expect(listing()).toEqual({outcome: 'TypeError:fetch failed', reached: 0});
+    writeFileSync(join(directory, 'global.list_invitations'), JSON.stringify({mode: 'error'}));
+    expect(listing()).toEqual({outcome: '503', reached: 0});
+    // It names one function: the others go through, and so does a call that names a user.
+    expect(call(USER, 'authorize_session')).toEqual({outcome: '200', reached: 1});
+    expect(JSON.parse(run(script(USER, 'preflight', '{}'), allowed()).stdout)).toEqual({outcome: '200', reached: 1});
+    rmSync(join(directory, 'global.list_invitations'));
+    expect(listing()).toEqual({outcome: '200', reached: 1});
+    // Nothing was counted for a call that named nobody.
+    expect(() => readFileSync(join(directory, `${USER}.calls`), 'utf8')).not.toThrow();
+    expect(readFileSync(join(directory, `${USER}.calls`), 'utf8')).toBe('authorize_session\n');
+  });
+
   it('counts the calls it sees, by function name, for the user the call names', () => {
     call(USER, 'authorize_session');
     call(USER, 'issue_grant');

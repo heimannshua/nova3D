@@ -22,8 +22,10 @@ import {
   issueGrant,
   issueInvitation,
   listInvitations,
+  invitationRefusalActions,
   looksLikeInvitationCode,
   normalizeClientAddress,
+  recordInvitationRefusal,
   raiseAuthorizationEpoch,
   registerWithCode,
   revokeAccountGrants,
@@ -917,6 +919,68 @@ describe('the preferences record (Story 1.4d)', () => {
       }
       expect(calls).toHaveLength(0);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+describe('recordInvitationRefusal (Story 1.11)', () => {
+  const INVITATION = '9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a';
+
+  it('names the three refusals the database records, and no others', () => {
+    expect([...invitationRefusalActions]).toEqual(['invitation.issue_refused', 'invitation.revoke_refused', 'invitation.denied']);
+  });
+
+  it('sends the verified Auth user, the action and the invitation to api.record_invitation_refusal with the service role, and nothing else', async () => {
+    const {calls, fetch} = endpoint(() => ({body: {outcome: 'recorded'}}));
+    expect(await recordInvitationRefusal({userId: USER.toUpperCase(), action: 'invitation.revoke_refused', invitationId: INVITATION.toUpperCase()}, {env: environment(), fetch})).toBe('recorded');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/record_invitation_refusal');
+    expect(calls[0].init.headers).toMatchObject({'content-profile': 'api', authorization: `Bearer ${SERVICE_KEY}`});
+    expect(calls[0].body).toEqual({p_user_id: USER, p_action: 'invitation.revoke_refused', p_invitation_id: INVITATION});
+    expect(JSON.stringify(calls[0].body)).not.toContain(SERVICE_KEY);
+  });
+
+  it('sends no invitation for an issue, and takes no label, code, hash, marker outcome or reason at all', async () => {
+    const {calls, fetch} = endpoint(() => ({body: {outcome: 'repeated'}}));
+    expect(await recordInvitationRefusal({userId: USER, action: 'invitation.issue_refused'}, {env: environment(), fetch})).toBe('repeated');
+    expect(await recordInvitationRefusal({userId: USER, action: 'invitation.denied', invitationId: null}, {env: environment(), fetch})).toBe('repeated');
+    for (const call of calls) expect(Object.keys(call.body as object).sort()).toEqual(['p_action', 'p_invitation_id', 'p_user_id']);
+    expect(calls[0].body).toEqual({p_user_id: USER, p_action: 'invitation.issue_refused', p_invitation_id: null});
+    // Extra fields in the input go nowhere: the typed call builds the body from the three it knows.
+    await recordInvitationRefusal({userId: USER, action: 'invitation.issue_refused', label: 'Daniel', code: 'ABCD', reason: 'expired'} as never, {env: environment(), fetch});
+    expect(JSON.stringify(calls[2].body)).not.toMatch(/Daniel|ABCD|expired/);
+  });
+
+  it.each(['recorded', 'repeated'] as const)('maps the %s outcome', async (outcome) => {
+    const {fetch} = endpoint(() => ({body: {outcome}}));
+    expect(await recordInvitationRefusal({userId: USER, action: 'invitation.denied'}, {env: environment(), fetch})).toBe(outcome);
+  });
+
+  it.each([
+    ['an outcome it does not know', {outcome: 'ok'}],
+    ['an issue\'s outcome', {outcome: 'issued'}],
+    ['no outcome', {}],
+    ['text', 'recorded'],
+  ])('treats %s as no answer at all', async (_name, body) => {
+    const {fetch} = endpoint(() => ({body}));
+    await expect(recordInvitationRefusal({userId: USER, action: 'invitation.denied'}, {env: environment(), fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('fails closed when the database cannot be reached, errors, or refuses the call', async () => {
+    const input = {userId: USER, action: 'invitation.denied'} as const;
+    await expect(recordInvitationRefusal(input, {env: environment(), fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({retryable: true});
+    await expect(recordInvitationRefusal(input, {env: environment(), fetch: endpoint(() => ({status: 503, body: {}})).fetch})).rejects.toMatchObject({retryable: true, status: 503});
+    await expect(recordInvitationRefusal(input, {env: environment(), fetch: endpoint(() => ({status: 400, body: {code: '22023'}})).fetch})).rejects.toMatchObject({retryable: false, code: '22023'});
+  });
+
+  it('refuses an action it does not know, and an ID that is not a UUID, without calling the database', async () => {
+    const {calls, fetch} = endpoint(() => ({body: {outcome: 'recorded'}}));
+    for (const action of ['invitation.issued', 'invitation.revoked', 'invitation.refused', 'step_up.limited', '', undefined, 7]) {
+      await expect(recordInvitationRefusal({userId: USER, action: action as never}, {env: environment(), fetch}), String(action)).rejects.toThrow(TypeError);
+    }
+    await expect(recordInvitationRefusal({userId: 'nope', action: 'invitation.denied'}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+    await expect(recordInvitationRefusal({userId: USER, action: 'invitation.revoke_refused', invitationId: "x'; drop table"}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+    expect(calls).toHaveLength(0);
   });
 });
 

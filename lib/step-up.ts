@@ -24,15 +24,28 @@ export function isStepUpClass(value: unknown): value is StepUpClass {
 
 /**
  * Where the person lands after a step-up, by class. The SERVER derives it from the class and nothing else: no
- * return path is ever read from a URL, a form or a cookie. Until the stories that own the sensitive areas
- * exist, every class returns to Settings; each of those stories changes its own line here.
+ * return path is ever read from a URL, a form or a cookie. Administration returns to the invitation page (Story
+ * 1.11), the first sensitive area; until the stories that own the other areas exist, their classes return to
+ * Settings, and each of those stories changes its own line.
  */
 export const stepUpReturnPaths: Record<StepUpClass, string> = {
-  administration: '/settings',
+  administration: '/admin/invitations',
   owner_deletion: '/settings',
   account_deletion: '/settings',
   close_instance: '/settings',
 };
+
+/**
+ * What the step-up page says is being confirmed, by class: one catalog key for each, so a class added to the list
+ * above cannot be offered without words for it. The page shows it above the button, with the Google address the
+ * person is signed in as.
+ */
+export const stepUpReasonKeys = {
+  administration: 'stepUp.reason.administration',
+  owner_deletion: 'stepUp.reason.owner_deletion',
+  account_deletion: 'stepUp.reason.account_deletion',
+  close_instance: 'stepUp.reason.close_instance',
+} as const satisfies Record<StepUpClass, MessageKey>;
 
 /** The page that starts a step-up for a class. The class is a closed list; the page refuses anything else. */
 export const stepUpPath = '/step-up';

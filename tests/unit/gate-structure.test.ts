@@ -407,8 +407,18 @@ describe('step-up (Story 1.4b) has one way in, one way to decide and one way to 
     expect(callers('finishStepUp')).toEqual(['app/auth/callback/route.ts', 'lib/access.ts']);
   });
 
-  it('has no sensitive action yet that checks a marker: only the typed call exists', () => {
-    expect(callers('checkMarker')).toEqual(['lib/accounts.ts']);
+  it('checks a marker in the invitation actions (the authority) and the invitation page (to decide whether to offer the step-up beforehand), and nowhere else', () => {
+    expect(callers('checkMarker')).toEqual(['app/admin/invitations/actions.ts', 'app/admin/invitations/page.tsx', 'lib/accounts.ts']);
+  });
+
+  it('only ever checks the administration marker, which stays valid for its five minutes, so a check followed by a change loses nothing', () => {
+    for (const file of ['app/admin/invitations/actions.ts', 'app/admin/invitations/page.tsx']) {
+      const code = withoutComments(read(file));
+      const calls = [...code.matchAll(/checkMarker\(\{([^}]*)\}/g)].map((match) => match[1]);
+      expect(calls.length, file).toBeGreaterThan(0);
+      for (const call of calls) expect(call, file).toMatch(/actionClass: 'administration'/);
+      expect(code, file).not.toMatch(/startedAfter/);
+    }
   });
 
   it('reads the step-up cookie and the PKCE verifier BEFORE the code exchange, which removes the verifier', () => {
@@ -515,5 +525,117 @@ describe('the preferences record (Story 1.4d) has one way in, one way to change,
     const writers = sources.filter((file) => /preferenceCookieNames/.test(withoutComments(read(file)))).sort();
     expect(writers).toEqual(['app/account/preference-actions.ts', 'lib/preferences.ts']);
     expect(withoutComments(read('app/account/preference-actions.ts'))).not.toMatch(/httpOnly\s*:\s*true/);
+  });
+});
+
+describe('the invitation page (Story 1.11) changes a code in one place, behind the role and the marker, in that order', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const actions = 'app/admin/invitations/actions.ts';
+  const code = withoutComments(read(actions));
+
+  it('issues and revokes a code, and records a refusal, from lib/accounts.ts and the one file of Server Actions, and lists them from the page', () => {
+    expect(callers('issueInvitation')).toEqual([actions, 'lib/accounts.ts']);
+    expect(callers('revokeInvitation')).toEqual([actions, 'lib/accounts.ts']);
+    expect(callers('recordInvitationRefusal')).toEqual([actions, 'lib/accounts.ts']);
+    expect(callers('listInvitations')).toEqual(['app/admin/invitations/page.tsx', 'lib/accounts.ts']);
+  });
+
+  it('keeps the database functions behind the typed calls: nothing else names them', () => {
+    for (const file of sources.filter((candidate) => candidate !== 'lib/accounts.ts')) {
+      expect(withoutComments(read(file)), file).not.toMatch(/['"`](?:issue_invitation|revoke_invitation|list_invitations|record_invitation_refusal)['"`]/);
+    }
+  });
+
+  it('is a file of Server Actions that exports exactly the three, each going through the one function that checks the role and then the marker', () => {
+    expect(read(actions).trimStart()).toMatch(/^'use server';/);
+    expect([...code.matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)].map((match) => match[1])).toEqual(['issueNamedInvitation', 'mintGeneralInvitation', 'revokeInvitationCode']);
+    expect([...code.matchAll(/^export\s/gm)]).toHaveLength(3);
+    expect([...code.matchAll(/return administered\(/g)]).toHaveLength(3);
+  });
+
+  it('checks the role, then the marker, then makes the change, inside withActiveAccount and in that order', () => {
+    const start = code.indexOf('async function administered(');
+    const body = code.slice(start, code.indexOf('export async function issueNamedInvitation'));
+    const order = ['withActiveAccount', "account.role !== 'administrator'", 'checkMarker(', "marker !== 'allowed'", 'return run('].map((needle) => body.indexOf(needle));
+    expect(order.every((index) => index >= 0), order.join(',')).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    // The change itself is made only by `run`, which is only called after both checks; the three actions call nothing else first.
+    for (const name of ['issueInvitation(', 'revokeInvitation(']) {
+      const at = body.indexOf(name);
+      expect(at, name).toBe(-1);
+    }
+  });
+
+  it('takes the actor from the verified session, and reads from the form only what each action is about: before the role and the marker only a revoke\'s invitation ID, parsed at once', () => {
+    expect(code).toMatch(/actor: `user:\$\{user\.id\}`/);
+    for (const forbidden of [/\bactor:\s*(?:formData|String\()/, /\bsearchParams\b/, /\bheaders\(\)/, /\brequest\.url\b/]) expect(code).not.toMatch(forbidden);
+    // The marker is asked about the verified session, for the class, never a class or a session a request chose.
+    expect(code).toMatch(/checkMarker\(\{userId: user\.id, sessionId: user\.sessionId, actionClass: 'administration'\}/);
+
+    // Each exported action, split at `return administered(`: what it reads before the role and marker checks, and after.
+    const reads = (text: string) => [...text.matchAll(/formData\.get\(['"](\w+)['"]\)/g)].map((match) => match[1]);
+    const bodies = Object.fromEntries(
+      [...code.matchAll(/export async function (\w+)\([^)]*\)[^{]*\{([\s\S]*?)\n\}\n/g)].map((match) => [match[1], match[2]]),
+    );
+    expect(Object.keys(bodies).sort()).toEqual(['issueNamedInvitation', 'mintGeneralInvitation', 'revokeInvitationCode']);
+    const split = (name: string) => {
+      const at = bodies[name].indexOf('return administered(');
+      expect(at, name).toBeGreaterThanOrEqual(0);
+      return {before: bodies[name].slice(0, at), after: bodies[name].slice(at)};
+    };
+    expect(reads(split('issueNamedInvitation').before)).toEqual([]);
+    expect(reads(split('issueNamedInvitation').after)).toEqual(['label']);
+    expect(reads(split('mintGeneralInvitation').before)).toEqual([]);
+    expect(reads(split('mintGeneralInvitation').after)).toEqual(['replace']);
+    // A revoke names the invitation a refusal is audited against, so that one is read first, and it is parsed to a UUID or null at once.
+    expect(reads(split('revokeInvitationCode').before)).toEqual(['invitationId']);
+    expect(split('revokeInvitationCode').before).toMatch(/invitationIdOf\(formData\.get\('invitationId'\)\)/);
+    expect(reads(split('revokeInvitationCode').after)).toEqual([]);
+    // And nothing else is read anywhere in the file: only these three names, exactly.
+    expect(reads(code).sort()).toEqual(['invitationId', 'label', 'replace']);
+  });
+
+  it('prints a failure by name and message only, and never a code, a label or the request', () => {
+    const lines = code.split('\n').filter((line) => /console\.(?:log|info|warn|error|debug)\(/.test(line));
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      expect(line).toMatch(/describe\(error\)/);
+      expect(line).not.toMatch(/\.code\b|issued|label|formData|invitationId/);
+    }
+    expect(code).toMatch(/const describe = \(error: unknown\) => \(error instanceof Error \? `\$\{error\.name\}: \$\{error\.message\}` : 'unknown failure'\)/);
+  });
+
+  it('puts a made code in the action\'s answer and nowhere else it could be kept: no audit, cookie, redirect, header or cache call carries it', () => {
+    for (const forbidden of [/cookies\(/, /headers\(/, /redirect\([^)]*code/, /revalidate(?:Path|Tag)\(/, /localStorage|sessionStorage/, /record(?:Audit|InvitationRefusal)\([^)]*(?:code|label)/]) expect(code).not.toMatch(forbidden);
+    // The refusal is recorded with the Auth user, the action and the invitation, and nothing else.
+    expect(code).toMatch(/recordInvitationRefusal\(\{userId, action, invitationId\}/);
+  });
+
+  it('keeps the page and the components free of the functions that change a code: they only call the Server Actions', () => {
+    for (const file of sources.filter((candidate) => candidate.startsWith('components/admin/') || candidate === 'app/admin/invitations/page.tsx')) {
+      expect(withoutComments(read(file)), file).not.toMatch(/\b(?:issueInvitation|revokeInvitation|recordInvitationRefusal)\b/);
+    }
+    for (const file of sources.filter((candidate) => candidate.startsWith('components/admin/'))) {
+      expect(withoutComments(read(file)), file).not.toMatch(/from '@\/lib\/(?:accounts|access|auth)'|node:crypto|next\/headers/);
+    }
+  });
+
+  it('puts the code in client memory only: no component of the page writes it to storage, a cookie, the address or the router', () => {
+    for (const file of sources.filter((candidate) => candidate.startsWith('components/admin/'))) {
+      expect(withoutComments(read(file)), file).not.toMatch(/localStorage|sessionStorage|indexedDB|document\.cookie|history\.|router\.(?:push|replace)|useRouter|searchParams|location\./);
+    }
+  });
+
+  it('sends the step-up to the page that asks for it by its one URL, built from the closed list', () => {
+    expect(withoutComments(read('components/admin/step-up-notice.tsx'))).toMatch(/stepUpUrl\('administration'\)/);
+    for (const file of sources.filter((candidate) => candidate.startsWith('components/admin/') || candidate.startsWith('app/admin/'))) {
+      expect(withoutComments(read(file)), file).not.toMatch(/['"`]\/step-up/);
+    }
   });
 });

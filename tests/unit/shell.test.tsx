@@ -198,6 +198,10 @@ describe('global shell (G-01, UX-DR24)', () => {
     expect(parentRoute('/')).toBeNull();
     expect(parentRoute('/settings')).toBe('/');
     expect(parentRoute('/projects/42')).toBe('/projects');
+    // The Administrator's pages (Story 1.11) are reached from Settings, and /admin is not a page.
+    expect(parentRoute('/admin/invitations')).toBe('/settings');
+    expect(parentRoute('/admin')).toBe('/settings');
+    expect(parentRoute('/administration')).toBe('/');
   });
 
   it('has a polite live region from the first render', () => {

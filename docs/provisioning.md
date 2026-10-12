@@ -50,7 +50,7 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Region: us-east-1
 - Spend backstop: The organization's spend cap, left on in the billing settings. Fixed cost is about $35-40 a month; each restore drill adds a temporary project whose hourly cost is recorded at the first drill.
 - First needed: Story 1.4
-- Verification: attestation (3)
+- Verification: attestation (4)
 - Secret names by environment: staging: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF`
 - Free-tier limits relied on, with the trigger for upgrading:
   - A Free project pauses, so staging and production never run on the Free plan. Upgrade trigger: Pro before Story 1.4, so hosted-Auth checks can run.
@@ -258,6 +258,21 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 2. Set the Production-scope variables listed in `docs/deployment-setup.md`, including the two named here. Keep the Preview and Development scopes free of any Supabase, database or Stripe variable.
 3. Fast-forward `main` into `staging` (`git push origin main:staging`) and confirm the seed application deploys and `/api/health` answers.
 4. Save an export of the project's Git settings and its deployment list outside the repository, and record its file name as evidence.
+
+### Due by Story 1.11
+
+#### `hosted-step-up-and-invitation-check`: Hosted step-up check and invitation-page check, run on staging
+
+- Service: Supabase (Postgres, Auth, Storage)
+- Verification: attestation
+- Environments: staging
+- Secret names: none
+- Status: staging: pending
+
+1. Apply `supabase/migrations/20261012120000_invitation_refusals.sql` to staging by hand, before the build that uses it deploys, following `docs/staging.md` (it adds one function and no table, setting or secret; the other migrations are already there).
+2. Run the hosted step-up check in `docs/auth-setup.md` (Verifying the step-up on hosted Auth). The Administrator's invitation page now starts it: sign in as the Administrator, open Settings, then Administration, then Manage invitation codes, and press Confirm it is you.
+3. Run the invitation check in `docs/auth-setup.md` (Verifying invitation management on hosted environments): a member gets a 404, a change without a fresh sign-in is refused and audited once, a code is shown once and never again, a registration with it works once, the general code can be replaced, and a revoked code cannot register.
+4. Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
 
 ### Due by Story 1.6
 

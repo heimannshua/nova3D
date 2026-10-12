@@ -815,7 +815,9 @@ test.describe('a session that signs in again (the step-up against the fake Googl
     await addFakeAccount({email: user.email, sub: user.subject, name: `Csrf ${tag}`});
     const { token: before } = await signedInPage(page, context, baseURL!, user);
 
-    await page.goto(stepUpUrl('administration'));
+    // Owner deletion, because it returns to Settings; administration returns to the Administrator's page (Story 1.11),
+    // which answers 404 to this member.
+    await page.goto(stepUpUrl('owner_deletion'));
     await hydrated(page, 'main button[type="submit"], main a[href]');
     await page.getByRole('button', {name: label('en', 'stepUp.continue')}).click();
     await expect(page).toHaveURL(chooserUrl, crossing);

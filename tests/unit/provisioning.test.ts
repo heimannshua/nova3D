@@ -506,7 +506,11 @@ describe('items due by a story (build order, not numeric order)', () => {
   it('matches the real build order for the committed ledger', () => {
     const through = (story: string) => itemsDueBy(committed, buildOrder, story, 'staging').map((entry) => entry.due);
     expect(through('1-3')).toEqual(['1-3']);
-    expect(new Set(through('1-9'))).toEqual(new Set(['1-3', '1-4', '1-6', '1-9']));
+    // Story 1.11 is built after 1.4 and before 1.5, 1.6 and 1.9 (sprint-status.yaml), so its hosted check is due before 1.6's items.
+    expect(new Set(through('1-9'))).toEqual(new Set(['1-3', '1-4', '1-11', '1-6', '1-9']));
+    expect(through('1-4')).not.toContain('1-11');
+    expect(through('1-11')).toContain('1-11');
+    expect(itemsDueBy(committed, buildOrder, '1-11', 'staging').map((entry) => entry.id)).toContain('hosted-step-up-and-invitation-check');
     expect(through('2-5')).not.toContain('2-16');
     expect(through('8-9')).not.toContain('8-4');
     expect(through('8-4')).toContain('8-4');

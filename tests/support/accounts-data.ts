@@ -99,7 +99,11 @@ export async function removeAccountData(client: Client, data: CommittedData) {
     await client.query(`delete from identity.step_up_nonces where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.session_grants where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from identity.registration_commands where account_id in ${accounts}`, [data.users]);
-    await client.query(`delete from identity.invitations where redeemed_account_id in ${accounts} or code_hash = any($2) or id = any($3)`, [data.users, data.hashes, data.invitationIds]);
+    // Codes the Administrator's page made (Story 1.11) are issued by `user:<Auth user ID>`, which a test user may be.
+    await client.query(
+      `delete from identity.invitations where redeemed_account_id in ${accounts} or code_hash = any($2) or id = any($3) or issued_by = any($4)`,
+      [data.users, data.hashes, data.invitationIds, data.users.map((id) => `user:${id}`)],
+    );
     await client.query(`delete from identity.preauthorizations where account_id in ${accounts} or email = any($2)`, [data.users, data.emails]);
     await client.query(`delete from projects.workspaces where account_id in ${accounts}`, [data.users]);
     await client.query('delete from identity.accounts where user_id = any($1)', [data.users]);

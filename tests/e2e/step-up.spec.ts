@@ -32,18 +32,34 @@ test.afterAll(async () => {
 
 const locales = ['en', 'he'] as const;
 
-/** A user with an Account and the grant of their forged session. */
-async function member(options: {grant?: boolean} = {}) {
+/**
+ * A user with an Account and the grant of their forged session: the Administrator, because most of what is tested here
+ * is the step-up for `administration`, which only the Administrator may start (Story 1.11: the page it returns to answers
+ * 404 to anyone else, so the step-up page does too). `plainMember` is the one who may not.
+ */
+async function administrator(options: {grant?: boolean} = {}) {
   const user = await world.signedInUser();
   await world.activate(user, options);
+  await world.makeAdministrator(user);
   return user;
 }
 
-/** The same, and a Google account in the fake with the same address and subject: signing in there is signing in as this user. */
-async function googleMember() {
+/** An Account that is not the Administrator's. */
+async function plainMember() {
+  const user = await world.signedInUser();
+  await world.activate(user);
+  return user;
+}
+
+/**
+ * The same as `administrator()`, and a Google account in the fake with the same address and subject: signing in there is
+ * signing in as this user. Pass `{administrator: false}` for a member.
+ */
+async function googleMember(options: {administrator?: boolean} = {}) {
   const tag = randomUUID().slice(0, 8);
   const user = await world.signedInUser({email: `step-${tag}@example.test`, subject: `google-${randomUUID()}`});
   await world.activate(user);
+  if (options.administrator !== false) await world.makeAdministrator(user);
   await addFakeAccount({email: user.email, sub: user.subject, name: `Step ${tag}`});
   return user;
 }
@@ -99,7 +115,7 @@ const otherGoogleAccount = async () => {
 test.describe('the step-up page', () => {
   for (const locale of locales) {
     test(`asks the person to sign in with Google again, accessibly, on phone and desktop (${locale}${locale === 'he' ? ', dark' : ''})`, async ({page, context, baseURL}) => {
-      const user = await member();
+      const user = await administrator();
       await signIn(context, baseURL!, user, locale === 'he' ? {locale, theme: 'dark'} : {locale});
       const problems = watchForProblems(page);
       const response = await page.goto(stepUpUrl('administration'));
@@ -109,8 +125,11 @@ test.describe('the step-up page', () => {
       await expect(page).toHaveTitle(new RegExp(label(locale, 'meta.stepUp')));
       await expect(page.getByRole('heading', {level: 1, name: label(locale, 'stepUp.title')})).toBeVisible();
       await expect(page.getByText(label(locale, 'stepUp.lede'))).toBeVisible();
+      // It says what is being confirmed, and which Google address is signed in (Story 1.11).
+      await expect(page.getByText(label(locale, 'stepUp.reason.administration'))).toBeVisible();
+      await expect(page.getByText(label(locale, 'stepUp.signedInAs', {email: user.email}))).toBeVisible();
       await expect(continueButton(page, locale)).toBeVisible();
-      await expect(page.getByRole('link', {name: label(locale, 'stepUp.cancel')})).toHaveAttribute('href', '/settings');
+      await expect(page.getByRole('link', {name: label(locale, 'stepUp.cancel')})).toHaveAttribute('href', '/admin/invitations');
       // One question and nothing else: no navigation to wander off by, no alert before an attempt.
       await expect(page.getByRole('navigation')).toHaveCount(0);
       await expect(alertOf(page)).toHaveCount(0);
@@ -120,18 +139,53 @@ test.describe('the step-up page', () => {
     });
   }
 
-  test('"Not now" returns to Settings and the person is still signed in', async ({page, context, baseURL}) => {
-    const user = await member();
+  test('"Not now" returns to the class\'s own page and the person is still signed in: Settings for a class whose area does not exist yet', async ({page, context, baseURL}) => {
+    const user = await plainMember();
     await signIn(context, baseURL!, user);
-    await openStepUp(page, 'administration');
+    await openStepUp(page, 'owner_deletion');
     await page.getByRole('link', {name: label('en', 'stepUp.cancel')}).click();
     await expect(page).toHaveURL(`${baseURL}/settings`, crossing);
     await expect(mainNav(page, 'en')).toBeVisible();
     expect(await world.noncesOf(user)).toEqual([]);
   });
 
+  test('"Not now" on the administration step-up returns the Administrator to the invitation page', async ({page, context, baseURL}) => {
+    const user = await administrator();
+    await signIn(context, baseURL!, user);
+    await openStepUp(page, 'administration');
+    await page.getByRole('link', {name: label('en', 'stepUp.cancel')}).click();
+    await expect(page).toHaveURL(`${baseURL}/admin/invitations`, crossing);
+    await expect(page.getByRole('heading', {level: 1, name: label('en', 'invitations.title')})).toBeVisible();
+    expect(await world.noncesOf(user)).toEqual([]);
+  });
+
+  test('says in its own words what each class confirms, and the same Google address, for every class', async ({page, context, baseURL}) => {
+    const user = await administrator();
+    await signIn(context, baseURL!, user);
+    for (const actionClass of ['administration', 'owner_deletion', 'account_deletion', 'close_instance'] as const) {
+      await openStepUp(page, actionClass);
+      await expect(page.getByText(label('en', `stepUp.reason.${actionClass}`))).toBeVisible();
+      await expect(page.getByText(label('en', 'stepUp.signedInAs', {email: user.email}))).toBeVisible();
+    }
+  });
+
+  test('is a page that does not exist for a member who asks for administration (it would lead to a page that answers 404 to them), and is still theirs for the other classes', async ({page, context, baseURL}) => {
+    const user = await plainMember();
+    await signIn(context, baseURL!, user);
+    const response = await page.goto(stepUpUrl('administration'));
+    expect(response?.status()).toBe(404);
+    await expect(continueButton(page, 'en')).toHaveCount(0);
+    await expect(page.getByText(label('en', 'stepUp.reason.administration'))).toHaveCount(0);
+    await expect(page.getByRole('heading', {level: 1, name: label('en', 'notFound.title')})).toBeVisible();
+    expect(await world.noncesOf(user)).toEqual([]);
+    for (const actionClass of ['owner_deletion', 'account_deletion', 'close_instance'] as const) {
+      expect((await page.goto(stepUpUrl(actionClass)))?.status(), actionClass).toBe(200);
+      await expect(continueButton(page, 'en'), actionClass).toBeVisible();
+    }
+  });
+
   test('is a page that does not exist for a class that is not on the list', async ({page, context, baseURL}) => {
-    const user = await member();
+    const user = await administrator();
     await signIn(context, baseURL!, user);
     for (const path of ['/step-up', '/step-up?for=', '/step-up?for=Administration', '/step-up?for=admin', '/step-up?for=delete_everything', '/step-up?for=__proto__']) {
       const response = await page.goto(path);
@@ -146,7 +200,7 @@ test.describe('the step-up page', () => {
     await page.goto(stepUpUrl('administration'));
     await expect(page).toHaveURL(`${baseURL}/login?error=not_signed_in`, crossing);
     // A session whose grant has ended.
-    const ended = await member();
+    const ended = await administrator();
     await world.revokeGrant(ended, ended.sessionId);
     await signIn(context, baseURL!, ended);
     await page.goto(stepUpUrl('administration'));
@@ -164,7 +218,7 @@ test.describe('the step-up page', () => {
 // ---------------------------------------------------------------------------------------------------
 test.describe('starting a step-up (the browser is stopped at Auth, so Google is not needed)', () => {
   test('asks Google for its account chooser with no login_hint, binds a nonce to this Account, session and flow, and sets an httpOnly cookie', async ({page, context, baseURL}) => {
-    const user = await member();
+    const user = await administrator();
     await signIn(context, baseURL!, user);
     const seen = await stopAtAuth(page);
     await openStepUp(page, 'owner_deletion');
@@ -202,7 +256,7 @@ test.describe('starting a step-up (the browser is stopped at Auth, so Google is 
   });
 
   test('a second start voids the first nonce, and the cookie carries the new secret', async ({page, context, baseURL}) => {
-    const user = await member();
+    const user = await administrator();
     await signIn(context, baseURL!, user);
     await stopAtAuth(page);
     await openStepUp(page, 'administration');
@@ -219,7 +273,7 @@ test.describe('starting a step-up (the browser is stopped at Auth, so Google is 
   });
 
   test('refuses the eleventh start in an hour, in the person\'s language, goes nowhere, and leaves no verifier of its own behind', async ({page, context, baseURL}) => {
-    const user = await member();
+    const user = await administrator();
     for (let i = 0; i < 10; i += 1) expect((await world.startStepUpFrom(user, user.sessionId)).outcome).toBe('started');
     await signIn(context, baseURL!, user, {locale: 'he'});
     // A sign-in already under way in this browser (another tab) holds the fixed verifier cookie.
@@ -242,7 +296,7 @@ test.describe('starting a step-up (the browser is stopped at Auth, so Google is 
   });
 
   test('is denied, retryably, with nothing fresh and the session kept, while the database is unreachable', async ({page, context, baseURL}) => {
-    const user = await member();
+    const user = await administrator();
     await signIn(context, baseURL!, user);
     const seen = await stopAtAuth(page);
     await openStepUp(page, 'administration', new URL(stepUpUrl('administration'), flakyBaseUrl(baseURL!)).href);
@@ -266,7 +320,7 @@ test.describe('starting a step-up (the browser is stopped at Auth, so Google is 
   });
 
   test('leaves no verifier behind when the database cannot be reached either', async ({page, context, baseURL}) => {
-    const user = await member();
+    const user = await administrator();
     await signIn(context, baseURL!, user);
     await stopAtAuth(page);
     await openStepUp(page, 'administration', new URL(stepUpUrl('administration'), flakyBaseUrl(baseURL!)).href);
@@ -323,7 +377,7 @@ test.describe('starting a step-up (the browser is stopped at Auth, so Google is 
   }
 
   test('submitted twice in one task while idle, the form sends one request, not a queued second', async ({page, context, baseURL}) => {
-    const user = await member();
+    const user = await administrator();
     await signIn(context, baseURL!, user);
     await pressWhileBusy(page, user, baseURL!, (current) =>
       current.evaluate(() => {
@@ -336,7 +390,7 @@ test.describe('starting a step-up (the browser is stopped at Auth, so Google is 
   });
 
   test('double-clicked, the button sends one request, not a queued second', async ({page, context, baseURL}) => {
-    const user = await member();
+    const user = await administrator();
     await signIn(context, baseURL!, user);
     await pressWhileBusy(page, user, baseURL!, async (current) => {
       await continueButton(current, 'en').dblclick();
@@ -344,7 +398,7 @@ test.describe('starting a step-up (the browser is stopped at Auth, so Google is 
   });
 
   test('once the first press has finished and been answered, pressing again is a new request, and it works', async ({page, context, baseURL}) => {
-    const user = await member();
+    const user = await administrator();
     await signIn(context, baseURL!, user);
     const { posts, seen } = await pressWhileBusy(page, user, baseURL!, async (current) => {
       await continueButton(current, 'en').click();
@@ -358,7 +412,7 @@ test.describe('starting a step-up (the browser is stopped at Auth, so Google is 
   });
 
   test('a page restored from the back/forward cache (Back from Google) starts afresh, not stuck busy', async ({page, context, baseURL}) => {
-    const user = await member();
+    const user = await administrator();
     await signIn(context, baseURL!, user);
     await stopAtAuth(page);
     let release!: () => void;
@@ -388,7 +442,7 @@ test.describe('starting a step-up (the browser is stopped at Auth, so Google is 
   });
 
   test('a pageshow that is not a restore (a normal load) leaves a busy button alone', async ({page, context, baseURL}) => {
-    const user = await member();
+    const user = await administrator();
     await signIn(context, baseURL!, user);
     await stopAtAuth(page);
     let release!: () => void;
@@ -432,6 +486,7 @@ test.describe('the step-up against the fake Google (a real second sign-in)', () 
 
   for (const locale of locales) {
     test(`the same Google account signs in again: the new session is fresh for the class and only it, and the old session is revoked (${locale})`, async ({page, context, browser, baseURL}) => {
+      // The Administrator, because administration returns to the invitation page (Story 1.11).
       const user = await googleMember();
       await signIn(context, baseURL!, user, {locale});
       const problems = watchForProblems(page);
@@ -442,8 +497,9 @@ test.describe('the step-up against the fake Google (a real second sign-in)', () 
       await expect(page.getByRole('heading', {name: 'Choose an account'})).toBeVisible();
       await expect(page.locator('[data-prompt]')).toHaveText('select_account');
       await chooserAccount(page, user.email).click();
-      await expect(page).toHaveURL(`${baseURL}/settings`, crossing);
+      await expect(page).toHaveURL(`${baseURL}/admin/invitations`, crossing);
       await expect(mainNav(page, locale)).toBeVisible();
+      await expect(page.getByRole('heading', {level: 1, name: label(locale, 'invitations.title')})).toBeVisible();
 
       // What Google was asked: the chooser, and no hint at who.
       const asked = await requestsFor(user.email);
@@ -491,6 +547,68 @@ test.describe('the step-up against the fake Google (a real second sign-in)', () 
       } finally {
         await thief.close();
       }
+      expect(problems).toEqual([]);
+    });
+  }
+
+  // Story 1.11: the invitation page is the first area that needs the step-up, so the whole loop runs here, for real: a
+  // change refused for want of a fresh sign-in, the link to the step-up, Google's chooser, the way back to the page, a change
+  // that now works, and a change that is refused again once the five minutes are up.
+  for (const locale of locales) {
+    test(`the invitation page sends the Administrator through a real step-up and back, and a change then works for five minutes (${locale})`, async ({page, context, baseURL}) => {
+      const user = await googleMember();
+      await signIn(context, baseURL!, user, {locale, theme: locale === 'he' ? 'dark' : 'light'});
+      const problems = watchForProblems(page);
+      await page.goto('/admin/invitations');
+      await hydrated(page, 'main button[type="submit"]');
+      const nameField = page.getByLabel(label(locale, 'invitations.named.label'), {exact: true});
+      const make = page.getByRole('button', {name: label(locale, 'invitations.named.submit')});
+      const reveal = page.locator('.code-reveal');
+
+      // Not fresh: a change is refused, and the way to get a fresh sign-in is the link beside the message.
+      await nameField.fill(`First ${user.id.slice(0, 6)}`);
+      await make.click();
+      const refused = alertOf(page).filter({hasText: label(locale, 'invitations.error.needsConfirm')});
+      await expect(refused).toBeVisible(crossing);
+      expect(await world.invitationsIssuedBy(user)).toEqual([]);
+      await refused.getByRole('link', {name: label(locale, 'invitations.confirm.action')}).click();
+
+      // The step-up page says what is being confirmed and which Google address is signed in.
+      await expect(page).toHaveURL(`${baseURL}${stepUpUrl('administration')}`, crossing);
+      await expect(page.getByText(label(locale, 'stepUp.reason.administration'))).toBeVisible();
+      await expect(page.getByText(label(locale, 'stepUp.signedInAs', {email: user.email}))).toBeVisible();
+      await hydrated(page, 'main button[type="submit"], main a[href]');
+      await continueButton(page, locale).click();
+      await expect(page).toHaveURL(chooserUrl, crossing);
+      await chooserAccount(page, user.email).click();
+
+      // Back on the invitation page, in the NEW session, which has the marker.
+      await expect(page).toHaveURL(`${baseURL}/admin/invitations`, crossing);
+      await expect(page.locator('.notice-success')).toContainText(label(locale, 'invitations.confirm.ok'));
+      await expect(page.getByRole('link', {name: label(locale, 'invitations.confirm.action')})).toHaveCount(0);
+      await hydrated(page, 'main button[type="submit"]');
+      const name = `Second ${user.id.slice(0, 6)}`;
+      await nameField.fill(name);
+      await make.click();
+      await expect(reveal).toBeVisible(crossing);
+      expect((await world.invitationsIssuedBy(user)).map((row) => row.label)).toEqual([name]);
+      const [marker] = await world.markersOf(user);
+      expect(marker).toMatchObject({action_class: 'administration', consumed_at: null});
+      // The same marker serves a second change inside its five minutes. (The field empties when the first action settles;
+      // wait for that, as a person would see it, before typing the next name.)
+      await expect(nameField).toHaveValue('');
+      await nameField.fill(`Third ${user.id.slice(0, 6)}`);
+      await make.click();
+      await expect(reveal).toHaveCount(2, crossing);
+
+      // Five minutes later: refused again, and the step-up is offered again.
+      await world.expireMarker(marker.session_id);
+      await expect(nameField).toHaveValue('');
+      await nameField.fill(`Fourth ${user.id.slice(0, 6)}`);
+      await make.click();
+      await expect(alertOf(page).filter({hasText: label(locale, 'invitations.error.needsConfirm')})).toBeVisible(crossing);
+      expect(await world.invitationsIssuedBy(user)).toHaveLength(2);
+      expect(await world.auditBy(`user:${user.id}`, 'invitation.issue_refused')).toHaveLength(1);
       expect(problems).toEqual([]);
     });
   }

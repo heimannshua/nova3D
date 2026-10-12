@@ -17,8 +17,11 @@
 // A call is attributed to the user by the `p_user_id` it carries, or by the `user:<id>` actor of a
 // revocation. The preferences functions (Story 1.4d) name only an Account, so a call that carries a
 // `p_account_id` and neither of those is attributed to that ACCOUNT's ID: a test that wants the preferences
-// functions to fail, or to count them, uses the Account's ID as the key. Everything else, Auth included,
-// goes through untouched.
+// functions to fail, or to count them, uses the Account's ID as the key. A call that names nobody at all
+// (`list_invitations`, Story 1.11, takes no argument) cannot be attributed to anyone, so it has a switch of its own that
+// is NOT per user: `<dir>/global.<function name>` fails that function for EVERY request this server handles. A test that
+// uses it must be the only one using the server's page for that call while it is on (the invitation specs hold a
+// database lock for that). Everything else, Auth included, goes through untouched.
 //
 // It refuses to load unless playwright.config.ts has said it may: NOVA3D_FAKE_NETWORK must be `playwright`,
 // and NOVA3D_FAKE_NETWORK_DIR must name the private directory (made with mkdtemp) the run controls it through.
@@ -45,7 +48,10 @@ function subjectOf(body) {
 }
 
 function plan(userId, name) {
-  const file = join(directory, userId);
+  return planFor(join(directory, userId), name);
+}
+
+function planFor(file, name) {
   if (!existsSync(file)) return null;
   let spec = {};
   try {
@@ -76,6 +82,11 @@ globalThis.fetch = async function fakeNetworkFetch(input, init) {
       // Counting is a convenience for the tests; it must never change what the server does.
     }
     const failure = plan(userId, name);
+    if (failure === 'down') throw new TypeError('fetch failed');
+    if (failure === 'error') return new Response(JSON.stringify({message: 'the database is down (fake network)'}), {status: 503, headers: {'content-type': 'application/json'}});
+  } else if (name) {
+    // A call that names nobody: only the switch that is not per user can reach it.
+    const failure = planFor(join(directory, `global.${name}`), name);
     if (failure === 'down') throw new TypeError('fetch failed');
     if (failure === 'error') return new Response(JSON.stringify({message: 'the database is down (fake network)'}), {status: 503, headers: {'content-type': 'application/json'}});
   }

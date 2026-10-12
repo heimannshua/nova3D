@@ -18,6 +18,12 @@ const exempt: Record<string, string> = {
 };
 /** The registration page asks for the opposite: a signed-in identity that has no Account yet. */
 const registration = 'app/register/page.tsx';
+/**
+ * The Administrator's pages (Story 1.11) ask for more than an active Account: an active Administrator, and answer 404 to
+ * anyone else. `requireAdministrator` starts from `requireActiveAccount` (checked below), so these pages are private too.
+ * Every page under app/admin must be listed here, and nothing else may be.
+ */
+const administrator = ['app/admin/invitations/page.tsx'];
 
 function pages(directory: string): string[] {
   return readdirSync(directory).flatMap((name) => {
@@ -32,6 +38,7 @@ const source = (file: string) => readFileSync(join(root, file), 'utf8');
 // A call, not a mention in a comment or an import.
 const callsRequireActiveAccount = (text: string) => /^[^/\n]*\bawait\s+requireActiveAccount\(\)/m.test(text);
 const callsRequireUnregistered = (text: string) => /^[^/\n]*\bawait\s+requireUnregisteredIdentity\(\)/m.test(text);
+const callsRequireAdministrator = (text: string) => /^[^/\n]*\bawait\s+requireAdministrator\(\)/m.test(text);
 
 describe('page guards', () => {
   it('finds the pages', () => {
@@ -42,7 +49,7 @@ describe('page guards', () => {
     for (const file of Object.keys(exempt)) expect(files, file).toContain(file);
   });
 
-  const guarded = files.filter((file) => !(file in exempt) && file !== registration);
+  const guarded = files.filter((file) => !(file in exempt) && file !== registration && !administrator.includes(file));
   it('has private pages to check', () => {
     expect(guarded.length).toBeGreaterThanOrEqual(4);
   });
@@ -51,12 +58,41 @@ describe('page guards', () => {
     expect(callsRequireActiveAccount(source(file)), `${file} must start with await requireActiveAccount()`).toBe(true);
   });
 
+  it('finds the Administrator\'s pages, and lists every page under app/admin and no other', () => {
+    for (const file of administrator) expect(files, file).toContain(file);
+    expect(files.filter((file) => file.startsWith('app/admin/')).sort()).toEqual([...administrator].sort());
+  });
+
+  it.each(administrator)('%s calls requireAdministrator, and so asks for an active Account too', (file) => {
+    expect(callsRequireAdministrator(source(file)), `${file} must start with await requireAdministrator()`).toBe(true);
+  });
+
+  it('has requireAdministrator start from requireActiveAccount and answer 404, not a redirect, to an Account that is not the Administrator', () => {
+    const auth = source('lib/auth.ts').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    const body = /export async function requireAdministrator\(\)[^{]*\{([\s\S]*?)\n\}/.exec(auth)?.[1] ?? '';
+    expect(body).toMatch(/await requireActiveAccount\(\)/);
+    expect(body).toMatch(/access\.account\.role !== 'administrator'/);
+    expect(body).toMatch(/return notFound\(\)/);
+    expect(body.indexOf('requireActiveAccount')).toBeLessThan(body.indexOf('notFound'));
+    expect(body).not.toMatch(/redirect\(/);
+  });
+
   it('has the registration page ask for an identity that still needs an Account', () => {
     expect(callsRequireUnregistered(source(registration))).toBe(true);
   });
 
   it('keeps the exempt pages from asking for an Account they could never require', () => {
     for (const file of Object.keys(exempt)) expect(callsRequireActiveAccount(source(file)), file).toBe(false);
+  });
+
+  it('recognises a call to requireAdministrator and not a comment, an import or a missing await', () => {
+    expect(callsRequireAdministrator('  await requireAdministrator();')).toBe(true);
+    expect(callsRequireAdministrator('  const access = await requireAdministrator();')).toBe(true);
+    expect(callsRequireAdministrator("import {requireAdministrator} from '@/lib/auth';")).toBe(false);
+    expect(callsRequireAdministrator('// await requireAdministrator();')).toBe(false);
+    expect(callsRequireAdministrator('requireAdministrator();')).toBe(false);
+    // An Administrator's page that asks only for an active Account is the hole this test is here for.
+    expect(callsRequireAdministrator('await requireActiveAccount();')).toBe(false);
   });
 
   it('recognises a call and not a comment, an import or a missing await', () => {

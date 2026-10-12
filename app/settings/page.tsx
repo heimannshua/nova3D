@@ -9,6 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function SettingsPage() {
-  await requireActiveAccount();
-  return <SettingsContent />;
+  const access = await requireActiveAccount();
+  // The role is the live authorization's. It only decides whether the link to the Administrator's pages is shown.
+  return <SettingsContent isAdministrator={access.account.role === 'administrator'} />;
 }

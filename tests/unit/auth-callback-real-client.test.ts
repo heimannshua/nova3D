@@ -207,7 +207,8 @@ describe('a sign-in that comes back to a browser holding a step-up cookie (Story
 
   it('hands the NEW session to the database, with the hash of the secret and the challenge of the verifier it read before the exchange, and goes to the class\'s path', async () => {
     stepUpCookie();
-    expect(await callback()).toEqual({status: 307, to: '/settings'});
+    // The receipt says `administration`, which returns to the invitation page (Story 1.11).
+    expect(await callback()).toEqual({status: 307, to: '/admin/invitations'});
     const calls_ = rpc('complete_step_up').map((call) => JSON.parse(call.body));
     expect(calls_).toEqual([{p_user_id: USER, p_session_id: SESSION, p_secret_hash: hashStepUpSecret(SECRET), p_verifier_hash: challengeOfVerifier(VERIFIER)}]);
     // The database did the granting: this callback consumed nothing and issued nothing.
@@ -222,7 +223,7 @@ describe('a sign-in that comes back to a browser holding a step-up cookie (Story
   it('reads the verifier whichever way the cookie adapter wrote it', async () => {
     stepUpCookie();
     store.jar.set(`${cookieName}-code-verifier`, `base64-${Buffer.from(JSON.stringify(VERIFIER)).toString('base64url')}`);
-    expect(await callback()).toEqual({status: 307, to: '/settings'});
+    expect(await callback()).toEqual({status: 307, to: '/admin/invitations'});
     expect(JSON.parse(rpc('complete_step_up')[0].body).p_verifier_hash).toBe(challengeOfVerifier(VERIFIER));
   });
 

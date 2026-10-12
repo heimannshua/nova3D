@@ -822,8 +822,9 @@ export async function withdrawPreauthorization(input: {email: string; actor: str
 }
 
 /**
- * Audited seed command: generates a code, stores only its hash, and returns the code for the caller to
- * show once. A named code needs a label; a general code takes none and, while one is current, comes back
+ * Audited seed command, and (Story 1.11) the Administrator's invitation page, behind a fresh-authentication marker
+ * that the page's Server Action checks first: generates a code, stores only its hash, and returns the code for the
+ * caller to show once. A named code needs a label; a general code takes none and, while one is current, comes back
  * as `exists` unless `replace` (which revokes the current one). When the outcome is `exists` no code was
  * stored and none is returned. If this throws an AccountsUnavailableError with `outcomeUnknown`, the
  * code may have been stored: list the invitations and revoke any you do not recognise before issuing again.
@@ -854,7 +855,7 @@ export async function issueInvitation(
   return {outcome: 'issued', code, invitationId: id, kind: input.kind, replacedInvitationId: text(row.replaced_invitation_id)};
 }
 
-/** Audited seed command: revokes an unused code, by invitation ID or by the code itself. */
+/** Audited seed command, and (Story 1.11) the invitation page, which checks the marker first: revokes an unused code, by invitation ID or by the code itself. */
 export async function revokeInvitation(
   input: {actor: string} & ({invitationId: string; code?: undefined} | {code: string; invitationId?: undefined}),
   options: AccountsOptions = {},
@@ -874,6 +875,41 @@ export async function revokeInvitation(
     invitationId: text(row.invitation_id),
     outcome: oneOf(row.outcome, ['revoked', 'already_revoked', 'redeemed', 'not_found'] as const),
   };
+}
+
+/**
+ * The refusals of an invitation change that api.record_invitation_refusal records (Story 1.11): an Administrator
+ * who tried to issue a code (named or general) or to revoke one without a valid fresh-authentication marker, and
+ * an Account that is not an Administrator who tried either.
+ */
+export const invitationRefusalActions = ['invitation.issue_refused', 'invitation.revoke_refused', 'invitation.denied'] as const;
+export type InvitationRefusalAction = (typeof invitationRefusalActions)[number];
+/** `recorded` (a new audit event) or `repeated` (the same refusal was recorded in the last hour; nothing was written). */
+export const invitationRefusalOutcomes = ['recorded', 'repeated'] as const;
+export type InvitationRefusalOutcome = (typeof invitationRefusalOutcomes)[number];
+
+/**
+ * Records a refused invitation change in the audit trail (Story 1.11): the actor (`user:<id>`, built by the
+ * database from the verified Auth user the server passes, never from input) and, for an attempt to revoke, the
+ * invitation as the target. It records no label, code, marker outcome or reason text, and takes none. Once an hour
+ * per actor, action and target. The application has already refused the change when it calls this: a failure to
+ * record is logged by the caller and never turns the refusal into a permission.
+ */
+export async function recordInvitationRefusal(
+  input: {userId: string; action: InvitationRefusalAction; invitationId?: string | null},
+  options: AccountsOptions = {},
+): Promise<InvitationRefusalOutcome> {
+  if (!(invitationRefusalActions as readonly string[]).includes(input.action)) throw new TypeError('action must be one of the invitation refusal actions');
+  const row = await callRow(
+    'record_invitation_refusal',
+    {
+      p_user_id: requireUuid('userId', input.userId),
+      p_action: input.action,
+      p_invitation_id: input.invitationId == null ? null : requireUuid('invitationId', input.invitationId),
+    },
+    options,
+  );
+  return oneOf(row.outcome, invitationRefusalOutcomes);
 }
 
 /** Invitation ID, kind, label, state and creation time, newest first. Never a hash or a code. */

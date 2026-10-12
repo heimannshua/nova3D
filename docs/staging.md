@@ -18,7 +18,7 @@ This procedure has been checked against the Supabase CLI's own help (version 2.1
    npm run check:provisioning -- --story 1-4 --env staging
    ```
 
-   It names every item due by Story 1.4 that is still missing, and prints no value.
+   It names every item due by Story 1.4 that is still missing, and prints no value. Story 1.11 adds one more, `hosted-step-up-and-invitation-check`, which is the hosted check of step 6 below (`--story 1-11 --env staging` lists it); it is due after this procedure, so it is not a prerequisite of it.
 2. **Sign in, and give this window what it needs.** `supabase --version` should print 2.120.0 or newer. Nothing secret is typed where it would be shown on the screen or kept in the window's history:
    - The **access token** is the CLI's own business. `supabase login` opens your browser and the CLI keeps the token itself; you never put it in a command line, a file or an environment variable.
    - The **database password** goes to the CLI in an environment variable, read with `-AsSecureString` (the characters are not shown) and converted in this session only. If you leave these two lines out, the CLI asks for the password itself, with the characters hidden, each time it needs it.
@@ -65,6 +65,7 @@ Apply them all, in this order. The CLI applies each file and records it, and sto
 | `20261011120000_step_up.sql` | step-up nonces and 5-minute markers (Story 1.4b) | Additive: nothing to do around it but apply it before the deploy. |
 | `20261011130000_request_integrity.sql` | the per-session CSRF token hash on the grant (Story 1.4c) | Additive: older grants get their token on their next page request. |
 | `20261011140000_account_preferences.sql` | the Account-owned preferences record and its two functions; `api.authorize_session` now also returns the record (Story 1.4d) | Additive: the previous build ignores the extra field. A person's first sign-in on the new build adopts the cookies of their device into their record. |
+| `20261012120000_invitation_refusals.sql` | `api.record_invitation_refusal`, the one function that records an invitation change the Administrator's page refused (`invitation.issue_refused`, `invitation.revoke_refused`, `invitation.denied`); no table (Story 1.11) | Additive: apply it **before** the build that uses it deploys. The previous build never calls it; the new build serves the page without it but cannot audit a refusal until it is applied. No setting, secret or session is involved. |
 
 Push them:
 
@@ -164,7 +165,8 @@ git push origin main:staging
 Never force-push `staging`. Then open the app with a real Google sign-in and run the hosted checks that belong to the stories you just shipped; each is written where its feature is described:
 
 - sign-in, sign-out and "sign out my other sessions": `docs/auth-setup.md`, Cutting over to session grants (the first real sign-in is the first time the callback runs against hosted Auth);
-- the step-up: `docs/auth-setup.md`, Verifying the step-up on hosted Auth;
+- the step-up: `docs/auth-setup.md`, Verifying the step-up on hosted Auth (it starts from the Administrator's invitation page now);
+- the Administrator's invitation page (Story 1.11): `docs/auth-setup.md`, Verifying invitation management on hosted environments. It needs the Administrator's own Google account, the step-up above and a throwaway account to register with a code; when it passes, record it as the ledger item `hosted-step-up-and-invitation-check` (see [docs/provisioning.md](provisioning.md));
 - origin and CSRF checks: `docs/auth-setup.md`, Verifying request integrity on hosted environments;
 - the preferences record (Story 1.4d): in a browser with no session, choose Hebrew and dark on the sign-in page and sign in. An Account's first sign-in after the deploy adopts the choices of that browser, so expect Hebrew and dark; later sign-ins do not adopt anything. Then open the app in a second browser, signed in as the same person, and expect Hebrew and dark there too; change a setting in one browser and expect the other to show it on its next page load. Nothing about it needs a setting on the hosted project.
 

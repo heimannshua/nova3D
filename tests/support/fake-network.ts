@@ -32,6 +32,20 @@ export function endOutage(userId: string) {
   rmSync(join(fakeNetworkDirectory(), userId), {force: true});
 }
 
+/**
+ * Makes one accounts API function that names nobody (`list_invitations`) fail for EVERY request this server handles, until
+ * the returned function (or `endGlobalOutage`) is called. Such a call cannot be attributed to a user, so this is not per
+ * user: a test that uses it must be the only one loading the page that makes the call, on this server, while it is on.
+ */
+export function startGlobalOutage(rpc: string, mode: 'down' | 'error' = 'down') {
+  writeFileSync(join(fakeNetworkDirectory(), `global.${rpc}`), JSON.stringify({mode}));
+  return () => endGlobalOutage(rpc);
+}
+
+export function endGlobalOutage(rpc: string) {
+  rmSync(join(fakeNetworkDirectory(), `global.${rpc}`), {force: true});
+}
+
 /** The accounts API functions the server called for the user, in order, since the last `forgetCalls`. */
 export function callsFor(userId: string): string[] {
   const file = join(fakeNetworkDirectory(), `${userId}.calls`);

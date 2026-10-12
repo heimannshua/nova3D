@@ -757,6 +757,41 @@ main { flex: 1; min-inline-size: 0; }
 .guidance-replay { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-block-start: var(--space-4); }
 .settings-state { color: var(--text-muted); font-size: var(--text-sm); }
 
+/* ---------- Administration: invitation codes (Story 1.11) ---------- */
+/* Notices in this page sit in the flow of a section, not above it; one that has a button wraps it under the words. */
+.invite-notice { margin-block-start: var(--space-4); }
+.invite-notice .notice { margin-block-start: 0; flex-wrap: wrap; align-items: center; }
+.invite-notice .notice-text { flex: 1 1 14rem; }
+.invite-form { display: grid; justify-items: start; gap: var(--space-3); margin-block-start: var(--space-4); }
+.invite-field { display: grid; gap: var(--space-2); inline-size: 100%; max-inline-size: 28rem; }
+.invite-field .auth-hint { margin-block-start: 0; }
+.invite-field .invite-notice { margin-block-start: 0; }
+.invite-input { inline-size: 100%; min-block-size: var(--target); padding-inline: var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-card); color: var(--text); font: inherit; font-size: var(--text-base); }
+.invite-input[aria-invalid="true"] { border-color: var(--status-danger-fg); }
+.invite-form .auth-status { margin-block-start: 0; }
+.invite-state { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-block-start: var(--space-4); font-size: var(--text-sm); }
+.invite-state-block { margin-block-start: var(--space-4); }
+/* A code that was just made: the one thing on the page that cannot be recovered, so it is the most prominent. */
+.code-reveal { padding: var(--pad); border: 2px solid var(--action); border-radius: var(--radius-lg); background: var(--action-soft); color: var(--action-soft-text); scroll-margin-block-start: var(--space-4); }
+.code-reveal h2 { color: inherit; }
+.code-reveal .eyebrow, .code-reveal .settings-help { color: inherit; }
+.code-reveal-label { margin-block-start: var(--space-4); font-size: var(--text-sm); font-weight: 700; }
+.code-reveal-value { margin-block-start: var(--space-1); padding: var(--space-3) var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-card); color: var(--text-strong); font-size: var(--text-lg); letter-spacing: 0.04em; overflow-wrap: anywhere; user-select: all; }
+.code-reveal-value code { font-size: inherit; }
+.code-reveal-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-block-start: var(--space-4); }
+/* The list: one card for each code, so it reads on a phone and at large text without a table to scroll. */
+.invite-list { display: grid; gap: var(--space-3); margin: var(--space-4) 0 0; padding: 0; list-style: none; }
+.invite-item { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-card); }
+.invite-item-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-3); }
+.invite-name { min-inline-size: 0; overflow-wrap: anywhere; }
+.invite-meta { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-1) var(--space-3); margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+.invite-meta > div { display: contents; }
+.invite-meta dt { font-weight: 700; }
+.invite-meta dd { margin: 0; min-inline-size: 0; overflow-wrap: anywhere; }
+.invite-id { font-size: var(--text-xs); }
+.invite-actions { display: grid; justify-items: start; gap: var(--space-3); }
+.invite-actions .invite-notice { margin-block-start: 0; }
+
 /* ---------- Design kit ---------- */
 .kit-section > h2 { margin-block-end: var(--space-3); }
 .kit-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: var(--space-3) 0 0; padding: 0; list-style: none; }
@@ -779,6 +814,9 @@ main { flex: 1; min-inline-size: 0; }
 .auth-lede { margin-block: var(--space-3) var(--space-5); color: var(--text-muted); font-size: var(--text-sm); }
 .auth-card .notice { margin-block: 0 var(--space-4); }
 .auth-google { inline-size: 100%; }
+/* The step-up page says what is being confirmed, who is signed in and what to choose: one block of short paragraphs. */
+.auth-copy { display: grid; gap: var(--space-2); margin-block: var(--space-3) var(--space-5); }
+.auth-copy .auth-lede { margin: 0; }
 .auth-hint, .auth-footnote { color: var(--text-muted); font-size: var(--text-xs); }
 .auth-hint { margin-block-start: var(--space-2); }
 .auth-footnote { margin-block-start: var(--space-5); text-align: center; }

@@ -3,7 +3,7 @@ import type {StepUpReceipt} from '@/lib/accounts';
 import {finishStepUp, signInTimeoutMs} from '@/lib/access';
 import {createBudget} from '@/lib/deadline';
 import {checkMarker} from '@/lib/accounts';
-import {consumedStepUpClasses, isStepUpClass, stepUpClasses, stepUpErrorKeys, stepUpIdle, stepUpPath, stepUpReturnPaths, stepUpUrl} from '@/lib/step-up';
+import {consumedStepUpClasses, isStepUpClass, stepUpClasses, stepUpErrorKeys, stepUpIdle, stepUpPath, stepUpReasonKeys, stepUpReturnPaths, stepUpUrl} from '@/lib/step-up';
 import {hashStepUpSecret} from '@/lib/step-up-flow';
 import {locales, translate} from '@/lib/i18n';
 
@@ -42,14 +42,34 @@ describe('the action classes', () => {
     expect([...consumedStepUpClasses]).toEqual(['account_deletion', 'close_instance']);
   });
 
-  it('return, by class, to a path of this application that the server chose: Settings for now', () => {
+  it('return, by class, to a path of this application that the server chose: the invitation page for administration (Story 1.11), Settings until the stories that own the other areas exist', () => {
     expect(Object.keys(stepUpReturnPaths).sort()).toEqual([...stepUpClasses].sort());
+    expect(stepUpReturnPaths).toEqual({
+      administration: '/admin/invitations',
+      owner_deletion: '/settings',
+      account_deletion: '/settings',
+      close_instance: '/settings',
+    });
     for (const path of Object.values(stepUpReturnPaths)) {
-      expect(path).toBe('/settings');
       expect(path).toMatch(/^\/[a-z]/);
       expect(path).not.toMatch(/[?#:]|\/\//);
     }
     expect(stepUpPath).toBe('/step-up');
+  });
+
+  it('say what is being confirmed in both languages, one message for each class, so a class added without words does not compile', () => {
+    expect(Object.keys(stepUpReasonKeys).sort()).toEqual([...stepUpClasses].sort());
+    const seen = new Set<string>();
+    for (const locale of locales) {
+      for (const actionClass of stepUpClasses) {
+        const words = translate(locale, stepUpReasonKeys[actionClass]);
+        expect(words.length, `${locale}:${actionClass}`).toBeGreaterThan(10);
+        seen.add(`${locale}:${words}`);
+      }
+    }
+    // Four classes, four different sentences, in each language.
+    expect(seen.size).toBe(stepUpClasses.length * locales.length);
+    expect(translate('en', stepUpReasonKeys.administration)).toMatch(/invitation codes/);
   });
 
   it('have one URL that starts a step-up, built from the closed list and by nothing else', () => {
@@ -71,7 +91,7 @@ describe('the action classes', () => {
 describe('finishStepUp: a sign-in comes back to a browser holding a step-up cookie', () => {
   it.each(stepUpClasses)('accepted (%s): the person goes on to the class\'s own path, and nobody is signed out', async (actionClass) => {
     const {complete, finished} = run(receipt('accepted', null, actionClass));
-    expect(await finished).toEqual({kind: 'decided', decision: {to: '/settings', signOut: false}});
+    expect(await finished).toEqual({kind: 'decided', decision: {to: stepUpReturnPaths[actionClass], signOut: false}});
     // The database is handed the new session, the hash of the cookie secret and the PKCE challenge, and nothing else.
     expect(complete).toHaveBeenCalledTimes(1);
     expect(complete.mock.calls[0][0]).toEqual({userId: USER, sessionId: SESSION, secretHash: hashStepUpSecret(SECRET), verifierHash: CHALLENGE});

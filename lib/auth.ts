@@ -1,4 +1,4 @@
-import {redirect} from 'next/navigation';
+import {notFound, redirect} from 'next/navigation';
 import {cache} from 'react';
 import {AccountsUnavailableError, verifyCsrf} from '@/lib/accounts';
 import {
@@ -55,6 +55,20 @@ export async function requireActiveAccount(): Promise<ActiveAccess> {
   const access = await getAccess();
   if (access.state === 'active') return access;
   return redirect(redirectFor(homePath, access) ?? fallback);
+}
+
+/**
+ * For a page that only the Administrator may see (Story 1.11): the active Administrator, or the same 404 as a page
+ * that does not exist. Anyone who is not signed in with an active Account goes where `requireActiveAccount` sends
+ * them; an active Account whose role is not `administrator` gets a 404, not a redirect and not a "forbidden", so
+ * the page's existence is not shown to a member. The role is the live authorization's (a changed role takes effect
+ * on the next request), never a cookie's or a request's. A Server Action behind such a page checks the role again
+ * itself: the page is not the boundary.
+ */
+export async function requireAdministrator(): Promise<ActiveAccess> {
+  const access = await requireActiveAccount();
+  if (access.account.role !== 'administrator') return notFound();
+  return access;
 }
 
 /** For the registration page: returns an identity that still needs an Account, or redirects. */

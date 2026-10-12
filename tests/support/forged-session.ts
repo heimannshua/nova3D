@@ -154,6 +154,14 @@ export function accountsWorld() {
     (await db.query('select g.session_id from identity.session_grants g join identity.accounts a on a.id = g.account_id where a.user_id = $1 order by g.issued_at', [user.id])).rows.map((row) => row.session_id as string);
   const auditEvents = async (action: string, target: string) =>
     (await db.query('select actor, action, target from identity.audit_events where action = $1 and target = $2 order by id', [action, target])).rows as {actor: string; action: string; target: string}[];
+  /** The audit events of one actor for one action (the append-only trail keeps them after the test), oldest first. */
+  const auditBy = async (actor: string, action: string) =>
+    (await db.query('select actor, action, target, occurred_at from identity.audit_events where actor = $1 and action = $2 order by id', [actor, action])).rows as {
+      actor: string;
+      action: string;
+      target: string | null;
+      occurred_at: Date;
+    }[];
 
   /** Forgets the failures the shared test origin has counted, so the 5-per-15-minutes limit never trips between tests. */
   async function resetLimiter() {
@@ -221,6 +229,97 @@ export function accountsWorld() {
         from identity.accounts a where a.id = n.account_id and a.user_id = $1`,
       [user.id, minutes],
     );
+  // Invitation management (Story 1.11) ---------------------------------------------------------------
+
+  /** Makes the user's Account the Administrator's, the way the seed's pre-authorization of the Administrator's address would have. */
+  const makeAdministrator = (user: TestUser) => db.query(`update identity.accounts set role = 'administrator' where user_id = $1`, [user.id]);
+
+  /**
+   * Writes the fresh-authentication marker a completed step-up would have written for this session (its nonce is a
+   * completed one, bound to this session as both the initiating and the new session), valid for five minutes from now,
+   * or already run out with `expired`. An existing marker of the session and class is replaced. This forges the database
+   * state only: nothing here signs anyone in again. The real step-up is driven against the fake Google in step-up.spec.ts.
+   */
+  async function forgeMarker(user: TestUser, sessionId: string, options: {actionClass?: string; expired?: boolean} = {}) {
+    const actionClass = options.actionClass ?? 'administration';
+    const account = await accountOf(user);
+    await db.query('delete from identity.fresh_authentications where session_id = $1 and action_class = $2', [sessionId, actionClass]);
+    const nonce = await db.query(
+      `insert into identity.step_up_nonces (account_id, session_id, action_class, secret_hash, verifier_hash, email_hash, started_at, expires_at, status, ended_at, completed_session_id)
+       values ($1, $2, $3, $4, $5, $6, clock_timestamp() - interval '1 minute', clock_timestamp() + interval '9 minutes', 'completed', clock_timestamp(), $2)
+       returning id`,
+      [account.id, sessionId, actionClass, randomBytes(32).toString('hex'), randomBytes(32).toString('base64url'), randomBytes(32).toString('hex')],
+    );
+    await db.query(
+      `insert into identity.fresh_authentications (session_id, action_class, account_id, nonce_id, step_up_started_at, issued_at, expires_at)
+       values ($1, $2, $3, $4, clock_timestamp() - interval '1 minute', clock_timestamp() - ($5 * interval '1 minute'), clock_timestamp() + ($6 * interval '1 minute'))`,
+      [sessionId, actionClass, account.id, nonce.rows[0].id, options.expired ? 10 : 0, options.expired ? -5 : 5],
+    );
+  }
+  /** Runs the user's session's marker out (as if five minutes had passed), leaving the row in place. */
+  const expireMarker = (sessionId: string, actionClass = 'administration') =>
+    db.query(
+      `update identity.fresh_authentications set issued_at = clock_timestamp() - interval '10 minutes', expires_at = clock_timestamp() - interval '5 minutes' where session_id = $1 and action_class = $2`,
+      [sessionId, actionClass],
+    );
+  /** Every invitation as the database holds it, for one label or one ID (a test that wants to prove what is NOT stored reads it here). */
+  const invitationRow = async (invitationId: string) =>
+    (await db.query('select id, code_hash, kind, label, status, issued_by, revoked_by from identity.invitations where id = $1', [invitationId])).rows[0] as
+      | {id: string; code_hash: string; kind: string; label: string | null; status: string; issued_by: string; revoked_by: string | null}
+      | undefined;
+  const invitationByLabel = async (label: string) =>
+    (await db.query('select id, code_hash, kind, label, status, issued_by, revoked_by from identity.invitations where label = $1 order by created_at desc', [label])).rows as {
+      id: string;
+      code_hash: string;
+      kind: string;
+      label: string | null;
+      status: string;
+      issued_by: string;
+      revoked_by: string | null;
+    }[];
+  /** Every invitation the user's Administrator page made, by the actor `user:<ID>` (the seed's codes have another actor). */
+  const invitationsIssuedBy = async (user: TestUser) =>
+    (await db.query('select id, kind, label, status from identity.invitations where issued_by = $1 order by created_at', [`user:${user.id}`])).rows as {id: string; kind: string; label: string | null; status: string}[];
+  /** The general code that is waiting to be used, if there is one. There is at most one in the whole database. */
+  const unusedGeneralId = async () => (await db.query(`select id from identity.invitations where kind = 'general' and status = 'unused'`)).rows[0]?.id as string | undefined;
+  /**
+   * Holds the lock that every test touching THE general code takes, and gives back a database with no unused general
+   * code: there is one general code in the whole database, and the desktop and phone projects run the same flows at the
+   * same time. The lock is the connection's own (a session-level advisory lock), so a test that dies releases it.
+   */
+  async function takeGeneralCode() {
+    await db.query(`select pg_advisory_lock(hashtextextended('nova3d-e2e:general-code', 0))`);
+    const waiting = await unusedGeneralId();
+    if (waiting) await revokeInvitation({actor: 'seed:local:e2e', invitationId: waiting}, {env});
+  }
+  /** Revokes the general code a test left waiting and lets the next test have the lock. */
+  async function releaseGeneralCode() {
+    const waiting = await unusedGeneralId();
+    if (waiting) await revokeInvitation({actor: 'seed:local:e2e', invitationId: waiting}, {env});
+    await db.query(`select pg_advisory_unlock(hashtextextended('nova3d-e2e:general-code', 0))`);
+  }
+  /**
+   * A lock that serializes the tests which load the invitation page through the SECOND server, the one with the fake
+   * network (a global switch there fails `list_invitations` for every request that server handles). Session level, so a
+   * test that dies releases it with its connection.
+   */
+  const holdFlakyInvitations = () => db.query(`select pg_advisory_lock(hashtextextended('nova3d-e2e:flaky-invitations', 0))`);
+  const releaseFlakyInvitations = () => db.query(`select pg_advisory_unlock(hashtextextended('nova3d-e2e:flaky-invitations', 0))`);
+  /** A general code, issued the way the seed command issues one. Returns its code (the person who registers will type it). */
+  async function issueGeneralCode() {
+    const issued = await issueInvitation({kind: 'general', actor: 'seed:local:e2e'}, {env});
+    if (issued.outcome !== 'issued') throw new Error('The general code was not issued.');
+    committed.invitationIds.push(issued.invitationId);
+    return {code: issued.code, invitationId: issued.invitationId};
+  }
+  /** Gives the user an Account by redeeming the given code (the general one, say), as the registration screen does. */
+  async function activateWithCode(user: ForgedUser, code: string) {
+    const receipt = await registerWithCode({userId: user.id, commandId: randomUUID(), code, clientAddress: null}, {env});
+    if (receipt.outcome !== 'registered') throw new Error(`The test Account was not created (${receipt.outcome}).`);
+    await grant(user, user.sessionId);
+    return receipt;
+  }
+
   /** The Auth user a real Google sign-in created for this address, registered for cleanup with the world. Undefined if there is none. */
   async function adoptUser(email: string) {
     const id = (await db.query('select id from auth.users where email = $1', [email])).rows[0]?.id as string | undefined;
@@ -235,6 +334,7 @@ export function accountsWorld() {
     resetLimiter, setStatus, accountOf, workspacesOf, commandsOf, invitationStatus, sessionExists,
     markersOf, noncesOf, startStepUpFrom, markerOutcome, ageNonces, adoptUser, authSessionsOf, hasGrantAtAll,
     preferencesOf, adoptPreferencesFor,
+    auditBy, makeAdministrator, forgeMarker, expireMarker, invitationRow, invitationByLabel, invitationsIssuedBy, unusedGeneralId, takeGeneralCode, releaseGeneralCode, holdFlakyInvitations, releaseFlakyInvitations, issueGeneralCode, activateWithCode,
   };
 }
 

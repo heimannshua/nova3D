@@ -5,13 +5,13 @@ import {StepUpForm, attemptStepUp} from '@/components/step-up-form';
 import {locales, translate, type Locale} from '@/lib/i18n';
 import {I18nProvider} from '@/lib/i18n/react';
 import {unexpectedResponseMessage} from '@/lib/session-actions';
-import {stepUpIdle} from '@/lib/step-up';
+import {stepUpClasses, stepUpIdle, stepUpReasonKeys, type StepUpClass} from '@/lib/step-up';
 
 const start = vi.fn(async () => stepUpIdle);
-const render = (locale: Locale, cancelHref = '/settings') =>
+const render = (locale: Locale, cancelHref = '/settings', actionClass: StepUpClass = 'administration', email: string | null = 'person@example.com') =>
   renderToStaticMarkup(
     <I18nProvider locale={locale}>
-      <StepUpForm start={start} cancelHref={cancelHref}/>
+      <StepUpForm start={start} cancelHref={cancelHref} actionClass={actionClass} email={email}/>
     </I18nProvider>,
   );
 const text = (markup: string) => markup.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/\s+/g, ' ');
@@ -25,6 +25,30 @@ describe.each(locales)('the step-up page in %s', (locale) => {
     expect(markup).toMatch(/<h1 id="step-up-title">/);
     expect(text(markup)).toContain(translate(locale, 'stepUp.title'));
     expect(text(markup)).toContain(translate(locale, 'stepUp.lede'));
+  });
+
+  it('says what is being confirmed, and which Google address is signed in', () => {
+    expect(text(markup)).toContain(translate(locale, 'stepUp.reason.administration'));
+    expect(text(markup)).toContain(translate(locale, 'stepUp.signedInAs', {email: 'person@example.com'}));
+    // The address is isolated from the sentence around it, so it cannot reorder the words.
+    expect(markup).toContain('⁨person@example.com⁩');
+    expect(text(markup)).toContain(translate(locale, 'stepUp.lede'));
+  });
+
+  it.each(stepUpClasses)('says the words of the class it was bound to: %s', (actionClass) => {
+    const markupForClass = render(locale, '/settings', actionClass);
+    expect(text(markupForClass)).toContain(translate(locale, stepUpReasonKeys[actionClass]));
+    for (const other of stepUpClasses.filter((candidate) => candidate !== actionClass)) {
+      expect(text(markupForClass)).not.toContain(translate(locale, stepUpReasonKeys[other]));
+    }
+  });
+
+  it('leaves the address line out, and keeps everything else, when no address is known', () => {
+    const anonymous = render(locale, '/settings', 'administration', null);
+    expect(anonymous).not.toContain('person@example.com');
+    expect(anonymous).not.toContain('⁨');
+    expect(text(anonymous)).toContain(translate(locale, 'stepUp.reason.administration'));
+    expect(anonymous.match(/<button\b/g)).toHaveLength(1);
   });
 
   it('has one primary action, a submit button, and a way back that is a link', () => {

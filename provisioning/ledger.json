@@ -277,6 +277,22 @@
       "evidence": {}
     },
     {
+      "id": "hosted-step-up-and-invitation-check",
+      "service": "supabase",
+      "title": "Hosted step-up check and invitation-page check, run on staging",
+      "kind": "attestation",
+      "due": "1-11",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Apply `supabase/migrations/20261012120000_invitation_refusals.sql` to staging by hand, before the build that uses it deploys, following `docs/staging.md` (it adds one function and no table, setting or secret; the other migrations are already there).",
+        "Run the hosted step-up check in `docs/auth-setup.md` (Verifying the step-up on hosted Auth). The Administrator's invitation page now starts it: sign in as the Administrator, open Settings, then Administration, then Manage invitation codes, and press Confirm it is you.",
+        "Run the invitation check in `docs/auth-setup.md` (Verifying invitation management on hosted environments): a member gets a 404, a change without a fresh sign-in is refused and audited once, a code is shown once and never again, a registration with it works once, the general code can be replaced, and a revoked code cannot register.",
+        "Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
       "id": "resend-account",
       "service": "resend",
       "title": "Resend account registered with the Administrator address",

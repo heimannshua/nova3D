@@ -4,7 +4,7 @@ import {unstable_rethrow} from 'next/navigation';
 import {useActionState, useEffect, useRef, useState} from 'react';
 import {useI18n} from '@/lib/i18n/react';
 import {unexpectedResponseMessage} from '@/lib/session-actions';
-import {stepUpErrorKeys, stepUpIdle, type StepUpState} from '@/lib/step-up';
+import {stepUpErrorKeys, stepUpIdle, stepUpReasonKeys, type StepUpClass, type StepUpState} from '@/lib/step-up';
 import {BrandMark} from './shell/brand';
 import {Button, LinkButton} from './ui/button';
 import {Notice} from './ui/states';
@@ -41,7 +41,9 @@ export async function attemptStepUp(action: StepUpAction, previous: StepUpState,
 /**
  * The step-up page (Story 1.4b): a sensitive action needs the person to sign in with Google again, with the
  * same account. `start` is a Server Action with the action class already bound when the page rendered, so the
- * form has no field and nothing the person types says what it is for. The button goes to Google's account
+ * form has no field and nothing the person types says what it is for. `actionClass` and `email` are for the words
+ * only (Story 1.11): what is being confirmed, and the Google address that is signed in now; they are never sent back.
+ * The button goes to Google's account
  * chooser; "Not now" goes to the class's own return path (`cancelHref`, Settings for now). A second press while
  * one is running is ignored (a flag taken in the submit event itself, before React has re-rendered).
  *
@@ -49,7 +51,7 @@ export async function attemptStepUp(action: StepUpAction, previous: StepUpState,
  * button still busy and its press flag still set, and nothing would ever finish them. A restored page
  * (`pageshow` with `persisted`) starts the form afresh.
  */
-export function StepUpForm({start, cancelHref}: {start: StepUpAction; cancelHref: string}) {
+export function StepUpForm({start, cancelHref, actionClass, email}: {start: StepUpAction; cancelHref: string; actionClass: StepUpClass; email: string | null}) {
   const [generation, setGeneration] = useState(0);
   useEffect(() => {
     const restored = (event: PageTransitionEvent) => {
@@ -58,10 +60,10 @@ export function StepUpForm({start, cancelHref}: {start: StepUpAction; cancelHref
     window.addEventListener('pageshow', restored);
     return () => window.removeEventListener('pageshow', restored);
   }, []);
-  return <StepUpPanel key={generation} start={start} cancelHref={cancelHref}/>;
+  return <StepUpPanel key={generation} start={start} cancelHref={cancelHref} actionClass={actionClass} email={email}/>;
 }
 
-function StepUpPanel({start, cancelHref}: {start: StepUpAction; cancelHref: string}) {
+function StepUpPanel({start, cancelHref, actionClass, email}: {start: StepUpAction; cancelHref: string; actionClass: StepUpClass; email: string | null}) {
   const {t} = useI18n();
   const running = useRef(false);
   const [state, formAction, pending] = useActionState(async (previous: StepUpState) => {
@@ -87,7 +89,11 @@ function StepUpPanel({start, cancelHref}: {start: StepUpAction; cancelHref: stri
         <BrandMark/>
         <p className="eyebrow">{t('stepUp.eyebrow')}</p>
         <h1 id="step-up-title">{t('stepUp.title')}</h1>
-        <p className="auth-lede">{t('stepUp.lede')}</p>
+        <div className="auth-copy">
+          <p className="auth-lede">{t(stepUpReasonKeys[actionClass])}</p>
+          {email ? <p className="auth-lede">{t('stepUp.signedInAs', {email})}</p> : null}
+          <p className="auth-lede">{t('stepUp.lede')}</p>
+        </div>
         {error ? <Notice tone="danger" role="alert">{t(error)}</Notice> : null}
         <form action={formAction} onSubmit={onSubmit} className="auth-form">
           <Button variant="primary" type="submit" className="auth-submit" aria-disabled={pending ? true : undefined}>{t('stepUp.continue')}</Button>

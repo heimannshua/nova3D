@@ -146,6 +146,7 @@ describe('through the REST API', () => {
     list_invitations: {},
     preflight: {},
     raise_authorization_epoch: {p_account_id: victim.accountId, p_actor: 'seed'},
+    record_invitation_refusal: {p_user_id: victim.user.id, p_action: 'invitation.denied', p_invitation_id: null},
     register_with_code: {p_user_id: victim.user.id, p_command_id: victim.commandId, p_code_hash: victim.codeHash, p_origin_hash: originHash()},
     revoke_grants: {p_actor: 'seed', p_reason: 'test', p_account_id: victim.accountId},
     revoke_invitation: {p_actor: 'seed', p_invitation_id: randomUUID()},
