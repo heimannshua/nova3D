@@ -2,7 +2,7 @@
 title: 'Story 1.5: Disable and re-enable account access'
 type: 'feature'
 created: '2026-10-12'
-status: 'review'
+status: 'in-review'
 baseline_commit: 'e07123726237f80c5d0db2f33f804dede5983990'
 review_loop_iteration: 0
 context:
