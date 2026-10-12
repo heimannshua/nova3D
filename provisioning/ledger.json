@@ -293,6 +293,21 @@
       "evidence": {}
     },
     {
+      "id": "hosted-account-disable-check",
+      "service": "supabase",
+      "title": "Disable and re-enable a test Account, run on staging",
+      "kind": "attestation",
+      "due": "1-5",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Apply `supabase/migrations/20261012130000_account_administration.sql` to staging by hand, before the build that uses it deploys, following `docs/staging.md` (it adds functions and no table, setting or secret; the other migrations are already there). The build's preflight now also checks that the database owner may delete from `auth.sessions`: if staging refuses that, the build fails with one line and nothing is half-disabled.",
+        "Run the account check in `docs/auth-setup.md` (Verifying account administration on hosted environments): with a throwaway Google account that registered with a named code, disable it from the Administrator's Accounts page, see its browser signed out at once and its next sign-in refused with the disabled message, re-enable it, sign in anew, and confirm the Administrator's own row has no Disable button.",
+        "Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
       "id": "resend-account",
       "service": "resend",
       "title": "Resend account registered with the Administrator address",

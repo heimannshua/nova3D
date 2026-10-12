@@ -789,6 +789,14 @@ main { flex: 1; min-inline-size: 0; }
 .invite-meta dt { font-weight: 700; }
 .invite-meta dd { margin: 0; min-inline-size: 0; overflow-wrap: anywhere; }
 .invite-id { font-size: var(--text-xs); }
+.account-item .settings-help { overflow-wrap: anywhere; }
+/* The Accounts list (Story 1.5): a label beside its value needs room for both. In a narrow window, or with large text (which moves a rem breakpoint), the label sits above its value instead, so a long word in either cannot push the card out of the window. */
+@media (max-width: 30rem) {
+  .account-meta { display: block; }
+  .account-meta > div:not(:first-child) dt { margin-block-start: var(--space-2); }
+  /* A word of status that is wider than the card, as at 200% text in a 320 px window, wraps under its shape instead of pushing the card out. */
+  .account-item .status-badge { flex-wrap: wrap; }
+}
 .invite-actions { display: grid; justify-items: start; gap: var(--space-3); }
 .invite-actions .invite-notice { margin-block-start: 0; }
 

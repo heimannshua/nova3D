@@ -1186,10 +1186,18 @@ describe('the preflight', () => {
     await client.query('alter function api.preflight() owner to anon');
   }
 
-  it('answers ok when the role it runs as can read all eight tables (the control for the next cases)', async () => {
+  it('gets past all eight reads when the role it runs as can read all eight tables (the control for the next cases)', async () => {
     await inTx(async (client) => {
       await ownedByRoleThatCanRead(client, tablesRead);
-      expect(await api(client).preflight()).toEqual({ok: true});
+      // Story 1.5 added a ninth thing the preflight asks of its owner: the privilege to delete from auth.sessions, which a
+      // disable needs to end a person's sessions. `anon` cannot be given it (the migration role holds it without the right to
+      // grant it), so the control is that the preflight reaches that check, which comes after the eight reads, and fails there.
+      const result = await attempt(client, 'service_role', 'select * from api.preflight()');
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.code).toBe('42501');
+        expect(result.message).toContain('end Auth sessions');
+      }
     });
   });
 

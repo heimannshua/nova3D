@@ -96,6 +96,7 @@ test.describe('who may open the page', () => {
     await page.goto('/settings');
     await expect(page.getByRole('heading', {level: 1, name: t('en', 'settings.title')})).toBeVisible();
     await expect(page.getByRole('heading', {name: t('en', 'settings.admin.title')})).toHaveCount(0);
+    await expect(page.locator('a[href="/admin"]')).toHaveCount(0);
     await expect(page.locator('a[href="/admin/invitations"]')).toHaveCount(0);
   });
 
@@ -104,18 +105,26 @@ test.describe('who may open the page', () => {
     await expect(page).toHaveURL(new RegExp(`^${baseURL}/login`));
   });
 
-  test('the Administrator finds it in Settings, and Back leads to Settings', async ({page, context, baseURL}) => {
+  test('the Administrator finds it in Settings, through the Administration index, and Back leads up one level at a time', async ({page, context, baseURL}) => {
     const user = await world.signedInUser();
     await world.activate(user);
     await world.makeAdministrator(user);
     await signIn(context, baseURL!, user);
     await page.goto('/settings');
     await expect(page.getByRole('heading', {name: t('en', 'settings.admin.title')})).toBeVisible();
-    await page.getByRole('link', {name: t('en', 'settings.admin.invitations')}).click();
+    await page.getByRole('link', {name: t('en', 'settings.admin.open')}).click();
+    await expect(page).toHaveURL(`${baseURL}/admin`, crossing);
+    await expect(page.getByRole('heading', {level: 1, name: t('en', 'admin.title')})).toBeVisible();
+    await expect(page).toHaveTitle(`${t('en', 'meta.admin')} · nova3D`);
+    await expect(page.locator('.back-link')).toHaveAttribute('href', '/settings');
+    await page.getByRole('link', {name: t('en', 'admin.invitations.open')}).click();
     await expect(page).toHaveURL(`${baseURL}${path}`, crossing);
     await expect(page.getByRole('heading', {level: 1, name: t('en', 'invitations.title')})).toBeVisible();
     await expect(page).toHaveTitle(`${t('en', 'meta.invitations')} · nova3D`);
-    await expect(page.locator('.back-link')).toHaveAttribute('href', '/settings');
+    // Back from a page of the Administration goes to its index, and Back from the index goes to Settings.
+    await expect(page.locator('.back-link')).toHaveAttribute('href', '/admin');
+    await page.locator('.back-link').click();
+    await expect(page).toHaveURL(`${baseURL}/admin`, crossing);
     await page.locator('.back-link').click();
     await expect(page).toHaveURL(`${baseURL}/settings`, crossing);
   });

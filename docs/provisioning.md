@@ -50,7 +50,7 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Region: us-east-1
 - Spend backstop: The organization's spend cap, left on in the billing settings. Fixed cost is about $35-40 a month; each restore drill adds a temporary project whose hourly cost is recorded at the first drill.
 - First needed: Story 1.4
-- Verification: attestation (4)
+- Verification: attestation (5)
 - Secret names by environment: staging: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF`
 - Free-tier limits relied on, with the trigger for upgrading:
   - A Free project pauses, so staging and production never run on the Free plan. Upgrade trigger: Pro before Story 1.4, so hosted-Auth checks can run.
@@ -273,6 +273,20 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 2. Run the hosted step-up check in `docs/auth-setup.md` (Verifying the step-up on hosted Auth). The Administrator's invitation page now starts it: sign in as the Administrator, open Settings, then Administration, then Manage invitation codes, and press Confirm it is you.
 3. Run the invitation check in `docs/auth-setup.md` (Verifying invitation management on hosted environments): a member gets a 404, a change without a fresh sign-in is refused and audited once, a code is shown once and never again, a registration with it works once, the general code can be replaced, and a revoked code cannot register.
 4. Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
+
+### Due by Story 1.5
+
+#### `hosted-account-disable-check`: Disable and re-enable a test Account, run on staging
+
+- Service: Supabase (Postgres, Auth, Storage)
+- Verification: attestation
+- Environments: staging
+- Secret names: none
+- Status: staging: pending
+
+1. Apply `supabase/migrations/20261012130000_account_administration.sql` to staging by hand, before the build that uses it deploys, following `docs/staging.md` (it adds functions and no table, setting or secret; the other migrations are already there). The build's preflight now also checks that the database owner may delete from `auth.sessions`: if staging refuses that, the build fails with one line and nothing is half-disabled.
+2. Run the account check in `docs/auth-setup.md` (Verifying account administration on hosted environments): with a throwaway Google account that registered with a named code, disable it from the Administrator's Accounts page, see its browser signed out at once and its next sign-in refused with the disabled message, re-enable it, sign in anew, and confirm the Administrator's own row has no Disable button.
+3. Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
 
 ### Due by Story 1.6
 

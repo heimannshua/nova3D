@@ -1,26 +1,22 @@
 'use server';
 
 import {refresh} from 'next/cache';
-import {redirect} from 'next/navigation';
-import {homePath} from '@/lib/access';
 import {
   AccountsConfigError,
   AccountsUnavailableError,
-  checkMarker,
   issueInvitation,
   recordInvitationRefusal,
   revokeInvitation,
   type InvitationRefusalAction,
-  type MarkerOutcome,
 } from '@/lib/accounts';
-import {withActiveAccount} from '@/lib/auth';
-import {withDeadline, withinBudget, type Budget} from '@/lib/deadline';
+import {administered, type AdministeredSteps} from '@/lib/administered';
+import {withDeadline, withinBudget} from '@/lib/deadline';
 import {invitationIdOf, labelProblem, normalizeLabel, type InvitationActionState} from '@/lib/invitations';
 
 // The Administrator's three changes to the invitation codes (Story 1.11): issue a named code, make or replace the
-// general code, and revoke an unused code. Each is a Server Action behind `withActiveAccount`, which asks for the
-// live authorization itself, every time, so none of them trusts the page that rendered the button. In this order,
-// and nothing changes before all of them pass:
+// general code, and revoke an unused code. Each is a Server Action that goes through `administered` (lib/administered.ts,
+// shared with the Accounts page): behind `withActiveAccount`, which asks for the live authorization itself, every time, so
+// none of them trusts the page that rendered the button. In this order, and nothing changes before all of them pass:
 //
 //   1. The Account's role is `administrator` (the live authorization's, not the request's). Otherwise the attempt
 //      is refused, audited as `invitation.denied`, and nothing else is done. What is read from the form before this
@@ -77,48 +73,20 @@ type Change = {
   invitationId: string | null;
 };
 
-/** The role check, then the marker check, then `run` (see the top of this file). */
-async function administered(
-  change: Change,
-  run: (context: {actor: string; budget: Budget}) => Promise<InvitationActionState>,
-): Promise<InvitationActionState> {
-  return withActiveAccount<InvitationActionState>({unavailable: nothingHappened}, async ({access, budget}) => {
-    const {user, account} = access;
-
-    if (account.role !== 'administrator') {
-      await recordRefusal(user.id, 'invitation.denied', change.invitationId);
-      return {outcome: 'denied'};
-    }
-
-    let marker: MarkerOutcome;
-    try {
-      marker = await withinBudget(budget, (timeoutMs) =>
-        checkMarker({userId: user.id, sessionId: user.sessionId, actionClass: 'administration'}, {timeoutMs}),
-      );
-    } catch (error) {
-      console.error('The invitation change could not check the fresh sign-in; nothing was changed.', describe(error));
-      return nothingHappened;
-    }
-    // The session no longer holds a valid grant of an active Account (it ended a moment ago): not a reason to try
-    // again. Home lets the access gate decide where this person now belongs, as the step-up action does.
-    if (marker === 'denied') return redirect(homePath);
-    if (marker !== 'allowed') {
-      await recordRefusal(user.id, change.refusal, change.invitationId);
-      const stepUp = marker === 'none' || marker === 'expired';
-      // The page may still say "you have confirmed it is you" (the marker ran out while it was open): read it again, so
-      // it shows the step-up beforehand, as it would on a new visit. Only the server's render changes; the codes the page
-      // is showing are in the browser's own state and stay.
-      if (stepUp) refresh();
-      return {outcome: 'refused', stepUp};
-    }
-
-    return run({actor: `user:${user.id}`, budget});
-  });
+/** What `administered` answers for each way a change is stopped, and how it records the two refusals. */
+function stoppedBy(change: Change): AdministeredSteps<InvitationActionState> {
+  return {
+    unavailable: nothingHappened,
+    denied: {outcome: 'denied'},
+    refused: (stepUp) => ({outcome: 'refused', stepUp}),
+    recordDenied: (userId) => recordRefusal(userId, 'invitation.denied', change.invitationId),
+    recordRefused: (userId) => recordRefusal(userId, change.refusal, change.invitationId),
+  };
 }
 
 /** Issues a named, single-use code with a label. The name is for the Administrator only; it is not bound to an address. */
 export async function issueNamedInvitation(_previous: InvitationActionState, formData: FormData): Promise<InvitationActionState> {
-  return administered({refusal: 'invitation.issue_refused', invitationId: null}, async ({actor, budget}) => {
+  return administered(stoppedBy({refusal: 'invitation.issue_refused', invitationId: null}), async ({actor, budget}) => {
     const label = normalizeLabel(formData.get('label'));
     const problem = labelProblem(label);
     if (problem) return {outcome: 'invalid', problem};
@@ -142,7 +110,7 @@ export async function issueNamedInvitation(_previous: InvitationActionState, for
  * answer is `exists`, which is what a second window is told when the first one made it.
  */
 export async function mintGeneralInvitation(_previous: InvitationActionState, formData: FormData): Promise<InvitationActionState> {
-  return administered({refusal: 'invitation.issue_refused', invitationId: null}, async ({actor, budget}) => {
+  return administered(stoppedBy({refusal: 'invitation.issue_refused', invitationId: null}), async ({actor, budget}) => {
     const replace = formData.get('replace') === 'true';
     let issued: Awaited<ReturnType<typeof issueInvitation>>;
     try {
@@ -160,7 +128,7 @@ export async function mintGeneralInvitation(_previous: InvitationActionState, fo
 /** Revokes an unused code by its invitation ID. A used code stays used; an ID that names nothing is not found. */
 export async function revokeInvitationCode(_previous: InvitationActionState, formData: FormData): Promise<InvitationActionState> {
   const invitationId = invitationIdOf(formData.get('invitationId'));
-  return administered({refusal: 'invitation.revoke_refused', invitationId}, async ({actor, budget}) => {
+  return administered(stoppedBy({refusal: 'invitation.revoke_refused', invitationId}), async ({actor, budget}) => {
     if (!invitationId) return {outcome: 'not_found'};
     let receipt: Awaited<ReturnType<typeof revokeInvitation>>;
     try {

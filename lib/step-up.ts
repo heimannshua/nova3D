@@ -24,12 +24,13 @@ export function isStepUpClass(value: unknown): value is StepUpClass {
 
 /**
  * Where the person lands after a step-up, by class. The SERVER derives it from the class and nothing else: no
- * return path is ever read from a URL, a form or a cookie. Administration returns to the invitation page (Story
- * 1.11), the first sensitive area; until the stories that own the other areas exist, their classes return to
- * Settings, and each of those stories changes its own line.
+ * return path is ever read from a URL, a form or a cookie. Administration returns to the Administration index (Story
+ * 1.5): the class alone decides where to return, and one class serves both of the Administrator's pages (Invitation codes,
+ * Story 1.11, and Accounts), so it returns to the page that links to them both. Until the stories that own the other areas
+ * exist, their classes return to Settings, and each of those stories changes its own line.
  */
 export const stepUpReturnPaths: Record<StepUpClass, string> = {
-  administration: '/admin/invitations',
+  administration: '/admin',
   owner_deletion: '/settings',
   account_deletion: '/settings',
   close_instance: '/settings',

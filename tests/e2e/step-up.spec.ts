@@ -129,7 +129,7 @@ test.describe('the step-up page', () => {
       await expect(page.getByText(label(locale, 'stepUp.reason.administration'))).toBeVisible();
       await expect(page.getByText(label(locale, 'stepUp.signedInAs', {email: user.email}))).toBeVisible();
       await expect(continueButton(page, locale)).toBeVisible();
-      await expect(page.getByRole('link', {name: label(locale, 'stepUp.cancel')})).toHaveAttribute('href', '/admin/invitations');
+      await expect(page.getByRole('link', {name: label(locale, 'stepUp.cancel')})).toHaveAttribute('href', '/admin');
       // One question and nothing else: no navigation to wander off by, no alert before an attempt.
       await expect(page.getByRole('navigation')).toHaveCount(0);
       await expect(alertOf(page)).toHaveCount(0);
@@ -149,13 +149,15 @@ test.describe('the step-up page', () => {
     expect(await world.noncesOf(user)).toEqual([]);
   });
 
-  test('"Not now" on the administration step-up returns the Administrator to the invitation page', async ({page, context, baseURL}) => {
+  test('"Not now" on the administration step-up returns the Administrator to the Administration index (Story 1.5: the class serves both of the Administrator\'s pages)', async ({page, context, baseURL}) => {
     const user = await administrator();
     await signIn(context, baseURL!, user);
     await openStepUp(page, 'administration');
     await page.getByRole('link', {name: label('en', 'stepUp.cancel')}).click();
-    await expect(page).toHaveURL(`${baseURL}/admin/invitations`, crossing);
-    await expect(page.getByRole('heading', {level: 1, name: label('en', 'invitations.title')})).toBeVisible();
+    await expect(page).toHaveURL(`${baseURL}/admin`, crossing);
+    await expect(page.getByRole('heading', {level: 1, name: label('en', 'admin.title')})).toBeVisible();
+    // Not confirmed: the index says nothing of a fresh sign-in.
+    await expect(page.locator('.notice-success')).toHaveCount(0);
     expect(await world.noncesOf(user)).toEqual([]);
   });
 
@@ -486,7 +488,7 @@ test.describe('the step-up against the fake Google (a real second sign-in)', () 
 
   for (const locale of locales) {
     test(`the same Google account signs in again: the new session is fresh for the class and only it, and the old session is revoked (${locale})`, async ({page, context, browser, baseURL}) => {
-      // The Administrator, because administration returns to the invitation page (Story 1.11).
+      // The Administrator, because administration returns to the Administration index (Stories 1.11 and 1.5).
       const user = await googleMember();
       await signIn(context, baseURL!, user, {locale});
       const problems = watchForProblems(page);
@@ -497,9 +499,10 @@ test.describe('the step-up against the fake Google (a real second sign-in)', () 
       await expect(page.getByRole('heading', {name: 'Choose an account'})).toBeVisible();
       await expect(page.locator('[data-prompt]')).toHaveText('select_account');
       await chooserAccount(page, user.email).click();
-      await expect(page).toHaveURL(`${baseURL}/admin/invitations`, crossing);
+      await expect(page).toHaveURL(`${baseURL}/admin`, crossing);
       await expect(mainNav(page, locale)).toBeVisible();
-      await expect(page.getByRole('heading', {level: 1, name: label(locale, 'invitations.title')})).toBeVisible();
+      await expect(page.getByRole('heading', {level: 1, name: label(locale, 'admin.title')})).toBeVisible();
+      await expect(page.locator('.notice-success')).toContainText(label(locale, 'admin.confirm.ok'));
 
       // What Google was asked: the chooser, and no hint at who.
       const asked = await requestsFor(user.email);
@@ -582,7 +585,10 @@ test.describe('the step-up against the fake Google (a real second sign-in)', () 
       await expect(page).toHaveURL(chooserUrl, crossing);
       await chooserAccount(page, user.email).click();
 
-      // Back on the invitation page, in the NEW session, which has the marker.
+      // Back on the Administration index (the class alone decides where to return), in the NEW session, which has the marker.
+      await expect(page).toHaveURL(`${baseURL}/admin`, crossing);
+      await expect(page.locator('.notice-success')).toContainText(label(locale, 'admin.confirm.ok'));
+      await page.getByRole('link', {name: label(locale, 'admin.invitations.open')}).click();
       await expect(page).toHaveURL(`${baseURL}/admin/invitations`, crossing);
       await expect(page.locator('.notice-success')).toContainText(label(locale, 'invitations.confirm.ok'));
       await expect(page.getByRole('link', {name: label(locale, 'invitations.confirm.action')})).toHaveCount(0);

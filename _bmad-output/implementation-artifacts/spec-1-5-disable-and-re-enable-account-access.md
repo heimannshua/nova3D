@@ -2,7 +2,8 @@
 title: 'Story 1.5: Disable and re-enable account access'
 type: 'feature'
 created: '2026-10-12'
-status: 'ready-for-dev'
+status: 'review'
+baseline_commit: 'e07123726237f80c5d0db2f33f804dede5983990'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -58,10 +59,10 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/*_account_administration.sql`, `lib/accounts.ts`, `lib/authority.ts` -- list, disable, enable, guard and SQL assert, refusal recording, preflight probes, typed calls, the cancellation registry -- AC-1, AC-2, AC-3, AC-4
-- [ ] `app/admin/page.tsx`, `app/admin/accounts/{page,actions}`, `components/admin/*`, shared role-marker-change wrapper, `components/settings/administration-section.tsx`, `components/shell/routes.ts`, `lib/step-up.ts`, `lib/i18n/{en,he}.ts` -- the index, the Accounts page, two actions, return path, Back target, wording -- AC-3, AC-4
-- [ ] `tests/` -- every matrix row: unit (actions with faked calls: role, each marker outcome incl. another class, order, cancellers run after the commit and see the guard already denying), integration (disable atomic and complete, Workspace kept, administrator refused, re-enable, idempotence, guard states, SQL assert with a racing disable on two connections, refusal function closed and deduplicated, preflight), browser on desktop and phone (list, disable, the disabled person's browser refused at once, re-enable and a real new sign-in, refusal and step-up offered, non-Administrator, two windows, outage, axe in four variants, 320 px at 200% text, keyboard and dialog focus); update structural tests -- all ACs
-- [ ] `provisioning/ledger.json`, `docs/{provisioning,auth-setup,staging}.md`, a short authority-contract document, `README.md`, `deferred-work.md` -- the attestation, a hosted check, resolved and remaining entries -- housekeeping
+- [x] `supabase/migrations/*_account_administration.sql`, `lib/accounts.ts`, `lib/authority.ts` -- list, disable, enable, guard and SQL assert, refusal recording, preflight probes, typed calls, the cancellation registry -- AC-1, AC-2, AC-3, AC-4
+- [x] `app/admin/page.tsx`, `app/admin/accounts/{page,actions}`, `components/admin/*`, shared role-marker-change wrapper, `components/settings/administration-section.tsx`, `components/shell/routes.ts`, `lib/step-up.ts`, `lib/i18n/{en,he}.ts` -- the index, the Accounts page, two actions, return path, Back target, wording -- AC-3, AC-4
+- [x] `tests/` -- every matrix row: unit (actions with faked calls: role, each marker outcome incl. another class, order, cancellers run after the commit and see the guard already denying), integration (disable atomic and complete, Workspace kept, administrator refused, re-enable, idempotence, guard states, SQL assert with a racing disable on two connections, refusal function closed and deduplicated, preflight), browser on desktop and phone (list, disable, the disabled person's browser refused at once, re-enable and a real new sign-in, refusal and step-up offered, non-Administrator, two windows, outage, axe in four variants, 320 px at 200% text, keyboard and dialog focus); update structural tests -- all ACs
+- [x] `provisioning/ledger.json`, `docs/{provisioning,auth-setup,staging}.md`, a short authority-contract document, `README.md`, `deferred-work.md` -- the attestation, a hosted check, resolved and remaining entries -- housekeeping
 
 **Acceptance Criteria:**
 - Given an enabled member with live sessions, when a freshly authenticated Administrator disables it, then its sessions, epoch and (later) download authority end atomically before any cancellation signal, and its Workspace remains.

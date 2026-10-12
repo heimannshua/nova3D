@@ -212,16 +212,18 @@ describe.each(locales)('a code that was just made, in %s', (locale) => {
 describe.each(locales)('Settings in %s', (locale) => {
   const settings = (isAdministrator?: boolean) => renderToStaticMarkup(<I18nProvider locale={locale}><SettingsContent isAdministrator={isAdministrator}/></I18nProvider>);
 
-  it('links to the invitation page for the Administrator, in a section of its own', () => {
+  it('links to the Administration index for the Administrator, in a section of its own', () => {
     const markup = settings(true);
     expect(text(markup)).toContain(t(locale, 'settings.admin.title'));
-    expect(markup).toMatch(/<a [^>]*href="\/admin\/invitations"[^>]*>/);
-    expect(text(markup)).toContain(t(locale, 'settings.admin.invitations'));
+    expect(markup).toMatch(/<a [^>]*href="\/admin"[^>]*>/);
+    expect(text(markup)).toContain(t(locale, 'settings.admin.open'));
+    // One link: the index links to Invitation codes and Accounts.
+    expect(markup).not.toMatch(/href="\/admin\//);
   });
 
   it('shows no such section to anyone else, and by default', () => {
     for (const markup of [settings(false), settings(undefined)]) {
-      expect(markup).not.toContain('/admin/invitations');
+      expect(markup).not.toContain('/admin');
       expect(text(markup)).not.toContain(t(locale, 'settings.admin.title'));
     }
   });

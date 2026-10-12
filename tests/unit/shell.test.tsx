@@ -198,9 +198,10 @@ describe('global shell (G-01, UX-DR24)', () => {
     expect(parentRoute('/')).toBeNull();
     expect(parentRoute('/settings')).toBe('/');
     expect(parentRoute('/projects/42')).toBe('/projects');
-    // The Administrator's pages (Story 1.11) are reached from Settings, and /admin is not a page.
-    expect(parentRoute('/admin/invitations')).toBe('/settings');
+    // The Administration index (Story 1.5) is reached from Settings; the pages beneath it are one level below the index.
     expect(parentRoute('/admin')).toBe('/settings');
+    expect(parentRoute('/admin/invitations')).toBe('/admin');
+    expect(parentRoute('/admin/accounts')).toBe('/admin');
     expect(parentRoute('/administration')).toBe('/');
   });
 

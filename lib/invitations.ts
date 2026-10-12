@@ -3,9 +3,12 @@
 // the label rules, the state an action answers with, how a call that did not answer is read, and how a row's
 // creation time is written. A client component imports this file, so it imports no Node or Next.js server code and
 // not lib/accounts.ts (whose types this file repeats by shape instead).
-import {unstable_rethrow} from 'next/navigation';
+import {attemptAdministeredAction} from '@/lib/administration';
 import type {MessageKey} from '@/lib/i18n';
-import {reloadHere, unexpectedResponseMessage} from '@/lib/session-actions';
+import {reloadHere} from '@/lib/session-actions';
+
+// Shared with the Accounts page (lib/administration.ts); re-exported so this page's imports stay as they were.
+export {formatCreatedAt, isoOf, type Confirmation} from '@/lib/administration';
 
 // Labels ----------------------------------------------------------------------------------------------------
 
@@ -72,29 +75,6 @@ export const statusKeys = {
   revoked: 'invitations.status.revoked',
 } as const satisfies Record<InvitationStatus, MessageKey>;
 
-/**
- * A creation time as `2026-10-12 00:24 UTC`: the same text on the server and in the browser (no locale, no time
- * zone of the machine), and unambiguous. An unreadable time is an empty string, never an exception.
- */
-export function formatCreatedAt(createdAt: string): string {
-  const moment = new Date(createdAt);
-  if (Number.isNaN(moment.getTime())) return '';
-  return `${moment.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
-}
-
-/** The time as an attribute for <time>, or undefined when it cannot be read. */
-export function isoOf(createdAt: string): string | undefined {
-  const moment = new Date(createdAt);
-  return Number.isNaN(moment.getTime()) ? undefined : moment.toISOString();
-}
-
-/**
- * Whether the page has seen the Administrator confirm it is them (a marker for `administration` that is still valid
- * when the page rendered). It only decides whether "Confirm it is you" is shown beforehand: the Server Action
- * checks the marker itself, every time, and is the authority.
- */
-export type Confirmation = 'confirmed' | 'needed' | 'unknown';
-
 // What an action answers -------------------------------------------------------------------------------------
 
 /** A code that was just made. It exists in the one response that carries it, and in the browser's memory until it is hidden. */
@@ -141,32 +121,14 @@ export const invitationActionIdle: InvitationActionState = {outcome: 'idle'};
 
 export type InvitationAction = (previous: InvitationActionState, formData: FormData) => Promise<InvitationActionState>;
 
-/**
- * Calls an invitation action and reads what comes back.
- *
- *  - A redirect travels as a thrown error and is rethrown for Next.js to follow.
- *  - The one answer that is not the action's own is "an unexpected response": what a redirect by the proxy looks like
- *    to a Server Action, because this session no longer has access. Loading the page again lets the proxy say so. It
- *    happens at most once for each attempt, so it can never become a reload loop.
- *  - Anything else, a dropped connection or a real server error, is an answer that did not come: the change may
- *    have been made, so the person is told to check the list (`unknown`).
- */
-export async function attemptInvitationAction(
+/** Calls an invitation action and reads what comes back (see `attemptAdministeredAction`): a call that did not answer is `unavailable`, and the change may have been made. */
+export function attemptInvitationAction(
   action: InvitationAction,
   previous: InvitationActionState,
   formData: FormData,
   navigate: () => void = reloadHere,
 ): Promise<InvitationActionState> {
-  try {
-    return await action(previous, formData);
-  } catch (error) {
-    unstable_rethrow(error);
-    if (error instanceof Error && error.message === unexpectedResponseMessage) {
-      navigate();
-      return previous;
-    }
-    return {outcome: 'unavailable', unknown: true};
-  }
+  return attemptAdministeredAction(action, previous, formData, {outcome: 'unavailable', unknown: true}, navigate);
 }
 
 /** The catalog key for an answer that is one fixed message. The others carry something: `invalid` its problem (labelErrorKeys), a failure what to do next (failureKey). */

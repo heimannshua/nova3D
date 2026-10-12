@@ -16,12 +16,13 @@ export function isCurrent(pathname: string, href: string): boolean {
 }
 
 /**
- * Where contextual Back goes: one level up, ending at Home. Home itself has no Back. The Administrator's pages
- * (Story 1.11) are reached from Settings and `/admin` is not a page, so Back from any of them goes to Settings.
+ * Where contextual Back goes: one level up, ending at Home. Home itself has no Back. The Administration index (`/admin`,
+ * Story 1.5) is reached from Settings, so Back from it goes to Settings; the pages beneath it (Invitation codes,
+ * Accounts) are one level up from the index, like any other page.
  */
 export function parentRoute(pathname: string): string | null {
   if (pathname === '/') return null;
-  if (pathname === '/admin' || pathname.startsWith('/admin/')) return '/settings';
+  if (pathname === '/admin') return '/settings';
   const parent = pathname.replace(/\/[^/]*$/, '');
   return parent === '' ? '/' : parent;
 }

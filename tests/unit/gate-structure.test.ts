@@ -407,17 +407,20 @@ describe('step-up (Story 1.4b) has one way in, one way to decide and one way to 
     expect(callers('finishStepUp')).toEqual(['app/auth/callback/route.ts', 'lib/access.ts']);
   });
 
-  it('checks a marker in the invitation actions (the authority) and the invitation page (to decide whether to offer the step-up beforehand), and nowhere else', () => {
-    expect(callers('checkMarker')).toEqual(['app/admin/invitations/actions.ts', 'app/admin/invitations/page.tsx', 'lib/accounts.ts']);
+  it('checks a marker in one wrapper (lib/administered.ts: the authority for every Administrator change, and the page\'s decision whether to offer the step-up beforehand), and nowhere else', () => {
+    expect(callers('checkMarker')).toEqual(['lib/accounts.ts', 'lib/administered.ts']);
   });
 
   it('only ever checks the administration marker, which stays valid for its five minutes, so a check followed by a change loses nothing', () => {
-    for (const file of ['app/admin/invitations/actions.ts', 'app/admin/invitations/page.tsx']) {
-      const code = withoutComments(read(file));
-      const calls = [...code.matchAll(/checkMarker\(\{([^}]*)\}/g)].map((match) => match[1]);
-      expect(calls.length, file).toBeGreaterThan(0);
-      for (const call of calls) expect(call, file).toMatch(/actionClass: 'administration'/);
-      expect(code, file).not.toMatch(/startedAfter/);
+    const code = withoutComments(read('lib/administered.ts'));
+    const calls = [...code.matchAll(/checkMarker\(\{([^}]*)\}/g)].map((match) => match[1]);
+    // The change wrapper and the page's confirmation read: two calls, both for administration.
+    expect(calls).toHaveLength(2);
+    for (const call of calls) expect(call).toMatch(/actionClass: 'administration'/);
+    expect(code).not.toMatch(/startedAfter/);
+    // The files that use the wrapper never name the marker themselves.
+    for (const file of ['app/admin/invitations/actions.ts', 'app/admin/invitations/page.tsx', 'app/admin/accounts/actions.ts', 'app/admin/accounts/page.tsx', 'app/admin/page.tsx']) {
+      expect(withoutComments(read(file)), file).not.toMatch(/\bcheckMarker\b|startedAfter/);
     }
   });
 
@@ -559,24 +562,21 @@ describe('the invitation page (Story 1.11) changes a code in one place, behind t
     expect([...code.matchAll(/return administered\(/g)]).toHaveLength(3);
   });
 
-  it('checks the role, then the marker, then makes the change, inside withActiveAccount and in that order', () => {
-    const start = code.indexOf('async function administered(');
-    const body = code.slice(start, code.indexOf('export async function issueNamedInvitation'));
-    const order = ['withActiveAccount', "account.role !== 'administrator'", 'checkMarker(', "marker !== 'allowed'", 'return run('].map((needle) => body.indexOf(needle));
-    expect(order.every((index) => index >= 0), order.join(',')).toBe(true);
-    expect([...order].sort((a, b) => a - b)).toEqual(order);
-    // The change itself is made only by `run`, which is only called after both checks; the three actions call nothing else first.
+  it('goes through the one wrapper that checks the role, then the marker, then makes the change: the actions check neither themselves', () => {
+    expect(code).toMatch(/import \{administered, type AdministeredSteps\} from '@\/lib\/administered'/);
+    expect(code).not.toMatch(/\bcheckMarker\b|withActiveAccount|account\.role/);
+    // Nothing changes before `administered` has run its two checks: the change functions are called only inside the callback it is given.
     for (const name of ['issueInvitation(', 'revokeInvitation(']) {
-      const at = body.indexOf(name);
-      expect(at, name).toBe(-1);
+      for (const at of [...code.matchAll(new RegExp(name.replace('(', '\\('), 'g'))].map((match) => match.index)) {
+        const enclosing = code.lastIndexOf('return administered(', at);
+        expect(enclosing, `${name} at ${at} is inside an administered() callback`).toBeGreaterThan(-1);
+        expect(code.slice(enclosing, at), name).toMatch(/async \(\{actor, budget\}\) =>/);
+      }
     }
   });
 
-  it('takes the actor from the verified session, and reads from the form only what each action is about: before the role and the marker only a revoke\'s invitation ID, parsed at once', () => {
-    expect(code).toMatch(/actor: `user:\$\{user\.id\}`/);
+  it('reads from the form only what each action is about: before the role and the marker only a revoke\'s invitation ID, parsed at once', () => {
     for (const forbidden of [/\bactor:\s*(?:formData|String\()/, /\bsearchParams\b/, /\bheaders\(\)/, /\brequest\.url\b/]) expect(code).not.toMatch(forbidden);
-    // The marker is asked about the verified session, for the class, never a class or a session a request chose.
-    expect(code).toMatch(/checkMarker\(\{userId: user\.id, sessionId: user\.sessionId, actionClass: 'administration'\}/);
 
     // Each exported action, split at `return administered(`: what it reads before the role and marker checks, and after.
     const reads = (text: string) => [...text.matchAll(/formData\.get\(['"](\w+)['"]\)/g)].map((match) => match[1]);
@@ -637,5 +637,155 @@ describe('the invitation page (Story 1.11) changes a code in one place, behind t
     for (const file of sources.filter((candidate) => candidate.startsWith('components/admin/') || candidate.startsWith('app/admin/'))) {
       expect(withoutComments(read(file)), file).not.toMatch(/['"`]\/step-up/);
     }
+  });
+});
+
+describe('the administrator wrapper (Story 1.5) is the one place that decides an Administrator\'s change may happen', () => {
+  const wrapper = 'lib/administered.ts';
+  const code = withoutComments(read(wrapper));
+  const body = code.slice(code.indexOf('export async function administered<'), code.indexOf('export async function readConfirmation'));
+
+  it('is used by the invitation actions and the Accounts actions, and by nothing else', () => {
+    const sources = [
+      ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+      ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+      ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+      'proxy.ts',
+    ];
+    const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+    const wrapped = sources.filter((file) => /\badministered(?:<\w+>)?\(/.test(withoutComments(read(file)))).sort();
+    expect(wrapped).toEqual(['app/admin/accounts/actions.ts', 'app/admin/invitations/actions.ts', wrapper]);
+    expect(callers('readConfirmation')).toEqual(['app/admin/accounts/page.tsx', 'app/admin/invitations/page.tsx', 'app/admin/page.tsx', wrapper]);
+  });
+
+  it('checks the role, then the marker, then makes the change, inside withActiveAccount and in that order', () => {
+    expect(body.length).toBeGreaterThan(0);
+    const order = ['withActiveAccount', "account.role !== 'administrator'", 'recordDenied(', 'checkMarker(', "marker !== 'allowed'", 'recordRefused(', 'return run('].map((needle) => body.indexOf(needle));
+    expect(order.every((index) => index >= 0), order.join(',')).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    // Only `run` makes the change, and it is called once, after both checks.
+    expect([...body.matchAll(/\brun\(/g)]).toHaveLength(1);
+  });
+
+  it('takes the actor and the marker\'s session from the verified session and nothing a request chose', () => {
+    expect(body).toMatch(/actor: `user:\$\{user\.id\}`/);
+    expect(body).toMatch(/checkMarker\(\{userId: user\.id, sessionId: user\.sessionId, actionClass: 'administration'\}/);
+    for (const forbidden of [/formData/i, /\bsearchParams\b/, /\bheaders\(\)/, /\brequest\b/]) expect(body).not.toMatch(forbidden);
+  });
+
+  it('sends a session that no longer holds a grant Home, and offers the step-up only when there is none or it ran out', () => {
+    expect(body).toMatch(/if \(marker === 'denied'\) return redirect\(homePath\)/);
+    expect(body).toMatch(/const stepUp = marker === 'none' \|\| marker === 'expired'/);
+  });
+
+  it('prints a failure by name and message only', () => {
+    const lines = code.split('\n').filter((line) => /console\.(?:log|info|warn|error|debug)\(/.test(line));
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) expect(line).toMatch(/describe\(error\)/);
+  });
+});
+
+describe('Account administration (Story 1.5) disables in one database call, then cancels, and shows nothing of a Workspace', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const actions = 'app/admin/accounts/actions.ts';
+  const code = withoutComments(read(actions));
+
+  it('lists, disables, enables and records a refusal from lib/accounts.ts, the one file of Server Actions and the page', () => {
+    expect(callers('disableAccount')).toEqual([actions, 'lib/accounts.ts']);
+    expect(callers('enableAccount')).toEqual([actions, 'lib/accounts.ts']);
+    expect(callers('recordAccountRefusal')).toEqual([actions, 'lib/accounts.ts']);
+    expect(callers('listAccounts')).toEqual(['app/admin/accounts/page.tsx', 'lib/accounts.ts']);
+  });
+
+  it('keeps the database functions behind the typed calls: nothing else names them', () => {
+    for (const file of sources.filter((candidate) => candidate !== 'lib/accounts.ts')) {
+      expect(withoutComments(read(file)), file).not.toMatch(/['"`](?:list_accounts|disable_account|enable_account|guard_operation|record_account_refusal|assert_operation_authority)['"`]/);
+    }
+  });
+
+  it('is a file of Server Actions that exports exactly the two, each going through the wrapper that checks the role and then the marker', () => {
+    expect(read(actions).trimStart()).toMatch(/^'use server';/);
+    expect([...code.matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)].map((match) => match[1])).toEqual(['disableMemberAccount', 'enableMemberAccount']);
+    expect([...code.matchAll(/^export\s/gm)]).toHaveLength(2);
+    expect([...code.matchAll(/return administered\(/g)]).toHaveLength(2);
+    expect(code).not.toMatch(/\bcheckMarker\b|withActiveAccount|account\.role/);
+  });
+
+  it('reads from the form only the Account\'s ID, parsed to a UUID or null before the role and the marker are checked, and takes the actor from the session', () => {
+    const reads = [...code.matchAll(/formData\.get\(['"](\w+)['"]\)/g)].map((match) => match[1]);
+    expect(reads).toEqual(['accountId', 'accountId']);
+    expect([...code.matchAll(/accountIdOf\(formData\.get\('accountId'\)\)/g)]).toHaveLength(2);
+    for (const forbidden of [/\bactor:\s*(?:formData|String\()/, /\bsearchParams\b/, /\bheaders\(\)/, /\brequest\.url\b/, /cookies\(/]) expect(code).not.toMatch(forbidden);
+    // The change is made, and the cancellers are run, only inside the callback `administered` is given.
+    for (const name of ['disableAccount(', 'enableAccount(', 'runCancellers(']) {
+      for (const at of [...code.matchAll(new RegExp(name.replace('(', '\\('), 'g'))].map((match) => match.index)) {
+        const enclosing = code.lastIndexOf('return administered(', at);
+        expect(enclosing, `${name} at ${at} is inside an administered() callback`).toBeGreaterThan(-1);
+        expect(code.slice(enclosing, at), name).toMatch(/async \(\{actor, budget\}\) =>/);
+      }
+    }
+  });
+
+  it('runs the cancellers only after the disable call has returned, never before, and never for an enable', () => {
+    const disable = code.slice(code.indexOf('export async function disableMemberAccount'), code.indexOf('export async function enableMemberAccount'));
+    const enable = code.slice(code.indexOf('export async function enableMemberAccount'));
+    expect([...disable.matchAll(/\brunCancellers\(/g)]).toHaveLength(1);
+    expect(disable.indexOf('await withinBudget(budget, (timeoutMs) => disableAccount(')).toBeGreaterThan(-1);
+    expect(disable.indexOf('runCancellers(')).toBeGreaterThan(disable.indexOf('disableAccount('));
+    // ... and only in the branch where the database said `disabled`.
+    expect(disable.slice(0, disable.indexOf('runCancellers(')).lastIndexOf("case 'disabled'")).toBeGreaterThan(disable.indexOf('switch (receipt.outcome)'));
+    expect(enable).not.toMatch(/runCancellers|authority/);
+  });
+
+  it('prints a failure by name and message only, and never an address, a name or the request', () => {
+    const lines = code.split('\n').filter((line) => /console\.(?:log|info|warn|error|debug)\(/.test(line));
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      expect(line).toMatch(/describe\(error\)/);
+      expect(line).not.toMatch(/email|accountId|formData|label/);
+    }
+    expect(code).toMatch(/recordAccountRefusal\(\{userId, action, accountId\}/);
+  });
+
+  it('shows and reads nothing of a Workspace: no page, action, component or list function names one, and the database function reads none', () => {
+    for (const file of ['app/admin/page.tsx', 'app/admin/accounts/page.tsx', actions, 'components/admin/admin-content.tsx', 'components/admin/accounts-content.tsx', 'components/admin/account-list.tsx', 'components/admin/account-failure-notice.tsx', 'components/use-account-action.ts', 'lib/account-admin.ts', 'lib/authority.ts']) {
+      expect(withoutComments(read(file)), file).not.toMatch(/workspace|projects\.|\bproject(?:s|Name|Id)?\b|\busage\b/i);
+    }
+    const migration = withoutComments(read('supabase/migrations/20261012130000_account_administration.sql').replace(/^--.*$/gm, ''));
+    const listing = migration.slice(migration.indexOf('create function api.list_accounts'), migration.indexOf('comment on function api.list_accounts'));
+    expect(listing.length).toBeGreaterThan(0);
+    expect(listing).not.toMatch(/projects\.|workspace/i);
+    // Disabling leaves the Workspace alone: no statement of the migration writes to a projects table.
+    expect(migration).not.toMatch(/(?:update|delete\s+from|insert\s+into)\s+projects\./i);
+  });
+
+  it('keeps the browser-bound pieces free of the server-only modules', () => {
+    for (const file of ['lib/account-admin.ts', 'lib/administration.ts', 'components/use-account-action.ts', ...sources.filter((candidate) => candidate.startsWith('components/admin/'))]) {
+      expect(withoutComments(read(file)), file).not.toMatch(/from '@\/lib\/(?:accounts|access|auth|authority|administered)'|from '\.\/(?:accounts|authority)(?:\.ts)?'|node:crypto|next\/headers/);
+    }
+  });
+
+  it('puts the authority contract in lib/authority.ts: a guard that fails closed, and a registry of cancellers that touches no Next.js module', () => {
+    const authority = withoutComments(read('lib/authority.ts'));
+    expect(callers('guardOperation')).toEqual(['lib/accounts.ts', 'lib/authority.ts']);
+    expect(callers('authorizeStep')).toEqual(['lib/authority.ts']);
+    expect(authority).not.toMatch(/from 'next|from '@\/|from "next/);
+    expect(authority).toMatch(/export async function authorizeStep/);
+    expect(authority).toMatch(/export function registerCanceller/);
+    expect(authority).toMatch(/export async function runCancellers/);
+    // An answer that cannot be got is a denial: the catch returns allowed: false and never allowed: true.
+    const guard = authority.slice(authority.indexOf('export async function authorizeStep'), authority.indexOf('// Cancellation'));
+    expect(guard.slice(guard.indexOf('catch (error)'))).not.toMatch(/allowed: true/);
+  });
+
+  it('writes the contract down for the people who write Jobs and the file gateway', () => {
+    const contract = read('docs/authority-contract.md');
+    for (const needle of ['authorizeStep', 'identity.assert_operation_authority', 'api.guard_operation', 'operationOf', 'registerCanceller', 'stale_epoch', 'unreachable']) expect(contract, needle).toContain(needle);
   });
 });

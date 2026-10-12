@@ -42,10 +42,10 @@ describe('the action classes', () => {
     expect([...consumedStepUpClasses]).toEqual(['account_deletion', 'close_instance']);
   });
 
-  it('return, by class, to a path of this application that the server chose: the invitation page for administration (Story 1.11), Settings until the stories that own the other areas exist', () => {
+  it('return, by class, to a path of this application that the server chose: the Administration index for administration (Story 1.5, one class for both of the Administrator\'s pages), Settings until the stories that own the other areas exist', () => {
     expect(Object.keys(stepUpReturnPaths).sort()).toEqual([...stepUpClasses].sort());
     expect(stepUpReturnPaths).toEqual({
-      administration: '/admin/invitations',
+      administration: '/admin',
       owner_deletion: '/settings',
       account_deletion: '/settings',
       close_instance: '/settings',

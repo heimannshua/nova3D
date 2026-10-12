@@ -11,7 +11,10 @@ import {
   canonicalizeInvitationCode,
   clientAddressFromHeaders,
   confirmRegistration,
+  accountRefusalActions,
   consumePreauthorization,
+  disableAccount,
+  enableAccount,
   generateInvitationCode,
   hashClientAddress,
   hashInvitationCode,
@@ -23,8 +26,12 @@ import {
   issueInvitation,
   listInvitations,
   invitationRefusalActions,
+  guardOperation,
+  listAccounts,
   looksLikeInvitationCode,
   normalizeClientAddress,
+  operationOutcomes,
+  recordAccountRefusal,
   recordInvitationRefusal,
   raiseAuthorizationEpoch,
   registerWithCode,
@@ -981,6 +988,188 @@ describe('recordInvitationRefusal (Story 1.11)', () => {
     await expect(recordInvitationRefusal({userId: 'nope', action: 'invitation.denied'}, {env: environment(), fetch})).rejects.toThrow(TypeError);
     await expect(recordInvitationRefusal({userId: USER, action: 'invitation.revoke_refused', invitationId: "x'; drop table"}, {env: environment(), fetch})).rejects.toThrow(TypeError);
     expect(calls).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+describe('Account administration (Story 1.5)', () => {
+  const ACCOUNT = '7a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d';
+  const ACTOR = `user:${USER}`;
+  const row = {account_id: ACCOUNT, email: 'dana@example.com', invitation_kind: 'named', invitation_label: 'Dana', role: 'member', status: 'active', created_at: '2026-10-12T00:24:11.123456+00:00'};
+
+  describe('listAccounts', () => {
+    it('calls api.list_accounts with the service role, no argument, and maps each row', async () => {
+      const {calls, fetch} = endpoint(() => ({body: [row, {...row, account_id: USER, email: null, invitation_kind: null, invitation_label: null, role: 'administrator', status: 'disabled'}]}));
+      expect(await listAccounts({env: environment(), fetch})).toEqual([
+        {accountId: ACCOUNT, email: 'dana@example.com', invitationKind: 'named', invitationLabel: 'Dana', role: 'member', status: 'active', createdAt: '2026-10-12T00:24:11.123456+00:00'},
+        {accountId: USER, email: null, invitationKind: null, invitationLabel: null, role: 'administrator', status: 'disabled', createdAt: '2026-10-12T00:24:11.123456+00:00'},
+      ]);
+      expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/list_accounts');
+      expect(calls[0].body).toEqual({});
+      expect(calls[0].init.headers).toMatchObject({'content-profile': 'api', authorization: `Bearer ${SERVICE_KEY}`});
+    });
+
+    it('answers an empty list, and refuses an answer that is not a list or has a row it cannot read', async () => {
+      expect(await listAccounts({env: environment(), fetch: endpoint(() => ({body: []})).fetch})).toEqual([]);
+      for (const body of [{}, 'rows', null, [{...row, account_id: null}], [{...row, role: 'owner'}], [{...row, status: 'banned'}], [{...row, invitation_kind: 'special'}], ['x']]) {
+        await expect(listAccounts({env: environment(), fetch: endpoint(() => ({body})).fetch}), JSON.stringify(body)).rejects.toBeInstanceOf(AccountsUnavailableError);
+      }
+    });
+
+    it('fails closed when the database cannot be reached, errors, or refuses the call', async () => {
+      await expect(listAccounts({env: environment(), fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({retryable: true});
+      await expect(listAccounts({env: environment(), fetch: endpoint(() => ({status: 503, body: {}})).fetch})).rejects.toMatchObject({retryable: true, status: 503});
+    });
+  });
+
+  describe('disableAccount', () => {
+    const done = {outcome: 'disabled', sessions_ended: 2, grants_revoked: 3, epoch: 4};
+
+    it('sends the actor and the Account to api.disable_account and nothing else, and maps the receipt', async () => {
+      const {calls, fetch} = endpoint(() => ({body: done}));
+      expect(await disableAccount({accountId: ACCOUNT.toUpperCase(), actor: ACTOR}, {env: environment(), fetch})).toEqual({outcome: 'disabled', sessionsEnded: 2, grantsRevoked: 3, epoch: 4});
+      expect(calls).toHaveLength(1);
+      expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/disable_account');
+      expect(calls[0].body).toEqual({p_actor: ACTOR, p_account_id: ACCOUNT});
+      expect(JSON.stringify(calls[0].body)).not.toContain(SERVICE_KEY);
+    });
+
+    it.each(['already_disabled', 'administrator', 'not_found'] as const)('maps %s, with no counts', async (outcome) => {
+      const {fetch} = endpoint(() => ({body: {outcome, sessions_ended: null, grants_revoked: null, epoch: outcome === 'not_found' ? null : 2}}));
+      expect(await disableAccount({accountId: ACCOUNT, actor: ACTOR}, {env: environment(), fetch})).toEqual({outcome, sessionsEnded: 0, grantsRevoked: 0, epoch: outcome === 'not_found' ? null : 2});
+    });
+
+    it.each([
+      ['an outcome it does not know', {outcome: 'done'}],
+      ['a disable that does not say how many sessions ended', {...done, sessions_ended: null}],
+      ['a disable that does not say how many grants ended', {...done, grants_revoked: undefined}],
+      ['a disable that does not name the epoch', {...done, epoch: null}],
+      ['a count that is not a number', {...done, sessions_ended: 'two'}],
+      ['a negative count', {...done, sessions_ended: -1}],
+      ['text', 'disabled'],
+    ])('treats %s as no answer at all', async (_name, body) => {
+      const {fetch} = endpoint(() => ({body}));
+      await expect(disableAccount({accountId: ACCOUNT, actor: ACTOR}, {env: environment(), fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+
+    it('says, when it throws, whether the change may have been made', async () => {
+      const input = {accountId: ACCOUNT, actor: ACTOR};
+      await expect(disableAccount(input, {env: environment(), fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({retryable: true, outcomeUnknown: true});
+      await expect(disableAccount(input, {env: environment(), fetch: endpoint(() => ({status: 503, body: {}})).fetch})).rejects.toMatchObject({retryable: true, outcomeUnknown: true});
+      await expect(disableAccount(input, {env: environment(), fetch: endpoint(() => ({status: 400, body: {code: '22023'}})).fetch})).rejects.toMatchObject({retryable: false, outcomeUnknown: false, code: '22023'});
+    });
+
+    it('refuses a bad Account ID or actor without calling the database', async () => {
+      const {calls, fetch} = endpoint(() => ({body: done}));
+      await expect(disableAccount({accountId: 'nope', actor: ACTOR}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      await expect(disableAccount({accountId: "x'; drop table", actor: ACTOR}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      for (const actor of ['', 'User:1', 'user:', 'user:a b', 'user:' + 'x'.repeat(65)]) await expect(disableAccount({accountId: ACCOUNT, actor}, {env: environment(), fetch}), actor).rejects.toThrow(TypeError);
+      expect(calls).toHaveLength(0);
+    });
+  });
+
+  describe('enableAccount', () => {
+    it('sends the actor and the Account to api.enable_account and maps the receipt', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'enabled', epoch: 5}}));
+      expect(await enableAccount({accountId: ACCOUNT, actor: ACTOR}, {env: environment(), fetch})).toEqual({outcome: 'enabled', epoch: 5});
+      expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/enable_account');
+      expect(calls[0].body).toEqual({p_actor: ACTOR, p_account_id: ACCOUNT});
+    });
+
+    it.each([['already_enabled', 5], ['not_found', null]] as const)('maps %s', async (outcome, epoch) => {
+      const {fetch} = endpoint(() => ({body: {outcome, epoch}}));
+      expect(await enableAccount({accountId: ACCOUNT, actor: ACTOR}, {env: environment(), fetch})).toEqual({outcome, epoch});
+    });
+
+    it.each([
+      ['an outcome it does not know', {outcome: 'on'}],
+      ['an enable that does not name the epoch', {outcome: 'enabled', epoch: null}],
+      ['an epoch that is not a number', {outcome: 'already_enabled', epoch: 'five'}],
+      ['no outcome', {}],
+    ])('treats %s as no answer at all', async (_name, body) => {
+      await expect(enableAccount({accountId: ACCOUNT, actor: ACTOR}, {env: environment(), fetch: endpoint(() => ({body})).fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+
+    it('refuses a bad Account ID or actor without calling the database', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'enabled', epoch: 2}}));
+      await expect(enableAccount({accountId: 'nope', actor: ACTOR}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      await expect(enableAccount({accountId: ACCOUNT, actor: 'nobody knows'}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      expect(calls).toHaveLength(0);
+    });
+  });
+
+  describe('guardOperation', () => {
+    it('names the four answers the database gives, and no others', () => {
+      expect([...operationOutcomes]).toEqual(['allowed', 'disabled', 'stale_epoch', 'no_account']);
+    });
+
+    it('sends the Account and the epoch it registered under to api.guard_operation', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'allowed', epoch: 3}}));
+      expect(await guardOperation({accountId: ACCOUNT.toUpperCase(), epoch: 3}, {env: environment(), fetch})).toEqual({outcome: 'allowed', epoch: 3});
+      expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/guard_operation');
+      expect(calls[0].body).toEqual({p_account_id: ACCOUNT, p_epoch: 3});
+    });
+
+    it.each([['disabled', 4], ['stale_epoch', 4], ['no_account', null]] as const)('maps %s', async (outcome, epoch) => {
+      const {fetch} = endpoint(() => ({body: {outcome, epoch}}));
+      expect(await guardOperation({accountId: ACCOUNT, epoch: 3}, {env: environment(), fetch})).toEqual({outcome, epoch});
+    });
+
+    it.each([
+      ['an outcome it does not know', {outcome: 'ok', epoch: 1}],
+      ['an answer for a known Account that names no epoch', {outcome: 'allowed', epoch: null}],
+      ['a stale answer without an epoch', {outcome: 'stale_epoch'}],
+      ['text', 'allowed'],
+    ])('treats %s as no answer at all, which is never permission', async (_name, body) => {
+      await expect(guardOperation({accountId: ACCOUNT, epoch: 3}, {env: environment(), fetch: endpoint(() => ({body})).fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+
+    it('refuses an Account ID that is not a UUID and an epoch that is not a positive integer, without calling the database', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'allowed', epoch: 1}}));
+      await expect(guardOperation({accountId: 'nope', epoch: 3}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      for (const epoch of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 60, '3' as never, null as never, undefined as never]) {
+        await expect(guardOperation({accountId: ACCOUNT, epoch}, {env: environment(), fetch}), String(epoch)).rejects.toThrow(TypeError);
+      }
+      expect(calls).toHaveLength(0);
+    });
+  });
+
+  describe('recordAccountRefusal', () => {
+    it('names the three refusals the database records, and no others', () => {
+      expect([...accountRefusalActions]).toEqual(['account.disable_refused', 'account.enable_refused', 'account.denied']);
+    });
+
+    it('sends the verified Auth user, the action and the Account to api.record_account_refusal, and nothing else', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'recorded'}}));
+      expect(await recordAccountRefusal({userId: USER.toUpperCase(), action: 'account.disable_refused', accountId: ACCOUNT.toUpperCase()}, {env: environment(), fetch})).toBe('recorded');
+      expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/record_account_refusal');
+      expect(calls[0].body).toEqual({p_user_id: USER, p_action: 'account.disable_refused', p_account_id: ACCOUNT});
+      expect(await recordAccountRefusal({userId: USER, action: 'account.denied'}, {env: environment(), fetch})).toBe('recorded');
+      expect(calls[1].body).toEqual({p_user_id: USER, p_action: 'account.denied', p_account_id: null});
+      // Extra fields in the input go nowhere: the typed call builds the body from the three it knows.
+      await recordAccountRefusal({userId: USER, action: 'account.enable_refused', email: 'dana@example.com', reason: 'expired'} as never, {env: environment(), fetch});
+      expect(JSON.stringify(calls[2].body)).not.toMatch(/dana|expired/);
+      expect(Object.keys(calls[2].body).sort()).toEqual(['p_account_id', 'p_action', 'p_user_id']);
+    });
+
+    it.each(['recorded', 'repeated'] as const)('maps the %s outcome', async (outcome) => {
+      const {fetch} = endpoint(() => ({body: {outcome}}));
+      expect(await recordAccountRefusal({userId: USER, action: 'account.denied'}, {env: environment(), fetch})).toBe(outcome);
+    });
+
+    it.each([['an outcome it does not know', {outcome: 'ok'}], ['no outcome', {}], ['text', 'recorded']])('treats %s as no answer at all', async (_name, body) => {
+      await expect(recordAccountRefusal({userId: USER, action: 'account.denied'}, {env: environment(), fetch: endpoint(() => ({body})).fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    });
+
+    it('refuses an action it does not know, and an ID that is not a UUID, without calling the database', async () => {
+      const {calls, fetch} = endpoint(() => ({body: {outcome: 'recorded'}}));
+      for (const action of ['account.disabled', 'account.enabled', 'invitation.denied', 'account.refused', '', undefined, 7]) {
+        await expect(recordAccountRefusal({userId: USER, action: action as never}, {env: environment(), fetch}), String(action)).rejects.toThrow(TypeError);
+      }
+      await expect(recordAccountRefusal({userId: 'nope', action: 'account.denied'}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      await expect(recordAccountRefusal({userId: USER, action: 'account.disable_refused', accountId: "x'; drop table"}, {env: environment(), fetch})).rejects.toThrow(TypeError);
+      expect(calls).toHaveLength(0);
+    });
   });
 });
 

@@ -76,22 +76,28 @@ export function Dialog({title, description, eyebrow, closeLabel, onClose, childr
   );
 }
 
-/** A yes/no question. For a destructive action focus starts on Cancel, so Enter does not destroy by accident. */
-export function ConfirmDialog({title, description, confirmLabel, cancelLabel, tone = 'primary', onConfirm, onCancel}: {
+/**
+ * A yes/no question. For a destructive action focus starts on Cancel, so Enter does not destroy by accident. `startOn`
+ * says it for a question that is not destructive but still should not be answered by accident (default: Cancel for the
+ * `danger` tone, the confirming button otherwise).
+ */
+export function ConfirmDialog({title, description, confirmLabel, cancelLabel, tone = 'primary', startOn, onConfirm, onCancel}: {
   title: string;
   description: string;
   confirmLabel: string;
   cancelLabel?: string;
   tone?: Extract<ButtonVariant, 'primary' | 'danger'>;
+  startOn?: 'cancel' | 'confirm';
   onConfirm: () => void;
   onCancel: () => void;
 }) {
   const {t} = useI18n();
+  const focusCancel = (startOn ?? (tone === 'danger' ? 'cancel' : 'confirm')) === 'cancel';
   return (
     <Dialog title={title} description={description} onClose={onCancel}>
       <div className="dialog-actions">
-        <Button variant="secondary" data-autofocus={tone === 'danger' ? '' : undefined} onClick={onCancel}>{cancelLabel ?? t('confirm.cancel')}</Button>
-        <Button variant={tone} data-autofocus={tone === 'danger' ? undefined : ''} onClick={onConfirm}>{confirmLabel}</Button>
+        <Button variant="secondary" data-autofocus={focusCancel ? '' : undefined} onClick={onCancel}>{cancelLabel ?? t('confirm.cancel')}</Button>
+        <Button variant={tone} data-autofocus={focusCancel ? undefined : ''} onClick={onConfirm}>{confirmLabel}</Button>
       </div>
     </Dialog>
   );

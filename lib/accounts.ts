@@ -929,3 +929,153 @@ export async function listInvitations(options: AccountsOptions = {}): Promise<In
     };
   });
 }
+
+// Account administration (Story 1.5) ---------------------------------------------------------------------------
+
+/** One Account as the Administrator's list shows it: who, how they came, their role and status. Never Workspace content, a project name or usage. */
+export type AccountSummary = {
+  accountId: string;
+  /** The Google address Auth verified, or null if Auth no longer vouches for one. */
+  email: string | null;
+  /** The kind of invitation code that made the Account; null for an Account no code made (the pre-authorized Administrator). */
+  invitationKind: 'named' | 'general' | null;
+  /** The name of a named code. A general code carries none. */
+  invitationLabel: string | null;
+  role: Role;
+  status: 'active' | 'disabled';
+  createdAt: string;
+};
+
+/**
+ * api.disable_account: `disabled` (done in one transaction: status and epoch, every session grant, the Auth
+ * sessions, the audit event), `already_disabled`, `administrator` (the Administrator's Account cannot be disabled) or
+ * `not_found`. `sessionsEnded` counts the Auth sessions that were ended and `grantsRevoked` the session grants.
+ */
+export type DisableReceipt = {
+  outcome: 'disabled' | 'already_disabled' | 'administrator' | 'not_found';
+  sessionsEnded: number;
+  grantsRevoked: number;
+  epoch: number | null;
+};
+/** api.enable_account: `enabled` (active again under a newer epoch), `already_enabled` or `not_found`. */
+export type EnableReceipt = {outcome: 'enabled' | 'already_enabled' | 'not_found'; epoch: number | null};
+
+/**
+ * api.guard_operation: `allowed` is the only permission. `disabled`: the Account is disabled. `stale_epoch`: the Account's
+ * epoch is not the one the operation registered under (a disable or a re-enable raised it since). `no_account`: no such Account.
+ * `epoch` is the Account's current epoch (null for `no_account`).
+ */
+export const operationOutcomes = ['allowed', 'disabled', 'stale_epoch', 'no_account'] as const;
+export type OperationOutcome = (typeof operationOutcomes)[number];
+export type OperationGuard = {outcome: OperationOutcome; epoch: number | null};
+
+/** The refusals of an Account change that api.record_account_refusal records (Story 1.5). */
+export const accountRefusalActions = ['account.disable_refused', 'account.enable_refused', 'account.denied'] as const;
+export type AccountRefusalAction = (typeof accountRefusalActions)[number];
+/** `recorded` (a new audit event) or `repeated` (the same refusal was recorded in the last hour; nothing was written). */
+export const accountRefusalOutcomes = ['recorded', 'repeated'] as const;
+export type AccountRefusalOutcome = (typeof accountRefusalOutcomes)[number];
+
+/**
+ * The Accounts, newest first (at most 200): ID, the verified Google address, the invitation that made the Account, role,
+ * status and creation time (Story 1.5). Never Workspace content, a project name or usage.
+ */
+export async function listAccounts(options: AccountsOptions = {}): Promise<AccountSummary[]> {
+  const body = await callApi('list_accounts', {}, options);
+  if (!Array.isArray(body)) throw unexpected();
+  return body.map((item) => {
+    const row = (typeof item === 'object' && item !== null ? item : {}) as Row;
+    const id = text(row.account_id);
+    const role = roleOf(row.role);
+    if (!id || !role) throw unexpected();
+    return {
+      accountId: id,
+      email: text(row.email),
+      invitationKind: row.invitation_kind === null || row.invitation_kind === undefined ? null : oneOf(row.invitation_kind, ['named', 'general'] as const),
+      invitationLabel: text(row.invitation_label),
+      role,
+      status: oneOf(row.status, ['active', 'disabled'] as const),
+      createdAt: text(row.created_at) ?? '',
+    };
+  });
+}
+
+/** An epoch the database may answer as null (an Account that does not exist), or a real one; anything else is no answer. */
+function epochOrNull(value: unknown) {
+  if (value === null || value === undefined) return null;
+  const epoch = count(value);
+  if (epoch === null) throw unexpected();
+  return epoch;
+}
+
+/**
+ * Disables a member Account in one transaction (Story 1.5): the status and the authorization epoch, every session grant,
+ * the Auth sessions, and the `account.disabled` audit event; the Workspace is untouched. The actor (`user:<Auth user ID>`)
+ * is the verified Administrator's, taken by the caller from the session and never from input. The caller has already
+ * checked the role and the fresh-authentication marker. Cancellation signals are sent by the caller only after this
+ * returns, never before (lib/authority.ts). If this throws an AccountsUnavailableError with `outcomeUnknown`, the Account
+ * may or may not have been disabled: read the list before trying again.
+ */
+export async function disableAccount(input: {accountId: string; actor: string}, options: AccountsOptions = {}): Promise<DisableReceipt> {
+  requireActor(input.actor);
+  const row = await callRow('disable_account', {p_actor: input.actor, p_account_id: requireUuid('accountId', input.accountId)}, options);
+  const outcome = oneOf(row.outcome, ['disabled', 'already_disabled', 'administrator', 'not_found'] as const);
+  const sessionsEnded = count(row.sessions_ended);
+  const grantsRevoked = count(row.grants_revoked);
+  const epoch = epochOrNull(row.epoch);
+  // A disable that does not say what it ended, or the epoch it raised the Account to (the cancellers are told it), is not an answer.
+  if (outcome === 'disabled' && (sessionsEnded === null || grantsRevoked === null || epoch === null)) throw unexpected();
+  return {outcome, sessionsEnded: sessionsEnded ?? 0, grantsRevoked: grantsRevoked ?? 0, epoch};
+}
+
+/**
+ * Enables a disabled Account under a newer epoch (Story 1.5) and audits `account.enabled`. The sessions that were ended
+ * stay ended: the person signs in anew. Same actor and caller rules as `disableAccount`.
+ */
+export async function enableAccount(input: {accountId: string; actor: string}, options: AccountsOptions = {}): Promise<EnableReceipt> {
+  requireActor(input.actor);
+  const row = await callRow('enable_account', {p_actor: input.actor, p_account_id: requireUuid('accountId', input.accountId)}, options);
+  const outcome = oneOf(row.outcome, ['enabled', 'already_enabled', 'not_found'] as const);
+  const epoch = epochOrNull(row.epoch);
+  if (outcome === 'enabled' && epoch === null) throw unexpected();
+  return {outcome, epoch};
+}
+
+/**
+ * The authority check for an operation's own step (Story 1.5): `epoch` is the authorization epoch the operation registered
+ * under, which is the epoch of the live authorization that started it. Only `allowed` is permission. This throws when the
+ * database cannot be reached: lib/authority.ts turns that into a denial, and is what Jobs and the file gateway call.
+ */
+export async function guardOperation(input: {accountId: string; epoch: number}, options: AccountsOptions = {}): Promise<OperationGuard> {
+  if (!Number.isSafeInteger(input.epoch) || input.epoch < 1) throw new TypeError('epoch must be a positive integer');
+  const row = await callRow('guard_operation', {p_account_id: requireUuid('accountId', input.accountId), p_epoch: input.epoch}, options);
+  const outcome = oneOf(row.outcome, operationOutcomes);
+  const epoch = epochOrNull(row.epoch);
+  // Every answer but "no such Account" comes from a known Account, which has an epoch.
+  if (outcome !== 'no_account' && epoch === null) throw unexpected();
+  return {outcome, epoch};
+}
+
+/**
+ * Records a refused Account change in the audit trail (Story 1.5): the actor (`user:<id>`, built by the database from the
+ * verified Auth user the server passes, never from input) and, when it exists, the Account the attempt named as the target.
+ * It records no reason, marker outcome, address or content, and takes none. Once an hour per actor, action and target. The
+ * application has already refused the change when it calls this: a failure to record is logged by the caller and never turns
+ * the refusal into a permission.
+ */
+export async function recordAccountRefusal(
+  input: {userId: string; action: AccountRefusalAction; accountId?: string | null},
+  options: AccountsOptions = {},
+): Promise<AccountRefusalOutcome> {
+  if (!(accountRefusalActions as readonly string[]).includes(input.action)) throw new TypeError('action must be one of the Account refusal actions');
+  const row = await callRow(
+    'record_account_refusal',
+    {
+      p_user_id: requireUuid('userId', input.userId),
+      p_action: input.action,
+      p_account_id: input.accountId == null ? null : requireUuid('accountId', input.accountId),
+    },
+    options,
+  );
+  return oneOf(row.outcome, accountRefusalOutcomes);
+}

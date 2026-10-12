@@ -169,7 +169,8 @@ export function accountsWorld() {
   }
 
   const setStatus = (user: TestUser, status: 'active' | 'disabled') => db.query('update identity.accounts set status = $2 where user_id = $1', [user.id, status]);
-  const accountOf = async (user: TestUser) => (await db.query('select id, status, role, google_subject, source from identity.accounts where user_id = $1', [user.id])).rows[0];
+  const accountOf = async (user: TestUser) =>
+    (await db.query('select id, status, role, google_subject, source, authorization_epoch::int as epoch from identity.accounts where user_id = $1', [user.id])).rows[0];
   const workspacesOf = async (user: TestUser) =>
     Number((await db.query('select count(*) as n from projects.workspaces w join identity.accounts a on a.id = w.account_id where a.user_id = $1', [user.id])).rows[0].n);
   const commandsOf = async (user: TestUser) =>
@@ -305,6 +306,40 @@ export function accountsWorld() {
    */
   const holdFlakyInvitations = () => db.query(`select pg_advisory_lock(hashtextextended('nova3d-e2e:flaky-invitations', 0))`);
   const releaseFlakyInvitations = () => db.query(`select pg_advisory_unlock(hashtextextended('nova3d-e2e:flaky-invitations', 0))`);
+  // Account administration (Story 1.5) ---------------------------------------------------------------
+
+  /** The Workspace ID of the user's Account (the Administrator never sees it; a test proves it is kept and shown nowhere). */
+  const workspaceIdOf = async (user: TestUser) =>
+    (await db.query('select w.id from projects.workspaces w join identity.accounts a on a.id = w.account_id where a.user_id = $1', [user.id])).rows[0]?.id as string | undefined;
+  /** Another live session of the user with its grant (another browser or device), with its own cookie. */
+  async function liveSession(user: TestUser) {
+    const session = await extraSession(user);
+    await grant(user, session.sessionId);
+    return session;
+  }
+  /**
+   * Removes the user's Account and everything that hangs on it, the way the cleanup at the end of a test does, so a page that
+   * still lists it names an Account that no longer exists. The Auth user stays (the world removes it).
+   */
+  async function eraseAccount(user: TestUser) {
+    const accounts = `(select id from identity.accounts where user_id = $1)`;
+    await db.query(`delete from identity.account_preferences where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from identity.fresh_authentications where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from identity.step_up_nonces where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from identity.session_grants where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from identity.registration_commands where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from identity.invitations where redeemed_account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from projects.workspaces where account_id in ${accounts}`, [user.id]);
+    await db.query('delete from identity.accounts where user_id = $1', [user.id]);
+  }
+  /**
+   * A lock that serializes the tests which load the Accounts page through the SECOND server, the one with the fake network (a
+   * global switch there fails `list_accounts` for every request that server handles). Session level, so a test that dies
+   * releases it with its connection.
+   */
+  const holdFlakyAccounts = () => db.query(`select pg_advisory_lock(hashtextextended('nova3d-e2e:flaky-accounts', 0))`);
+  const releaseFlakyAccounts = () => db.query(`select pg_advisory_unlock(hashtextextended('nova3d-e2e:flaky-accounts', 0))`);
+
   /** A general code, issued the way the seed command issues one. Returns its code (the person who registers will type it). */
   async function issueGeneralCode() {
     const issued = await issueInvitation({kind: 'general', actor: 'seed:local:e2e'}, {env});
@@ -335,6 +370,7 @@ export function accountsWorld() {
     markersOf, noncesOf, startStepUpFrom, markerOutcome, ageNonces, adoptUser, authSessionsOf, hasGrantAtAll,
     preferencesOf, adoptPreferencesFor,
     auditBy, makeAdministrator, forgeMarker, expireMarker, invitationRow, invitationByLabel, invitationsIssuedBy, unusedGeneralId, takeGeneralCode, releaseGeneralCode, holdFlakyInvitations, releaseFlakyInvitations, issueGeneralCode, activateWithCode,
+    workspaceIdOf, liveSession, eraseAccount, holdFlakyAccounts, releaseFlakyAccounts,
   };
 }
 

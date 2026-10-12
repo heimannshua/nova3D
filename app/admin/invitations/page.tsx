@@ -1,10 +1,11 @@
 import type {Metadata} from 'next';
 import {InvitationsContent} from '@/components/admin/invitations-content';
-import {checkMarker, listInvitations} from '@/lib/accounts';
+import {listInvitations} from '@/lib/accounts';
 import {gatingTimeoutMs} from '@/lib/access';
+import {readConfirmation} from '@/lib/administered';
 import {getAccess, requireAdministrator} from '@/lib/auth';
 import {getI18n} from '@/lib/i18n/server';
-import type {Confirmation, InvitationRow} from '@/lib/invitations';
+import type {InvitationRow} from '@/lib/invitations';
 
 // Next evaluates the page's metadata before the page runs its own check, and a page's title wins over the 404 page's. So
 // the title asks the same question the page does: for anyone but an active Administrator the page answers 404, and its
@@ -26,21 +27,6 @@ async function readList(): Promise<InvitationRow[] | null> {
   } catch (error) {
     console.error('The invitation list could not be read.', describe(error));
     return null;
-  }
-}
-
-/**
- * Whether the Administrator has a valid `administration` marker right now. This only decides whether "Confirm it is
- * you" is offered before a change is tried: the Server Action checks the marker itself, every time, and is the
- * authority. A check that cannot be made says nothing (`unknown`) and the actions decide.
- */
-async function readConfirmation(user: {id: string; sessionId: string}): Promise<Confirmation> {
-  try {
-    const outcome = await checkMarker({userId: user.id, sessionId: user.sessionId, actionClass: 'administration'}, {timeoutMs: gatingTimeoutMs});
-    return outcome === 'allowed' ? 'confirmed' : 'needed';
-  } catch (error) {
-    console.error('The fresh sign-in could not be checked for the invitation page.', describe(error));
-    return 'unknown';
   }
 }
 

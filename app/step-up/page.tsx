@@ -24,7 +24,7 @@ export default async function StepUpPage({searchParams}: {searchParams: Promise<
   if (!isStepUpClass(actionClass)) notFound();
   // Administration is the Administrator's: for anyone else the page that it returns to answers 404, so the step-up that
   // would lead there is a page that does not exist too (and does not tell a member they are about to change invitation
-  // codes). The role is the live authorization's, as for the pages themselves.
+  // codes or Accounts). The role is the live authorization's, as for the pages themselves.
   if (actionClass === 'administration' && access.account.role !== 'administrator') notFound();
   return <StepUpForm start={beginStepUp.bind(null, actionClass)} cancelHref={stepUpReturnPaths[actionClass]} actionClass={actionClass} email={access.user.email} />;
 }
