@@ -2,10 +2,10 @@
 
 import {useState, type ReactNode} from 'react';
 import {isolateLtr, translate, type MessageKey} from '@/lib/i18n';
-import {mockProjects} from '@/lib/mock-data';
+import {fixtureRows} from '@/lib/project-fixtures';
 import {useI18n} from '@/lib/i18n/react';
 import {PreferencesForm} from '../settings/preferences-form';
-import {ProjectCard} from '../nova-dashboard';
+import {ProjectCard} from '../projects/project-card';
 import {useAnnounce} from '../ui/announcer';
 import {Button, LinkButton} from '../ui/button';
 import {ConfirmDialog} from '../ui/dialog';
@@ -13,6 +13,9 @@ import {GuidanceCard} from '../ui/guidance-card';
 import {EmptyState, ErrorState, Notice} from '../ui/states';
 import {StatusBadge, type StatusTone} from '../ui/status-badge';
 import {LtrToken, TextSpan} from '../ui/text-span';
+
+// The sample cards are fed by the fixtures (lib/project-fixtures.ts), not by any Account's Projects, and they stand for none.
+const samples = fixtureRows();
 
 const statusTones: {tone: StatusTone; label: MessageKey}[] = [
   {tone: 'success', label: 'status.done'},
@@ -68,7 +71,7 @@ export function KitContent() {
 
   return (
     <div className="page">
-      <p className="eyebrow">{t('shell.syntheticBadge')}</p>
+      <p className="eyebrow">{t('kit.eyebrow')}</p>
       <h1>{t('kit.title')}</h1>
       <p className="lede">{t('kit.lede')}</p>
 
@@ -109,8 +112,8 @@ export function KitContent() {
 
       <Section title={t('kit.cards.title')}>
         <ul className="card-grid">
-          <li><ProjectCard project={mockProjects[0]} href="/projects"/></li>
-          <li><ProjectCard project={mockProjects[1]}/></li>
+          <li><ProjectCard project={samples[0]} href="/projects" sample/></li>
+          <li><ProjectCard project={samples[1]} sample/></li>
         </ul>
       </Section>
 

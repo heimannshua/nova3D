@@ -8,7 +8,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return {title: t('meta.progress')};
 }
 
+// In Progress (H-05): there are no Jobs yet, and the page says so.
 export default async function ProgressPage() {
   await requireActiveAccount();
-  return <NovaDashboard view="progress" />;
+  return <NovaDashboard view="progress"/>;
 }

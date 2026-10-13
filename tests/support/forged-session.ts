@@ -1,6 +1,7 @@
 import {randomBytes, randomUUID} from 'node:crypto';
 import {Client} from 'pg';
 import {adoptPreferences, checkMarker, hashClientAddress, hashKey, hashRecoveryToken, issueGrant, issueInvitation, raiseAuthorizationEpoch, registerWithCode, revokeInvitation, revokeSessionGrant, seedPreauthorization, startStepUp, type MarkerOutcome} from '../../lib/accounts';
+import {projectFixtures} from '../../lib/project-fixtures';
 import {insertAuthUser, releaseOrigins, removeAccountData, type CommittedData, type TestUser, type UserOptions} from './accounts-data';
 import {sessionCookieName, sessionCookieValue} from './session-cookie';
 import {serverEnv} from './server-env';
@@ -330,6 +331,8 @@ export function accountsWorld() {
     await db.query(`delete from identity.session_grants where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.registration_commands where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.invitations where redeemed_account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from projects.project_commands where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from projects.projects where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from projects.workspaces where account_id in ${accounts}`, [user.id]);
     await db.query('delete from identity.accounts where user_id = $1', [user.id]);
   }
@@ -340,6 +343,48 @@ export function accountsWorld() {
    */
   const holdFlakyAccounts = () => db.query(`select pg_advisory_lock(hashtextextended('nova3d-e2e:flaky-accounts', 0))`);
   const releaseFlakyAccounts = () => db.query(`select pg_advisory_unlock(hashtextextended('nova3d-e2e:flaky-accounts', 0))`);
+
+  // Projects (Story 1.7) ---------------------------------------------------------------------------------
+
+  type NewProject = {title?: string; stage?: string; version?: number; updatedAt?: string; deleted?: boolean};
+  /** A Project of the user's Account, inserted directly (nothing in the application creates one until Story 2.1). Removed with the world. */
+  async function addProject(user: TestUser, options: NewProject = {}) {
+    const { rows } = await db.query(
+      `insert into projects.projects (workspace_id, account_id, title, stage, current_version, updated_at, deleted_at)
+       select w.id, w.account_id, $2, $3, $4, coalesce($5::timestamptz, now()), case when $6 then now() end
+         from projects.workspaces w join identity.accounts a on a.id = w.account_id where a.user_id = $1
+       returning id`,
+      [user.id, options.title ?? 'Courtyard bench', options.stage ?? 'researching', options.version ?? 0, options.updatedAt ?? null, options.deleted === true],
+    );
+    if (!rows[0]) throw new Error('The user has no Workspace to put a Project in.');
+    return rows[0].id as string;
+  }
+  /** One Project for each of the six stages (lib/project-fixtures.ts), the first the newest. Returns their IDs in that order. */
+  async function addFixtureProjects(user: TestUser) {
+    const ids: string[] = [];
+    for (const [index, fixture] of projectFixtures.entries()) {
+      ids.push(await addProject(user, {title: fixture.title, stage: fixture.stage, version: fixture.currentVersion, updatedAt: new Date(Date.now() - (index + 1) * 3_600_000).toISOString()}));
+    }
+    return ids;
+  }
+  /** A Project as stored, or undefined. */
+  const projectOf = async (projectId: string) =>
+    (await db.query('select title, stage, current_version, revision::int as revision, updated_at, deleted_at from projects.projects where id = $1', [projectId])).rows[0] as
+      | {title: string; stage: string; current_version: number; revision: number; updated_at: Date; deleted_at: Date | null}
+      | undefined;
+  /** How many Projects (deleted ones included) the user's Account has. */
+  const projectCount = async (user: TestUser) =>
+    Number((await db.query('select count(*) as n from projects.projects p join identity.accounts a on a.id = p.account_id where a.user_id = $1', [user.id])).rows[0].n);
+  /** The receipts of the Project commands the user's Account has committed, oldest first. */
+  const renameReceipts = async (user: TestUser) =>
+    (
+      await db.query(
+        'select c.command_id, c.project_id, c.command, c.expected_revision::int as expected_revision, c.title, c.revision::int as revision from projects.project_commands c join identity.accounts a on a.id = c.account_id where a.user_id = $1 order by c.created_at, c.command_id',
+        [user.id],
+      )
+    ).rows as {command_id: string; project_id: string; command: string; expected_revision: number; title: string; revision: number}[];
+  /** Hides a Project the way a deletion will (Story 8.x does it; nothing in the application does yet), as the owner of the table. */
+  const hideProject = (projectId: string) => db.query('update projects.projects set deleted_at = now(), revision = revision + 1 where id = $1', [projectId]);
 
   // Administrator recovery (Story 1.6) ------------------------------------------------------------------
 
@@ -437,6 +482,7 @@ export function accountsWorld() {
     preferencesOf, adoptPreferencesFor,
     auditBy, makeAdministrator, forgeMarker, expireMarker, invitationRow, invitationByLabel, invitationsIssuedBy, unusedGeneralId, takeGeneralCode, releaseGeneralCode, holdFlakyInvitations, releaseFlakyInvitations, issueGeneralCode, activateWithCode,
     workspaceIdOf, liveSession, eraseAccount, holdFlakyAccounts, releaseFlakyAccounts,
+    addProject, addFixtureProjects, projectOf, projectCount, renameReceipts, hideProject,
     recoveryTokens, clearRecoveryTokens, insertRecoveryToken, ageRecoveryTokens, markerSources, grantRows, auditFor, untargetedAudit, purgeUserByEmail,
   };
 }

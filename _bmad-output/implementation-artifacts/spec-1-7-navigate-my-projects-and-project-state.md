@@ -2,7 +2,8 @@
 title: 'Story 1.7: Navigate My Projects and project state'
 type: 'feature'
 created: '2026-10-12'
-status: 'in-progress'
+status: 'done'
+baseline_commit: '6e40c782d5246496ae66a17adfc3a980564e6961'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -61,12 +62,12 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/20261012150000_projects.sql`, `lib/accounts.ts` -- `projects.projects`, `projects.project_commands`, guard triggers, closure; `api.list_projects`, `api.get_project`, `api.rename_project` (authority first, no-disclosure `unavailable`, ledger replay, stale rejected with the current revision); preflight carrying every earlier probe; export the call helpers -- AC-3, AC-4
-- [ ] `lib/projects.ts`, `lib/project-stage.ts`, `lib/project-target.ts`, `lib/project-fixtures.ts` -- typed calls; the six stages (label, tone, icon, next-action sentence, nullable destination); the resolver `docs/authority-contract.md` describes; fixtures for the kit and tests -- AC-2, AC-3
-- [ ] `app/page.tsx`, `app/projects/**`, `app/progress/page.tsx`, `components/nova-dashboard.tsx` and new `components/projects/*` -- Home, My Projects with search and stage filter, In Progress, overview, Sources placeholder, unavailable page, Rename dialog and the `renameProject` Server Action -- AC-1, AC-2, AC-3, AC-4
-- [ ] `components/shell/shell.tsx`, `app/layout.tsx`, `lib/mock-data.ts`, `lib/i18n/{en,he}.ts` -- remove the synthetic banner, sample Account, notification and activity; the verified address in the Account panel; the notifications empty state; new strings in both languages -- AC-1
-- [ ] `tests/` -- every matrix row: integration (functions, closure, composite FK, ledger replay and conflict, stale, authority denied, a race on two connections, preflight, REST 406), unit (stage registry, actions with faked calls, pages, resolver), browser on desktop and phone (empty and populated Home and My Projects, all six stages, overview, unavailable, Rename and its stale case in two windows, axe in four variants, 320 px at 200% text, keyboard focus); rewrite the tests that read sample data; update the structural tests and cleanup helpers -- all ACs
-- [ ] `scripts/seed-projects.mjs`, `docs/{authority-contract,staging}.md`, `README.md`, `deferred-work.md` -- a local-only fixture seed (all six stages); the staging migration note; deferrals recorded: gateway registration (1.12), tombstone guard and status route (1.8), sync and lock states, Hebrew review -- housekeeping
+- [x] `supabase/migrations/20261012150000_projects.sql`, `lib/accounts.ts` -- `projects.projects`, `projects.project_commands`, guard triggers, closure; `api.list_projects`, `api.get_project`, `api.rename_project` (authority first, no-disclosure `unavailable`, ledger replay, stale rejected with the current revision); preflight carrying every earlier probe; export the call helpers -- AC-3, AC-4
+- [x] `lib/projects.ts`, `lib/project-stage.ts`, `lib/project-target.ts`, `lib/project-fixtures.ts` -- typed calls; the six stages (label, tone, icon, next-action sentence, nullable destination); the resolver `docs/authority-contract.md` describes; fixtures for the kit and tests -- AC-2, AC-3
+- [x] `app/page.tsx`, `app/projects/**`, `app/progress/page.tsx`, `components/nova-dashboard.tsx` and new `components/projects/*` -- Home, My Projects with search and stage filter, In Progress, overview, Sources placeholder, unavailable page, Rename dialog and the `renameProject` Server Action -- AC-1, AC-2, AC-3, AC-4
+- [x] `components/shell/shell.tsx`, `app/layout.tsx`, `lib/mock-data.ts`, `lib/i18n/{en,he}.ts` -- remove the synthetic banner, sample Account, notification and activity; the verified address in the Account panel; the notifications empty state; new strings in both languages -- AC-1
+- [x] `tests/` -- every matrix row: integration (functions, closure, composite FK, ledger replay and conflict, stale, authority denied, a race on two connections, preflight, REST 406), unit (stage registry, actions with faked calls, pages, resolver), browser on desktop and phone (empty and populated Home and My Projects, all six stages, overview, unavailable, Rename and its stale case in two windows, axe in four variants, 320 px at 200% text, keyboard focus); rewrite the tests that read sample data; update the structural tests and cleanup helpers -- all ACs
+- [x] `scripts/seed-projects.mjs`, `docs/{authority-contract,staging}.md`, `README.md`, `deferred-work.md` -- a local-only fixture seed (all six stages); the staging migration note; deferrals recorded: gateway registration (1.12), tombstone guard and status route (1.8), sync and lock states, Hebrew review -- housekeeping
 
 **Acceptance Criteria:**
 - Given a new Account, when Home opens, then the three primary actions and useful empty states are visible on phone and desktop, with no sample content.
@@ -90,3 +91,114 @@ The Epic's build order puts Stories 1.8 and 1.12 before this one, and neither ex
 
 **Manual checks (if no CLI):**
 - After `node scripts/seed-projects.mjs` against the local stack, open Home, My Projects and one Project of each stage on a phone-width window in Hebrew and dark: every stage reads in words, the next action is stated, and Rename works with the keyboard.
+
+## Suggested Review Order
+
+**The record and its commands (start here)**
+
+- The Project table: composite key to Workspace and Account, immutable status handle, closed to every role.
+  [`20261012150000_projects.sql:53`](../../supabase/migrations/20261012150000_projects.sql#L53)
+
+- Rename: authority first, one lock, ledger replay, stale answers the current revision and writes nothing.
+  [`20261012150000_projects.sql:254`](../../supabase/migrations/20261012150000_projects.sql#L254)
+
+- Foreign, deleted and unknown IDs all answer one `unavailable`, with every field empty.
+  [`20261012150000_projects.sql:209`](../../supabase/migrations/20261012150000_projects.sql#L209)
+
+- The list reads its rows and total in one statement, so they cannot disagree.
+  [`20261012150000_projects.sql:160`](../../supabase/migrations/20261012150000_projects.sql#L160)
+
+- The preflight carries every earlier probe plus the new ones.
+  [`20261012150000_projects.sql:346`](../../supabase/migrations/20261012150000_projects.sql#L346)
+
+**Typed calls and the seam for later stories**
+
+- Every answer is checked; a foreign row is never trusted; outcome-unknown is kept apart.
+  [`projects.ts:120`](../../lib/projects.ts#L120)
+
+- The Project target resolver Stories 1.12 and 1.8 will register; wired to nothing here.
+  [`project-target.ts:43`](../../lib/project-target.ts#L43)
+
+- Six stages, each with label, tone, icon, next-action sentence and a nullable destination.
+  [`project-stage.ts:46`](../../lib/project-stage.ts#L46)
+
+- The call helpers are exported so Projects uses the one service-role path.
+  [`accounts.ts:320`](../../lib/accounts.ts#L320)
+
+**Pages and the state the person sees**
+
+- Home with real counts and honest empty states; the sample content is gone.
+  [`nova-dashboard.tsx:41`](../../components/nova-dashboard.tsx#L41)
+
+- My Projects: search and stage filter in the browser, empty told apart from no match.
+  [`projects-list.tsx:23`](../../components/projects/projects-list.tsx#L23)
+
+- The overview: stage in words and shape, next required action, Model and Sources entries.
+  [`project-overview.tsx:24`](../../components/projects/project-overview.tsx#L24)
+
+- One unavailable page and a 404 for every link that cannot be opened.
+  [`page.tsx:24`](../../app/projects/[projectId]/page.tsx#L24)
+
+- A database outage is a retryable error, never "unavailable".
+  [`unreadable.tsx`](../../components/projects/unreadable.tsx)
+
+**Rename**
+
+- The Server Action behind `withActiveAccount`; the Account never comes from the form.
+  [`actions.ts:50`](../../app/projects/actions.ts#L50)
+
+- One command ID per change asked for, kept across an unknown answer so a retry is a replay.
+  [`rename-dialog.tsx:54`](../../components/projects/rename-dialog.tsx#L54)
+
+- While a save is in flight no path closes the dialog, so the result cannot be lost.
+  [`dialog.tsx:16`](../../components/ui/dialog.tsx#L16)
+
+- Title rules shared by the dialog and the action, checked again by the database.
+  [`project-view.ts:78`](../../lib/project-view.ts#L78)
+
+**The gate: a link that does not even decode**
+
+- A non-API request at such a path is rewritten to the unavailable page, built like any page response.
+  [`proxy.ts:183`](../../proxy.ts#L183)
+
+- The path test for an ID that is not valid percent-encoding.
+  [`project-paths.ts:17`](../../lib/project-paths.ts#L17)
+
+**Shell: the synthetic content removed**
+
+- The Account panel shows the verified Google address and no sample name.
+  [`shell.tsx:84`](../../components/shell/shell.tsx#L84)
+
+- The address comes from the request's verified access and nowhere else.
+  [`account-address.server.ts:13`](../../lib/account-address.server.ts#L13)
+
+- Notifications are an honest empty state.
+  [`shell.tsx:56`](../../components/shell/shell.tsx#L56)
+
+**Operations and documents**
+
+- The local-only seed refuses any URL that could send the connection elsewhere.
+  [`seed-projects.mjs:13`](../../scripts/seed-projects.mjs#L13)
+
+- The resolver's contract, including what an ID that cannot be a Project's answers.
+  [`authority-contract.md:76`](../../docs/authority-contract.md#L76)
+
+- Apply the migration to staging by hand, before the build that uses it deploys.
+  [`staging.md:71`](../../docs/staging.md#L71)
+
+- The provisioning item that tells Josh to do it.
+  [`ledger.json:372`](../../provisioning/ledger.json#L372)
+
+**Tests**
+
+- Functions, closure, ledger, authority, two real connections racing, the status handle going nowhere.
+  [`projects.test.ts:82`](../../tests/integration/projects.test.ts#L82)
+
+- Unavailable page, Rename in two windows, retry after a lost answer, axe, 320 px at 200% text.
+  [`projects.spec.ts:448`](../../tests/e2e/projects.spec.ts#L448)
+
+- The undecodable-ID rewrite, with its cookies and its order against the access decision.
+  [`proxy-gating.test.ts:215`](../../tests/unit/proxy-gating.test.ts#L215)
+
+- The action with faked calls: what it checks, in what order, and what it prints.
+  [`project-actions.test.ts:96`](../../tests/unit/project-actions.test.ts#L96)

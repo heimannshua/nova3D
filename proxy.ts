@@ -18,6 +18,7 @@ import {
 } from '@/lib/access';
 import {hasSupabaseConfig} from '@/lib/auth-config';
 import {recordFromCookies} from '@/lib/preferences';
+import {hasUndecodableProjectId, undecodableProjectPath} from '@/lib/project-paths';
 import {isPublicPath} from '@/lib/public-paths';
 import {csrfCookieName, csrfCookieOptions, decideOrigin, isCsrfToken, isDocumentNavigation, isSecureRequest, originInputOf, type OriginRefusal} from '@/lib/request-integrity';
 import {signInErrorPath, type SignInErrorCode} from '@/lib/sign-in';
@@ -174,6 +175,14 @@ export async function proxy(request: NextRequest) {
       if (refusal) return refuseOrigin(request, api, refusal, client);
       // The two never depend on each other, and neither throws or blocks the page: one round trip's time, not two.
       const [csrfCookie] = await Promise.all([pageCsrfCookie(request, api, access), adoptDeviceChoices(request, api, access)]);
+      // A Project link whose ID does not even decode (Story 1.7) would be a 500 from the router, for the page and for everything
+      // that is sent to its address afterwards (a Server Action from the page's own menus, a refresh of its payload). It is a
+      // malformed ID like any other, so the request is rewritten to the page for an ID that is none: the one unavailable page. Every
+      // non-API request that has got this far is rewritten, a POST and a navigation payload as well as the document, and the
+      // response is built the way every page response is (the refreshed session, the CSRF cookie, the adoption above).
+      if (!api && hasUndecodableProjectId(pathname)) {
+        return clearLegacyCookie(request, client.rewrite(new URL(undecodableProjectPath, request.url), csrfCookie));
+      }
       return clearLegacyCookie(request, client.next(csrfCookie));
     }
 

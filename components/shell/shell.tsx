@@ -5,7 +5,6 @@ import {usePathname} from 'next/navigation';
 import {useEffect, useMemo, useState, type ReactNode} from 'react';
 import {signOut} from '@/app/account/actions';
 import {useI18n} from '@/lib/i18n/react';
-import {sampleAccount, sampleProjectById} from '@/lib/mock-data';
 import {useSessionAction} from '../use-session-action';
 import {useAnnounce} from '../ui/announcer';
 import {Button} from '../ui/button';
@@ -14,6 +13,7 @@ import {Popover} from '../ui/popover';
 import {PreferenceSaveNotice} from '../ui/preference-notice';
 import {mainContentId} from '../ui/skip-link';
 import {Notice} from '../ui/states';
+import {LtrToken} from '../ui/text-span';
 import {Brand} from './brand';
 import {CreateDialog} from './create-dialog';
 import {isChromeless, isCurrent, parentRoute} from './routes';
@@ -24,16 +24,6 @@ const links = [
   {href: '/projects', label: 'nav.projects', icon: 'folder'},
   {href: '/progress', label: 'nav.progress', icon: 'activity'},
 ] as const satisfies readonly {href: string; label: 'nav.home' | 'nav.projects' | 'nav.progress'; icon: IconName}[];
-
-function SyntheticBanner() {
-  const {t} = useI18n();
-  return (
-    <div className="synthetic-banner" role="note">
-      <span className="synthetic-badge">{t('shell.syntheticBadge')}</span>
-      <span>{t('shell.syntheticNote')}</span>
-    </div>
-  );
-}
 
 function NavLink({href, label, icon, pathname}: {href: string; label: string; icon: IconName; pathname: string}) {
   const current = isCurrent(pathname, href);
@@ -59,42 +49,39 @@ function BackLink({pathname}: {pathname: string}) {
   );
 }
 
+/**
+ * Notifications. Nothing produces one yet (the stories that finish work for a person do), so the menu says so honestly: an empty
+ * state, no count, no dot. The button's name is just "Notifications" until there is something unread to count.
+ */
 function NotificationsMenu({open, onOpenChange}: {open: boolean; onOpenChange: (open: boolean) => void}) {
   const {t} = useI18n();
-  const unread = 1;
-  const project = sampleProjectById('outer-altar-ramp');
   return (
     <Popover
       icon="bell"
-      label={t('notifications.button', {count: unread})}
+      label={t('notifications.title')}
       panelLabel={t('notifications.title')}
       open={open}
       onOpenChange={onOpenChange}
-      badge={<span className="notification-dot" aria-hidden="true"/>}
     >
       <div className="popover-heading">
         <strong>{t('notifications.title')}</strong>
-        <span className="unread-label">{t('notifications.unread', {count: unread})}</span>
       </div>
-      <Link href="/projects" className="popover-item" onClick={() => onOpenChange(false)}>
-        <span className="popover-icon"><Icon name="check" size={14}/></span>
-        <span className="popover-item-text">
-          <strong>{t('notifications.sampleTitle')}</strong>
-          <small>{t('notifications.sampleBody', {project: t(project.title)})}</small>
-        </span>
-        <Icon name="arrow" size={15}/>
-      </Link>
+      <div className="popover-empty">
+        <strong>{t('notifications.emptyTitle')}</strong>
+        <small>{t('notifications.emptyBody')}</small>
+      </div>
     </Popover>
   );
 }
 
 /**
- * The Account panel. It is mounted only while the menu is open, so what a failed sign-out said is gone when
+ * The Account panel: the verified Google address the person signed in with (the layout read it from the verified access; nothing
+ * here is a name or a sample), and sign-out. It is mounted only while the menu is open, so what a failed sign-out said is gone when
  * the menu closes and reopens. Signing out revokes the session's grant first; if that cannot be recorded the
  * session is kept and the person is told, so they can try again; a sign-out that worked leaves the page for
  * sign-in. The pending state and the failure are announced through the page's one live region.
  */
-function AccountPanel() {
+function AccountPanel({address}: {address: string | null}) {
   const {t, locale} = useI18n();
   const announce = useAnnounce();
   const {state, formAction, pending, onSubmit} = useSessionAction(signOut);
@@ -109,10 +96,10 @@ function AccountPanel() {
   return (
     <>
       <div className="account-card">
-        <span className="avatar" aria-hidden="true">{sampleAccount.initial}</span>
-        <div>
-          <strong>{sampleAccount.name}</strong>
-          <small>{t('account.sampleName')}</small>
+        <span className="avatar" aria-hidden="true">{address ? [...address][0]?.toUpperCase() : <Icon name="person" size={16}/>}</span>
+        <div className="account-identity">
+          <strong>{address ? <LtrToken>{address}</LtrToken> : t('account.signedIn')}</strong>
+          <small>{t('account.signedInWith')}</small>
         </div>
       </div>
       <p className="popover-note">{t('account.note')}</p>
@@ -126,7 +113,7 @@ function AccountPanel() {
   );
 }
 
-function AccountMenu({open, onOpenChange}: {open: boolean; onOpenChange: (open: boolean) => void}) {
+function AccountMenu({open, onOpenChange, address}: {open: boolean; onOpenChange: (open: boolean) => void; address: string | null}) {
   const {t} = useI18n();
   return (
     <Popover
@@ -137,7 +124,7 @@ function AccountMenu({open, onOpenChange}: {open: boolean; onOpenChange: (open: 
       onOpenChange={onOpenChange}
       triggerClassName="account-trigger"
     >
-      <AccountPanel/>
+      <AccountPanel address={address}/>
     </Popover>
   );
 }
@@ -148,20 +135,23 @@ function AccountMenu({open, onOpenChange}: {open: boolean; onOpenChange: (open: 
  * bar along the bottom on a phone, so there is a single landmark and a single tab order.
  * The sign-in page renders without it.
  *
- * pathname and the initial* flags exist so tests can render any state without a browser.
+ * `accountAddress` is the verified Google address of the Account the request belongs to (the layout reads it from the verified
+ * access), or null when there is none to show. pathname and the initial* flags exist so tests can render any state without a browser.
  */
-export function Shell({children, pathname: pathnameOverride, initialCreateOpen = false, initialNoticeOpen = false}: {
+export function Shell({children, accountAddress = null, pathname: pathnameOverride, initialCreateOpen = false, initialNoticeOpen = false, initialAccountOpen = false}: {
   children: ReactNode;
+  accountAddress?: string | null;
   pathname?: string;
   initialCreateOpen?: boolean;
   initialNoticeOpen?: boolean;
+  initialAccountOpen?: boolean;
 }) {
   const {t} = useI18n();
   const routePathname = usePathname();
   const pathname = pathnameOverride ?? routePathname ?? '/';
   const [createOpen, setCreateOpen] = useState(initialCreateOpen);
   const [noticeOpen, setNoticeOpen] = useState(initialNoticeOpen);
-  const [accountOpen, setAccountOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(initialAccountOpen);
   const [lastPathname, setLastPathname] = useState(pathname);
   const actions = useMemo(() => ({openCreate: () => setCreateOpen(true)}), []);
 
@@ -205,13 +195,6 @@ export function Shell({children, pathname: pathnameOverride, initialCreateOpen =
             </ul>
           </nav>
           <div className="sidebar-bottom">
-            <div className="mode-card">
-              <span className="mode-icon"><Icon name="spark" size={15}/></span>
-              <div>
-                <strong>{t('shell.modeTitle')}</strong>
-                <small>{t('shell.modeCopy')}</small>
-              </div>
-            </div>
             <Link href="/settings#guidance" className="help-link">
               <Icon name="help" size={16}/>
               <span>{t('nav.help')}</span>
@@ -231,10 +214,9 @@ export function Shell({children, pathname: pathnameOverride, initialCreateOpen =
                 <Link href="/settings" className="icon-btn" aria-label={t('nav.settings')} aria-current={isCurrent(pathname, '/settings') ? 'page' : undefined}>
                   <Icon name="settings"/>
                 </Link>
-                <AccountMenu open={accountOpen} onOpenChange={setAccountOpen}/>
+                <AccountMenu open={accountOpen} onOpenChange={setAccountOpen} address={accountAddress}/>
               </div>
             </div>
-            <SyntheticBanner/>
           </header>
           <main id={mainContentId} tabIndex={-1}>
             <PreferenceSaveNotice/>

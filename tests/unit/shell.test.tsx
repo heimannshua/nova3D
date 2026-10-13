@@ -17,7 +17,7 @@ import KitPage from '@/app/kit/page';
 import RouteError from '@/app/error';
 import NotFound from '@/app/not-found';
 import {PreferencesContext, fallbackPreferences, type PreferencesContextValue} from '@/components/preferences-provider';
-import {NovaDashboard, Progress, type DashboardView} from '@/components/nova-dashboard';
+import {NovaDashboard, type DashboardView, type ProjectsListing} from '@/components/nova-dashboard';
 import {SettingsContent} from '@/components/settings/settings-content';
 import {KitContent} from '@/components/kit/kit-content';
 import {PreferencesForm} from '@/components/settings/preferences-form';
@@ -31,7 +31,8 @@ import {SkipLink} from '@/components/ui/skip-link';
 import {AnnouncerProvider} from '@/components/ui/announcer';
 import {catalogs, createTranslator, locales, type Locale} from '@/lib/i18n';
 import {I18nProvider} from '@/lib/i18n/react';
-import {mockProjects} from '@/lib/mock-data';
+import {fixtureRows} from '@/lib/project-fixtures';
+import {stageDefinition} from '@/lib/project-stage';
 import type {Preferences} from '@/lib/preferences';
 
 function withPreferences(preferences: Partial<Preferences>, node: ReactNode, extra: Partial<PreferencesContextValue> = {}) {
@@ -43,11 +44,19 @@ function withPreferences(preferences: Partial<Preferences>, node: ReactNode, ext
   );
 }
 
-function page(pathname: string, view: DashboardView, preferences: Partial<Preferences> = {}, shell: {initialCreateOpen?: boolean; initialNoticeOpen?: boolean} = {}) {
+// The Projects a page was given, as it reads them from the database: the design kit's fixtures stand in for an Account's own.
+const projects = fixtureRows();
+const listed = {state: 'listed' as const, projects, total: projects.length};
+
+function dashboard(view: DashboardView, listing: ProjectsListing = listed) {
+  return view === 'progress' ? <NovaDashboard view="progress"/> : <NovaDashboard view={view} listing={listing}/>;
+}
+
+function page(pathname: string, view: DashboardView, preferences: Partial<Preferences> = {}, shell: {initialCreateOpen?: boolean; initialNoticeOpen?: boolean; accountAddress?: string | null} = {}, listing?: ProjectsListing) {
   return renderToStaticMarkup(withPreferences(preferences, (
     <AnnouncerProvider>
       <SkipLink/>
-      <Shell pathname={pathname} {...shell}><NovaDashboard view={view}/></Shell>
+      <Shell pathname={pathname} {...shell}>{dashboard(view, listing)}</Shell>
     </AnnouncerProvider>
   )));
 }
@@ -124,7 +133,9 @@ describe('global shell (G-01, UX-DR24)', () => {
   });
 
   it('offers Notifications, Settings and Account in the top bar, each with a name', () => {
-    expect(home).toMatch(/aria-label="Notifications, 1 unread"/);
+    // Nothing produces a notification yet, so the button carries no count.
+    expect(home).toMatch(/aria-label="Notifications"/);
+    expect(home).not.toMatch(/unread/i);
     expect(home).toMatch(/<a class="icon-btn" aria-label="Settings" href="\/settings"/);
     expect(home).toMatch(/aria-label="Account"/);
   });
@@ -246,26 +257,31 @@ describe('Hebrew shell (AC-3, UX-DR5)', () => {
     ['create dialog', page('/', 'home', {locale: 'he'}, {initialCreateOpen: true})],
     ['notifications', page('/', 'home', {locale: 'he'}, {initialNoticeOpen: true})],
   ] as const;
-  const allowedLatin = new Set(['nova', 'Josh', 'D']);
+  const allowedLatin = new Set(['nova', 'D']);
+  // A project's title is the person's own text, in any language, and a time is a left-to-right token: both sit in a <bdi>, and
+  // neither is the interface's copy.
+  const withoutUserText = (markup: string) => markup.replace(/<bdi[^>]*>[\s\S]*?<\/bdi>/g, ' ');
 
   it.each(cases)('has no English copy on the %s page', (_name, markup) => {
-    const words = `${visibleText(markup)} ${labels(markup)}`.match(/[A-Za-z]{2,}/g) ?? [];
+    const own = withoutUserText(markup);
+    const words = `${visibleText(own)} ${labels(own)}`.match(/[A-Za-z]{2,}/g) ?? [];
     expect(words.filter((word) => !allowedLatin.has(word))).toEqual([]);
   });
 
   it('reads in Hebrew', () => {
     expect(cases[0][1]).toContain('הפרויקטים שלי');
     expect(cases[0][1]).toContain('דלגו לתוכן הראשי');
-    expect(cases[4][1]).toContain('הסקירה מוכנה');
+    // The notification menu is an honest empty state, in Hebrew.
+    expect(cases[4][1]).toContain('אין התראות חדשות');
   });
 
-  it('keeps ids and percentages left to right inside Hebrew text', () => {
-    expect(cases[1][1]).toContain('<bdi dir="ltr" class="ltr-token">78%</bdi>');
+  it('keeps a time left to right inside Hebrew text', () => {
+    expect(cases[1][1]).toMatch(/<bdi dir="ltr" class="ltr-token"><time dateTime="2026-09-14T09:30:00\.000Z">2026-09-14 09:30 UTC<\/time><\/bdi>/);
   });
 
-  it('shows the Hebrew sample project names and statuses', () => {
-    expect(cases[1][1]).toContain('המזבח החיצון והכבש');
-    expect(cases[1][1]).toContain('טיוטת דוגמה');
+  it('shows a project\'s stage in Hebrew words, and its title as it was written', () => {
+    expect(cases[1][1]).toContain('<bdi>המזבח החיצון והכבש</bdi>');
+    for (const stage of projects.map((project) => project.stage)) expect(cases[1][1]).toContain(`<span>${catalogs.he[stageDefinition(stage).label] as string}</span>`);
   });
 });
 
@@ -299,17 +315,23 @@ describe('guidance (UX-DR26, AC-1, AC-2)', () => {
 
 describe('technical detail changes depth only (AC-2)', () => {
   const facts = (markup: string) => ({
-    titles: mockProjects.map((project) => markup.includes(catalogs.en[project.title] as string)),
+    titles: projects.map((project) => markup.includes(`<bdi>${project.title}</bdi>`)),
     statuses: markup.match(/class="status-badge tone-[\w-]+"/g),
-    progress: markup.match(/aria-valuenow="\d+"/g),
-    percentages: markup.match(/\d+%/g),
+    stageWords: projects.map((project) => markup.includes(`<span>${catalogs.en[stageDefinition(project.stage).label] as string}</span>`)),
+    versions: markup.match(/(?:Version \d+|No version yet)/g),
+    updated: markup.match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC/g),
   });
 
   it.each([['/', 'home'], ['/projects', 'projects'], ['/progress', 'progress']] as const)('keeps every project, status and number the same on %s', (pathname, view) => {
     const simple = page(pathname, view, {detail: 'simple'});
     const technical = page(pathname, view, {detail: 'technical'});
     expect(facts(technical)).toEqual(facts(simple));
-    expect(facts(simple).titles.some(Boolean)).toBe(true);
+    // In Progress has no projects to show, only the empty state; Home and My Projects show them all.
+    expect(facts(simple).titles.some(Boolean)).toBe(view !== 'progress');
+    // What the facts hold is real: every stage word, Version and time of the projects on the page, and none on In Progress.
+    expect(facts(simple).stageWords.every(Boolean)).toBe(view !== 'progress');
+    expect(facts(simple).versions === null).toBe(view === 'progress');
+    expect(facts(simple).updated === null).toBe(view === 'progress');
   });
 });
 
@@ -449,22 +471,6 @@ describe('viewport', () => {
     expect(viewport).toEqual({viewportFit: 'cover'});
     expect(viewport).not.toHaveProperty('maximumScale');
     expect(viewport).not.toHaveProperty('userScalable');
-  });
-});
-
-describe('progress bars', () => {
-  const bar = (value: number) => renderToStaticMarkup(<Progress value={value} label="Research"/>);
-
-  it('reports the value as the bar draws it', () => {
-    expect(bar(34)).toContain('aria-valuenow="34"');
-    expect(bar(34)).toContain('style="width:34%"');
-  });
-
-  it('holds out-of-range values to 0 to 100, and NaN to 0, for both the name and the width', () => {
-    for (const [value, shown] of [[-20, 0], [140, 100], [Number.NaN, 0], [Number.POSITIVE_INFINITY, 0]] as const) {
-      expect(bar(value), String(value)).toContain(`aria-valuenow="${shown}"`);
-      expect(bar(value), String(value)).toContain(`style="width:${shown}%"`);
-    }
   });
 });
 

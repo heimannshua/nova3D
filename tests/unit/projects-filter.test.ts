@@ -1,53 +1,72 @@
 import {describe, expect, it} from 'vitest';
 import {clampPercent} from '@/lib/progress';
-import {createTranslator} from '@/lib/i18n';
-import {filterProjects} from '@/lib/projects-filter';
-import {mockProjects} from '@/lib/mock-data';
+import {fixtureRows} from '@/lib/project-fixtures';
+import {filterProjects, isFiltering, noFilter, type ProjectFilter} from '@/lib/projects-filter';
 
-const ids = (query: string, locale: 'en' | 'he') => filterProjects(mockProjects, query, createTranslator(locale), locale).map((project) => project.id);
+const projects = fixtureRows();
+const titles = (filter: Partial<ProjectFilter>, locale?: string) => filterProjects(projects, {...noFilter, ...filter}, locale).map((project) => project.title);
+const all = projects.map((project) => project.title);
 
 describe('My Projects filter', () => {
-  it('keeps every project for an empty or blank search', () => {
-    expect(ids('', 'en')).toEqual(mockProjects.map((project) => project.id));
-    expect(ids('   ', 'en')).toEqual(mockProjects.map((project) => project.id));
+  it('keeps every project for an empty or blank search and no stage, in the order it was given', () => {
+    expect(titles({})).toEqual(all);
+    expect(titles({query: ''})).toEqual(all);
+    expect(titles({query: '   '})).toEqual(all);
   });
 
-  it('matches the title in the current language, without regard to case', () => {
-    expect(ids('altar', 'en')).toEqual(['outer-altar-ramp']);
-    expect(ids('ALTAR', 'en')).toEqual(['outer-altar-ramp']);
-    expect(ids('bench', 'en')).toEqual(['courtyard-bench']);
+  it('matches the title, without regard to case', () => {
+    expect(titles({query: 'bench'})).toEqual(['Courtyard bench']);
+    expect(titles({query: 'BENCH'})).toEqual(['Courtyard bench']);
+    expect(titles({query: 'a'})).toEqual(all.filter((title) => title.toLowerCase().includes('a')));
   });
 
-  it('matches the subtitle too', () => {
-    expect(ids('image-derived', 'en')).toEqual(['garden-arch']);
-    expect(ids('middot', 'en')).toEqual(['outer-altar-ramp', 'courtyard-bench']);
+  it('matches Hebrew titles as they were written, in either interface language, because a title is the person\'s own text', () => {
+    expect(titles({query: 'מזבח'}, 'he')).toEqual(['המזבח החיצון והכבש']);
+    expect(titles({query: 'מזבח'}, 'en')).toEqual(['המזבח החיצון והכבש']);
+    expect(titles({query: 'bench'}, 'he')).toEqual(['Courtyard bench']);
   });
 
-  it('matches Hebrew text for the Hebrew interface', () => {
-    expect(ids('מזבח', 'he')).toEqual(['outer-altar-ramp']);
-    expect(ids('ספסל', 'he')).toEqual(['courtyard-bench']);
-    expect(ids('מידות', 'he')).toEqual(['outer-altar-ramp', 'courtyard-bench']);
-  });
-
-  it('reads the current language only: a Hebrew query finds nothing in English, and the reverse', () => {
-    expect(ids('מזבח', 'en')).toEqual([]);
-    expect(ids('altar', 'he')).toEqual([]);
+  it('searches the title only: no other field of a project is matched', () => {
+    // Stage labels, versions and times are not searched.
+    expect(titles({query: 'researching'})).toEqual([]);
+    expect(titles({query: 'validation'})).toEqual([]);
+    expect(titles({query: '2026'})).toEqual([]);
   });
 
   it('trims whitespace around the search', () => {
-    expect(ids('  altar  ', 'en')).toEqual(['outer-altar-ramp']);
-    expect(ids('\tמזבח\n', 'he')).toEqual(['outer-altar-ramp']);
+    expect(titles({query: '  bench  '})).toEqual(['Courtyard bench']);
+    expect(titles({query: '\tמזבח\n'}, 'he')).toEqual(['המזבח החיצון והכבש']);
+  });
+
+  it('filters by one stage, alone or with a search', () => {
+    expect(titles({stage: 'export_ready'})).toEqual(['Reading lamp base']);
+    expect(titles({stage: 'researching'})).toEqual(['Courtyard bench']);
+    expect(titles({stage: 'export_ready', query: 'lamp'})).toEqual(['Reading lamp base']);
+    expect(titles({stage: 'export_ready', query: 'bench'})).toEqual([]);
+  });
+
+  it('treats a search that is only a part of a word like a search (not a pattern)', () => {
+    expect(titles({query: '.*'})).toEqual([]);
+    expect(titles({query: '%'})).toEqual([]);
+    expect(titles({query: '_'})).toEqual([]);
   });
 
   it('returns no projects when nothing matches', () => {
-    expect(ids('zzz-no-such-project', 'en')).toEqual([]);
-    expect(ids('חיפוש שלא קיים', 'he')).toEqual([]);
+    expect(titles({query: 'zzz-no-such-project'})).toEqual([]);
+    expect(titles({query: 'חיפוש שלא קיים'}, 'he')).toEqual([]);
   });
 
   it('does not change the list it was given', () => {
-    const before = mockProjects.map((project) => project.id);
-    filterProjects(mockProjects, 'altar', createTranslator('en'));
-    expect(mockProjects.map((project) => project.id)).toEqual(before);
+    const before = projects.map((project) => project.id);
+    filterProjects(projects, {query: 'bench', stage: 'all'});
+    expect(projects.map((project) => project.id)).toEqual(before);
+  });
+
+  it('knows when something narrows the list: a search of only white space does not', () => {
+    expect(isFiltering(noFilter)).toBe(false);
+    expect(isFiltering({query: '   ', stage: 'all'})).toBe(false);
+    expect(isFiltering({query: 'a', stage: 'all'})).toBe(true);
+    expect(isFiltering({query: '', stage: 'generating'})).toBe(true);
   });
 });
 

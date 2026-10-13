@@ -73,8 +73,35 @@ registerCanceller({
 
 Cancellers run best effort and together, each with its own time limit; one that throws or hangs is counted as failed and never stops the others or undoes the disable. A canceller can ask `authorizeStep` and will always find it denying. It must be safe to run twice. The Accounts page shows the number of Jobs cancelled, and says so when a canceller did not finish: that work cannot publish anyway, because the authority is already gone.
 
+## Naming a Project: the target resolver
+
+An operation that acts on a Project (a Job for it, a file of it, a status request about it) must name the Project by its ID and ask whether **this** operation may act on it **now**. Story 1.7 provides the resolver for that; Story 1.12's file gateway and Story 1.8's status route register it for the kind of target "project" (neither does yet, and this story wires neither in).
+
+```ts
+import {operationOf} from '@/lib/authority';
+import {resolveProjectTarget} from '@/lib/project-target';
+
+const resolution = await resolveProjectTarget(operation, projectId);   // operation = operationOf(access.account), as above
+if (resolution.outcome !== 'resolved') return stop(resolution.outcome); // do not publish, do not move a file, do not call out
+```
+
+It asks `api.get_project(account, epoch, project)` every time, so ownership and lifecycle are the database's at the moment of the step, never remembered from the request that started the operation and never cached. The function begins with `identity.assert_operation_authority`, so a disabled Account or a stale epoch is refused there as well. `resolveProjectTarget` never throws and answers `resolved` (with the Account, the Project and its current revision) only when the database said so:
+
+| outcome | meaning |
+| --- | --- |
+| `resolved` | the Project exists, is this Account's and is not deleted |
+| `unavailable` | the Project is another Account's, is deleted, is unknown, or the ID is not an ID at all. These four are **one** answer, with nothing in it: show the same page or send the same refusal for each, so a link cannot be used to find out whether a Project exists |
+| `denied` | the Account has no authority for this request (disabled, or under another epoch than the operation's) |
+
+Two things follow from how the answer is made. An ID that cannot be a Project's (anything that is not a UUID in its canonical spelling: it is not trimmed, so a padded or encoded one is no ID) is `unavailable` without asking the database at all: nothing can be learned from it, so nothing is asked. And the person's own request has already passed the page gate (`requireActiveAccount`), which checks the Account's authority first, so for a request the gate let through the resolver's `denied` can only mean the authority changed since: it is the answer for a well-formed ID, and an ID that is none says `unavailable` whatever the Account's state (the gate, not the resolver, is what stops a disabled Account).
+| `unreachable` | the database did not answer, or answered something that is not an answer (**denied**; and **not** `unavailable`: a person whose database is down is told to try again, never that the Project is not theirs) |
+
+A Project also carries a random 128-bit **status handle** (`projects.projects.status_handle`, unique, never changed). It is Story 1.8's: no function returns it, no page shows it, and nothing in the application reads it until that story defines how it is used. Story 1.8 consults its tombstone guard in addition to `deleted_at` (which hides a Project from every function here; nothing sets it until a deletion exists).
+
+Commands on a Project follow the same shape as everything else here: the Account (from the verified access), a command ID (a UUID), the **expected revision** and a typed payload. The first and so far only one is Rename (`api.rename_project`, `app/projects/actions.ts`). A command that carries a stale expected revision is rejected with the current revision and changes nothing; the same command ID with the same payload answers the original receipt, and with another payload is refused. A receipt does not outlive its Project's visibility: a replay of a command whose Project has since been deleted is `unavailable`, not the original receipt (the Project is locked, and a deleted one refused, before the ledger is read).
+
 ## What this does not do
 
-It does not decide whether a *person* may open a page (that is the live authorization of a request) and it does not authorize file downloads (Story 1.12 builds the gateway on this contract). It deletes nothing: an Account's Workspace is kept when the Account is disabled.
+It does not decide whether a *person* may open a page (that is the live authorization of a request) and it does not authorize file downloads (Story 1.12 builds the gateway on this contract, with the Project resolver above). It deletes nothing: an Account's Workspace is kept when the Account is disabled.
 
-The code is `lib/authority.ts`; the database functions are in `supabase/migrations/20261012130000_account_administration.sql`; the behavior is pinned by `tests/integration/account-administration.test.ts` and `tests/unit/authority.test.ts`.
+The code is `lib/authority.ts` and `lib/project-target.ts`; the database functions are in `supabase/migrations/20261012130000_account_administration.sql` and `supabase/migrations/20261012150000_projects.sql`; the behavior is pinned by `tests/integration/account-administration.test.ts`, `tests/integration/projects.test.ts`, `tests/unit/authority.test.ts` and `tests/unit/projects.test.ts`.

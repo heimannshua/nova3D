@@ -61,7 +61,7 @@ test.describe('axe: no accessibility violations (AC-3)', () => {
       await openKit(page);
       const {locale} = variant;
 
-      await page.getByRole('button', {name: label(locale, 'notifications.button', {count: 1})}).click();
+      await page.getByRole('button', {name: label(locale, 'notifications.title')}).click();
       await expect(page.getByRole('region', {name: label(locale, 'notifications.title')})).toBeVisible();
       expect(await violations(page), 'notifications open').toEqual([]);
       await page.keyboard.press('Escape');
@@ -105,12 +105,13 @@ test.describe('names and landmarks (AC-3)', () => {
       for (const key of ['nav.home', 'nav.projects', 'nav.progress'] as const) await expect(nav.getByRole('link', {name: label(locale, key)})).toBeVisible();
       await expect(nav.getByRole('button', {name: label(locale, 'nav.create')})).toBeVisible();
       await expect(page.getByRole('link', {name: label(locale, 'nav.settings')})).toBeVisible();
-      await expect(page.getByRole('button', {name: label(locale, 'notifications.button', {count: 1})})).toBeVisible();
+      await expect(page.getByRole('button', {name: label(locale, 'notifications.title')})).toBeVisible();
       await expect(page.getByRole('button', {name: label(locale, 'nav.account')})).toBeVisible();
       await expect(page.getByRole('link', {name: label(locale, 'nav.backToHome')})).toBeVisible();
       await expect(page.getByRole('banner')).toHaveCount(1);
       await expect(page.getByRole('main')).toHaveCount(1);
-      await expect(page.getByRole('note').first()).toContainText(label(locale, 'shell.syntheticBadge'));
+      // The shell is no longer a sample: the kit says what is synthetic, and the shell has no banner.
+      await expect(page.getByRole('note')).toHaveCount(0);
     });
   }
 
@@ -198,15 +199,16 @@ test.describe('keyboard (AC-3)', () => {
 
   test('a menu opens from the keyboard, closes with Escape and gives focus back', async ({page}) => {
     await openKit(page);
-    const bell = page.getByRole('button', {name: label('en', 'notifications.button', {count: 1})});
+    const bell = page.getByRole('button', {name: label('en', 'notifications.title')});
     await bell.focus();
     await expect(bell).toHaveAttribute('aria-expanded', 'false');
     await page.keyboard.press('Enter');
     await expect(bell).toHaveAttribute('aria-expanded', 'true');
     const panel = page.getByRole('region', {name: 'Notifications'});
     await expect(panel).toBeVisible();
-    await page.keyboard.press('Tab');
-    await expect(panel.getByRole('link')).toBeFocused();
+    // An honest empty state: nothing produces a notification yet, so the panel holds nothing to focus and focus stays on the button.
+    await expect(panel.locator('a, button')).toHaveCount(0);
+    await expect(bell).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(panel).toHaveCount(0);
     await expect(bell).toBeFocused();
@@ -260,7 +262,7 @@ test.describe('keyboard (AC-3)', () => {
 });
 
 test.describe('menus and dialogs close the way people expect (AC-3)', () => {
-  const bell = (page: Page) => page.getByRole('button', {name: label('en', 'notifications.button', {count: 1})});
+  const bell = (page: Page) => page.getByRole('button', {name: label('en', 'notifications.title')});
   const account = (page: Page) => page.getByRole('button', {name: label('en', 'nav.account')});
   const createButton = (page: Page) => mainNav(page, 'en').getByRole('button', {name: label('en', 'nav.create')});
 
@@ -296,7 +298,7 @@ test.describe('menus and dialogs close the way people expect (AC-3)', () => {
       await page.keyboard.press('Enter');
       const region = page.getByRole('region', {name: label('en', panel)});
       await expect(region).toBeVisible();
-      // The notifications panel has a link to tab into; the account panel is text only, so focus stays on its button.
+      // The notifications panel is an empty state with nothing to tab into; the account panel holds the sign-out button.
       if ((await region.locator('a, button').count()) > 0) {
         await page.keyboard.press('Tab');
         expect(await page.evaluate(() => Boolean(document.activeElement?.closest('.popover-panel')))).toBe(true);
@@ -327,9 +329,10 @@ test.describe('menus and dialogs close the way people expect (AC-3)', () => {
     await page.keyboard.press('Enter');
     const region = page.getByRole('region', {name: label('en', 'notifications.title')});
     await expect(region).toBeVisible();
-    await page.keyboard.press('Tab'); // into the panel
-    await expect(region.getByRole('link')).toBeFocused();
-    await page.keyboard.press('Tab'); // out of it, to Settings
+    // The notifications panel is an honest empty state (nothing produces a notification yet), so it holds nothing to focus:
+    // Tab leaves the menu at once, to Settings, and closes it.
+    await expect(region.locator('a, button')).toHaveCount(0);
+    await page.keyboard.press('Tab');
     await expect(page.getByRole('link', {name: label('en', 'nav.settings')})).toBeFocused();
     await expect(region).toHaveCount(0);
 
@@ -429,7 +432,7 @@ test.describe('device language and stored preferences (AC-1, AC-2, I/O matrix)',
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     await expect(page.getByRole('heading', {level: 1})).toHaveText(label('he', 'kit.title'));
-    await expect(page.locator('.synthetic-banner')).toContainText(label('he', 'shell.syntheticNote'));
+    await expect(page.locator('.synthetic-banner')).toHaveCount(0);
     await context.close();
   });
 
@@ -720,7 +723,7 @@ test.describe('enlarged text and narrow screens (AC-3)', () => {
     await page.setViewportSize({width: 320, height: 240});
     await openKit(page);
     expect(await overflow(page)).toEqual({scroll: 0, clipped: []});
-    await page.getByRole('button', {name: 'Notifications, 1 unread'}).click();
+    await page.getByRole('button', {name: 'Notifications', exact: true}).click();
     const panel = page.getByRole('region', {name: 'Notifications'});
     await expect(panel).toBeVisible();
     const box = (await panel.boundingBox())!;

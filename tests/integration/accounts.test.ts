@@ -43,7 +43,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
       'session_grants',
       'step_up_nonces',
     ],
-    projects: ['workspaces'],
+    projects: ['project_commands', 'projects', 'workspaces'],
   };
   const apiFunctions = [
     'account_status',
@@ -56,6 +56,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'consume_preauthorization',
     'disable_account',
     'enable_account',
+    'get_project',
     'guard_operation',
     'issue_csrf',
     'issue_grant',
@@ -63,12 +64,14 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'issue_recovery',
     'list_accounts',
     'list_invitations',
+    'list_projects',
     'preflight',
     'raise_authorization_epoch',
     'record_account_refusal',
     'record_invitation_refusal',
     'redeem_recovery',
     'register_with_code',
+    'rename_project',
     'revoke_grants',
     'revoke_invitation',
     'seed_preauthorization',
@@ -96,7 +99,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
          from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname in ('identity', 'projects') and c.relkind = 'r' order by 1`,
     );
-    expect(found).toHaveLength(13);
+    expect(found).toHaveLength(15);
     for (const row of found) expect(row, row.name).toMatchObject({rls: true, policies: 0});
   });
 

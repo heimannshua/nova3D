@@ -123,22 +123,24 @@ describe('locale negotiation (I/O matrix)', () => {
 
 describe('translate', () => {
   it('fills placeholders, isolating each string value so its direction cannot reorder the sentence', () => {
-    expect(translate('en', 'home.greeting', {name: 'Josh'})).toBe('Good morning, \u2068Josh\u2069');
-    expect(translate('he', 'home.greeting', {name: 'Josh'})).toBe('בוקר טוב, \u2068Josh\u2069');
+    expect(translate('en', 'project.rename.done', {title: 'Garden arch'})).toBe('The project was renamed: \u2068Garden arch\u2069.');
+    expect(translate('he', 'project.rename.done', {title: 'Garden arch'})).toBe('שם הפרויקט שונה: \u2068Garden arch\u2069.');
     // The reverse: a Hebrew name inside an English sentence.
-    expect(translate('en', 'home.greeting', {name: 'יוסי'})).toBe('Good morning, \u2068יוסי\u2069');
+    expect(translate('en', 'project.rename.done', {title: 'יוסי'})).toBe('The project was renamed: \u2068יוסי\u2069.');
   });
 
   it('leaves numbers as they are and lets a caller ask for plain text', () => {
     expect(translate('en', 'home.projectsDetail', {count: 3})).toBe('3 projects');
-    expect(translate('en', 'home.greeting', {name: 'Josh'}, {isolate: false})).toBe('Good morning, Josh');
-    expect(createTranslator('he')('home.greeting', {name: 'Josh'}, {isolate: false})).toBe('בוקר טוב, Josh');
+    expect(translate('en', 'project.rename.done', {title: 'Garden arch'}, {isolate: false})).toBe('The project was renamed: Garden arch.');
+    expect(createTranslator('he')('project.rename.done', {title: 'Garden arch'}, {isolate: false})).toBe('שם הפרויקט שונה: Garden arch.');
+    // A number is never isolated, and a version is one.
+    expect(translate('en', 'project.version', {version: 3})).toBe('Version 3');
   });
 
   it('only fills the placeholders the message has, and never reads inherited properties', () => {
-    expect(translate('en', 'home.greeting', {other: 'x'})).toBe('Good morning, {name}');
-    expect(translate('en', 'home.greeting', {})).toBe('Good morning, {name}');
-    expect(translate('en', 'home.greeting', {name: 'a', constructor: 'b'} as never)).toBe('Good morning, \u2068a\u2069');
+    expect(translate('en', 'project.rename.done', {other: 'x'})).toBe('The project was renamed: {title}.');
+    expect(translate('en', 'project.rename.done', {})).toBe('The project was renamed: {title}.');
+    expect(translate('en', 'project.rename.done', {title: 'a', constructor: 'b'} as never)).toBe('The project was renamed: \u2068a\u2069.');
   });
 
   it('never throws for a missing key: default language first, then the key itself', () => {
@@ -172,7 +174,7 @@ describe('translate', () => {
   });
 
   it('leaves an unfilled placeholder visible instead of hiding the bug', () => {
-    expect(translate('en', 'home.greeting')).toBe('Good morning, {name}');
+    expect(translate('en', 'project.rename.done')).toBe('The project was renamed: {title}.');
   });
 });
 

@@ -50,7 +50,7 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Region: us-east-1
 - Spend backstop: The organization's spend cap, left on in the billing settings. Fixed cost is about $35-40 a month; each restore drill adds a temporary project whose hourly cost is recorded at the first drill.
 - First needed: Story 1.4
-- Verification: attestation (6)
+- Verification: attestation (7)
 - Secret names by environment: staging: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF`
 - Free-tier limits relied on, with the trigger for upgrading:
   - A Free project pauses, so staging and production never run on the Free plan. Upgrade trigger: Pro before Story 1.4, so hosted-Auth checks can run.
@@ -413,6 +413,20 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 1. In the Railway project's settings create a project token for the staging environment.
 2. Add it as `RAILWAY_TOKEN` to the `staging` GitHub environment's secrets.
 3. Save an export of the environment's secret names outside the repository, and record its file name as evidence.
+
+### Due by Story 1.7
+
+#### `hosted-projects-check`: My Projects and a Project's overview checked on staging (empty states and the unavailable page)
+
+- Service: Supabase (Postgres, Auth, Storage)
+- Verification: attestation
+- Environments: staging
+- Secret names: none
+- Status: staging: pending
+
+1. Apply `supabase/migrations/20261012150000_projects.sql` to staging by hand, before the build that uses it deploys, following `docs/staging.md` (it adds two tables and three functions, plus a unique key on `projects.workspaces`; it adds no setting or secret, and the other migrations are already there). The build's preflight now also probes them and fails with one line if the file is missing.
+2. Run the Projects check in `docs/staging.md` (step 6): as a member, Home and My Projects show their empty states (no projects, no active jobs) and no sample content; a link to a Project that is not yours, to an ID that is none, and to an ID that does not even decode (`/projects/%E0%A4%A`) each shows the same unavailable page with a 404 status, never a 500. Renaming cannot be checked on a hosted environment until a Project can be made (Story 2.1).
+3. Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
 
 ### Due by Story 2.5
 

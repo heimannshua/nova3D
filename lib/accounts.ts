@@ -313,9 +313,11 @@ export type RevocationReceipt = {invitationId: string | null; outcome: 'revoked'
 export type WithdrawalReceipt = {outcome: 'withdrawn' | 'consumed' | 'not_found'};
 export type InvitationSummary = {invitationId: string; kind: 'named' | 'general'; label: string | null; state: 'unused' | 'redeemed' | 'revoked'; createdAt: string};
 
-type Row = Record<string, unknown>;
+// Story 1.7: the call helpers below are exported for lib/projects.ts, which makes the typed calls of the Projects functions in the
+// same way (the service role, an `api` function, an answer read and checked, never trusted). Nothing else outside this file calls them.
+export type Row = Record<string, unknown>;
 
-async function callApi(name: string, args: Row, options: AccountsOptions): Promise<unknown> {
+export async function callApi(name: string, args: Row, options: AccountsOptions): Promise<unknown> {
   const env = options.env ?? process.env;
   const base = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -374,10 +376,10 @@ async function callApi(name: string, args: Row, options: AccountsOptions): Promi
   return body;
 }
 
-const unexpected = (status?: number) =>
+export const unexpected = (status?: number) =>
   new AccountsUnavailableError('The accounts database answered with an unexpected shape.', {status, retryable: false, outcomeUnknown: true});
 
-async function callRow(name: string, args: Row, options: AccountsOptions): Promise<Row> {
+export async function callRow(name: string, args: Row, options: AccountsOptions): Promise<Row> {
   const body = await callApi(name, args, options);
   if (typeof body !== 'object' || body === null || Array.isArray(body)) throw unexpected();
   return body as Row;
@@ -385,13 +387,13 @@ async function callRow(name: string, args: Row, options: AccountsOptions): Promi
 
 const text = (value: unknown) => (typeof value === 'string' ? value : null);
 const roleOf = (value: unknown): Role | null => (value === 'administrator' || value === 'member' ? value : null);
-function oneOf<T extends string>(value: unknown, allowed: readonly T[]): T {
+export function oneOf<T extends string>(value: unknown, allowed: readonly T[]): T {
   if (typeof value === 'string' && (allowed as readonly string[]).includes(value)) return value as T;
   throw unexpected();
 }
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function requireUuid(name: string, value: string) {
+export function requireUuid(name: string, value: string) {
   if (!uuidPattern.test(value)) throw new TypeError(`${name} must be a UUID`);
   return value.toLowerCase();
 }

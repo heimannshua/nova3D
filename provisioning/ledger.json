@@ -369,6 +369,21 @@
       "evidence": {}
     },
     {
+      "id": "hosted-projects-check",
+      "service": "supabase",
+      "title": "My Projects and a Project's overview checked on staging (empty states and the unavailable page)",
+      "kind": "attestation",
+      "due": "1-7",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Apply `supabase/migrations/20261012150000_projects.sql` to staging by hand, before the build that uses it deploys, following `docs/staging.md` (it adds two tables and three functions, plus a unique key on `projects.workspaces`; it adds no setting or secret, and the other migrations are already there). The build's preflight now also probes them and fails with one line if the file is missing.",
+        "Run the Projects check in `docs/staging.md` (step 6): as a member, Home and My Projects show their empty states (no projects, no active jobs) and no sample content; a link to a Project that is not yours, to an ID that is none, and to an ID that does not even decode (`/projects/%E0%A4%A`) each shows the same unavailable page with a 404 status, never a 500. Renaming cannot be checked on a hosted environment until a Project can be made (Story 2.1).",
+        "Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
       "id": "upstash-account",
       "service": "upstash",
       "title": "Upstash account with Redis and QStash in the adopted regions",

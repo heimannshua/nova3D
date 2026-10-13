@@ -8,19 +8,25 @@ import {useI18n} from '@/lib/i18n/react';
  * A modal built on the native <dialog>. The browser supplies the focus trap, the Escape key and the
  * inert page behind it; this adds focus return to the opener and a click-outside close.
  * Mount it only while it is open. Mark the control that should take focus first with data-autofocus.
+ *
+ * `locked` is for a dialog whose work is in flight (a rename being saved): while it is true NO way closes it, so its result and
+ * any error cannot be lost. Escape is cancelled, a click outside does nothing, and if the browser closes it anyway (a second
+ * Escape in a row skips the cancel event) it is opened again at once and `onClose` is not called.
  */
-export function Dialog({title, description, eyebrow, closeLabel, onClose, children, className}: {
+export function Dialog({title, description, eyebrow, closeLabel, onClose, children, className, locked = false}: {
   title: string;
   description?: string;
   eyebrow?: string;
-  /** When given, a close button is shown in the header. Escape and a click outside always close it too. */
+  /** When given, a close button is shown in the header. Escape and a click outside always close it too (unless `locked`). */
   closeLabel?: string;
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  locked?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const onCloseRef = useRef(onClose);
+  const lockedRef = useRef(locked);
   // Whether the press that ended in this click began on the backdrop itself. A text selection dragged out of
   // the dialog ends on the backdrop, and the click lands on the dialog element, but it must not close it.
   const pressedOnBackdrop = useRef(false);
@@ -29,6 +35,7 @@ export function Dialog({title, description, eyebrow, closeLabel, onClose, childr
 
   useEffect(() => {
     onCloseRef.current = onClose;
+    lockedRef.current = locked;
   });
 
   useEffect(() => {
@@ -37,9 +44,21 @@ export function Dialog({title, description, eyebrow, closeLabel, onClose, childr
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (!dialog.open) dialog.showModal();
     dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus();
-    const closed = () => onCloseRef.current();
+    const cancelled = (event: Event) => {
+      if (lockedRef.current) event.preventDefault();
+    };
+    const closed = () => {
+      if (lockedRef.current) {
+        // Closed in spite of the cancel (the browser lets a second Escape through): put it back, and say nothing.
+        if (!dialog.open) dialog.showModal();
+        return;
+      }
+      onCloseRef.current();
+    };
+    dialog.addEventListener('cancel', cancelled);
     dialog.addEventListener('close', closed);
     return () => {
+      dialog.removeEventListener('cancel', cancelled);
       dialog.removeEventListener('close', closed);
       if (dialog.open) dialog.close();
       opener?.focus();
@@ -58,7 +77,7 @@ export function Dialog({title, description, eyebrow, closeLabel, onClose, childr
       onClick={(event) => {
         const closing = event.target === event.currentTarget && pressedOnBackdrop.current;
         pressedOnBackdrop.current = false;
-        if (closing) ref.current?.close();
+        if (closing && !lockedRef.current) ref.current?.close();
       }}
     >
       <div className="dialog-body">
@@ -67,7 +86,7 @@ export function Dialog({title, description, eyebrow, closeLabel, onClose, childr
             {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
             <h2 id={titleId} className="dialog-title">{title}</h2>
           </div>
-          {closeLabel ? <IconButton icon="close" label={closeLabel} onClick={() => ref.current?.close()}/> : null}
+          {closeLabel ? <IconButton icon="close" label={closeLabel} aria-disabled={locked ? true : undefined} onClick={() => !lockedRef.current && ref.current?.close()}/> : null}
         </div>
         {description ? <p id={descriptionId} className="dialog-description">{description}</p> : null}
         {children}

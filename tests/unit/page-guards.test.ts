@@ -44,7 +44,7 @@ const callsRequireAdministrator = (text: string) => /^[^/\n]*\bawait\s+requireAd
 
 describe('page guards', () => {
   it('finds the pages', () => {
-    expect(files).toEqual(expect.arrayContaining(['app/page.tsx', 'app/projects/page.tsx', 'app/progress/page.tsx', 'app/settings/page.tsx', registration, ...Object.keys(exempt)]));
+    expect(files).toEqual(expect.arrayContaining(['app/page.tsx', 'app/projects/page.tsx', 'app/projects/[projectId]/page.tsx', 'app/projects/[projectId]/sources/page.tsx', 'app/progress/page.tsx', 'app/settings/page.tsx', registration, ...Object.keys(exempt)]));
   });
 
   it('only exempts pages that exist', () => {
@@ -67,6 +67,17 @@ describe('page guards', () => {
 
   it.each(administrator)('%s calls requireAdministrator, and so asks for an active Account too', (file) => {
     expect(callsRequireAdministrator(source(file)), `${file} must start with await requireAdministrator()`).toBe(true);
+  });
+
+  it('asks for the Account before it reads a Project, on every page that shows one', () => {
+    for (const file of ['app/projects/[projectId]/page.tsx', 'app/projects/[projectId]/sources/page.tsx']) {
+      const code = source(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+      const page = code.slice(code.indexOf('export default async function'));
+      expect(page.indexOf('await requireActiveAccount()'), file).toBeGreaterThan(-1);
+      expect(page.indexOf('await requireActiveAccount()'), file).toBeLessThan(page.indexOf('loadProject('));
+      // The Project is read for the verified Account and epoch, never for anything the URL named but the Project itself.
+      expect(page, file).toMatch(/loadProject\(access\.account\.accountId, access\.account\.epoch, projectId\)/);
+    }
   });
 
   it('has requireAdministrator start from requireActiveAccount and answer 404, not a redirect, to an Account that is not the Administrator', () => {

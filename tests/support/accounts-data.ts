@@ -107,6 +107,9 @@ export async function removeAccountData(client: Client, data: CommittedData) {
       [data.users, data.hashes, data.invitationIds, data.users.map((id) => `user:${id}`)],
     );
     await client.query(`delete from identity.preauthorizations where account_id in ${accounts} or email = any($2)`, [data.users, data.emails]);
+    // A Project (Story 1.7) references its Workspace, and a command's receipt references its Project: receipts, then Projects, then the Workspace.
+    await client.query(`delete from projects.project_commands where account_id in ${accounts}`, [data.users]);
+    await client.query(`delete from projects.projects where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from projects.workspaces where account_id in ${accounts}`, [data.users]);
     await client.query('delete from identity.accounts where user_id = any($1)', [data.users]);
     await client.query('delete from auth.users where id = any($1)', [data.users]);

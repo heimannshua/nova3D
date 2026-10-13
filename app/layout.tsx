@@ -5,6 +5,7 @@ import {Shell} from '@/components/shell/shell';
 import {SkipLink} from '@/components/ui/skip-link';
 import {PreferencesProvider} from '@/components/preferences-provider';
 import {createTranslator, directionOf} from '@/lib/i18n';
+import {getAccountAddress} from '@/lib/account-address.server';
 import {getRequestPreferences} from '@/lib/preferences.server';
 import './globals.css';
 
@@ -24,16 +25,17 @@ export async function generateMetadata(): Promise<Metadata> {
 // The language, direction and theme are decided on the server, so the first HTML is already right and nothing
 // flashes: from the Account's stored record when the request belongs to an active Account that has one (Story
 // 1.4d; lib/preferences.server.ts), otherwise from the device preference cookies and Accept-Language. Reading the
-// request makes every page dynamic, which is acceptable for a private app. Light is the default; dark is only ever chosen.
+// request makes every page dynamic, which is acceptable for a private app. Light is the default; dark is only ever chosen. The shell's
+// Account panel shows the verified Google address of the Account the request belongs to (Story 1.7), read from the same memoized check.
 export default async function RootLayout({children}: Readonly<{children: ReactNode}>) {
-  const {preferences, deviceLocale, localeOverridden, accountBacked} = await getRequestPreferences();
+  const [{preferences, deviceLocale, localeOverridden, accountBacked}, accountAddress] = await Promise.all([getRequestPreferences(), getAccountAddress()]);
   return (
     <html lang={preferences.locale} dir={directionOf(preferences.locale)} data-theme={preferences.theme}>
       <body>
         <PreferencesProvider initial={preferences} deviceLocale={deviceLocale} localeOverridden={localeOverridden} accountBacked={accountBacked}>
           <AnnouncerProvider>
             <SkipLink/>
-            <Shell>{children}</Shell>
+            <Shell accountAddress={accountAddress}>{children}</Shell>
           </AnnouncerProvider>
         </PreferencesProvider>
       </body>

@@ -143,6 +143,7 @@ describe('through the REST API', () => {
     consume_preauthorization: {p_user_id: victim.user.id},
     disable_account: {p_actor: 'seed', p_account_id: victim.accountId},
     enable_account: {p_actor: 'seed', p_account_id: victim.accountId},
+    get_project: {p_account_id: victim.accountId, p_epoch: 1, p_project_id: randomUUID()},
     guard_operation: {p_account_id: victim.accountId, p_epoch: 1},
     issue_csrf: {p_user_id: victim.user.id, p_session_id: victim.sessionId, p_csrf_hash: codeHash()},
     issue_grant: {p_user_id: victim.user.id, p_session_id: victim.sessionId},
@@ -150,10 +151,12 @@ describe('through the REST API', () => {
     issue_recovery: {p_token_hash: codeHash(), p_administrator_email: victim.user.email},
     list_accounts: {},
     list_invitations: {},
+    list_projects: {p_account_id: victim.accountId, p_epoch: 1, p_limit: 10},
     preflight: {},
     raise_authorization_epoch: {p_account_id: victim.accountId, p_actor: 'seed'},
     record_account_refusal: {p_user_id: victim.user.id, p_action: 'account.denied', p_account_id: victim.accountId},
     record_invitation_refusal: {p_user_id: victim.user.id, p_action: 'invitation.denied', p_invitation_id: null},
+    rename_project: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_project_id: randomUUID(), p_expected_revision: 1, p_title: 'Renamed by another Account'},
     redeem_recovery: {p_token_hash: codeHash(), p_administrator_email: victim.user.email, p_user_id: victim.user.id, p_session_id: victim.sessionId},
     register_with_code: {p_user_id: victim.user.id, p_command_id: victim.commandId, p_code_hash: victim.codeHash, p_origin_hash: originHash()},
     revoke_grants: {p_actor: 'seed', p_reason: 'test', p_account_id: victim.accountId},
@@ -228,7 +231,7 @@ describe('through the REST API', () => {
       for (const profile of ['public', 'api', 'lifecycle']) {
         const response = await rest(token, '', {profile, headers: {accept: 'application/openapi+json'}});
         const text = await response.text();
-        for (const name of ['account_preferences', 'session_grants', 'audit_events', 'invitations', 'workspaces']) expect(text, `${profile} publishes ${name}`).not.toContain(`"/${name}"`);
+        for (const name of ['account_preferences', 'session_grants', 'audit_events', 'invitations', 'workspaces', 'projects', 'project_commands']) expect(text, `${profile} publishes ${name}`).not.toContain(`"/${name}"`);
       }
     }
   });
@@ -726,6 +729,8 @@ describe('every table of identity, projects and lifecycle is closed to anon and 
         'identity.session_grants',
         'identity.step_up_nonces',
         'lifecycle.instance_identity',
+        'projects.project_commands',
+        'projects.projects',
         'projects.workspaces',
       ]),
     );

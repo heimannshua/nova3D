@@ -49,7 +49,7 @@ async function open(page: Page, context: Parameters<typeof signIn>[0], baseURL: 
   return user;
 }
 
-const bell = (page: Page, locale: Locale = 'en') => page.getByRole('button', {name: label(locale, 'notifications.button', {count: 1})});
+const bell = (page: Page, locale: Locale = 'en') => page.getByRole('button', {name: label(locale, 'notifications.title')});
 const account = (page: Page, locale: Locale = 'en') => page.getByRole('button', {name: label(locale, 'nav.account'), exact: true});
 const createButton = (page: Page, locale: Locale = 'en') => mainNav(page, locale).getByRole('button', {name: label(locale, 'nav.create')});
 const notifications = (page: Page, locale: Locale = 'en') => page.getByRole('region', {name: label(locale, 'notifications.title')});
@@ -129,7 +129,7 @@ test.describe('names and landmarks on the real routes (AC-3)', () => {
         await expect(account(page, locale)).toBeVisible();
         await expect(page.getByRole('banner')).toHaveCount(1);
         await expect(page.getByRole('main')).toHaveCount(1);
-        await expect(page.getByRole('note').first()).toContainText(label(locale, 'shell.syntheticBadge'));
+        await expect(page.getByRole('note')).toHaveCount(0);
         // The title names the page in the interface language.
         await expect(page).toHaveTitle(titleOf(route, locale));
       });
@@ -253,8 +253,9 @@ test.describe('keyboard on the real routes (AC-3)', () => {
     await page.keyboard.press('Enter');
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
     await expect(notifications(page)).toBeVisible();
-    await page.keyboard.press('Tab');
-    await expect(notifications(page).getByRole('link')).toBeFocused();
+    // An honest empty state: nothing produces a notification yet, so the panel holds nothing to focus and focus stays on the button.
+    await expect(notifications(page).locator('a, button')).toHaveCount(0);
+    await expect(trigger).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(notifications(page)).toHaveCount(0);
     await expect(trigger).toBeFocused();
@@ -353,9 +354,11 @@ test.describe('menus and dialogs close the way people expect, on the real routes
       await page.keyboard.press('Enter');
       const region = page.getByRole('region', {name: label('en', panel)});
       await expect(region).toBeVisible();
-      // The notifications panel has a link to tab into; the account panel has the sign-out button.
-      await page.keyboard.press('Tab');
-      expect(await page.evaluate(() => Boolean(document.activeElement?.closest('.popover-panel')))).toBe(true);
+      // The notifications panel is an empty state with nothing to tab into; the account panel has the sign-out button.
+      if ((await region.locator('a, button').count()) > 0) {
+        await page.keyboard.press('Tab');
+        expect(await page.evaluate(() => Boolean(document.activeElement?.closest('.popover-panel')))).toBe(true);
+      }
       // Blank space: the bottom edge of the page's main region, below its content. It takes focus only when a
       // script gives it focus (tabindex -1), so a click there is the case the menu must hand focus back from.
       const main = page.locator('main');
@@ -382,8 +385,8 @@ test.describe('menus and dialogs close the way people expect, on the real routes
     await bell(page).focus();
     await page.keyboard.press('Enter');
     await expect(notifications(page)).toBeVisible();
-    await page.keyboard.press('Tab');
-    await expect(notifications(page).getByRole('link')).toBeFocused();
+    // The panel is an honest empty state with nothing to focus, so Tab leaves the menu at once, to Settings, and closes it.
+    await expect(notifications(page).locator('a, button')).toHaveCount(0);
     await page.keyboard.press('Tab');
     await expect(page.getByRole('link', {name: label('en', 'nav.settings'), exact: true})).toBeFocused();
     await expect(notifications(page)).toHaveCount(0);

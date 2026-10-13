@@ -22,6 +22,15 @@ export function createSupabaseProxyClient(request: NextRequest) {
     return response;
   }
 
+  function finish(response: NextResponse, extraCookie?: {name: string; value: string; options: CookieOptions}) {
+    carry(response);
+    if (extraCookie) {
+      response.cookies.set(extraCookie.name, extraCookie.value, extraCookie.options);
+      response.headers.set('cache-control', 'private, no-store');
+    }
+    return response;
+  }
+
   const supabase = createServerClient(url, key, {
     cookies: {
       getAll() {
@@ -45,14 +54,13 @@ export function createSupabaseProxyClient(request: NextRequest) {
      * header was there (a refreshed session may have set a weaker one): a shared cache must never store, and
      * so hand to somebody else, a response that carries one person's token.
      */
-    next: (extraCookie?: {name: string; value: string; options: CookieOptions}) => {
-      const response = carry(NextResponse.next({request}));
-      if (extraCookie) {
-        response.cookies.set(extraCookie.name, extraCookie.value, extraCookie.options);
-        response.headers.set('cache-control', 'private, no-store');
-      }
-      return response;
-    },
+    next: (extraCookie?: {name: string; value: string; options: CookieOptions}) => finish(NextResponse.next({request}), extraCookie),
+    /**
+     * Lets the request through to ANOTHER path's page (the browser's address does not change), exactly as `next` does otherwise:
+     * the same refreshed session cookies and the same extra cookie with the same cache header. (Story 1.7: a Project link whose
+     * ID does not decode is rendered by the page for an ID that is none.)
+     */
+    rewrite: (to: URL, extraCookie?: {name: string; value: string; options: CookieOptions}) => finish(NextResponse.rewrite(to, {request}), extraCookie),
     /** Carries any refreshed (or cleared) session cookies on a response the proxy built itself, such as a JSON denial. */
     respond: (response: NextResponse) => carry(response),
     /** Sends the browser elsewhere, keeping any refreshed (or cleared) session cookies. */

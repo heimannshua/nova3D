@@ -962,3 +962,158 @@ describe('Administrator recovery (Story 1.6) mails one address, puts the token i
     expect(config).not.toMatch(/enable_anonymous_sign_ins = true|enable_manual_linking = true/);
   });
 });
+
+describe('Projects (Story 1.7) are read and renamed through the typed calls, for the verified Account, and the status handle goes nowhere', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const actions = 'app/projects/actions.ts';
+  const code = withoutComments(read(actions));
+  const migration = read('supabase/migrations/20261012150000_projects.sql');
+  const migrationCode = migration.replace(/^--.*$/gm, '');
+
+  it('lists, reads and renames from lib/projects.ts and the few places that need it: the page loaders, the resolver, the one Server Action', () => {
+    expect(callers('listProjects')).toEqual(['lib/project-pages.ts', 'lib/projects.ts']);
+    expect(callers('readProject')).toEqual(['lib/project-pages.ts', 'lib/project-target.ts', 'lib/projects.ts']);
+    expect(callers('renameProjectCommand')).toEqual([actions, 'lib/projects.ts']);
+  });
+
+  it('has the pages read through the loaders and nothing else: no page or component calls a typed call or the database', () => {
+    for (const file of sources.filter((candidate) => /^(?:app\/.*page\.tsx|components\/.*)$/.test(candidate))) {
+      expect(withoutComments(read(file)), file).not.toMatch(/\b(?:listProjects|readProject|renameProjectCommand|resolveProjectTarget|callApi|callRow)\b/);
+    }
+  });
+
+  it('keeps the database functions behind the typed calls: nothing else names them', () => {
+    for (const file of sources.filter((candidate) => candidate !== 'lib/projects.ts' && candidate !== 'lib/accounts.ts')) {
+      expect(withoutComments(read(file)), file).not.toMatch(/['"`](?:list_projects|get_project|rename_project)['"`]/);
+    }
+    expect(withoutComments(read('lib/projects.ts'))).toMatch(/callRow\('list_projects'/);
+    expect(withoutComments(read('lib/projects.ts'))).toMatch(/callRow\('get_project'/);
+    expect(withoutComments(read('lib/projects.ts'))).toMatch(/callRow\(\s*'rename_project'/);
+  });
+
+  it('exports the call helpers from lib/accounts.ts for lib/projects.ts alone', () => {
+    const users = sources.filter((file) => /\b(?:callApi|callRow)\b/.test(withoutComments(read(file)))).sort();
+    expect(users).toEqual(['lib/accounts.ts', 'lib/projects.ts']);
+  });
+
+  it('is one Server Action behind withActiveAccount, with the Account from the verified access and nothing about it from the form', () => {
+    expect(read(actions).trimStart()).toMatch(/^'use server';/);
+    expect([...code.matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)].map((match) => match[1])).toEqual(['renameProject']);
+    expect([...code.matchAll(/^export\s/gm)]).toHaveLength(1);
+    expect(code).toMatch(/return withActiveAccount<RenameState>\(/);
+    expect(code).toMatch(/operationOf\(access\.account\)/);
+    const reads = [...code.matchAll(/formData\.get\(['"](\w+)['"]\)/g)].map((match) => match[1]);
+    expect(reads).toEqual(['projectId', 'commandId', 'expectedRevision', 'title']);
+    for (const forbidden of [/\baccountId\s*:\s*(?:formData|String\()/, /\bepoch\s*:\s*(?:formData|Number\()/, /\bsearchParams\b/, /\bheaders\(\)/, /\brequest\.url\b/, /cookies\(/, /\badministered\b|\bcheckMarker\b/]) expect(code).not.toMatch(forbidden);
+    // The command is made only inside the callback `withActiveAccount` is given, after the form has been read and checked.
+    const enclosing = code.lastIndexOf('return withActiveAccount<RenameState>(');
+    const at = code.indexOf('renameProjectCommand(operationOf');
+    expect(enclosing).toBeGreaterThan(-1);
+    expect(at).toBeGreaterThan(enclosing);
+    expect(code.indexOf('titleProblem(title)')).toBeGreaterThan(enclosing);
+    expect(code.indexOf('titleProblem(title)')).toBeLessThan(at);
+  });
+
+  it('prints a failure by name and message only, and never a title, an ID or the form', () => {
+    for (const file of [actions, 'lib/projects.ts', 'lib/project-pages.ts', 'lib/project-target.ts']) {
+      const lines = withoutComments(read(file)).split('\n').filter((line) => /console\.(?:log|info|warn|error|debug)\(|\blog\(/.test(line));
+      for (const line of lines) {
+        expect(line, file).toMatch(/describe\(error\)|, detail\)/);
+        expect(line, file).not.toMatch(/title|projectId|accountId|formData|email/);
+      }
+    }
+    expect(withoutComments(read('lib/projects.ts'))).not.toMatch(/console\./);
+  });
+
+  it('keeps the status handle in the database and out of every function and every file of the application', () => {
+    for (const file of sources) expect(withoutComments(read(file)), file).not.toMatch(/status_handle|statusHandle|status-handle/);
+    // The migration names it in the table, its guard, its comment and the preflight's discarded read, and in no select list that leaves a function.
+    const functions = [...migrationCode.matchAll(/create (?:or replace )?function (api\.\w+)\(([\s\S]*?)\n\$\$;/g)].map((match) => ({name: match[1], body: match[0]}));
+    expect(functions.map((entry) => entry.name).sort()).toEqual(['api.get_project', 'api.list_projects', 'api.preflight', 'api.rename_project']);
+    for (const entry of functions.filter((candidate) => candidate.name !== 'api.preflight')) expect(entry.body, entry.name).not.toMatch(/status_handle/);
+    // No function returns it: nothing in a return type or a function header, and no composite type holds one.
+    for (const entry of functions) expect(entry.body.slice(0, entry.body.indexOf('as $$')), entry.name).not.toMatch(/handle/i);
+    expect(migrationCode).not.toMatch(/create type[^;]*handle/i);
+  });
+
+  it('begins every function of the migration with the authority check, before it reads or writes a Project', () => {
+    for (const name of ['list_projects', 'get_project', 'rename_project']) {
+      const start = migrationCode.indexOf(`create function api.${name}(`);
+      expect(start, name).toBeGreaterThan(-1);
+      const body = migrationCode.slice(start, migrationCode.indexOf('$$;', migrationCode.indexOf('$$', start) + 2));
+      const check = body.indexOf('identity.assert_operation_authority(p_account_id, p_epoch)');
+      expect(check, `${name} calls the authority check`).toBeGreaterThan(-1);
+      expect(check, `${name}: before any Project is read`).toBeLessThan(body.search(/from projects\.|update projects\.|insert into projects\./));
+      // A refusal answers `denied`.
+      expect(body, name).toMatch(/exception when sqlstate 'N3010' then[\s\S]*?outcome := 'denied'/);
+      expect(body, name).toMatch(/security definer\s+set search_path = ''/);
+    }
+  });
+
+  it('filters every read and write by the Account in the query itself, never after it', () => {
+    for (const name of ['list_projects', 'get_project', 'rename_project']) {
+      const start = migrationCode.indexOf(`create function api.${name}(`);
+      const body = migrationCode.slice(start, migrationCode.indexOf('$$;', migrationCode.indexOf('$$', start) + 2));
+      for (const statement of body.match(/from projects\.projects[\s\S]*?;/g) ?? []) expect(statement, `${name}: ${statement.slice(0, 60)}`).toMatch(/account_id = p_account_id/);
+      expect(body, name).toMatch(/deleted_at is null/);
+    }
+  });
+
+  it('sets deleted_at nowhere: a deletion is Story 8.x\'s, and the tombstone and the status route are Story 1.8\'s', () => {
+    expect(migrationCode).not.toMatch(/deleted_at\s*=|set\s+deleted_at/i);
+    for (const file of sources) expect(withoutComments(read(file)), file).not.toMatch(/deleted_at/);
+  });
+
+  it('grants the three functions to the service role and nothing to anyone else', () => {
+    const grants = [...migrationCode.matchAll(/^grant .*$/gm)].map((match) => match[0]);
+    expect(grants).toHaveLength(3);
+    for (const grant of grants) expect(grant).toMatch(/^grant execute on function api\.(?:list_projects|get_project|rename_project)\(.*\) to service_role;$/);
+    expect(migrationCode).toMatch(/revoke all on projects\.projects from public, anon, authenticated, service_role/);
+    expect(migrationCode).toMatch(/revoke all on projects\.project_commands from public, anon, authenticated, service_role/);
+    expect(migrationCode).toMatch(/alter table projects\.projects enable row level security/);
+    expect(migrationCode).toMatch(/alter table projects\.project_commands enable row level security/);
+    expect(migrationCode).not.toMatch(/create policy/i);
+  });
+
+  it('keeps the browser-bound pieces free of the server-only modules', () => {
+    for (const file of ['lib/project-view.ts', 'lib/project-stage.ts', 'lib/projects-filter.ts', 'lib/project-fixtures.ts', 'components/nova-dashboard.tsx', ...sources.filter((candidate) => candidate.startsWith('components/projects/') && candidate !== 'components/projects/unavailable.tsx')]) {
+      expect(withoutComments(read(file)), file).not.toMatch(/from '@\/lib\/(?:accounts|access|auth|authority|projects|project-pages|project-target)'|from '\.\/(?:accounts|authority|projects)(?:\.ts)?'|node:crypto|next\/headers|next\/cache/);
+    }
+  });
+
+  it('lets only the Rename dialog reach the Server Action, and keeps the search on the page: what is typed goes in no request, address or log', () => {
+    expect(callers('renameProject')).toEqual([actions, 'components/projects/rename-dialog.tsx']);
+    for (const file of ['lib/projects-filter.ts', 'components/projects/projects-list.tsx']) {
+      expect(withoutComments(read(file)), file).not.toMatch(/\bfetch\(|useRouter|router\.|useSearchParams|URLSearchParams|history\.|location\.|console\.|localStorage|sessionStorage|document\.cookie/);
+    }
+  });
+
+  it('registers no Story 1.12 gateway resolver and no Story 1.8 guard, status route or ledger: the resolver is only provided', () => {
+    expect(callers('resolveProjectTarget')).toEqual(['lib/project-target.ts']);
+    expect(files('app', (name) => /^route\.(ts|js)$/.test(name)).filter((file) => /project/i.test(file))).toEqual([]);
+    for (const file of sources) expect(withoutComments(read(file)), file).not.toMatch(/registerResolver|registerTarget|tombstone|statusRoute/i);
+  });
+
+  it('writes the resolver down for the people who write the gateway and the status route', () => {
+    const contract = read('docs/authority-contract.md');
+    for (const needle of ['resolveProjectTarget', 'api.get_project', 'unavailable', 'unreachable', 'status handle']) expect(contract, needle).toContain(needle);
+  });
+
+  it('has the Project routes answer the one unavailable page, a 404, from the boundary beside the dynamic segment', () => {
+    expect(read('app/projects/[projectId]/not-found.tsx')).toMatch(/ProjectUnavailable/);
+    for (const file of ['app/projects/[projectId]/page.tsx', 'app/projects/[projectId]/sources/page.tsx']) {
+      const page = withoutComments(read(file));
+      expect(page, file).toMatch(/return notFound\(\)/);
+      expect(page, file).toMatch(/loaded\.state === 'unavailable'/);
+      // A database that cannot answer is never the unavailable page.
+      expect(page, file).toMatch(/loaded\.state === 'unreadable'/);
+      expect(page.indexOf("'unreadable'"), file).toBeGreaterThan(-1);
+    }
+  });
+});
