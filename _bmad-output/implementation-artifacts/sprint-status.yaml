@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-09-2026 11:36
-last_updated: 10-13-2026 00:04
+last_updated: 10-13-2026 12:06
 project: nova3D
 project_key: NOKEY
 tracking_system: file-system
@@ -44,7 +44,7 @@ development_status:
   1-11-manage-invitations-with-fresh-authentication: review
   1-5-disable-and-re-enable-account-access: review
   1-6-recover-the-sole-administrator-securely: review
-  1-8-define-tombstones-and-the-hidden-state-contract: backlog
+  1-8-define-tombstones-and-the-hidden-state-contract: in-progress
   1-9-provision-staging-and-run-periodic-jobs: backlog
   1-12-transfer-private-files-through-the-authorized-gateway: backlog
   1-13-raise-operational-alarms: backlog
