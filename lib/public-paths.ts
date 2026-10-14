@@ -2,7 +2,10 @@
 // them: registration is for a signed-in Google identity that has no Account yet, and the proxy lets only
 // that identity reach it (lib/access.ts). The two recovery pages (Story 1.6) are public because they exist for the one
 // person who cannot sign in; they still get the proxy's origin check, and a GET of either changes nothing.
-export const publicPaths = ['/login', '/auth/callback', '/api/health', '/recover', '/recover/confirm'];
+// /api/status (Story 1.8) is the status route: a device whose Account may be gone asks what became of a handle it holds, so it
+// cannot be asked of a signed-in Account. It is one POST that reads and changes nothing but a rate-limit counter; the proxy's origin
+// check applies to it like any other POST (a request from another site is refused), and it is rate limited by origin and in all.
+export const publicPaths = ['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm'];
 
 /**
  * The synthetic design kit route. Public only when synthetic data is on, which production forbids (check-env).

@@ -20,12 +20,12 @@ Generate on your own machine, copy straight into the store, and never paste a va
 
 ### RATE_LIMIT_HASH_KEY
 
-Story 1.3. Keyed hash (HMAC-SHA256) of the platform-reported client address for the registration rate limiter, so no raw address is kept. (Administrator recovery's limits, Story 1.6, are global and counted from its own rows: they use no client address and none of this key.) Read only by the application (`lib/accounts.ts`). Required at startup in every environment except a preview, which must not hold it; checked for shape (base64, at least 32 bytes, different from the other two hashing keys).
+Story 1.3. Keyed hash (HMAC-SHA256) of the platform-reported client address for the registration rate limiter, so no raw address is kept. Since Story 1.8 the same hash keys the status route's per-origin counters (`POST /api/status`: 120 requests a minute from one origin), so no raw address is kept there either; no new variable was added for it. (Administrator recovery's limits, Story 1.6, are global and counted from its own rows: they use no client address and none of this key.) Read only by the application (`lib/accounts.ts`, and `lib/lifecycle.ts` for the status lookup). Required at startup in every environment except a preview, which must not hold it; checked for shape (base64, at least 32 bytes, different from the other two hashing keys).
 
 - **Owner:** Administrator (Josh).
 - **Generation:** 32 random bytes from a secure generator, for example `openssl rand -base64 32`, one value per environment.
 - **Location:** local: `.env.local`; staging: the staging Vercel project's Production-scope variables; production: the production Vercel project's variables once it exists.
-- **Rotation:** generate a new value, replace it in the environment's store, redeploy. Counters keyed by the old value age out within their window (an hour at most), so the limiter starts from zero briefly. Nothing else is keyed by it.
+- **Rotation:** generate a new value, replace it in the environment's store, redeploy. Counters keyed by the old value age out within their window (an hour at most for registration, a minute for the status route), so the limiters start from zero briefly. Nothing else is keyed by it.
 - **Cadence:** yearly, and at once on suspected compromise.
 
 ### INVITATION_HASH_KEY

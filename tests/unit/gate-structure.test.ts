@@ -135,6 +135,12 @@ describe('every route handler answers only an active Account, and every one that
   // (There is no separate kit probe route: /kit is a page, public only while synthetic data is on.)
   const exempt: Record<string, string> = {
     'app/api/health/route.ts': 'the health check is public (lib/public-paths.ts) and reports no private data',
+    'app/api/status/route.ts': 'the status route (Story 1.8) is public (lib/public-paths.ts): a device whose Account may be gone asks what became of a handle it holds',
+  };
+  // The public routes that take a POST, and why it changes nothing a caller could use: a lookup reads, and the database counts it (a
+  // rate-limit counter is all it writes). The proxy still refuses it from another site, and the database rate limits it.
+  const publicPosts: Record<string, string> = {
+    'app/api/status/route.ts': 'a lookup of a status handle: it changes nothing but its own rate-limit counter',
   };
   // Routes that may put the synthetic check (and nothing else) ahead of their guard.
   const syntheticOnly: Record<string, string> = {
@@ -146,7 +152,7 @@ describe('every route handler answers only an active Account, and every one that
   const guarded = routes.filter((file) => !(file in exempt));
 
   it('finds the routes, under app/api and elsewhere', () => {
-    expect(routes).toEqual(expect.arrayContaining(['app/api/health/route.ts', 'app/api/kit/mutation/route.ts', 'app/auth/callback/route.ts']));
+    expect(routes).toEqual(expect.arrayContaining(['app/api/health/route.ts', 'app/api/kit/mutation/route.ts', 'app/api/status/route.ts', 'app/auth/callback/route.ts']));
     expect(apiRoutes.length).toBeGreaterThan(0);
   });
 
@@ -192,11 +198,23 @@ describe('every route handler answers only an active Account, and every one that
     }
   });
 
-  it('keeps the public routes to methods that change nothing', () => {
+  it('keeps the public routes to methods that change nothing, but for the one lookup POST, named with its reason', () => {
     for (const file of Object.keys(exempt)) {
       const methods = handlersOf(read(file)).map((handler) => handler.method);
       expect(methods.length, file).toBeGreaterThan(0);
+      if (file in publicPosts) {
+        // The lookup is a POST and nothing else: a GET of it would put the handle in a URL.
+        expect(methods, file).toEqual(['POST']);
+        continue;
+      }
       for (const method of methods) expect(safeHandlerMethods, `${file} ${method}`).toContain(method);
+    }
+  });
+
+  it('only allows a public POST in a route that is exempt and exists', () => {
+    for (const file of Object.keys(publicPosts)) {
+      expect(file in exempt, file).toBe(true);
+      expect(routes, file).toContain(file);
     }
   });
 
@@ -782,8 +800,14 @@ describe('Account administration (Story 1.5) disables in one database call, then
     expect(authority).toMatch(/export function registerCanceller/);
     expect(authority).toMatch(/export async function runCancellers/);
     // An answer that cannot be got is a denial: the catch returns allowed: false and never allowed: true.
-    const guard = authority.slice(authority.indexOf('export async function authorizeStep'), authority.indexOf('// Cancellation'));
+    const guard = authority.slice(authority.indexOf('export async function authorizeStep'), authority.indexOf('export type CancellationTarget'));
+    expect(guard.length).toBeGreaterThan(0);
     expect(guard.slice(guard.indexOf('catch (error)'))).not.toMatch(/allowed: true/);
+    // ... and so is the guard for a named target (Story 1.8), which sits after the cancellers.
+    const target = authority.slice(authority.indexOf('export async function authorizeTarget'));
+    expect(target).toMatch(/export async function authorizeTarget/);
+    expect(target.slice(target.indexOf('catch (error)'))).not.toMatch(/allowed: true/);
+    expect(target.slice(target.indexOf('catch (error)'))).toMatch(/reason: 'unreachable'/);
   });
 
   it('writes the contract down for the people who write Jobs and the file gateway', () => {
@@ -997,9 +1021,9 @@ describe('Projects (Story 1.7) are read and renamed through the typed calls, for
     expect(withoutComments(read('lib/projects.ts'))).toMatch(/callRow\(\s*'rename_project'/);
   });
 
-  it('exports the call helpers from lib/accounts.ts for lib/projects.ts alone', () => {
+  it('exports the call helpers from lib/accounts.ts for lib/projects.ts and, since Story 1.8, lib/lifecycle.ts alone', () => {
     const users = sources.filter((file) => /\b(?:callApi|callRow)\b/.test(withoutComments(read(file)))).sort();
-    expect(users).toEqual(['lib/accounts.ts', 'lib/projects.ts']);
+    expect(users).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts']);
   });
 
   it('is one Server Action behind withActiveAccount, with the Account from the verified access and nothing about it from the form', () => {
@@ -1031,7 +1055,7 @@ describe('Projects (Story 1.7) are read and renamed through the typed calls, for
     expect(withoutComments(read('lib/projects.ts'))).not.toMatch(/console\./);
   });
 
-  it('keeps the status handle in the database and out of every function and every file of the application', () => {
+  it('keeps the status handle\'s column in the database and out of every function and every file of the application (Story 1.8\'s lookup receives a handle as `handle`, and nothing reads the column)', () => {
     for (const file of sources) expect(withoutComments(read(file)), file).not.toMatch(/status_handle|statusHandle|status-handle/);
     // The migration names it in the table, its guard, its comment and the preflight's discarded read, and in no select list that leaves a function.
     const functions = [...migrationCode.matchAll(/create (?:or replace )?function (api\.\w+)\(([\s\S]*?)\n\$\$;/g)].map((match) => ({name: match[1], body: match[0]}));
@@ -1065,7 +1089,7 @@ describe('Projects (Story 1.7) are read and renamed through the typed calls, for
     }
   });
 
-  it('sets deleted_at nowhere: a deletion is Story 8.x\'s, and the tombstone and the status route are Story 1.8\'s', () => {
+  it('sets deleted_at nowhere in the application or in this migration: a deletion is Story 8.x\'s, and the one writer (api.record_tombstone, Story 1.8\'s, no caller yet) lives in its own migration', () => {
     expect(migrationCode).not.toMatch(/deleted_at\s*=|set\s+deleted_at/i);
     for (const file of sources) expect(withoutComments(read(file)), file).not.toMatch(/deleted_at/);
   });
@@ -1094,10 +1118,12 @@ describe('Projects (Story 1.7) are read and renamed through the typed calls, for
     }
   });
 
-  it('registers no Story 1.12 gateway resolver and no Story 1.8 guard, status route or ledger: the resolver is only provided', () => {
+  it('registers no Story 1.12 gateway resolver: the resolver is only provided, and no route is about Projects', () => {
     expect(callers('resolveProjectTarget')).toEqual(['lib/project-target.ts']);
     expect(files('app', (name) => /^route\.(ts|js)$/.test(name)).filter((file) => /project/i.test(file))).toEqual([]);
-    for (const file of sources) expect(withoutComments(read(file)), file).not.toMatch(/registerResolver|registerTarget|tombstone|statusRoute/i);
+    for (const file of sources) expect(withoutComments(read(file)), file).not.toMatch(/registerResolver|registerTarget|statusRoute/i);
+    // Story 1.8 wires the tombstone in the database and in three places in the application; nothing else names a tombstone in code.
+    expect(sources.filter((file) => /tombstone/i.test(withoutComments(read(file)))).sort()).toEqual(['lib/accounts.ts', 'lib/authority.ts', 'lib/lifecycle.ts']);
   });
 
   it('writes the resolver down for the people who write the gateway and the status route', () => {
@@ -1115,5 +1141,189 @@ describe('Projects (Story 1.7) are read and renamed through the typed calls, for
       expect(page, file).toMatch(/loaded\.state === 'unreadable'/);
       expect(page.indexOf("'unreadable'"), file).toBeGreaterThan(-1);
     }
+  });
+});
+
+describe('Tombstones, the ledger and the status route (Story 1.8) have one writer, one guard, one relay and one public route', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const migrationFile = 'supabase/migrations/20261013120000_tombstones_and_ledger.sql';
+  const migrationCode = read(migrationFile).replace(/^\s*--.*$/gm, '');
+  const route = 'app/api/status/route.ts';
+  const apiNames = ['record_tombstone', 'guard_target', 'lookup_status', 'claim_ledger_events', 'finish_ledger_events', 'ledger_pending'];
+
+  /** The text of a function of the migration, from its `create` to the `$$;` that closes it. */
+  const functionBody = (header: string) => {
+    const start = migrationCode.indexOf(header);
+    expect(start, header).toBeGreaterThan(-1);
+    return migrationCode.slice(start, migrationCode.indexOf('$$;', migrationCode.indexOf('$$', start) + 2));
+  };
+
+  it('writes a tombstone from one function, and nothing in the application calls it: Epic 8\'s deletion commands will', () => {
+    expect(callers('recordTombstone')).toEqual(['lib/lifecycle.ts']);
+    expect(callers('record_tombstone')).toEqual(['lib/lifecycle.ts']);
+    // No page, action, component or route can create a tombstone or delete data.
+    for (const file of sources.filter((candidate) => /^(?:app|components)\//.test(candidate))) {
+      expect(withoutComments(read(file)), file).not.toMatch(/\brecordTombstone\b|\brecord_tombstone\b|lifecycle\.tombstones/);
+    }
+  });
+
+  it('keeps the database functions behind the typed calls: nothing but lib/lifecycle.ts names them', () => {
+    for (const file of sources.filter((candidate) => candidate !== 'lib/lifecycle.ts' && candidate !== 'lib/accounts.ts')) {
+      expect(withoutComments(read(file)), file).not.toMatch(new RegExp(`['"\`](?:${apiNames.join('|')})['"\`]`));
+    }
+    for (const name of apiNames) expect(withoutComments(read('lib/lifecycle.ts')), name).toMatch(new RegExp(`callRow\\(\\s*'${name}'`));
+  });
+
+  it('asks the guard for a target from lib/authority.ts alone, and nothing asks it yet: the file gateway (Story 1.12) will', () => {
+    expect(callers('guardTarget')).toEqual(['lib/authority.ts', 'lib/lifecycle.ts']);
+    expect(callers('authorizeTarget')).toEqual(['lib/authority.ts']);
+  });
+
+  it('is a relay that is a function and nothing runs: no scheduler (Story 1.9), no alarm (Story 1.13), and the only store is the fixture one (Story 8.9 supplies the real one)', () => {
+    expect(callers('relayLedger')).toEqual(['lib/ledger.ts']);
+    expect(callers('claimLedgerEvents')).toEqual(['lib/ledger.ts', 'lib/lifecycle.ts']);
+    expect(callers('finishLedgerEvents')).toEqual(['lib/ledger.ts', 'lib/lifecycle.ts']);
+    expect(callers('ledgerPending')).toEqual(['lib/lifecycle.ts']);
+    expect(callers('createFixtureLedgerStore')).toEqual(['lib/ledger-fixture.ts']);
+    expect(callers('LedgerStore')).toEqual(['lib/ledger-fixture.ts', 'lib/ledger.ts']);
+    // Nothing starts it: no route, no instrumentation, no action, no scheduler registration.
+    for (const file of ['instrumentation.ts', 'instrumentation-node.ts', 'proxy.ts', ...sources.filter((candidate) => /^(?:app|components)\//.test(candidate))]) {
+      expect(withoutComments(read(file)), file).not.toMatch(/\brelayLedger\b|\bclaimLedgerEvents\b|\bledgerPending\b|registerAlarm|setInterval|@upstash\/workflow/);
+    }
+  });
+
+  it('keeps the modules a worker outside Next.js may import free of the framework and of the "@/" alias, and the merge rule free of every import', () => {
+    for (const file of ['lib/lifecycle.ts', 'lib/ledger.ts', 'lib/ledger-fixture.ts', 'lib/hidden-state.ts', 'lib/authority.ts']) {
+      const source = withoutComments(read(file));
+      expect(source, file).not.toMatch(/from 'next|from "next|from '@\/|from "@\/|\benum\s+\w+\s*\{|constructor\s*\([^)]*\b(?:private|public|readonly)\s/);
+      for (const match of source.matchAll(/^import .* from '(\.[^']*)';$/gm)) expect(match[1], `${file}: ${match[0]}`).toMatch(/^\.\/[\w-]+\.ts$/);
+    }
+    expect(withoutComments(read('lib/hidden-state.ts'))).not.toMatch(/^import\s|\bfrom\s+['"]/m);
+  });
+
+  it('puts the handle in no URL and no log: the status route reads it from the body alone and prints nothing', () => {
+    const code = withoutComments(read(route));
+    expect(code).not.toMatch(/console\.|\blog\(/);
+    expect(code).not.toMatch(/request\.url|nextUrl|searchParams|new URL\(|URLSearchParams|cookies\(|headers\(\)/);
+    // The one thing it takes from the request's headers is the platform's client address, through the typed helper and nothing of its own.
+    expect([...code.matchAll(/request\.headers/g)].length).toBe(2);
+    expect(code).toMatch(/clientAddressFromHeaders\(request\.headers\)/);
+    expect(code).toMatch(/const headers = \{'cache-control': 'no-store'\}/);
+    expect(code).toMatch(/const maxBodyBytes = 256/);
+    // It exports one POST (and `dynamic`), so a GET with the handle in a URL is a 405.
+    expect(handlersOf(read(route)).map((handler) => handler.method)).toEqual(['POST']);
+    expect(code).toMatch(/export const dynamic = 'force-dynamic'/);
+  });
+
+  it('adds no environment variable and no secret: the lookup hashes the origin under the rate-limit key registration already uses', () => {
+    const lifecycle = withoutComments(read('lib/lifecycle.ts'));
+    expect([...lifecycle.matchAll(/'([A-Z][A-Z0-9_]{4,})'/g)].map((match) => match[1])).toEqual(['RATE_LIMIT_HASH_KEY']);
+    for (const file of [route, 'lib/ledger.ts', 'lib/ledger-fixture.ts', 'lib/hidden-state.ts']) expect(withoutComments(read(file)), file).not.toMatch(/process\.env\.[A-Z_]+/);
+    // The instance ID the relay prefixes keys with is a parameter (the caller passes INSTANCE_ID), not something it reads.
+    expect(withoutComments(read('lib/ledger.ts'))).not.toMatch(/INSTANCE_ID/);
+  });
+
+  it('closes every new table and function: row-level security on, no policy, every privilege revoked, granted to the service role by name and to nobody else', () => {
+    for (const table of ['tombstones', 'ledger_outbox', 'ledger_relay', 'status_requests']) {
+      expect(migrationCode, table).toMatch(new RegExp(`alter table lifecycle\\.${table} enable row level security;`));
+      expect(migrationCode, table).toMatch(new RegExp(`revoke all on lifecycle\\.${table} from public, anon, authenticated, service_role;`));
+    }
+    expect(migrationCode).not.toMatch(/create policy/i);
+    const grants = [...migrationCode.matchAll(/^grant .*$/gm)].map((match) => match[0]);
+    expect(grants).toHaveLength(6);
+    for (const grant of grants) expect(grant).toMatch(/^grant execute on function api\.(?:record_tombstone|guard_target|claim_ledger_events|finish_ledger_events|ledger_pending|lookup_status)\(.*\) to service_role;$/);
+    // Every function of the api schema it creates runs as its owner with an empty search_path; the lifecycle helpers are granted to nobody.
+    for (const match of migrationCode.matchAll(/create (?:or replace )?function (api\.\w+)\(/g)) {
+      expect(functionBody(match[0]), match[1]).toMatch(/security definer\s+set search_path = ''/);
+    }
+    for (const match of migrationCode.matchAll(/create (?:or replace )?function ((?:lifecycle|identity|projects)\.\w+)\(/g)) {
+      expect(functionBody(match[0]), match[1]).toMatch(/set search_path = ''/);
+    }
+    expect(migrationCode).not.toMatch(/grant execute on function (?:lifecycle|identity|projects)\./);
+    // ... and the schema is closed to what is made next.
+    expect(migrationCode).toMatch(/alter default privileges for role postgres in schema lifecycle revoke execute on functions from public, anon, authenticated, service_role;/);
+    expect(migrationCode).toMatch(/alter default privileges for role postgres in schema lifecycle revoke all on tables from public, anon, authenticated, service_role;/);
+  });
+
+  it('writes a tombstone from api.record_tombstone alone, and the outbox from lifecycle.append_event alone', () => {
+    expect([...migrationCode.matchAll(/insert into lifecycle\.tombstones/g)]).toHaveLength(1);
+    expect(functionBody('create function api.record_tombstone(')).toMatch(/insert into lifecycle\.tombstones/);
+    expect(migrationCode).not.toMatch(/(?:update|delete from)\s+lifecycle\.tombstones/);
+    expect([...migrationCode.matchAll(/insert into lifecycle\.ledger_outbox/g)]).toHaveLength(1);
+    expect(functionBody('create function lifecycle.append_event(')).toMatch(/insert into lifecycle\.ledger_outbox/);
+    // One statement marks an event relayed: the one in api.finish_ledger_events. Nothing else updates the outbox.
+    expect(functionBody('create function api.finish_ledger_events(')).toMatch(/update lifecycle\.ledger_outbox/);
+    expect([...migrationCode.matchAll(/update lifecycle\.ledger_outbox/g)]).toHaveLength(1);
+    // The lease row is updated by two functions and no other: the one that takes the lease and the one that lets go of it.
+    expect(functionBody('create function api.claim_ledger_events(')).toMatch(/update lifecycle\.ledger_relay/);
+    expect(functionBody('create function api.finish_ledger_events(')).toMatch(/update lifecycle\.ledger_relay/);
+    expect([...migrationCode.matchAll(/update lifecycle\.ledger_relay/g)]).toHaveLength(2);
+  });
+
+  it('hides first and only then records: the target is updated before the tombstone is inserted, in the one function', () => {
+    const body = functionBody('create function api.record_tombstone(');
+    const hidden = Math.max(body.indexOf('update identity.accounts'), body.indexOf('update projects.projects'));
+    expect(body.indexOf('update identity.accounts')).toBeGreaterThan(-1);
+    expect(body.indexOf('update projects.projects')).toBeGreaterThan(-1);
+    expect(hidden).toBeLessThan(body.indexOf('insert into lifecycle.tombstones'));
+    // An Account's Auth sessions are deleted after the hide and before the tombstone is written, as api.disable_account does it.
+    const sessions = body.indexOf('delete from auth.sessions');
+    expect(sessions).toBeGreaterThan(body.indexOf('update identity.accounts'));
+    expect(sessions).toBeLessThan(body.indexOf('insert into lifecycle.tombstones'));
+    expect([...body.matchAll(/delete from auth\.sessions/g)]).toHaveLength(1);
+    // ... under a lock on the target's row, and with the existing tombstone read after that lock.
+    expect(body.indexOf('for update')).toBeGreaterThan(-1);
+    expect(body.indexOf('for update')).toBeLessThan(body.indexOf('from lifecycle.tombstones'));
+  });
+
+  it('makes the tombstone guard the first statement of the two authority checks', () => {
+    for (const header of ['create or replace function identity.assert_operation_authority(', 'create or replace function api.guard_operation(']) {
+      const body = functionBody(header);
+      const start = body.indexOf('begin');
+      expect(body.slice(start).search(/lifecycle\.assert_not_tombstoned\('account'/), header).toBeGreaterThan(-1);
+      // Nothing about the Account is read before it.
+      expect(body.slice(start, start + body.slice(start).search(/lifecycle\.assert_not_tombstoned\('account'/)), header).not.toMatch(/identity\.accounts/);
+    }
+  });
+
+  it('queues an event from a trigger on each table that changes, and from no function an application calls', () => {
+    for (const [table, trigger] of [
+      ['identity.accounts', 'accounts_ledger'],
+      ['identity.invitations', 'invitations_ledger'],
+      ['identity.preauthorizations', 'preauthorizations_ledger'],
+      ['identity.recovery_tokens', 'recovery_tokens_ledger'],
+      ['lifecycle.tombstones', 'tombstones_ledger'],
+    ]) expect(migrationCode, trigger).toMatch(new RegExp(`create trigger ${trigger} after (?:update|insert) on ${table.replace('.', '\\.')}`));
+    // Triggers are AFTER, so a change that is refused or rolled back leaves no event, and none of them is a BEFORE trigger that could queue and then fail.
+    expect(migrationCode).not.toMatch(/create trigger \w+_ledger before/);
+  });
+
+  it('returns no status handle from any function: no composite type holds one, and the lookup\'s type names a state and a revision', () => {
+    expect(migrationCode).not.toMatch(/create type[^;]*handle/i);
+    const lookup = functionBody('create function api.lookup_status(');
+    expect(lookup.slice(0, lookup.indexOf('as $$'))).toMatch(/\)\s+returns api\.status_lookup\s+language/);
+    expect(migrationCode).toMatch(/create type api\.status_lookup as \(outcome text, revision bigint, retry_after integer\);/);
+    // The tombstone event carries it (hex), because that is what the ledger is for; no other event does.
+    expect([...migrationCode.matchAll(/'handle'/g)]).toHaveLength(1);
+  });
+
+  it('counts the lookup before it looks anything up', () => {
+    const body = functionBody('create function api.lookup_status(');
+    const counted = body.indexOf('insert into lifecycle.status_requests');
+    expect(counted).toBeGreaterThan(-1);
+    for (const read of ['from lifecycle.tombstones', 'from identity.accounts', 'from projects.projects']) expect(counted, read).toBeLessThan(body.indexOf(read));
+    expect(body).toMatch(/c_origin_limit constant integer := 120;/);
+    expect(body).toMatch(/c_global_limit constant integer := 1200;/);
+  });
+
+  it('writes the guard contract down for the people who write the gateway and the deletion commands', () => {
+    const contract = read('docs/authority-contract.md');
+    for (const needle of ['The tombstone guard', 'lifecycle.assert_not_tombstoned', 'authorizeTarget', 'api.guard_target', 'api.record_tombstone', 'mergeStatus', 'POST /api/status', 'tombstoned', 'unavailable', 'FOR SHARE', 'Retry-After', 'its own revision plus its Account\'s authorization epoch']) expect(contract, needle).toContain(needle);
   });
 });

@@ -270,7 +270,7 @@ describe('access: closed to every role but the service role, and the status hand
     expect(texts.join(' ')).toContain('Handle probe renamed');
   });
 
-  it('returns the status handle from no function: no return type, and no function of the api schema but the preflight, names it', async () => {
+  it('returns the status handle from no function: no return type holds one, and the only functions of the api schema that name the column are the preflight, the tombstone writer and the status lookup (tombstones.test.ts shows what each lets out)', async () => {
     const { rows: types } = await db.query(
       `select t.typname, a.attname from pg_type t join pg_class c on c.oid = t.typrelid join pg_attribute a on a.attrelid = c.oid and a.attnum > 0
         where t.typnamespace = 'api'::regnamespace and a.attname ilike '%handle%'`,
@@ -278,9 +278,11 @@ describe('access: closed to every role but the service role, and the status hand
     expect(types).toEqual([]);
     const { rows: functions } = await db.query(`select p.proname as name, pg_get_functiondef(p.oid) as definition from pg_proc p where p.pronamespace = 'api'::regnamespace`);
     const naming = functions.filter((row) => /status_handle/.test(row.definition));
-    expect(naming.map((row) => row.name)).toEqual(['preflight']);
+    // Story 1.8 gave the handle two uses: record_tombstone copies it into the tombstone, and lookup_status finds a target by it. Neither returns it.
+    expect(naming.map((row) => row.name).sort()).toEqual(['lookup_status', 'preflight', 'record_tombstone']);
     // The preflight only checks that the column exists: it reads it and discards it.
-    for (const line of naming[0].definition.split('\n').filter((entry: string) => /status_handle/.test(entry))) expect(line.trim().startsWith('perform')).toBe(true);
+    const preflight = naming.find((row) => row.name === 'preflight');
+    for (const line of preflight.definition.split('\n').filter((entry: string) => /status_handle/.test(entry))) expect(line.trim().startsWith('perform')).toBe(true);
   });
 });
 

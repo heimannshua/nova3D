@@ -384,6 +384,22 @@
       "evidence": {}
     },
     {
+      "id": "hosted-status-check",
+      "service": "supabase",
+      "title": "The tombstone and ledger migration applied to staging and the status route checked",
+      "kind": "attestation",
+      "due": "1-8",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Apply `supabase/migrations/20261013120000_tombstones_and_ledger.sql` to staging by hand, before the build that uses it deploys, following `docs/staging.md` (it adds four tables in the `lifecycle` schema, a status handle column on `identity.accounts`, triggers and six functions; it adds no setting or secret, and the other migrations are already there). The build's preflight now also probes all of it and fails with one line if the file is missing.",
+        "Run the status route check in `docs/staging.md` (step 6): `POST /api/status` from the application's own origin answers 200 `{\"state\":\"unknown\"}` for a handle no row holds, 400 for a body that is not exactly `{\"handle\": \"<32 lower-case hex>\"}`, 403 from another origin and 405 for a GET, always with `cache-control: no-store`. A handle that is known cannot be fetched from the hosted application on purpose; do not copy one out of the database into a chat, a ticket or a log.",
+        "Read `docs/deletion-verification.md` and record who will run each proof, because it must be settled before any purge code ships (Stories 8.1 to 8.3). Nothing relays the ledger yet (Story 1.9 schedules it, Story 8.9 supplies the store), so the pending count only grows until then.",
+        "Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
       "id": "upstash-account",
       "service": "upstash",
       "title": "Upstash account with Redis and QStash in the adopted regions",

@@ -50,7 +50,7 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Region: us-east-1
 - Spend backstop: The organization's spend cap, left on in the billing settings. Fixed cost is about $35-40 a month; each restore drill adds a temporary project whose hourly cost is recorded at the first drill.
 - First needed: Story 1.4
-- Verification: attestation (7)
+- Verification: attestation (8)
 - Secret names by environment: staging: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF`
 - Free-tier limits relied on, with the trigger for upgrading:
   - A Free project pauses, so staging and production never run on the Free plan. Upgrade trigger: Pro before Story 1.4, so hosted-Auth checks can run.
@@ -337,6 +337,21 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 1. Apply `supabase/migrations/20261012140000_administrator_recovery.sql` to staging by hand, before the build that uses it deploys, following `docs/staging.md` (it adds one table, four functions and an optional nonce plus a `source` column on the step-up marker table; it adds no setting or secret, and the other migrations are already there). The build's preflight now also checks for it and fails with one line if it is missing.
 2. Make sure `RECOVERY_HASH_KEY`, `RESEND_API_KEY` and `APP_ORIGIN` are set in the staging Vercel project's Production scope (`docs/secrets.md`, `docs/deployment-setup.md`). The build fails without them, and a preview must hold neither key.
 3. With the Email provider DISABLED in the staging Auth settings (Google only), run the recovery check in `docs/auth-setup.md` (Verifying Administrator recovery on hosted environments): request a link and see that only the Administrator's address receives it, that a scanner-style GET of the link changes nothing, that redeeming it signs the Administrator in at Administration with every older session gone and a fresh administration marker, that the Administrator's Auth user gained no `email` identity (`auth.identities` still holds the Google identity only) and an email or magic-link sign-in with the Email provider disabled is still refused, and that a replayed or expired link is refused. STOP and record a design change if hosted Auth refuses the Admin link API or `verifyOtp`: the Spine allows the Google provider only, so the Email provider is never the way around it.
+4. Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
+
+### Due by Story 1.8
+
+#### `hosted-status-check`: The tombstone and ledger migration applied to staging and the status route checked
+
+- Service: Supabase (Postgres, Auth, Storage)
+- Verification: attestation
+- Environments: staging
+- Secret names: none
+- Status: staging: pending
+
+1. Apply `supabase/migrations/20261013120000_tombstones_and_ledger.sql` to staging by hand, before the build that uses it deploys, following `docs/staging.md` (it adds four tables in the `lifecycle` schema, a status handle column on `identity.accounts`, triggers and six functions; it adds no setting or secret, and the other migrations are already there). The build's preflight now also probes all of it and fails with one line if the file is missing.
+2. Run the status route check in `docs/staging.md` (step 6): `POST /api/status` from the application's own origin answers 200 `{"state":"unknown"}` for a handle no row holds, 400 for a body that is not exactly `{"handle": "<32 lower-case hex>"}`, 403 from another origin and 405 for a GET, always with `cache-control: no-store`. A handle that is known cannot be fetched from the hosted application on purpose; do not copy one out of the database into a chat, a ticket or a log.
+3. Read `docs/deletion-verification.md` and record who will run each proof, because it must be settled before any purge code ships (Stories 8.1 to 8.3). Nothing relays the ledger yet (Story 1.9 schedules it, Story 8.9 supplies the store), so the pending count only grows until then.
 4. Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
 
 ### Due by Story 1.9

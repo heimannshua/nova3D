@@ -1107,8 +1107,8 @@ describe('Account administration (Story 1.5)', () => {
   });
 
   describe('guardOperation', () => {
-    it('names the four answers the database gives, and no others', () => {
-      expect([...operationOutcomes]).toEqual(['allowed', 'disabled', 'stale_epoch', 'no_account']);
+    it('names the five answers the database gives, and no others', () => {
+      expect([...operationOutcomes]).toEqual(['allowed', 'disabled', 'stale_epoch', 'no_account', 'tombstoned']);
     });
 
     it('sends the Account and the epoch it registered under to api.guard_operation', async () => {
@@ -1118,7 +1118,8 @@ describe('Account administration (Story 1.5)', () => {
       expect(calls[0].body).toEqual({p_account_id: ACCOUNT, p_epoch: 3});
     });
 
-    it.each([['disabled', 4], ['stale_epoch', 4], ['no_account', null]] as const)('maps %s', async (outcome, epoch) => {
+    // `tombstoned` (Story 1.8) is a deleted Account: its row may be gone, and then there is no epoch to report.
+    it.each([['disabled', 4], ['stale_epoch', 4], ['no_account', null], ['tombstoned', 4], ['tombstoned', null]] as const)('maps %s (epoch %s)', async (outcome, epoch) => {
       const {fetch} = endpoint(() => ({body: {outcome, epoch}}));
       expect(await guardOperation({accountId: ACCOUNT, epoch: 3}, {env: environment(), fetch})).toEqual({outcome, epoch});
     });

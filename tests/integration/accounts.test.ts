@@ -51,24 +51,30 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'authorize_session',
     'before_user_created',
     'check_recovery',
+    'claim_ledger_events',
     'complete_step_up',
     'confirm_registration',
     'consume_preauthorization',
     'disable_account',
     'enable_account',
+    'finish_ledger_events',
     'get_project',
     'guard_operation',
+    'guard_target',
     'issue_csrf',
     'issue_grant',
     'issue_invitation',
     'issue_recovery',
+    'ledger_pending',
     'list_accounts',
     'list_invitations',
     'list_projects',
+    'lookup_status',
     'preflight',
     'raise_authorization_epoch',
     'record_account_refusal',
     'record_invitation_refusal',
+    'record_tombstone',
     'redeem_recovery',
     'register_with_code',
     'rename_project',
@@ -130,13 +136,13 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     expect(publicGrants).toEqual([]);
   });
 
-  it('lets only service_role execute an api function (the Auth hook belongs to supabase_auth_admin) and nothing in identity or projects', async () => {
+  it('lets only service_role execute an api function (the Auth hook belongs to supabase_auth_admin) and nothing in identity, projects or lifecycle', async () => {
     const {rows: functions} = await db.query(
       `select n.nspname as schema, p.proname as name, p.prosecdef as definer, p.proconfig as config, p.proacl is null as default_acl,
               coalesce((select array_agg(case when a.grantee = 0 then 'public' else a.grantee::regrole::text end order by 1)
                           from aclexplode(p.proacl) a where a.privilege_type = 'EXECUTE' and a.grantee <> p.proowner), '{}') as grantees
          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-        where n.nspname in ('api', 'identity', 'projects') order by 1, 2`,
+        where n.nspname in ('api', 'identity', 'projects', 'lifecycle') order by 1, 2`,
     );
     expect(functions.filter((f) => f.schema === 'api').map((f) => f.name)).toEqual(apiFunctions);
     for (const f of functions) {
@@ -173,7 +179,8 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
 
   it('closes a new function or table by default: a throwaway one made here is executable and readable by nobody', async () => {
     await inTx(async (client) => {
-      for (const schema of ['api', 'identity', 'projects']) {
+      // `lifecycle` is one the Data API lists, and Story 1.8 closed it by default too (its own default-privilege rules).
+      for (const schema of ['api', 'identity', 'projects', 'lifecycle']) {
         await client.query(`create function ${schema}.throwaway() returns integer language sql as 'select 1'`);
         const {rows: acl} = await client.query(
           `select p.proacl::text as acl, (select count(*)::int from aclexplode(p.proacl) a where a.grantee = 0) as public_grants
@@ -188,7 +195,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
           expect(denied.ok, `${role} calls ${schema}.throwaway()`).toBe(false);
         }
       }
-      for (const schema of ['identity', 'projects']) {
+      for (const schema of ['identity', 'projects', 'lifecycle']) {
         await client.query(`create table ${schema}.throwaway (id integer generated always as identity primary key)`);
         for (const role of ['anon', 'authenticated', 'service_role']) {
           const {rows: grant} = await client.query(

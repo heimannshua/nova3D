@@ -8,14 +8,21 @@ afterEach(() => vi.unstubAllEnvs());
 // The design kit is the only route that is public because of a flag. It lets tests reach the shell
 // without a sign-in, so it must never be public unless synthetic data is on (production forbids that).
 describe('public paths (Story 1.2)', () => {
-  it('keeps the sign-in, callback and health routes public', () => {
-    expect(publicPaths).toEqual(['/login', '/auth/callback', '/api/health', '/recover', '/recover/confirm']);
+  it('keeps the sign-in, callback, health and status routes public', () => {
+    expect(publicPaths).toEqual(['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm']);
     for (const path of publicPaths) expect(isPublicPath(path, {})).toBe(true);
   });
 
   it('makes the two recovery pages public (Story 1.6) and nothing beneath or beside them', () => {
     for (const path of ['/recover', '/recover/confirm']) expect(isPublicPath(path, {}), path).toBe(true);
     for (const path of ['/recover/', '/recover/confirm/', '/recover/confirm/extra', '/recover/other', '/recovery', '/recover.json', '/Recover']) {
+      expect(isPublicPath(path, {SYNTHETIC_DATA_ENABLED: 'true'}), path).toBe(false);
+    }
+  });
+
+  it('makes the status route (Story 1.8) public at its one path and nothing beneath or beside it', () => {
+    expect(isPublicPath('/api/status', {})).toBe(true);
+    for (const path of ['/api/status/', '/api/status/extra', '/api/statuses', '/api/Status', '/api', '/status', '/api/status.json']) {
       expect(isPublicPath(path, {SYNTHETIC_DATA_ENABLED: 'true'}), path).toBe(false);
     }
   });

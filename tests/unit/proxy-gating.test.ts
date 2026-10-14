@@ -422,7 +422,7 @@ describe('a failure while deciding denies access (fail closed)', () => {
 });
 
 describe('public paths are not gated', () => {
-  it.each(['/login', '/auth/callback', '/api/health'])('lets %s through without asking anyone', async (path) => {
+  it.each(['/login', '/auth/callback', '/api/health', '/api/status'])('lets %s through without asking anyone', async (path) => {
     const response = await run(path, {cookie: null});
     expect(passes(response)).toBe(true);
     expect(calls).toEqual([]);
@@ -912,7 +912,8 @@ describe('origin checks (Story 1.4c)', () => {
   });
 
   it('applies to public paths too, without asking anyone', async () => {
-    for (const [path, expected] of [['/login', 'Forbidden'], ['/auth/callback', 'Forbidden'], ['/api/health', 'origin_not_allowed']] as const) {
+    // /api/status (Story 1.8) is public and takes a POST: it is the one public route whose POST must come from this application's own origin.
+    for (const [path, expected] of [['/login', 'Forbidden'], ['/auth/callback', 'Forbidden'], ['/api/health', 'origin_not_allowed'], ['/api/status', 'origin_not_allowed']] as const) {
       for (const origin of ['https://evil.example', 'null', null]) {
         const response = await run(path, {cookie: null, method: 'POST', origin});
         expect(response.status, `${path} ${origin}`).toBe(403);
@@ -1193,7 +1194,7 @@ describe('the CSRF cookie (Story 1.4c)', () => {
 
   it('is not issued by a public path, which has no session to give it to', async () => {
     vi.stubEnv('SYNTHETIC_DATA_ENABLED', 'true');
-    for (const path of ['/login', '/auth/callback', '/api/health', '/kit']) {
+    for (const path of ['/login', '/auth/callback', '/api/health', '/api/status', '/kit']) {
       const response = await run(path, {navigation: true});
       expect(csrfSetCookie(response), path).toBeUndefined();
     }

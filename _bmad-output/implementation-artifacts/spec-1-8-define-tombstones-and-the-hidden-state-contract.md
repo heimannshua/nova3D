@@ -2,8 +2,9 @@
 title: 'Story 1.8: Define tombstones and the hidden-state contract'
 type: 'feature'
 created: '2026-10-13'
-status: 'in-progress'
-review_loop_iteration: 0
+status: 'done'
+baseline_commit: 'e64032e5473ab8c5473d488927bab5cb7070f886'
+review_loop_iteration: 1
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
   - '{project-root}/_bmad-output/implementation-artifacts/spec-1-7-navigate-my-projects-and-project-state.md'
@@ -22,7 +23,7 @@ context:
 
 ## Boundaries & Constraints
 
-**Always:** Consult `node_modules/next/dist/docs/` before writing Next.js code (AGENTS.md). New tables live in the `lifecycle` schema, which the Data API lists, so each is closed explicitly (RLS on, no policies, every privilege revoked from public, anon, authenticated and service_role) and reached only through `api` functions that only the service role executes, each `security definer` with `search_path = ''`. Tables: `lifecycle.tombstones`, `lifecycle.ledger_outbox`, `lifecycle.ledger_relay`, `lifecycle.status_requests`. A tombstone holds only its kind (`account` or `project`), target ID, status handle, revision and time; it is unique per target and per handle and is never updated, deleted or truncated. `api.record_tombstone(kind, id)` is its one writer, with no caller in the application: idempotent (a second call changes nothing), it locks the target row, takes revision = the target's next revision, and in one transaction hides first (an Account becomes `disabled` with its epoch raised by one, which ends every grant and operation registered under an older epoch; a Project gets `deleted_at` and its revision raised by one), then inserts the tombstone and queues its ledger event. A tombstoned Account cannot be enabled (the Account guard trigger refuses; `api.enable_account` answers `not_found`), and an Account or Project row cannot be inserted with a tombstoned ID (BEFORE INSERT triggers). The guard: `lifecycle.assert_not_tombstoned(kind, id)` raises N3010 `tombstoned` for SQL that publishes and is called first in `identity.assert_operation_authority` and `api.guard_operation` (new outcome `tombstoned`); `api.guard_target(account, epoch, kind, id)` and `authorizeTarget` in `lib/authority.ts` answer `allowed`, the existing denials, `tombstoned` or `unavailable` (a foreign, unknown, deleted or tombstoned Project is the same `unavailable`). Every guard rejects before any other effect and discloses no content. A Server-side step that gets no answer is denied. `lib/hidden-state.ts` (no imports, client-safe) holds the merge rule of two status replies `{state: active|disabled|deleted, revision}`: `deleted` is terminal and never replaced; otherwise the higher revision wins; at equal revisions the more restrictive state wins (deleted over disabled over active); a lower revision never replaces a higher. An Account's revision is its authorization epoch, a Project's is its own revision, a tombstone's is the revision it was recorded at. The Account gets `status_handle` (16 random bytes from `extensions.gen_random_bytes`, unique, not null, immutable, backfilled for existing rows), created with it; no page, payload or function returns a handle to a browser. The outbox: every committed Account status or epoch change (disable, re-enable, recovery's epoch raise), invitation or preauthorization consumption, invitation revocation (a rotation revokes then issues), recovery redemption and tombstone queues exactly one event in the same transaction, by AFTER triggers on the tables so no path can forget; a rolled-back change leaves no event. An event is `{id, type, ...}` holding opaque IDs, statuses and revisions only: never an address, title, code, token or hash of one; a tombstone event carries the handle. Outbox rows are immutable apart from being marked relayed once. The relay (`lib/ledger.ts`, a function: `claim → append → mark`) takes a short lease (`lifecycle.ledger_relay`), appends events in outbox order to a `LedgerStore` port (`head()` and create-only `putIfAbsent(key, body)`; no overwrite, no delete), as `<instance id>/<20-digit sequence>-<SHA-256 of the previous body>.json` with body `{sequence, previous, event, at}` (first object: 64 zeros; `at` is the event's own time, so a retry writes identical bytes), and marks it relayed. It is idempotent (an event already at the head is marked, not appended again), never throws for a store outage (the change stays in force, the event stays pending), and `api.ledger_pending()` reports how many are pending and how old the oldest is. The fixture store is in memory with outage injection. The status route is `POST /api/status` (public, same-origin by the proxy, body `{"handle": 32 lowercase hex}` of at most 256 bytes, so the handle never enters a URL or a log): `api.lookup_status(handle, origin_hash)` counts the request first (120 per origin per minute, 1,200 globally per minute, every request counted, origin hashed as registration does) and answers `{state, revision}`; deleted handles stay answerable from the tombstone. The deletion-verification procedure is `docs/deletion-verification.md`: for each store (database, Storage and object stores, backups, notifications, logs, plus outside providers) how absence is proven, who runs it and when, and where the evidence is kept. `api.preflight` is re-created carrying every earlier probe plus the new ones. No new environment variable or secret.
+**Always:** Consult `node_modules/next/dist/docs/` before writing Next.js code (AGENTS.md). New tables live in the `lifecycle` schema, which the Data API lists, so each is closed explicitly (RLS on, no policies, every privilege revoked from public, anon, authenticated and service_role) and reached only through `api` functions that only the service role executes, each `security definer` with `search_path = ''`. Tables: `lifecycle.tombstones`, `lifecycle.ledger_outbox`, `lifecycle.ledger_relay`, `lifecycle.status_requests`. A tombstone holds only its kind (`account` or `project`), target ID, status handle, revision and time; it is unique per target and per handle and is never updated, deleted or truncated. `api.record_tombstone(kind, id)` is its one writer, with no caller in the application: idempotent (a second call changes nothing), it locks the target row, takes revision = the target's next revision, and in one transaction hides first (an Account becomes `disabled` with its epoch raised by one, which ends every grant and operation registered under an older epoch; a Project gets `deleted_at` and its revision raised by one), then inserts the tombstone and queues its ledger event. A tombstoned Account cannot be enabled (the Account guard trigger refuses; `api.enable_account` answers `not_found`), and an Account or Project row cannot be inserted with a tombstoned ID (BEFORE INSERT triggers). The guard: `lifecycle.assert_not_tombstoned(kind, id)` raises N3010 `tombstoned` for SQL that publishes and is called first in `identity.assert_operation_authority` and `api.guard_operation` (new outcome `tombstoned`); `api.guard_target(account, epoch, kind, id)` and `authorizeTarget` in `lib/authority.ts` answer `allowed`, the existing denials, `tombstoned` or `unavailable` (a foreign, unknown, deleted or tombstoned Project is the same `unavailable`). Every guard rejects before any other effect and discloses no content. A Server-side step that gets no answer is denied. `lib/hidden-state.ts` (no imports, client-safe) holds the merge rule of two status replies `{state: active|disabled|deleted, revision}`: `deleted` is terminal and never replaced; otherwise the higher revision wins; at equal revisions the more restrictive state wins (deleted over disabled over active); a lower revision never replaces a higher. An Account's revision is its authorization epoch, a Project's is its own revision plus its Account's authorization epoch (both only rise, so a disable and a re-enable of the Account each raise it and a device can see the Project become active again), a tombstone's is the revision it was recorded at (`deleted` is terminal, so its revision never lifts anything). The Account gets `status_handle` (16 random bytes from `extensions.gen_random_bytes`, unique, not null, immutable, backfilled for existing rows), created with it; no page, payload or function returns a handle to a browser. The outbox: every committed Account status or epoch change (disable, re-enable, recovery's epoch raise), invitation or preauthorization consumption, invitation revocation (a rotation revokes then issues), recovery redemption and tombstone queues exactly one event in the same transaction, by AFTER triggers on the tables so no path can forget; a rolled-back change leaves no event. An event is `{id, type, ...}` holding opaque IDs, statuses and revisions only: never an address, title, code, token or hash of one; a tombstone event carries the handle. Outbox rows are immutable apart from being marked relayed once. The relay (`lib/ledger.ts`, a function: `claim → append → mark`) takes a short lease (`lifecycle.ledger_relay`), appends events in outbox order to a `LedgerStore` port (`head()` and create-only `putIfAbsent(key, body)`; no overwrite, no delete), as `<instance id>/<20-digit sequence>-<SHA-256 of the previous body>.json` with body `{sequence, previous, event, at}` (first object: 64 zeros; `at` is the event's own time, so a retry writes identical bytes), and marks it relayed. It is idempotent (an event already at the head is marked, not appended again), never throws for a store outage (the change stays in force, the event stays pending), and `api.ledger_pending()` reports how many are pending and how old the oldest is. The fixture store is in memory with outage injection. The status route is `POST /api/status` (public, same-origin by the proxy, body `{"handle": 32 lowercase hex}` of at most 256 bytes, so the handle never enters a URL or a log): `api.lookup_status(handle, origin_hash)` counts the request first (120 per origin per minute, 1,200 globally per minute, every request counted, origin hashed as registration does) and answers `{state, revision}`; deleted handles stay answerable from the tombstone. The deletion-verification procedure is `docs/deletion-verification.md`: for each store (database, Storage and object stores, backups, notifications, logs, plus outside providers) how absence is proven, who runs it and when, and where the evidence is kept. `api.preflight` is re-created carrying every earlier probe plus the new ones. No new environment variable or secret.
 
 **Ask First:** Any change to the session-grant functions beyond what this story needs; new environment variables, secrets or external accounts; a different route method, path or rate budget; giving the application any way to create a tombstone or delete data; storing anything but opaque identifiers in a tombstone or event; any step against staging, production or Backblaze.
 
@@ -63,12 +64,12 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/20261013120000_tombstones_and_ledger.sql` -- tables, closure, tombstone writer and guards, anti-reuse and refusal triggers, Account handle, outbox triggers, relay lease functions, status lookup with its counters, preflight carrying every earlier probe -- AC-1, AC-2, AC-3, AC-5, AC-6
-- [ ] `lib/hidden-state.ts`, `lib/lifecycle.ts`, `lib/ledger.ts`, `lib/ledger-fixture.ts`, `lib/accounts.ts`, `lib/authority.ts` -- merge rule, typed calls with every answer checked, hash chain and relay, fixture store with outage injection, `tombstoned` outcome and `authorizeTarget` -- AC-1, AC-2, AC-5
-- [ ] `app/api/status/route.ts`, `lib/public-paths.ts` -- the public POST lookup (size cap, hex check, no-store, status mapping, nothing logged) -- AC-6
-- [ ] `docs/deletion-verification.md`, `docs/authority-contract.md`, `docs/staging.md`, `provisioning/ledger.json`, `docs/provisioning.md`, `README.md` -- the procedure, the guard contract, the staging step -- AC-4
-- [ ] `tests/` -- every matrix row: integration (writer, hide order, guards at every path, immutability, reused ID, enable refused, triggers and rollback, lease and two relays, REST closure, preflight, lookup states and limits), unit (merge rule, hash chain and relay with crash and outage, route mapping, documents), browser (route over HTTP, no-store, 403/405/400/503, deleted without a session); update the pins and cleanup helpers above -- all ACs
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- gateway registration (1.12), Epic 8 commands and purge, adapter (8.9), replay (8.4), scheduling and alarm (1.9, 1.13), handle delivery (7.4/7.5), outbox retention, preauthorization withdrawal not ledgered -- housekeeping
+- [x] `supabase/migrations/20261013120000_tombstones_and_ledger.sql` -- tables, closure, tombstone writer and guards, anti-reuse and refusal triggers, Account handle, outbox triggers, relay lease functions, status lookup with its counters, preflight carrying every earlier probe -- AC-1, AC-2, AC-3, AC-5, AC-6
+- [x] `lib/hidden-state.ts`, `lib/lifecycle.ts`, `lib/ledger.ts`, `lib/ledger-fixture.ts`, `lib/accounts.ts`, `lib/authority.ts` -- merge rule, typed calls with every answer checked, hash chain and relay, fixture store with outage injection, `tombstoned` outcome and `authorizeTarget` -- AC-1, AC-2, AC-5
+- [x] `app/api/status/route.ts`, `lib/public-paths.ts` -- the public POST lookup (size cap, hex check, no-store, status mapping, nothing logged) -- AC-6
+- [x] `docs/deletion-verification.md`, `docs/authority-contract.md`, `docs/staging.md`, `provisioning/ledger.json`, `docs/provisioning.md`, `README.md` -- the procedure, the guard contract, the staging step -- AC-4
+- [x] `tests/` -- every matrix row: integration (writer, hide order, guards at every path, immutability, reused ID, enable refused, triggers and rollback, lease and two relays, REST closure, preflight, lookup states and limits), unit (merge rule, hash chain and relay with crash and outage, route mapping, documents), browser (route over HTTP, no-store, 403/405/400/503, deleted without a session); update the pins and cleanup helpers above -- all ACs
+- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- gateway registration (1.12), Epic 8 commands and purge, adapter (8.9), replay (8.4), scheduling and alarm (1.9, 1.13), handle delivery (7.4/7.5), outbox retention, preauthorization withdrawal not ledgered -- housekeeping
 
 **Acceptance Criteria:**
 - Given a target marked tombstoned, when any read, write, import, callback or cache-promotion path touches it, then the guard rejects it before any other effect and returns an unavailable state without disclosing contents.
@@ -80,6 +81,8 @@ context:
 
 ## Spec Change Log
 
+- **Review 1 (2026-10-13), intent_gap resolved by the human.** Triggering finding (Blind Hunter, Edge Case Hunter, Verification Gap; confirmed in `api.lookup_status`): a Project's `disabled` reply carried the Project's own revision, so after the Account was re-enabled the `active` reply carried the same number, `mergeStatus` kept the more restrictive state at equal revisions, and a device could never see the Project active again; the Design Note's claim that the equal-revision rule lifts it was wrong. Amended: the frozen sentence on revisions (a Project's reply revision is its own revision plus its Account's authorization epoch) and the Design Note; applied as a targeted patch, not a re-derivation, by the human's choice. Known-bad state avoided: a Project reply that repeats its revision across an Account's disable and re-enable. KEEP: everything else (tables, closure, writer, guards, triggers, relay, route, docs, tests) passed 4,372 tests and the review found nothing else in it that needs a different design; the tombstone writer's `deleted` reply and every Account reply are unchanged.
+
 ## Design Notes
 
 Tombstoning an Account also disables it, so every existing path that already refuses a disabled Account (`authorize_session`, the preference and step-up functions, `issue_grant`) refuses a deleted one with no edit. The explicit tombstone guard is for what the epoch guard cannot see: a Project, and later Jobs, files and cache promotion.
@@ -88,7 +91,7 @@ Triggers on the underlying tables queue the events, so Stories 1.3, 1.5 and 1.6 
 
 The relay needs no cross-call transaction: `putIfAbsent` on a key that holds the sequence makes a lost race harmless, the lease keeps order, and an event found at the head is marked instead of appended. A restore cannot roll the ledger back because it is outside the database; Story 8.4 replays it.
 
-A Project's `disabled` reply follows its Account; only the Account's newer epoch lifts it (R-8), which the equal-revision rule gives for free.
+A Project's `disabled` reply follows its Account. Its revision is the Project's own plus the Account's epoch, so the Account's re-enable (which raises the epoch) gives the `active` reply a higher revision than the `disabled` one and the merge rule lifts it (R-8); with the Project's own revision alone the two replies would carry the same number and the more restrictive state would stay for ever.
 
 ```
 key  = 7c1e…/00000000000000000002-<sha256 of body 1>.json
@@ -105,3 +108,112 @@ body = {"sequence":2,"previous":"<sha256 of body 1>","event":{"id":"…","type":
 
 **Manual checks (if no CLI):**
 - With the stack up, record a tombstone for a seeded Account and Project through the service role, then POST their handles to `/api/status` and open the Project link: `deleted`, `unavailable`, no sessions. Relay with the fixture store and read the chain back.
+
+## Suggested Review Order
+
+**The writer and the hide (start here)**
+
+- The one writer: locks the target, hides first, then inserts the tombstone; also ends an Account's Auth sessions.
+  [`20261013120000_tombstones_and_ledger.sql:523`](../../supabase/migrations/20261013120000_tombstones_and_ledger.sql#L523)
+
+- The tombstone table: opaque identity only, never updated, deleted or truncated.
+  [`20261013120000_tombstones_and_ledger.sql:71`](../../supabase/migrations/20261013120000_tombstones_and_ledger.sql#L71)
+
+- An Account's trigger refuses enabling a tombstoned one; a deleted Project's `deleted_at` cannot be cleared.
+  [`20261013120000_tombstones_and_ledger.sql:140`](../../supabase/migrations/20261013120000_tombstones_and_ledger.sql#L140)
+
+- Anti-resurrection: a tombstoned ID cannot be inserted again as an Account or a Project.
+  [`20261013120000_tombstones_and_ledger.sql:182`](../../supabase/migrations/20261013120000_tombstones_and_ledger.sql#L182)
+
+**The guard, in SQL and in the application**
+
+- `lifecycle.assert_not_tombstoned` raises N3010 and runs first in the existing authority checks.
+  [`20261013120000_tombstones_and_ledger.sql:110`](../../supabase/migrations/20261013120000_tombstones_and_ledger.sql#L110)
+
+- The operation guard answers `tombstoned` before it reads anything else about the Account.
+  [`20261013120000_tombstones_and_ledger.sql:432`](../../supabase/migrations/20261013120000_tombstones_and_ledger.sql#L432)
+
+- A foreign, unknown, deleted or tombstoned Project is one `unavailable`; the Account is asked first.
+  [`20261013120000_tombstones_and_ledger.sql:601`](../../supabase/migrations/20261013120000_tombstones_and_ledger.sql#L601)
+
+- `authorizeTarget` is how the application asks; a step with no answer is denied.
+  [`authority.ts:183`](../../lib/authority.ts#L183)
+
+- The closed outcome list gains `tombstoned`.
+  [`accounts.ts:973`](../../lib/accounts.ts#L973)
+
+**The hidden-state contract**
+
+- The merge rule: deleted is terminal, higher revision wins, ties keep the more restrictive state.
+  [`hidden-state.ts:45`](../../lib/hidden-state.ts#L45)
+
+- A Project's reply revision is its own plus its Account's epoch, so a re-enable lifts `disabled` (review fix).
+  [`20261013120000_tombstones_and_ledger.sql:764`](../../supabase/migrations/20261013120000_tombstones_and_ledger.sql#L764)
+
+**The outbox and the relay**
+
+- Triggers queue one event per committed change, so no path (1.3, 1.5, 1.6) can forget.
+  [`20261013120000_tombstones_and_ledger.sql:291`](../../supabase/migrations/20261013120000_tombstones_and_ledger.sql#L291)
+
+- The outbox is immutable apart from being marked relayed once.
+  [`20261013120000_tombstones_and_ledger.sql:221`](../../supabase/migrations/20261013120000_tombstones_and_ledger.sql#L221)
+
+- The lease: one relay at a time, expiring after a crash.
+  [`20261013120000_tombstones_and_ledger.sql:656`](../../supabase/migrations/20261013120000_tombstones_and_ledger.sql#L656)
+
+- Claim, append, mark: hash-chained, idempotent at the head, never throws on a store outage.
+  [`ledger.ts:164`](../../lib/ledger.ts#L164)
+
+- The key and body format the ledger store receives.
+  [`ledger.ts:48`](../../lib/ledger.ts#L48)
+
+**The status route**
+
+- The database half counts every request first, then answers from the tombstone, Account or Project.
+  [`20261013120000_tombstones_and_ledger.sql:764`](../../supabase/migrations/20261013120000_tombstones_and_ledger.sql#L764)
+
+- A public, same-origin POST with a size-capped JSON body, so a handle never enters a URL or log.
+  [`route.ts:70`](../../app/api/status/route.ts#L70)
+
+- The typed lookup, with the origin hashed as registration does.
+  [`lifecycle.ts:112`](../../lib/lifecycle.ts#L112)
+
+- The one public path that is a POST, added on purpose.
+  [`public-paths.ts:8`](../../lib/public-paths.ts#L8)
+
+**Closure, preflight and the procedure**
+
+- The four tables are closed to every role; `api.preflight` carries every earlier probe plus the new ones.
+  [`20261013120000_tombstones_and_ledger.sql:857`](../../supabase/migrations/20261013120000_tombstones_and_ledger.sql#L857)
+
+- The written procedure: each store, the proof of absence, who runs it, where the evidence lives.
+  [`deletion-verification.md:1`](../../docs/deletion-verification.md#L1)
+
+- The guard contract, route answers and what a device does with each.
+  [`authority-contract.md:104`](../../docs/authority-contract.md#L104)
+
+- The apply-by-hand step for staging and the sign-off item.
+  [`ledger.json:387`](../../provisioning/ledger.json#L387)
+
+**Tests (peripheral)**
+
+- The writer, hide order, idempotency, immutability, reused IDs and enable refusal.
+  [`tombstones.test.ts:144`](../../tests/integration/tombstones.test.ts#L144)
+
+- Guards at every path and for a tombstoned Project.
+  [`tombstones.test.ts:520`](../../tests/integration/tombstones.test.ts#L520)
+
+- Lease, two relays, and the lookup states and limits.
+  [`tombstones.test.ts:1049`](../../tests/integration/tombstones.test.ts#L1049)
+
+- The merge rule, including a Project lifted after its Account is enabled again.
+  [`hidden-state.test.ts:11`](../../tests/unit/hidden-state.test.ts#L11)
+
+- The relay with a crash, an outage, a store that answers nothing sensible, and two relays.
+  [`ledger.test.ts:100`](../../tests/unit/ledger.test.ts#L100)
+
+- The route over HTTP: answers, 400, 403, 405, 429 and 503.
+  [`status.spec.ts:57`](../../tests/e2e/status.spec.ts#L57)
+
+- The structural test lets the one lookup POST through, with its reason.
+  [`gate-structure.test.ts:143`](../../tests/unit/gate-structure.test.ts#L143)

@@ -112,7 +112,7 @@ describe('CI contract', () => {
     const check = steps.find((step) => step.run?.includes('scripts/ci/check-repository.mjs'));
     expect(check, 'the repository check is a CI step').toBeDefined();
     const script = read('scripts/ci/check-repository.mjs');
-    for (const file of ['README.md', 'docs/deployment-setup.md', 'docs/auth-setup.md', 'docs/staging.md', 'docs/provisioning.md', 'docs/secrets.md']) expect(script, file).toContain(`'${file}'`);
+    for (const file of ['README.md', 'docs/deployment-setup.md', 'docs/auth-setup.md', 'docs/staging.md', 'docs/provisioning.md', 'docs/secrets.md', 'docs/authority-contract.md', 'docs/deletion-verification.md']) expect(script, file).toContain(`'${file}'`);
     // The guide the script names exists, and so do the files it points at.
     for (const file of ['docs/staging.md', 'docs/provisioning.md', 'docs/secrets.md']) expect(() => read(file), file).not.toThrow();
   });

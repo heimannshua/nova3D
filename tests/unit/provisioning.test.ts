@@ -507,7 +507,10 @@ describe('items due by a story (build order, not numeric order)', () => {
     const through = (story: string) => itemsDueBy(committed, buildOrder, story, 'staging').map((entry) => entry.due);
     expect(through('1-3')).toEqual(['1-3']);
     // Story 1.11 is built after 1.4 and before 1.5, 1.6 and 1.9 (sprint-status.yaml), so its hosted check is due before 1.5's, and 1.5's before 1.6's items.
-    expect(new Set(through('1-9'))).toEqual(new Set(['1-3', '1-4', '1-11', '1-5', '1-6', '1-9']));
+    // Story 1.8 follows 1.6 and precedes 1.9 (its hosted status check is due by 1.8, so a check through 1.6 does not ask for it).
+    expect(new Set(through('1-9'))).toEqual(new Set(['1-3', '1-4', '1-11', '1-5', '1-6', '1-8', '1-9']));
+    expect(through('1-6')).not.toContain('1-8');
+    expect(itemsDueBy(committed, buildOrder, '1-8', 'staging').map((entry) => entry.id)).toContain('hosted-status-check');
     expect(through('1-4')).not.toContain('1-11');
     expect(through('1-11')).toContain('1-11');
     expect(through('1-11')).not.toContain('1-5');

@@ -1,6 +1,6 @@
 import {randomBytes} from 'node:crypto';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {authorizeStep, cancellerNames, operationOf, registerCanceller, runCancellers, type Operation} from '@/lib/authority';
+import {authorizeStep, authorizeTarget, cancellerNames, operationOf, registerCanceller, runCancellers, type Operation} from '@/lib/authority';
 import type {Env} from '@/lib/environment';
 
 // The authority contract (Story 1.5, lib/authority.ts) without a database: a stand-in for the service-role endpoint answers what
@@ -52,7 +52,9 @@ describe('authorizeStep', () => {
     ['disabled', 4],
     ['stale_epoch', 5],
     ['no_account', null],
-  ] as const)('denies a step with the reason %s', async (outcome, epoch) => {
+    ['tombstoned', 4],
+    ['tombstoned', null],
+  ] as const)('denies a step with the reason %s (epoch %s)', async (outcome, epoch) => {
     const {fetch} = endpoint(() => ({body: {outcome, epoch}}));
     expect(await authorizeStep(operation, {env: env(), fetch, log: logged().log})).toEqual({allowed: false, reason: outcome});
   });
@@ -106,6 +108,92 @@ describe('authorizeStep', () => {
   it('never throws', async () => {
     await expect(authorizeStep(undefined as never, {env: env(), log: logged().log})).resolves.toMatchObject({allowed: false});
     await expect(authorizeStep(null as never, {env: env(), log: logged().log})).resolves.toMatchObject({allowed: false});
+  });
+});
+
+// Story 1.8: the guard for a named target. The Account is asked first (the same reasons as authorizeStep, tombstoned included), then the
+// target; a target that is another Account's, unknown, deleted or tombstoned is the one answer `unavailable`.
+describe('authorizeTarget', () => {
+  const PROJECT = '9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a';
+  const target = {kind: 'project', id: PROJECT} as const;
+
+  it('allows a step only when the database says allowed, and asks about the Account, the epoch, the kind and the target', async () => {
+    const {calls, fetch} = endpoint(() => ({body: {outcome: 'allowed', epoch: 3}}));
+    const {lines, log} = logged();
+    expect(await authorizeTarget(operation, target, {env: env(), fetch, log})).toEqual({allowed: true, epoch: 3});
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe('http://127.0.0.1:54321/rest/v1/rpc/guard_target');
+    expect(calls[0].body).toEqual({p_account_id: ACCOUNT, p_epoch: 3, p_kind: 'project', p_target_id: PROJECT});
+    expect(lines).toEqual([]);
+  });
+
+  it.each([
+    ['disabled', 4],
+    ['stale_epoch', 5],
+    ['no_account', null],
+    ['tombstoned', 4],
+    ['unavailable', 3],
+  ] as const)('denies with the reason %s', async (outcome, epoch) => {
+    const {fetch} = endpoint(() => ({body: {outcome, epoch}}));
+    expect(await authorizeTarget(operation, target, {env: env(), fetch, log: logged().log})).toEqual({allowed: false, reason: outcome});
+  });
+
+  it('can guard the Account itself, as a target of kind account', async () => {
+    const {calls, fetch} = endpoint(() => ({body: {outcome: 'allowed', epoch: 3}}));
+    expect(await authorizeTarget(operation, {kind: 'account', id: ACCOUNT}, {env: env(), fetch, log: logged().log})).toEqual({allowed: true, epoch: 3});
+    expect(calls[0].body).toMatchObject({p_kind: 'account', p_target_id: ACCOUNT});
+  });
+
+  it('denies as unavailable, without asking, an ID that is not an ID: nothing can be learned from it', async () => {
+    const {calls, fetch} = endpoint(() => ({body: {outcome: 'allowed', epoch: 3}}));
+    for (const id of ['nope', '', ` ${PROJECT}`, `${PROJECT}\n`]) {
+      expect(await authorizeTarget(operation, {kind: 'project', id}, {env: env(), fetch, log: logged().log}), id).toEqual({allowed: false, reason: 'unavailable'});
+    }
+    expect(calls).toHaveLength(0);
+  });
+
+  it('denies, as unreachable, when the database cannot be reached, errors or refuses, and logs a name and a message only (a step that gets no answer is denied)', async () => {
+    for (const fetch of [
+      async () => {
+        throw new TypeError('fetch failed');
+      },
+      endpoint(() => ({status: 503, body: {}})).fetch,
+      endpoint(() => ({status: 400, body: {code: '22023'}})).fetch,
+    ]) {
+      const {lines, log} = logged();
+      expect(await authorizeTarget(operation, target, {env: env(), fetch, log})).toEqual({allowed: false, reason: 'unreachable'});
+      expect(lines).toHaveLength(1);
+      for (const secret of [SERVICE_KEY, ACCOUNT, PROJECT]) expect(lines[0]).not.toContain(secret);
+    }
+  });
+
+  it.each([
+    ['an outcome it does not know', {outcome: 'ok', epoch: 3}],
+    ['an allowed that names no epoch', {outcome: 'allowed', epoch: null}],
+    ['nothing', {}],
+    ['text', 'allowed'],
+    ['a list', [{outcome: 'allowed', epoch: 3}]],
+  ])('denies, as unreachable, an answer that is %s: it is no answer, and never permission', async (_name, body) => {
+    expect(await authorizeTarget(operation, target, {env: env(), fetch: endpoint(() => ({body})).fetch, log: logged().log})).toEqual({allowed: false, reason: 'unreachable'});
+  });
+
+  it('denies, as invalid, an operation or a kind that is not shaped like one, without asking the database', async () => {
+    const {calls, fetch} = endpoint(() => ({body: {outcome: 'allowed', epoch: 1}}));
+    for (const [bad, what] of [
+      [{accountId: 'nope', epoch: 3}, target],
+      [{accountId: ACCOUNT, epoch: 0}, target],
+      [{accountId: ACCOUNT, epoch: Number.NaN}, target],
+      [operation, {kind: 'job' as never, id: PROJECT}],
+      [operation, {kind: undefined as never, id: PROJECT}],
+    ] as const) {
+      expect(await authorizeTarget(bad, what, {env: env(), fetch, log: logged().log}), JSON.stringify([bad, what])).toEqual({allowed: false, reason: 'invalid'});
+    }
+    expect(calls).toHaveLength(0);
+  });
+
+  it('never throws', async () => {
+    await expect(authorizeTarget(undefined as never, target, {env: env(), log: logged().log})).resolves.toMatchObject({allowed: false});
+    await expect(authorizeTarget(operation, undefined as never, {env: env(), log: logged().log})).resolves.toMatchObject({allowed: false});
   });
 });
 

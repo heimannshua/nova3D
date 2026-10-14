@@ -314,7 +314,8 @@ export type WithdrawalReceipt = {outcome: 'withdrawn' | 'consumed' | 'not_found'
 export type InvitationSummary = {invitationId: string; kind: 'named' | 'general'; label: string | null; state: 'unused' | 'redeemed' | 'revoked'; createdAt: string};
 
 // Story 1.7: the call helpers below are exported for lib/projects.ts, which makes the typed calls of the Projects functions in the
-// same way (the service role, an `api` function, an answer read and checked, never trusted). Nothing else outside this file calls them.
+// same way (the service role, an `api` function, an answer read and checked, never trusted); Story 1.8 adds lib/lifecycle.ts, which makes
+// the Lifecycle ones (tombstones, the guard for a target, the status lookup, the ledger relay). Nothing else outside this file calls them.
 export type Row = Record<string, unknown>;
 
 export async function callApi(name: string, args: Row, options: AccountsOptions): Promise<unknown> {
@@ -966,9 +967,10 @@ export type EnableReceipt = {outcome: 'enabled' | 'already_enabled' | 'not_found
 /**
  * api.guard_operation: `allowed` is the only permission. `disabled`: the Account is disabled. `stale_epoch`: the Account's
  * epoch is not the one the operation registered under (a disable or a re-enable raised it since). `no_account`: no such Account.
- * `epoch` is the Account's current epoch (null for `no_account`).
+ * `tombstoned` (Story 1.8): the Account is deleted; it is decided first, before anything else about the Account is read.
+ * `epoch` is the Account's current epoch (null for `no_account`, and for a tombstoned Account whose row is gone).
  */
-export const operationOutcomes = ['allowed', 'disabled', 'stale_epoch', 'no_account'] as const;
+export const operationOutcomes = ['allowed', 'disabled', 'stale_epoch', 'no_account', 'tombstoned'] as const;
 export type OperationOutcome = (typeof operationOutcomes)[number];
 export type OperationGuard = {outcome: OperationOutcome; epoch: number | null};
 
@@ -1054,8 +1056,8 @@ export async function guardOperation(input: {accountId: string; epoch: number}, 
   const row = await callRow('guard_operation', {p_account_id: requireUuid('accountId', input.accountId), p_epoch: input.epoch}, options);
   const outcome = oneOf(row.outcome, operationOutcomes);
   const epoch = epochOrNull(row.epoch);
-  // Every answer but "no such Account" comes from a known Account, which has an epoch.
-  if (outcome !== 'no_account' && epoch === null) throw unexpected();
+  // Every answer but "no such Account" comes from a known Account, which has an epoch. (A tombstoned Account's row may be gone: Epic 8.)
+  if (outcome !== 'no_account' && outcome !== 'tombstoned' && epoch === null) throw unexpected();
   return {outcome, epoch};
 }
 
