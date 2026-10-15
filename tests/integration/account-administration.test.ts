@@ -945,6 +945,7 @@ describe('the preflight probes the Story 1.5 functions and the privilege to end 
         'lifecycle.ledger_outbox',
         'lifecycle.ledger_relay',
         'lifecycle.status_requests',
+        'lifecycle.job_receipts',
         'auth.sessions',
         'auth.identities',
         'auth.mfa_amr_claims',

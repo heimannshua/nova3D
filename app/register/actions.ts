@@ -93,6 +93,13 @@ export async function registerWithInvitation(_previous: RegisterState, formData:
     await endSession(supabase);
     redirect(signInErrorPath('account_disabled'));
   }
+  // The Auth identity is gone (Story 1.9: the dormant-identity purge deleted it while this waited for the identity's lock, so it was
+  // never a guess at a code and is not counted). The session names a user that no longer exists: it is ended, and the person signs in
+  // again with Google, which makes a new identity, exactly as the sign-in page says.
+  if (receipt.outcome === 'no_identity') {
+    await endSession(supabase);
+    redirect(signInErrorPath('not_signed_in'));
+  }
   // An Account exists and this is not its registration: nothing here can help the session.
   if (retried) redirect(signInErrorPath('session_ended'));
   // Refused or limited: the same generic answer, whichever it was.

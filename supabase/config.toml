@@ -69,6 +69,77 @@ client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET)"
 skip_nonce_check = false
 
+# Every other sign-in method is declared OFF on purpose (Story 1.9). `supabase config diff` only compares what this file declares, so a provider
+# that is not written here could be switched on in the dashboard without anything noticing: a provider that is written here and enabled
+# anywhere else is drift, and scripts/ci/check-repository.mjs fails when one is missing from this list or is anything but off.
+# Email, SMS and anonymous sign-in are declared above ([auth].enable_anonymous_sign_ins, [auth.email].enable_signup, [auth.sms].enable_signup).
+
+[auth.external.apple]
+enabled = false
+
+[auth.external.azure]
+enabled = false
+
+[auth.external.bitbucket]
+enabled = false
+
+[auth.external.discord]
+enabled = false
+
+[auth.external.facebook]
+enabled = false
+
+[auth.external.figma]
+enabled = false
+
+[auth.external.github]
+enabled = false
+
+[auth.external.gitlab]
+enabled = false
+
+[auth.external.kakao]
+enabled = false
+
+[auth.external.keycloak]
+enabled = false
+
+[auth.external.linkedin_oidc]
+enabled = false
+
+[auth.external.notion]
+enabled = false
+
+[auth.external.slack]
+enabled = false
+
+[auth.external.slack_oidc]
+enabled = false
+
+[auth.external.spotify]
+enabled = false
+
+[auth.external.twitch]
+enabled = false
+
+[auth.external.twitter]
+enabled = false
+
+[auth.external.workos]
+enabled = false
+
+[auth.external.x]
+enabled = false
+
+[auth.external.zoom]
+enabled = false
+
+[auth.web3.solana]
+enabled = false
+
+[auth.web3.ethereum]
+enabled = false
+
 # Rejects the creation of any Auth user that is not a Google identity with a verified email, so
 # an Auth user can exist only through Google (Story 1.3). The function is in migration
 # 20261010120100_api.sql; it never raises, and any malformed payload is rejected.

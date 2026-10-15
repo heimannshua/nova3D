@@ -212,8 +212,10 @@ export type RegistrationReceipt = {
   /**
    * `refused` covers a bad, used, revoked or never-issued code and every expected failure alike.
    * `disabled` is an Account that exists but is disabled: never a success.
+   * `no_identity` (Story 1.9) is an Auth identity that is gone: the dormant-identity purge deleted it while the registration waited
+   * for the identity's lock. It is not a guess at a code and is not counted; the person is asked to sign in again.
    */
-  outcome: 'registered' | 'refused' | 'limited' | 'disabled';
+  outcome: 'registered' | 'refused' | 'limited' | 'disabled' | 'no_identity';
   accountId: string | null;
   workspaceId: string | null;
   role: Role | null;
@@ -315,7 +317,8 @@ export type InvitationSummary = {invitationId: string; kind: 'named' | 'general'
 
 // Story 1.7: the call helpers below are exported for lib/projects.ts, which makes the typed calls of the Projects functions in the
 // same way (the service role, an `api` function, an answer read and checked, never trusted); Story 1.8 adds lib/lifecycle.ts, which makes
-// the Lifecycle ones (tombstones, the guard for a target, the status lookup, the ledger relay). Nothing else outside this file calls them.
+// the Lifecycle ones (tombstones, the guard for a target, the status lookup, the ledger relay, and since Story 1.9 the scheduled jobs' receipts and
+// the dormant-identity purge). Nothing else outside this file calls them.
 export type Row = Record<string, unknown>;
 
 export async function callApi(name: string, args: Row, options: AccountsOptions): Promise<unknown> {
@@ -429,7 +432,7 @@ export async function registerWithCode(
   );
   return {
     commandId: text(row.command_id) ?? commandId,
-    outcome: oneOf(row.outcome, ['registered', 'refused', 'limited', 'disabled'] as const),
+    outcome: oneOf(row.outcome, ['registered', 'refused', 'limited', 'disabled', 'no_identity'] as const),
     accountId: text(row.account_id),
     workspaceId: text(row.workspace_id),
     role: roleOf(row.role),

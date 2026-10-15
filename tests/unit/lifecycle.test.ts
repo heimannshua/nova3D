@@ -1,7 +1,7 @@
 import {randomBytes, randomUUID} from 'node:crypto';
 import {describe, expect, it, vi} from 'vitest';
 import {AccountsUnavailableError, hashClientAddress} from '@/lib/accounts';
-import {claimLedgerEvents, finishLedgerEvents, guardTarget, isStatusHandle, ledgerPending, lookupStatus, recordTombstone, targetOutcomes} from '@/lib/lifecycle';
+import {claimJobRun, claimLedgerEvents, defaultPurgeLimit, finishJobRun, finishLedgerEvents, guardTarget, isJobResult, isStatusHandle, jobOutcomes, lastJobRun, ledgerPending, lookupStatus, maxPurgeLimit, purgeDormantIdentities, recordTombstone, targetOutcomes} from '@/lib/lifecycle';
 
 // The typed calls of the Lifecycle functions (lib/lifecycle.ts, Story 1.8) against a fake fetch: what each sends, what each accepts as
 // an answer, and that an answer that cannot be got is an error, never an "unknown" handle, an empty backlog or a permission.
@@ -247,5 +247,185 @@ describe('claimLedgerEvents, finishLedgerEvents and ledgerPending', () => {
     await expect(ledgerPending(down)).rejects.toBeInstanceOf(AccountsUnavailableError);
     await expect(claimLedgerEvents({holder: HOLDER}, down)).rejects.toBeInstanceOf(AccountsUnavailableError);
     await expect(finishLedgerEvents({holder: HOLDER, eventIds: []}, down)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+});
+
+// Scheduled jobs (Story 1.9) ------------------------------------------------------------------------------------------------------------
+const RECEIPT = '0d9c8b7a-6f5e-4d3c-8b2a-1f0e9d8c7b6a';
+
+describe('isJobResult', () => {
+  it('accepts a small flat object of whole numbers, booleans and single words', () => {
+    for (const result of [{}, {pending: 0}, {deleted: 4, kept: 2, locked: 1, remaining: 9}, {outcome: 'store_unavailable', claimed: 3}, {error_class: 'TypeError'}, {ok: true, count: 999_999_999_999 - 1}]) {
+      expect(isJobResult(result), JSON.stringify(result)).toBe(true);
+    }
+  });
+
+  it('refuses everything else: an address, an ID, a key, a message, a nested value, a list, a fraction, a negative number, a bad name', () => {
+    for (const result of [
+      {address: 'someone@example.test'},
+      {id: RECEIPT},
+      {key: ['sk', 'live', '4eC39HqLyjWDarjtT1zdp7dc'].join('_')},
+      {message: 'Something went wrong while relaying'},
+      {message: 'a b'},
+      {nested: {a: 1}},
+      {list: [1]},
+      {fraction: 1.5},
+      {big: 1e12},
+      {negative: -1},
+      {not_finite: Number.POSITIVE_INFINITY},
+      {Upper: 1},
+      {'has space': 1},
+      {empty: ''},
+      {nothing: null},
+      {longword: 'x'.repeat(40)},
+      null,
+      [],
+      'text',
+      7,
+      Object.fromEntries(Array.from({length: 60}, (_, index) => [`key_${index}`, 1_000_000_000_000 - 1])),
+    ]) {
+      expect(isJobResult(result), JSON.stringify(result)?.slice(0, 40)).toBe(false);
+    }
+  });
+});
+
+describe('claimJobRun', () => {
+  const key = {task: 'ledger-relay', scheduleId: 'scd_8f3a', messageId: 'msg_5b1c'};
+
+  it('names the outcomes of a finished run: the only one a retry replaces is `failed`', () => {
+    expect([...jobOutcomes]).toEqual(['ran', 'idle', 'no_store', 'failed']);
+  });
+
+  it('claims one run of a schedule and message, as the service role, with the default 300 second lease', async () => {
+    const {sent, options} = fake({outcome: 'claimed', receipt_id: RECEIPT.toUpperCase(), attempt: 1});
+    expect(await claimJobRun(key, options)).toEqual({outcome: 'claimed', receiptId: RECEIPT, attempt: 1});
+    expect(sent).toEqual([expect.objectContaining({name: 'claim_job_run', body: {p_task: 'ledger-relay', p_schedule_id: 'scd_8f3a', p_message_id: 'msg_5b1c', p_lease_seconds: 300}})]);
+    expect(sent[0].headers).toMatchObject({authorization: 'Bearer service-key-for-tests-only', 'content-profile': 'api'});
+  });
+
+  it('reads `duplicate` and `running` with nothing more than the outcome', async () => {
+    expect(await claimJobRun(key, fake({outcome: 'duplicate', receipt_id: RECEIPT, attempt: 1}).options)).toEqual({outcome: 'duplicate'});
+    expect(await claimJobRun(key, fake({outcome: 'running', receipt_id: RECEIPT, attempt: 2}).options)).toEqual({outcome: 'running'});
+  });
+
+  it('passes the lease it is given', async () => {
+    const {sent, options} = fake({outcome: 'claimed', receipt_id: RECEIPT, attempt: 3});
+    expect(await claimJobRun({...key, leaseSeconds: 60}, options)).toEqual({outcome: 'claimed', receiptId: RECEIPT, attempt: 3});
+    expect(sent[0].body.p_lease_seconds).toBe(60);
+  });
+
+  it('refuses a task, schedule ID, message ID or lease that is not shaped like one, before asking', async () => {
+    const {fetch, options} = fake({});
+    for (const change of [{task: 'Ledger'}, {task: ''}, {task: 'a'.repeat(70)}, {scheduleId: ''}, {scheduleId: 'scd 1'}, {scheduleId: 'x'.repeat(129)}, {messageId: 'msg/1'}, {messageId: ''}, {leaseSeconds: 0}, {leaseSeconds: 3601}, {leaseSeconds: 1.5}]) {
+      await expect(claimJobRun({...key, ...change}, options), JSON.stringify(change)).rejects.toBeInstanceOf(TypeError);
+    }
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['an outcome it does not know', {outcome: 'ok', receipt_id: RECEIPT, attempt: 1}],
+    ['no receipt', {outcome: 'claimed', attempt: 1}],
+    ['a receipt that is not a UUID', {outcome: 'claimed', receipt_id: 'nope', attempt: 1}],
+    ['no attempt', {outcome: 'duplicate', receipt_id: RECEIPT}],
+    ['an attempt of 0', {outcome: 'claimed', receipt_id: RECEIPT, attempt: 0}],
+    ['an attempt that is not a number', {outcome: 'claimed', receipt_id: RECEIPT, attempt: 'one'}],
+    ['text', 'claimed'],
+  ])('treats %s as no answer at all, which is never permission to run', async (_name, answer) => {
+    await expect(claimJobRun(key, fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('throws when the database cannot be reached or refuses, so the route answers 503 and the delivery comes back', async () => {
+    await expect(claimJobRun(key, down)).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true});
+    await expect(claimJobRun(key, fake({message: 'no'}, 503).options)).rejects.toMatchObject({retryable: true});
+  });
+});
+
+describe('finishJobRun', () => {
+  it('finishes a receipt with an outcome and a result, and reads the three answers', async () => {
+    const {sent, options} = fake({outcome: 'finished'});
+    expect(await finishJobRun({receiptId: RECEIPT.toUpperCase(), outcome: 'ran', result: {deleted: 1}}, options)).toEqual({outcome: 'finished'});
+    expect(sent[0]).toMatchObject({name: 'finish_job_run', body: {p_receipt_id: RECEIPT, p_outcome: 'ran', p_result: {deleted: 1}}});
+    for (const outcome of ['already_finished', 'not_found'] as const) expect(await finishJobRun({receiptId: RECEIPT, outcome: 'idle', result: {}}, fake({outcome}).options)).toEqual({outcome});
+  });
+
+  it('refuses a receipt, an outcome or a result a receipt cannot hold, before asking', async () => {
+    const {fetch, options} = fake({});
+    await expect(finishJobRun({receiptId: 'nope', outcome: 'ran', result: {}}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(finishJobRun({receiptId: RECEIPT, outcome: 'done' as never, result: {}}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(finishJobRun({receiptId: RECEIPT, outcome: 'ran', result: {address: 'someone@example.test'}}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(finishJobRun({receiptId: RECEIPT, outcome: 'ran', result: [] as never}, options)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('treats an unknown answer as no answer, and throws when the database cannot be reached', async () => {
+    await expect(finishJobRun({receiptId: RECEIPT, outcome: 'ran', result: {}}, fake({outcome: 'done'}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+    await expect(finishJobRun({receiptId: RECEIPT, outcome: 'ran', result: {}}, down)).rejects.toMatchObject({retryable: true});
+  });
+});
+
+describe('lastJobRun', () => {
+  const finished = {outcome: 'ran', attempt: 2, started_at: '2026-10-14T03:00:00.100+00:00', finished_at: '2026-10-14T03:00:01.200+00:00', result: {deleted: 3, kept: 0, locked: 0, remaining: 0}};
+
+  it('reads the newest finished receipt of a task', async () => {
+    const {sent, options} = fake(finished);
+    expect(await lastJobRun('dormant-identity-purge', options)).toEqual({outcome: 'ran', attempt: 2, startedAt: finished.started_at, finishedAt: finished.finished_at, result: finished.result});
+    expect(sent[0]).toMatchObject({name: 'last_job_run', body: {p_task: 'dormant-identity-purge'}});
+  });
+
+  it('answers null for a task that has never finished a run, and nothing else for an answer of nulls', async () => {
+    expect(await lastJobRun('ledger-relay', fake({outcome: null, attempt: null, started_at: null, finished_at: null, result: null}).options)).toBeNull();
+  });
+
+  it.each([
+    ['an outcome it does not know', {...finished, outcome: 'done'}],
+    ['no attempt', {...finished, attempt: null}],
+    ['no finish time', {...finished, finished_at: null}],
+    ['a result a receipt could not hold', {...finished, result: {address: 'someone@example.test'}}],
+    ['no outcome but other fields', {outcome: null, attempt: 1, started_at: null, finished_at: null, result: null}],
+    ['text', 'ran'],
+  ])('treats %s as no answer at all: never "has never run"', async (_name, answer) => {
+    await expect(lastJobRun('ledger-relay', fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('refuses a task that is not shaped like one, and throws when the database cannot be reached', async () => {
+    await expect(lastJobRun('Ledger Relay', fake({}).options)).rejects.toBeInstanceOf(TypeError);
+    await expect(lastJobRun('ledger-relay', down)).rejects.toMatchObject({retryable: true});
+  });
+});
+
+describe('purgeDormantIdentities', () => {
+  it('purges at most 100 by default, and 1 to 500 when asked, and reads the four counts', async () => {
+    expect([defaultPurgeLimit, maxPurgeLimit]).toEqual([100, 500]);
+    const {sent, options} = fake({deleted: 4, kept: 2, locked: 1, remaining: 9});
+    expect(await purgeDormantIdentities({}, options)).toEqual({deleted: 4, kept: 2, locked: 1, remaining: 9});
+    expect(await purgeDormantIdentities(undefined, options)).toEqual({deleted: 4, kept: 2, locked: 1, remaining: 9});
+    expect(await purgeDormantIdentities({limit: 500}, options)).toEqual({deleted: 4, kept: 2, locked: 1, remaining: 9});
+    expect(sent.map((call) => [call.name, call.body])).toEqual([['purge_dormant_identities', {p_limit: 100}], ['purge_dormant_identities', {p_limit: 100}], ['purge_dormant_identities', {p_limit: 500}]]);
+  });
+
+  it('has no age parameter: 30 days is not a setting', async () => {
+    const {sent, options} = fake({deleted: 0, kept: 0, locked: 0, remaining: 0});
+    await purgeDormantIdentities({limit: 5, olderThanDays: 1, age: '1 day'} as never, options);
+    expect(Object.keys(sent[0].body)).toEqual(['p_limit']);
+  });
+
+  it('refuses a limit out of range before asking', async () => {
+    const {fetch, options} = fake({});
+    for (const limit of [0, -1, 501, 1.5, Number.NaN, '5' as never]) await expect(purgeDormantIdentities({limit}, options), String(limit)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a count that is not a number', {deleted: '1', kept: 0, locked: 0, remaining: 0}],
+    ['a negative count', {deleted: -1, kept: 0, locked: 0, remaining: 0}],
+    ['a missing count', {deleted: 1, kept: 0, locked: 0}],
+    ['more examined than asked for', {deleted: 3, kept: 2, locked: 1, remaining: 0}],
+    ['text', 'purged'],
+  ])('treats %s as no answer at all', async (_name, answer) => {
+    await expect(purgeDormantIdentities({limit: 5}, fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('throws when the database cannot be reached: the batch is one transaction, so nothing is half done', async () => {
+    await expect(purgeDormantIdentities({}, down)).rejects.toMatchObject({retryable: true, outcomeUnknown: true});
   });
 });

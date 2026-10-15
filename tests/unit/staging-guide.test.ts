@@ -2,10 +2,11 @@ import {existsSync, readdirSync, readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {describe, expect, it} from 'vitest';
 
-// docs/staging.md is the one written procedure for pushing the migrations and the Auth settings to staging by hand,
-// until Story 1.9 does it from CI. These tests keep it honest: it names every migration (so a story that adds one
-// cannot forget to add it to the procedure), in order; it is a procedure Josh can follow in PowerShell on Windows;
-// it holds no secret; and nothing in the repository applies anything to a hosted project.
+// docs/staging.md is the one written procedure for pushing the migrations and the Auth settings to staging by hand, which
+// stays the first-time procedure and the fallback now that Story 1.9 does it from CI (the staging workflow). These tests
+// keep it honest: it names every migration (so a story that adds one cannot forget to add it to the procedure), in order;
+// it is a procedure Josh can follow in PowerShell on Windows; it holds no secret; and only the two workflows named in it
+// (tests/unit/workflows.test.ts holds them to it) apply anything to a hosted project.
 const root = resolve(import.meta.dirname, '../..');
 const read = (path: string) => readFileSync(resolve(root, path), 'utf8');
 const guide = read('docs/staging.md');
@@ -258,8 +259,80 @@ describe('docs/staging.md holds no secret and sends nothing anywhere', () => {
     expect(/^\| `(\d{14}_[a-z0-9_]+\.sql)` \|/.test('| `20270101120000_adds_v2_tables.sql` |')).toBe(true);
   });
 
-  it('says in so many words that nothing in the repository applies anything to a hosted project', () => {
-    expect(guide).toContain('**Nothing in this repository applies anything to a hosted project.**');
+  // (This pinned "Only two workflows apply anything to a hosted project", which was not true: workers.yml pushes an image, and the seed and
+  // `scripts/schedules.mjs apply` are commands a person runs that change a hosted database and QStash. The sentence is now the true list.)
+  it('says which workflows touch a hosted service, which change a database, and which commands a person runs that change one', () => {
+    expect(guide).toContain('**Three workflows touch a hosted service, and only two of them change a database.**');
+    expect(guide).not.toContain('**Only two workflows apply anything to a hosted project.**');
+    expect(guide).not.toContain('Nothing in this repository applies anything to a hosted project');
+    for (const file of ['staging.yml', 'production-migrate.yml', 'workers.yml']) {
+      expect(guide, file).toContain(`\`.github/workflows/${file}\``);
+      expect(existsSync(resolve(root, '.github/workflows', file)), file).toBe(true);
+    }
+    expect(guide).toMatch(/workers\.yml` pushes worker images to GitHub Container Registry[^.]*and deploys nothing/);
+    expect(guide).toMatch(/only commands that \*\*you\*\* run change a hosted service: the seed \(`scripts\/seed-accounts\.mjs`[^)]*\), `scripts\/schedules\.mjs apply` \(which creates, corrects, resumes and deletes QStash schedules/);
+    // The README says the same list.
+    const readme = read('README.md');
+    expect(readme).toContain('`.github/workflows/workers.yml`, pushes worker images to GitHub Container Registry and deploys nothing');
+    expect(readme).toContain('only the first two change a database');
+    expect(readme).not.toContain('those two workflows are the only things that apply anything to a hosted project');
+  });
+
+  it('says what GitHub does with pushes that arrive while a run is going: one run waits, the newest wins, and nothing is lost because db push is cumulative', () => {
+    expect(guide).toContain('`cancel-in-progress: false`');
+    expect(guide).toMatch(/GitHub keeps at most ONE run waiting in a group/);
+    expect(guide).toMatch(/`supabase db push` is cumulative/);
+    expect(guide).not.toContain('Two pushes in a row run one after the other');
+    expect(read('.github/workflows/staging.yml')).not.toContain('Two pushes in a row run one after the other');
+  });
+
+  it('states the order the route checks in (the body is read before the signature, so an oversize body is a 400 even when unsigned) and that every non-2xx answer is retried', () => {
+    expect(guide).toMatch(/a signature header being present \(401: a call with none is refused before its body is read\)/);
+    expect(guide).toMatch(/is a \*\*400 even though no signature was checked\*\*/);
+    expect(guide).toMatch(/QStash retries every answer outside 200 to 299, a 4xx included/);
+    expect(guide).toContain('Upstash-NonRetryable-Error: true');
+  });
+
+  it('prints what check 2 claims it shows: the commands dump the headers, and only the route\'s own 401 is said to carry cache-control (Next.js\'s 405 does not)', () => {
+    const check = guide.slice(guide.indexOf('2. **The schedules.**'), guide.indexOf('3. **The purge.**'));
+    expect(check).toContain('--dump-header -');
+    expect(check).not.toContain('%{http_code}');
+    expect(check).toMatch(/unsigned `POST` must answer \*\*401\*\* with `cache-control: no-store`/);
+    expect(check).toMatch(/`GET` \*\*405\*\*[\s\S]*?carries no `cache-control` header/);
+  });
+
+  it('treats STAGING_SITE_URL the same way everywhere: not secret in nature, stored as a secret of the staging environment, read as secrets.STAGING_SITE_URL', () => {
+    expect(guide).toMatch(/`STAGING_SITE_URL` \([^)]*It is not secret in nature, and it is stored as a secret of the environment like every other input of the workflow/);
+    expect(read('docs/secrets.md')).toMatch(/`STAGING_SITE_URL` \(Story 1\.9: [^)]*it is stored as a secret of the `staging` GitHub environment only so that the workflow reads every input the same way\)/);
+    const item = (JSON.parse(read('provisioning/ledger.json')) as {items: {id: string; howto: string[]; secrets: string[]}[]}).items.find((entry) => entry.id === 'vercel-deploy-hook');
+    expect(item?.secrets).toContain('STAGING_SITE_URL');
+    expect(item?.howto.join('\n')).toMatch(/not secret in nature; it is stored as a secret of the environment like every other input of the staging workflow/);
+    expect(read('.github/workflows/staging.yml')).toContain('STAGING_SITE_URL: ${{ secrets.STAGING_SITE_URL }}');
+    expect(read('.github/workflows/staging.yml')).not.toMatch(/vars\.STAGING_SITE_URL/);
+  });
+
+  it('keeps seeding with the person, whatever the pipeline does: no workflow seeds anything', () => {
+    expect(guide).toMatch(/\*\*seeding is always yours\*\*: no workflow seeds anything/);
+  });
+
+  it('documents the pipeline, the schedules command, the worker images and the hosted checks of Story 1.9', () => {
+    for (const heading of ['## The staging pipeline (Story 1.9)', '## Schedules (Story 1.9)', '## Worker images (Story 1.9)', '## Verifying the pipeline, the schedules and the purge (Story 1.9)']) {
+      expect(guide, heading).toContain(heading);
+    }
+    // The secrets and variables the staging workflow reads are named, by name only.
+    for (const name of ['SUPABASE_ACCESS_TOKEN', 'SUPABASE_DB_PASSWORD', 'SUPABASE_PROJECT_REF', 'STAGING_SITE_URL', 'VERCEL_STAGING_DEPLOY_HOOK', 'GHCR_TOKEN']) expect(guide, name).toContain(`\`${name}\``);
+    // The QStash names are never set in a preview; the schedule command is run by a person, never by CI.
+    expect(guide).toMatch(/and \*\*never in a preview\*\*/);
+    expect(guide).toMatch(/CI never does, because it holds no QStash token/);
+    // The Railway deploy is the item that stopped to ask: a documented manual step, not a call.
+    expect(guide).toMatch(/\*\*The deploy to Railway is a manual step\.\*\*/);
+    expect(guide).toMatch(/documents no call that points an existing service at an image digest with a project token/);
+    // The ledger items that record the hosted checks exist.
+    const ledger = JSON.parse(read('provisioning/ledger.json')) as {items: {id: string}[]};
+    for (const id of ['vercel-deploy-hook', 'hosted-pipeline-check', 'hosted-schedules-check']) {
+      expect(ledger.items.map((item) => item.id), id).toContain(id);
+      expect(guide, id).toContain(`\`${id}\``);
+    }
   });
 });
 

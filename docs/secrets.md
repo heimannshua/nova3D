@@ -188,7 +188,7 @@ Story 2.16. Verifies Stripe's webhook signatures. Read only by the application, 
 
 ### QSTASH_TOKEN
 
-Story 1.9. Publishes messages and manages schedules on the environment's own QStash queue (us-east-1). Read only by the application.
+Story 1.9. Publishes messages and manages schedules on the environment's own QStash queue (us-east-1). Read by the operator's command `scripts/schedules.mjs`, which makes the live schedules equal the registry, and never by CI. Like every QStash name it is never set in a preview: the environment check rejects any `QSTASH_*` name there.
 
 - **Owner:** Administrator (Josh).
 - **Generation:** issued by the Upstash console for the environment's QStash; the token is region-specific. `QSTASH_URL` names the region endpoint and is not a secret.
@@ -198,7 +198,7 @@ Story 1.9. Publishes messages and manages schedules on the environment's own QSt
 
 ### QSTASH_CURRENT_SIGNING_KEY
 
-Story 1.9. Verifies that a scheduled call really came from QStash. Read only by the application.
+Story 1.9. Verifies that a scheduled call really came from QStash (`POST /api/jobs`, over the raw body; the route answers 503 without both signing keys). Read only by the application. Never set in a preview.
 
 - **Owner:** Administrator (Josh).
 - **Generation:** issued by the Upstash console for the environment's QStash; region-specific.
@@ -208,7 +208,7 @@ Story 1.9. Verifies that a scheduled call really came from QStash. Read only by 
 
 ### QSTASH_NEXT_SIGNING_KEY
 
-Story 1.9. The key that becomes current at the next rotation, so verification continues across a rotation. Read only by the application.
+Story 1.9. The key that becomes current at the next rotation, so verification continues across a rotation. Read only by the application. Never set in a preview.
 
 - **Owner:** Administrator (Josh).
 - **Generation:** issued by the Upstash console together with the current key; region-specific.
@@ -242,7 +242,7 @@ Story 1.3. The Google OAuth client secret for sign-in. Read only by Supabase Aut
 
 - **Owner:** Administrator (Josh).
 - **Generation:** in Google Cloud, the secret of the environment's own OAuth web client; never reused across environments.
-- **Location:** local: exported in the shell before `supabase start`, as `docs/auth-setup.md` says; staging: the Supabase Auth provider settings, and the `staging` GitHub environment's secrets once Story 1.9 pushes configuration; production: the production project's provider settings once it exists.
+- **Location:** local: exported in the shell before `supabase start`, as `docs/auth-setup.md` says; staging: the Supabase Auth provider settings, and the `staging` GitHub environment's secrets (Story 1.9: `staging.yml` needs it, with the client ID, for `supabase config diff`); production: the production project's provider settings once it exists.
 - **Rotation:** add a new secret to the client in Google Cloud, enter it where the environment holds it, confirm sign-in works, then disable the old secret.
 - **Cadence:** yearly, and at once on suspected compromise.
 
@@ -296,6 +296,16 @@ Story 1.9. Deploys worker image digests to the Railway project. Read only by CI.
 - **Generation:** in the Railway project settings, a project token for the environment.
 - **Location:** local: not used; staging: the `staging` GitHub environment's secrets; production: the production GitHub environment's secrets once it exists.
 - **Rotation:** create a new project token, update the GitHub environment secret, confirm a deploy works, then delete the old token.
+- **Cadence:** yearly, and at once on suspected compromise.
+
+### VERCEL_STAGING_DEPLOY_HOOK
+
+Story 1.9. The deploy hook URL of the staging Vercel project (made for the `staging` branch in the project's Git settings). `.github/workflows/staging.yml` posts to it after the migrations are applied, so a deployment always follows them. Vercel documents that anyone who holds the URL can deploy the project, so it is a secret. Read only by that workflow, from the environment, and never printed.
+
+- **Owner:** Administrator (Josh).
+- **Generation:** in the staging Vercel project's Settings, Git, Deploy Hooks, a hook named for the pipeline and bound to the `staging` branch.
+- **Location:** local: not used; staging: the `staging` GitHub environment's secrets; production: none (the production workflow never deploys, and the production project does not exist until Story 8.7).
+- **Rotation:** create a new hook in Vercel, update the GitHub environment secret, push to `staging` and confirm a deployment is triggered, then delete the old hook. If the URL may have been exposed, delete the hook first.
 - **Cadence:** yearly, and at once on suspected compromise.
 
 ## Storage keys
@@ -372,4 +382,4 @@ Story 8.4. The separate operator key the restore tooling uses to write the resto
 
 ## Names that are not secrets
 
-These names sit beside secrets, in the provisioning ledger or in an entry above, but are not secret: `APP_ORIGIN` (the https origin of the deployed application, Story 1.6: the link in the recovery mail points at it, so it is required in staging and production and is an ordinary, readable setting; see `docs/deployment-setup.md`), `NEXT_PUBLIC_SUPABASE_ANON_KEY` (browser-visible by design), `SUPABASE_PROJECT_REF`, `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`, `QSTASH_URL`, `UPSTASH_REDIS_REST_URL`, `VAPID_PUBLIC_KEY`, the Storage S3 access key IDs `GATEWAY_STORAGE_S3_ACCESS_KEY_ID` and `BACKUP_STORAGE_S3_ACCESS_KEY_ID`, and the Backblaze key identifiers `B2_BACKUP_KEY_ID`, `B2_MANIFEST_READ_KEY_ID`, `B2_LEDGER_READ_KEY_ID` and `B2_LEDGER_APPEND_KEY_ID`. Exposing one grants nothing on its own.
+These names sit beside secrets, in the provisioning ledger or in an entry above, but are not secret: `APP_ORIGIN` (the https origin of the deployed application, Story 1.6: the link in the recovery mail points at it, so it is required in staging and production and is an ordinary, readable setting; see `docs/deployment-setup.md`), `NEXT_PUBLIC_SUPABASE_ANON_KEY` (browser-visible by design), `SUPABASE_PROJECT_REF`, `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`, `QSTASH_URL`, `STAGING_SITE_URL` (Story 1.9: the https origin of the staging deployment, from which `scripts/staging-config.mjs` writes the scratch `config.toml` that `staging.yml` diffs the live Auth settings against; it is stored as a secret of the `staging` GitHub environment only so that the workflow reads every input the same way), `UPSTASH_REDIS_REST_URL`, `VAPID_PUBLIC_KEY`, the Storage S3 access key IDs `GATEWAY_STORAGE_S3_ACCESS_KEY_ID` and `BACKUP_STORAGE_S3_ACCESS_KEY_ID`, and the Backblaze key identifiers `B2_BACKUP_KEY_ID`, `B2_MANIFEST_READ_KEY_ID`, `B2_LEDGER_READ_KEY_ID` and `B2_LEDGER_APPEND_KEY_ID`. Exposing one grants nothing on its own.

@@ -337,6 +337,14 @@ describe('who may register', () => {
     expect(mocks.registerWithCode).not.toHaveBeenCalled();
   });
 
+  it('turns an Auth identity that is gone (Story 1.9: the dormant-identity purge deleted it while the registration waited) into "sign in again", ends the session and issues no grant', async () => {
+    mocks.registerWithCode.mockResolvedValue(receipt('no_identity'));
+    expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=not_signed_in');
+    expect(mocks.endSession).toHaveBeenCalledTimes(1);
+    expect(mocks.issueGrant).not.toHaveBeenCalled();
+    expect(mocks.confirmRegistration).not.toHaveBeenCalled();
+  });
+
   it('never reports a disabled Account as registered', async () => {
     mocks.registerWithCode.mockResolvedValue(receipt('disabled'));
     expect(await redirected(registerWithInvitation(initial, form()))).toBe('/login?error=account_disabled');

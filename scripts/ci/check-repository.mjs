@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { access, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { authDeclarationProblems } from '../config-toml.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const markdownFiles = ['README.md', 'docs/deployment-setup.md', 'docs/auth-setup.md', 'docs/staging.md', 'docs/provisioning.md', 'docs/secrets.md', 'docs/authority-contract.md', 'docs/deletion-verification.md', 'tools/qualification/README.md', 'tools/qualification/devices/README.md', 'tools/qualification/stack/README.md'];
@@ -31,9 +32,16 @@ const required = [
 ];
 for (const relative of required) if (!(await exists(resolve(root, relative)))) failures.push(`missing required file: ${relative}`);
 
+// Story 1.9: `supabase config diff` compares only what supabase/config.toml declares, so the file must declare every sign-in method and
+// provider (Google on, the rest off), the sign-up setting, the redirect URLs, the site URL and the one-time-code expiry. A setting that
+// is missing, or a provider other than Google that is enabled, fails here, before any live project is asked.
+const configPath = resolve(root, 'supabase/config.toml');
+if (await exists(configPath)) failures.push(...authDeclarationProblems(await readFile(configPath, 'utf8')));
+else failures.push('missing required file: supabase/config.toml');
+
 if (failures.length) {
   console.error('Repository checks failed:');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Repository checks passed (${markdownFiles.length} Markdown files, ${required.length} required files).`);
+console.log(`Repository checks passed (${markdownFiles.length} Markdown files, ${required.length} required files, the Auth declarations of supabase/config.toml).`);

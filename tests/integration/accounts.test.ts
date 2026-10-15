@@ -51,12 +51,14 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'authorize_session',
     'before_user_created',
     'check_recovery',
+    'claim_job_run',
     'claim_ledger_events',
     'complete_step_up',
     'confirm_registration',
     'consume_preauthorization',
     'disable_account',
     'enable_account',
+    'finish_job_run',
     'finish_ledger_events',
     'get_project',
     'guard_operation',
@@ -65,12 +67,14 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'issue_grant',
     'issue_invitation',
     'issue_recovery',
+    'last_job_run',
     'ledger_pending',
     'list_accounts',
     'list_invitations',
     'list_projects',
     'lookup_status',
     'preflight',
+    'purge_dormant_identities',
     'raise_authorization_epoch',
     'record_account_refusal',
     'record_invitation_refusal',
@@ -484,7 +488,12 @@ describe('AC-1: registration is atomic, single-use and idempotent', () => {
         expect(await failuresOf(client, origin), user.email).toBe(1);
       }
       expect(await invitationStatus(client, hash)).toBe('unused');
-      expect(withoutCommand(await svc.register(randomUUID(), hash, {origin: originHash()}))).toEqual(generic);
+      // Story 1.9: an Auth identity that is not there at all (the dormant-identity purge deleted it while the registration waited for its
+      // lock, or it never existed) is not a guess at a code: it answers `no_identity`, which the register page turns into "sign in again",
+      // and it is not counted against the origin. (It used to answer `refused` and count; the cases above, whose identity exists, still do.)
+      const gone = originHash();
+      expect(withoutCommand(await svc.register(randomUUID(), hash, {origin: gone}))).toEqual({...generic, outcome: 'no_identity'});
+      expect(await failuresOf(client, gone)).toBe(0);
       expect((await svc.register((await addUser(client)).id, hash)).outcome).toBe('registered');
     });
   });

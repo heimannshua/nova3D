@@ -346,7 +346,7 @@ describe('registerWithCode', () => {
 
   it('maps every outcome, and a disabled Account is never a success', async () => {
     const env = environment();
-    for (const outcome of ['refused', 'limited', 'disabled'] as const) {
+    for (const outcome of ['refused', 'limited', 'disabled', 'no_identity'] as const) {
       const {fetch} = endpoint(() => ({body: {command_id: COMMAND, outcome, account_id: outcome === 'disabled' ? 'a1' : null, workspace_id: null, role: null, replayed: outcome === 'disabled'}}));
       const result = await registerWithCode({userId: USER, commandId: COMMAND, code: generateInvitationCode(), clientAddress: null}, {env, fetch});
       expect(result.outcome).toBe(outcome);

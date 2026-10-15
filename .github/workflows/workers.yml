@@ -1,0 +1,84 @@
+name: Workers
+
+# Story 1.9. A change under `workers/` on the `staging` branch builds each worker's image (every `workers/<name>/Dockerfile`), pushes it to
+# GitHub Container Registry and records the image's DIGEST, which is what is deployed: a tag can move, a digest cannot. No worker exists yet
+# (the first arrives with Story 2.7), so until then the image job is skipped.
+#
+# Deploying the digest to Railway is a documented manual step and not a step here: Railway's public API reference documents no call that
+# points an existing service at an image digest with a project token (docs/staging.md, "Worker images"). The job summary prints the
+# reference to paste. Older images stay in the registry: reproducible Versions need them.
+on:
+  push:
+    branches: [staging]
+    paths:
+      - 'workers/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workers-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  list:
+    name: List the workers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.workers.outputs.matrix }}
+      any: ${{ steps.workers.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+      - id: workers
+        run: node scripts/ci/list-workers.mjs
+
+  image:
+    name: Build and push ${{ matrix.worker }}
+    needs: list
+    if: ${{ needs.list.outputs.any == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: staging
+    strategy:
+      fail-fast: false
+      matrix:
+        worker: ${{ fromJSON(needs.list.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN }}
+      # An image name must be lower case; the repository's name may not be.
+      - name: Name the image
+        id: image
+        env:
+          WORKER: ${{ matrix.worker }}
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}/${WORKER}" >> "$GITHUB_OUTPUT"
+      - name: Build and push the image
+        id: push
+        uses: docker/build-push-action@v7
+        with:
+          context: workers/${{ matrix.worker }}
+          file: workers/${{ matrix.worker }}/Dockerfile
+          push: true
+          tags: ${{ steps.image.outputs.name }}:${{ github.sha }}
+      - name: Record the digest
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+          WORKER: ${{ matrix.worker }}
+        run: |
+          {
+            echo "### Worker image: $WORKER"
+            echo
+            echo "Deploy this digest, and no tag: \`$IMAGE@$DIGEST\`"
+            echo
+            echo "Manual step (Railway's API reference documents no call for it): in the Railway project, set the \`$WORKER\` service's image to the reference above and deploy it. Keep one version of a worker running at a time, and record the digest in the worker registry (Story 2.7)."
+          } >> "$GITHUB_STEP_SUMMARY"

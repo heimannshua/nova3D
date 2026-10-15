@@ -136,11 +136,13 @@ describe('every route handler answers only an active Account, and every one that
   const exempt: Record<string, string> = {
     'app/api/health/route.ts': 'the health check is public (lib/public-paths.ts) and reports no private data',
     'app/api/status/route.ts': 'the status route (Story 1.8) is public (lib/public-paths.ts): a device whose Account may be gone asks what became of a handle it holds',
+    'app/api/jobs/route.ts': 'the scheduled-job route (Story 1.9) is the one machine path (lib/public-paths.ts): a scheduler calls it with no session and no browser Origin, and the signature over the raw body, checked in lib/jobs.ts, is its only authentication',
   };
   // The public routes that take a POST, and why it changes nothing a caller could use: a lookup reads, and the database counts it (a
   // rate-limit counter is all it writes). The proxy still refuses it from another site, and the database rate limits it.
   const publicPosts: Record<string, string> = {
     'app/api/status/route.ts': 'a lookup of a status handle: it changes nothing but its own rate-limit counter',
+    'app/api/jobs/route.ts': 'a signed call of a registered task: nothing runs and nothing is written until the signature, the body and the instance are right, and then only that task and its own receipt',
   };
   // Routes that may put the synthetic check (and nothing else) ahead of their guard.
   const syntheticOnly: Record<string, string> = {
@@ -152,7 +154,7 @@ describe('every route handler answers only an active Account, and every one that
   const guarded = routes.filter((file) => !(file in exempt));
 
   it('finds the routes, under app/api and elsewhere', () => {
-    expect(routes).toEqual(expect.arrayContaining(['app/api/health/route.ts', 'app/api/kit/mutation/route.ts', 'app/api/status/route.ts', 'app/auth/callback/route.ts']));
+    expect(routes).toEqual(expect.arrayContaining(['app/api/health/route.ts', 'app/api/jobs/route.ts', 'app/api/kit/mutation/route.ts', 'app/api/status/route.ts', 'app/auth/callback/route.ts']));
     expect(apiRoutes.length).toBeGreaterThan(0);
   });
 
@@ -1185,13 +1187,13 @@ describe('Tombstones, the ledger and the status route (Story 1.8) have one write
     expect(callers('authorizeTarget')).toEqual(['lib/authority.ts']);
   });
 
-  it('is a relay that is a function and nothing runs: no scheduler (Story 1.9), no alarm (Story 1.13), and the only store is the fixture one (Story 8.9 supplies the real one)', () => {
-    expect(callers('relayLedger')).toEqual(['lib/ledger.ts']);
+  it('is a relay that is a function, run by one scheduled task and nothing else (Story 1.9), with no alarm (Story 1.13), and the only store is the fixture one (Story 8.9 supplies the real one)', () => {
+    expect(callers('relayLedger')).toEqual(['lib/job-tasks.ts', 'lib/ledger.ts']);
     expect(callers('claimLedgerEvents')).toEqual(['lib/ledger.ts', 'lib/lifecycle.ts']);
     expect(callers('finishLedgerEvents')).toEqual(['lib/ledger.ts', 'lib/lifecycle.ts']);
-    expect(callers('ledgerPending')).toEqual(['lib/lifecycle.ts']);
+    expect(callers('ledgerPending')).toEqual(['lib/job-tasks.ts', 'lib/lifecycle.ts']);
     expect(callers('createFixtureLedgerStore')).toEqual(['lib/ledger-fixture.ts']);
-    expect(callers('LedgerStore')).toEqual(['lib/ledger-fixture.ts', 'lib/ledger.ts']);
+    expect(callers('LedgerStore')).toEqual(['lib/job-tasks.ts', 'lib/ledger-fixture.ts', 'lib/ledger.ts']);
     // Nothing starts it: no route, no instrumentation, no action, no scheduler registration.
     for (const file of ['instrumentation.ts', 'instrumentation-node.ts', 'proxy.ts', ...sources.filter((candidate) => /^(?:app|components)\//.test(candidate))]) {
       expect(withoutComments(read(file)), file).not.toMatch(/\brelayLedger\b|\bclaimLedgerEvents\b|\bledgerPending\b|registerAlarm|setInterval|@upstash\/workflow/);
@@ -1325,5 +1327,232 @@ describe('Tombstones, the ledger and the status route (Story 1.8) have one write
   it('writes the guard contract down for the people who write the gateway and the deletion commands', () => {
     const contract = read('docs/authority-contract.md');
     for (const needle of ['The tombstone guard', 'lifecycle.assert_not_tombstoned', 'authorizeTarget', 'api.guard_target', 'api.record_tombstone', 'mergeStatus', 'POST /api/status', 'tombstoned', 'unavailable', 'FOR SHARE', 'Retry-After', 'its own revision plus its Account\'s authorization epoch']) expect(contract, needle).toContain(needle);
+  });
+});
+
+describe('Scheduled jobs (Story 1.9) have one route, one verifier, two tasks and one deleter', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+    'instrumentation.ts',
+    'instrumentation-node.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const migrationFile = 'supabase/migrations/20261014120000_scheduled_jobs.sql';
+  const migrationCode = read(migrationFile).replace(/^\s*--.*$/gm, '');
+  const route = 'app/api/jobs/route.ts';
+
+  /** The text of a function of the migration, from its `create` to the `$$;` that closes it. */
+  const functionBody = (header: string) => {
+    const start = migrationCode.indexOf(header);
+    expect(start, header).toBeGreaterThan(-1);
+    return migrationCode.slice(start, migrationCode.indexOf('$$;', migrationCode.indexOf('$$', start) + 2));
+  };
+
+  it('is one POST at one exact path, a one-line caller of the handler in lib/jobs.ts, and never static', () => {
+    expect(handlersOf(read(route)).map((handler) => handler.method)).toEqual(['POST']);
+    const code = withoutComments(read(route));
+    expect(code).toMatch(/export const dynamic = 'force-dynamic';/);
+    expect(code).toMatch(/import \{handleJobRequest\} from '@\/lib\/jobs';/);
+    expect(code).toMatch(/export async function POST\(request: Request\) \{\s*return handleJobRequest\(request\);\s*\}/);
+    expect(code).not.toMatch(/console\.|\blog\(|process\.env|request\.url|nextUrl|searchParams|cookies\(|headers\(\)/);
+    // The path is the machine path and the only one, written once in the one list the proxy reads.
+    const publicPaths = withoutComments(read('lib/public-paths.ts'));
+    expect(publicPaths).toMatch(/export const machinePaths = \['\/api\/jobs'\];/);
+    expect(publicPaths).toMatch(/export const publicPaths = \[[^\]]*\.\.\.machinePaths\];/);
+    expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).filter((file) => file.startsWith('app/api/jobs'))).toEqual([route]);
+  });
+
+  it('skips the proxy\'s origin rule for the machine path and for nothing else', () => {
+    const proxy = withoutComments(read('proxy.ts'));
+    expect([...proxy.matchAll(/\bisMachinePath\(/g)]).toHaveLength(1);
+    expect(proxy).toMatch(/const refusal = isMachinePath\(pathname\) \? null : originRefusal\(request\);/);
+    expect(callers('isMachinePath')).toEqual(['lib/public-paths.ts', 'proxy.ts']);
+  });
+
+  it('keeps the provider\'s name and every signature check in lib/jobs.ts: nothing under app/ or components/ names it, and one file builds a Receiver', () => {
+    for (const file of sources.filter((candidate) => /^(?:app|components)\//.test(candidate))) {
+      expect(withoutComments(read(file)), file).not.toMatch(/upstash|qstash|redis/i);
+    }
+    expect(callers('Receiver')).toEqual(['lib/jobs.ts']);
+    expect(sources.filter((file) => /@upstash\//.test(withoutComments(read(file))))).toEqual(['lib/jobs.ts']);
+    const jobs = withoutComments(read('lib/jobs.ts'));
+    // The SDK's development mode (published signing keys, switched on by an environment variable) is never on, and the check is over the raw body.
+    expect(jobs).toMatch(/new Receiver\(\{[^}]*devMode: false[^}]*\}\)/);
+    expect(jobs).toMatch(/receiver\.verify\(\{signature, body, clockTolerance/);
+  });
+
+  it('checks in the order the contract says, and each check returns before the next one starts', () => {
+    const jobs = withoutComments(read('lib/jobs.ts'));
+    const order = [
+      "request.method !== 'POST'",
+      'signingKeys(env)',
+      'request.headers.get(signatureHeader)',
+      'readRawBody(request)',
+      'isSigned(signature, raw.text, keys)',
+      'parseBody(raw.text)',
+      'isScheduledTask(body.task)',
+      'checkInstanceIdentity(',
+      'claimJobRun(',
+      'await run(task',
+      'finishJobRun(',
+    ].map((needle) => {
+      expect(jobs, needle).toContain(needle);
+      return jobs.indexOf(needle);
+    });
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
+  it('logs nothing from the request: the one log line names a registered task and an error class', () => {
+    const jobs = withoutComments(read('lib/jobs.ts'));
+    const logs = [...jobs.matchAll(/console\.\w+\(([^;]*)\);/g)].map((match) => match[1]);
+    expect(logs).toEqual(["'A scheduled task failed.', task, failure"]);
+    // Nothing of the call is reflected: every answer is built from literals (and the task's own outcome), never from the signature, a key, the body or a header.
+    const answers = [...jobs.matchAll(/\banswer\(([^;]*)\)(?:;|\s*:)/g)].map((match) => match[1]);
+    expect(answers.length).toBeGreaterThan(8);
+    for (const call of answers) expect(call, call).not.toMatch(/\b(?:signature|keys|raw|body|messageId|scheduleId|request|env|instanceId|error)\b(?!:)/);
+    for (const file of ['lib/job-tasks.ts', 'lib/schedules.ts']) expect(withoutComments(read(file)), file).not.toMatch(/console\.|\blog\(/);
+  });
+
+  it('adds no environment variable: the route reads the two signing keys and the instance ID, and nothing else', () => {
+    const jobs = withoutComments(read('lib/jobs.ts'));
+    expect([...new Set([...jobs.matchAll(/\benv\.([A-Z][A-Z0-9_]+)/g)].map((match) => match[1]))].sort()).toEqual(['INSTANCE_ID', 'QSTASH_CURRENT_SIGNING_KEY', 'QSTASH_NEXT_SIGNING_KEY']);
+    expect([...jobs.matchAll(/process\.env/g)]).toHaveLength(1);
+    expect(jobs).toMatch(/const env = options\.env \?\? process\.env;/);
+    for (const file of ['lib/job-tasks.ts', 'lib/schedules.ts']) expect(withoutComments(read(file)), file).not.toMatch(/process\.env|\benv\.[A-Z]/);
+    // The names are not required by the hosted environment check (the route fails closed without them): /api/health is unchanged.
+    const environment = withoutComments(read('lib/environment.ts'));
+    expect(environment.slice(environment.indexOf('const requiredVariables'), environment.indexOf('const previewForbiddenName'))).not.toMatch(/QSTASH/);
+    expect(environment).toMatch(/const previewForbiddenName = [^\n]*QSTASH_/);
+  });
+
+  it('registers exactly two tasks, each run by one function, and no cleanup beyond them', () => {
+    const registry = withoutComments(read('lib/schedules.ts'));
+    expect([...registry.matchAll(/task: '([a-z-]+)'/g)].map((match) => match[1])).toEqual(['dormant-identity-purge', 'ledger-relay']);
+    expect(registry).not.toMatch(/^import\s|\bfrom\s+['"]/m);
+    const tasks = withoutComments(read('lib/job-tasks.ts'));
+    expect([...tasks.matchAll(/^  '([a-z-]+)': \w+,$/gm)].map((match) => match[1])).toEqual(['ledger-relay', 'dormant-identity-purge']);
+    for (const deferred of ['session_grants', 'step_up_nonces', 'recovery_tokens', 'ledger_outbox']) expect(tasks, deferred).not.toContain(deferred);
+  });
+
+  it('keeps the database functions behind the typed calls: nothing but lib/lifecycle.ts names them', () => {
+    const names = ['claim_job_run', 'finish_job_run', 'last_job_run', 'purge_dormant_identities'];
+    for (const file of sources.filter((candidate) => candidate !== 'lib/lifecycle.ts' && candidate !== 'lib/accounts.ts')) {
+      expect(withoutComments(read(file)), file).not.toMatch(new RegExp(`['"\`](?:${names.join('|')})['"\`]`));
+    }
+    for (const name of names) expect(withoutComments(read('lib/lifecycle.ts')), name).toMatch(new RegExp(`callRow\\(\\s*'${name}'`));
+    expect(callers('claimJobRun')).toEqual(['lib/jobs.ts', 'lib/lifecycle.ts']);
+    expect(callers('finishJobRun')).toEqual(['lib/jobs.ts', 'lib/lifecycle.ts']);
+    expect(callers('purgeDormantIdentities')).toEqual(['lib/job-tasks.ts', 'lib/lifecycle.ts']);
+    // Nothing reads a receipt yet: the alarm of Story 1.13 will.
+    expect(callers('lastJobRun')).toEqual(['lib/lifecycle.ts']);
+  });
+
+  it('is the only place that deletes an Auth identity: one function of one migration, and nothing in the application', () => {
+    for (const file of sources) {
+      expect(withoutComments(read(file)), file).not.toMatch(/auth\.users|deleteUser\(|admin\.deleteUser/);
+    }
+    const migrations = files('supabase/migrations', (name) => name.endsWith('.sql'));
+    const deleters = migrations.filter((file) => /delete\s+from\s+auth\.users/i.test(read(file).replace(/^\s*--.*$/gm, '')));
+    expect(deleters).toEqual([migrationFile]);
+    const purge = functionBody('create function api.purge_dormant_identities(');
+    expect([...purge.matchAll(/delete from auth\.users/g)]).toHaveLength(1);
+  });
+
+  it('purges the way registration locks: the row lock first, skipping a row in flight, the conditions read again in a later statement, a foreign-key refusal kept, and no age to choose', () => {
+    const purge = functionBody('create function api.purge_dormant_identities(');
+    expect(purge.slice(0, purge.indexOf('as $$'))).toMatch(/api\.purge_dormant_identities\(p_limit integer default 100\)\s+returns api\.purge_report\s+language plpgsql\s+security definer\s+set search_path = ''/);
+    expect(purge).toMatch(/c_age constant interval := interval '30 days';/);
+    expect(purge).toMatch(/p_limit not between 1 and 500/);
+    const locked = purge.indexOf('for update skip locked');
+    const reread = purge.indexOf('perform 1');
+    const deleted = purge.indexOf('delete from auth.users');
+    expect(locked).toBeGreaterThan(-1);
+    expect(locked).toBeLessThan(reread);
+    expect(reread).toBeLessThan(deleted);
+    // The re-read repeats all three conditions (no Account, last sign-in or creation, any registration attempt) after the lock.
+    const afterLock = purge.slice(reread, deleted);
+    for (const needle of ['identity.accounts', 'coalesce(u.last_sign_in_at, u.created_at)', 'identity.registration_attempts']) expect(afterLock, needle).toContain(needle);
+    expect(purge).toMatch(/exception when foreign_key_violation then/);
+    // The registration functions lock the same row the same way, which is what makes the two serial.
+    const accounts = read('supabase/migrations/20261010120100_api.sql');
+    expect(accounts).toMatch(/perform 1 from auth\.users u where u\.id = p_user_id for update;/);
+    expect(migrationCode).toMatch(/perform 1 from auth\.users u where u\.id = p_user_id for update;/);
+  });
+
+  it('closes the receipts table like the other lifecycle tables, makes it append-only, and runs every function as its owner with an empty search_path', () => {
+    expect(migrationCode).toMatch(/alter table lifecycle\.job_receipts enable row level security;/);
+    expect(migrationCode).toMatch(/revoke all on lifecycle\.job_receipts from public, anon, authenticated, service_role;/);
+    expect(migrationCode).not.toMatch(/create policy/i);
+    expect(migrationCode).toMatch(/create trigger job_receipts_no_delete before delete on lifecycle\.job_receipts/);
+    expect(migrationCode).toMatch(/create trigger job_receipts_no_truncate before truncate on lifecycle\.job_receipts/);
+    expect(migrationCode).toMatch(/constraint job_receipts_run_key unique \(schedule_id, message_id, attempt\)/);
+    // Each function is granted to the service role by its FULL signature, and to no other role; nothing else of the migration is granted.
+    const grantedTo: Record<string, string> = {
+      'create function api.claim_job_run(': 'grant execute on function api.claim_job_run(text, text, text, integer) to service_role;',
+      'create function api.finish_job_run(': 'grant execute on function api.finish_job_run(uuid, text, json) to service_role;',
+      'create function api.last_job_run(': 'grant execute on function api.last_job_run(text) to service_role;',
+      'create function api.purge_dormant_identities(': 'grant execute on function api.purge_dormant_identities(integer) to service_role;',
+    };
+    for (const [header, grant] of Object.entries(grantedTo)) {
+      const body = functionBody(header);
+      const declaration = body.slice(0, body.indexOf('as $$'));
+      expect(declaration, header).toMatch(/security definer/);
+      expect(declaration, header).toMatch(/set search_path = ''/);
+      expect(migrationCode.split('\n').map((line) => line.trim()), header).toContain(grant);
+    }
+    expect(migrationCode.match(/^grant execute on function .*$/gm), 'the grants of the migration').toEqual(Object.values(grantedTo));
+    expect(migrationCode).not.toMatch(/grant execute on function (?:lifecycle|identity|projects)\./);
+    expect(migrationCode).not.toMatch(/grant [^;]* to (?:public|anon|authenticated);/);
+    // The claim is serialized per key by an advisory lock taken before the receipt is read.
+    const claim = functionBody('create function api.claim_job_run(');
+    expect(claim.indexOf('pg_advisory_xact_lock')).toBeGreaterThan(-1);
+    expect(claim.indexOf('pg_advisory_xact_lock')).toBeLessThan(claim.indexOf('from lifecycle.job_receipts'));
+    expect(claim).toMatch(/p_lease_seconds integer default 300/);
+  });
+
+  it('changes api.register_with_code by one outcome only: the function is the 1.3 one, with `no_identity` where an identity that is gone used to be refused', () => {
+    const before = read('supabase/migrations/20261010120100_api.sql').replace(/^\s*--.*$/gm, '');
+    const old = before.slice(before.indexOf('create function api.register_with_code('), before.indexOf('$$;', before.indexOf('$$', before.indexOf('create function api.register_with_code(')) + 2));
+    const now = functionBody('create or replace function api.register_with_code(');
+    const lines = (text: string) => text.split('\n').map((line) => line.trim()).filter(Boolean);
+    // A real line diff (longest common subsequence), not a comparison of sets: a line that moved, or that was removed here and exists elsewhere in
+    // the function, must show up as a change.
+    const diff = (a: string[], b: string[]) => {
+      const table = Array.from({length: a.length + 1}, () => new Array<number>(b.length + 1).fill(0));
+      for (let i = a.length - 1; i >= 0; i -= 1) for (let j = b.length - 1; j >= 0; j -= 1) table[i][j] = a[i] === b[j] ? table[i + 1][j + 1] + 1 : Math.max(table[i + 1][j], table[i][j + 1]);
+      const removed: string[] = [];
+      const added: string[] = [];
+      let i = 0;
+      let j = 0;
+      while (i < a.length || j < b.length) {
+        if (i < a.length && j < b.length && a[i] === b[j]) {
+          i += 1;
+          j += 1;
+        } else if (j < b.length && (i === a.length || table[i][j + 1] >= table[i + 1][j])) added.push(b[j++]);
+        else removed.push(a[i++]);
+      }
+      return {removed, added};
+    };
+    const {removed, added} = diff(lines(old), lines(now));
+    // Exactly these lines changed: the statement's own header, the identity's row being remembered as found or not after its lock (step 1), and the
+    // answer where the verified Google identity is looked up and the row is not there. Nothing else of the function differs, line for line.
+    expect(removed).toEqual(['create function api.register_with_code(p_user_id uuid, p_command_id uuid, p_code_hash text, p_origin_hash text)', 'if found then']);
+    expect(added).toEqual([
+      'create or replace function api.register_with_code(p_user_id uuid, p_command_id uuid, p_code_hash text, p_origin_hash text)',
+      'v_identity_found boolean := false;',
+      'v_identity_found := found;',
+      'if v_identity_found then',
+      'if not v_identity_found then',
+      "v_receipt.outcome := 'no_identity';",
+      'return v_receipt;',
+      'end if;',
+    ]);
+    expect(now).toContain("v_receipt.outcome := 'no_identity';");
+    expect(now.indexOf("'no_identity'")).toBeGreaterThan(now.indexOf('identity.verified_google(p_user_id)'));
+    // The consumption of a pre-authorization is untouched by this migration.
+    expect(migrationCode).not.toMatch(/function api\.consume_preauthorization/);
   });
 });

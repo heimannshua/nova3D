@@ -1,6 +1,7 @@
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {describe, expect, it} from 'vitest';
+import {authDeclarationProblems, otherProviders, web3Methods} from '../../scripts/config-toml.mjs';
 
 const text = readFileSync(resolve(import.meta.dirname, '../../supabase/config.toml'), 'utf8');
 
@@ -77,6 +78,34 @@ describe('supabase/config.toml', () => {
     expect(section('auth.external.google')).not.toHaveProperty('url');
     expect(section('auth.external.google').skip_nonce_check).toBe('false');
     expect(text).not.toMatch(/4173|4174|host\.docker\.internal|accounts\.google\.com|fake/i);
+  });
+
+  // Story 1.9: `supabase config diff` compares only what the file declares, so every sign-in method is declared, and only Google is on.
+  it('declares every external provider the CLI knows, and enables only Google', () => {
+    const declared = [...text.matchAll(/^\[auth\.external\.([a-z0-9_]+)\]/gm)].map((match) => match[1]);
+    expect(declared.sort()).toEqual(['google', ...otherProviders].sort());
+    expect(new Set(declared).size).toBe(declared.length);
+    for (const provider of otherProviders) expect(section(`auth.external.${provider}`).enabled, provider).toBe('false');
+    expect(section('auth.external.google').enabled).toBe('true');
+    const enabled = [...text.matchAll(/^\[(auth\.[a-z0-9_.]+)\]\s*\n(?:[^\n[]*\n)*?enabled = true/gm)].map((match) => match[1]);
+    expect(enabled.sort()).toEqual(['auth.external.google', 'auth.hook.before_user_created']);
+  });
+
+  it('declares the other sign-in methods off: email, SMS, anonymous, Web3', () => {
+    expect(section('auth').enable_anonymous_sign_ins).toBe('false');
+    expect(section('auth.email').enable_signup).toBe('false');
+    expect(section('auth.sms').enable_signup).toBe('false');
+    for (const method of web3Methods) expect(section(`auth.web3.${method}`).enabled, method).toBe('false');
+    expect([...text.matchAll(/^\[auth\.web3\.([a-z]+)\]/gm)].map((match) => match[1]).sort()).toEqual([...web3Methods].sort());
+  });
+
+  it('declares the sign-up setting, the site URL, the redirect URLs and the one-time-code expiry, so a diff can see them', () => {
+    expect(section('auth').enable_signup).toBe('true');
+    expect(section('auth').site_url).toBe('"http://127.0.0.1:3000"');
+    expect(text).toMatch(/additional_redirect_urls\s*=\s*\[/);
+    expect(section('auth.email').otp_expiry).toBe('900');
+    // ... and the static check agrees: nothing is missing.
+    expect(authDeclarationProblems(text)).toEqual([]);
   });
 
   it('allows only the local app callbacks', () => {

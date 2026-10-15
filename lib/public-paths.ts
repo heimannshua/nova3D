@@ -5,7 +5,13 @@
 // /api/status (Story 1.8) is the status route: a device whose Account may be gone asks what became of a handle it holds, so it
 // cannot be asked of a signed-in Account. It is one POST that reads and changes nothing but a rate-limit counter; the proxy's origin
 // check applies to it like any other POST (a request from another site is refused), and it is rate limited by origin and in all.
-export const publicPaths = ['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm'];
+//
+// /api/jobs (Story 1.9) is the scheduled-job route, and the one MACHINE path: a scheduler calls it (a POST with a signed body), so there is no
+// session to ask for and no browser Origin to check. It is public in the sense that the proxy asks no Account of it, and it is a machine path
+// in that the proxy skips ONLY its origin refusal for it (`isMachinePath`); every other proxy rule still applies, and the signature, checked
+// by the route over the raw body, is the only authentication. It is one exact path: nothing beneath or beside it is public.
+export const machinePaths = ['/api/jobs'];
+export const publicPaths = ['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm', ...machinePaths];
 
 /**
  * The synthetic design kit route. Public only when synthetic data is on, which production forbids (check-env).
@@ -15,6 +21,11 @@ export const designKitPath = '/kit';
 
 export function isSyntheticDataEnabled(env: Record<string, string | undefined>): boolean {
   return env.SYNTHETIC_DATA_ENABLED === 'true';
+}
+
+/** Whether a path is called by a machine, not a browser: the proxy does not check its Origin (the route checks the call's signature). */
+export function isMachinePath(pathname: string): boolean {
+  return machinePaths.includes(pathname);
 }
 
 export function isPublicPath(pathname: string, env: Record<string, string | undefined>): boolean {

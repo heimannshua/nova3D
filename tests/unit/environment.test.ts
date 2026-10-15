@@ -391,7 +391,7 @@ describe('hash keys (Story 1.3)', () => {
       for (const environment of ['preview', 'development']) {
         const value = good();
         const errors = validateEnvironment({...preview, VERCEL_ENV: environment, [name]: value});
-        expect(errors.join('\n'), `${environment} ${name}`).toMatch(new RegExp(`hold no Supabase, database or Stripe variables, account hashing keys or mail key: ${name}$`, 'm'));
+        expect(errors.join('\n'), `${environment} ${name}`).toMatch(new RegExp(`hold no Supabase, database or Stripe variables, account hashing keys, mail key or QStash variables: ${name}$`, 'm'));
         expect(errors.join('\n')).not.toContain(value);
       }
     }
@@ -399,6 +399,30 @@ describe('hash keys (Story 1.3)', () => {
     expect(all.join()).toContain('INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY, RECOVERY_HASH_KEY, RESEND_API_KEY');
     // A deployment that is not a preview may hold them.
     expect(validateEnvironment({...staging, INVITATION_HASH_KEY: good(), RATE_LIMIT_HASH_KEY: good()})).toEqual([]);
+  });
+});
+
+describe('QStash names (Story 1.9)', () => {
+  const qstash = ['QSTASH_URL', 'QSTASH_TOKEN', 'QSTASH_CURRENT_SIGNING_KEY', 'QSTASH_NEXT_SIGNING_KEY'];
+  const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys, ...noMail};
+
+  it('are never set in a preview or a development deployment: each is named, and its value never printed', () => {
+    for (const name of qstash) {
+      for (const environment of ['preview', 'development']) {
+        const value = `value-of-${name.toLowerCase()}-must-never-be-printed`;
+        const errors = validateEnvironment({...preview, VERCEL_ENV: environment, [name]: value});
+        expect(errors.join('\n'), `${environment} ${name}`).toMatch(new RegExp(`QStash variables: ${name}$`, 'm'));
+        expect(errors.join('\n')).not.toContain(value);
+      }
+    }
+    // An empty value is not "held", like the other forbidden names.
+    expect(validateEnvironment({...preview, QSTASH_TOKEN: ''})).toEqual([]);
+  });
+
+  it('are not required anywhere: the route answers 503 without them, and the hosted required list is unchanged', () => {
+    expect(validateEnvironment(staging)).toEqual([]);
+    expect(validateEnvironment({...staging, VERCEL_ENV: 'production'})).toEqual([]);
+    for (const name of qstash) expect(validateEnvironment({...staging, [name]: 'x'.repeat(24)}), name).toEqual([]);
   });
 });
 

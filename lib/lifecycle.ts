@@ -8,6 +8,13 @@
 //   finishLedgerEvents    api.finish_ledger_events marks events relayed and lets go of the lease
 //   ledgerPending         api.ledger_pending     how many events wait for the relay, and how old the oldest is
 //
+// Story 1.9 adds the scheduled jobs' half (lib/jobs.ts and lib/job-tasks.ts are its callers) and the dormant-identity purge:
+//
+//   claimJobRun           api.claim_job_run      claims one run of a scheduled message: claimed | duplicate | running
+//   finishJobRun          api.finish_job_run     finishes its receipt, once, with an outcome and a result of counts and class names
+//   lastJobRun            api.last_job_run       the newest finished receipt of a task (Story 1.13's alarm reads it)
+//   purgeDormantIdentities api.purge_dormant_identities  deletes the Auth identities that never became Accounts, 30 days idle
+//
 // SERVER-ONLY (it imports lib/accounts.ts, which holds the service-role key). Like lib/accounts.ts and lib/authority.ts it uses
 // erasable TypeScript syntax and relative `.ts` imports, so a worker outside Next.js can import it through Node type stripping.
 //
@@ -197,4 +204,124 @@ export async function ledgerPending(options: AccountsOptions = {}): Promise<Ledg
   // Nothing pending has no oldest, and something pending has one.
   if ((pending === 0) !== (oldestSeconds === null)) throw unexpected();
   return {pending, oldestSeconds};
+}
+
+// Scheduled jobs (Story 1.9) --------------------------------------------------------------------------------------------------------
+
+const taskPattern = /^[a-z][a-z0-9-]{0,62}$/;
+const jobIdPattern = /^[A-Za-z0-9_.:-]{1,128}$/;
+
+/** How a finished run went. `failed` is the only one a retry replaces. */
+export const jobOutcomes = ['ran', 'idle', 'no_store', 'failed'] as const;
+export type JobOutcome = (typeof jobOutcomes)[number];
+
+/**
+ * What a receipt's result may hold: a small flat object of whole numbers, booleans and single words (a class name such as `TypeError`,
+ * or an outcome such as `store_unavailable`). It never holds an address, an ID, a key or a message: the database refuses anything
+ * else, and this is the same rule, checked before the call so that a task that returns something else fails here, by name.
+ */
+export type JobResult = Record<string, number | boolean | string>;
+
+const resultKeyPattern = /^[a-z][a-z0-9_]{0,31}$/;
+const resultWordPattern = /^(?:[A-Z][A-Za-z]{0,47}|[a-z][a-z_]{0,31})$/;
+
+/** Whether a value is a result the database would accept: at most 1 KB, only counts, booleans and single words. */
+export function isJobResult(value: unknown): value is JobResult {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const entries = Object.entries(value);
+  if (JSON.stringify(value).length > 1024) return false;
+  return entries.every(
+    ([key, item]) =>
+      resultKeyPattern.test(key) &&
+      ((typeof item === 'number' && Number.isSafeInteger(item) && item >= 0 && item < 1e12) || typeof item === 'boolean' || (typeof item === 'string' && resultWordPattern.test(item))),
+  );
+}
+
+/**
+ * api.claim_job_run: `claimed` (a new attempt: run the task, then finish `receiptId`), `duplicate` (the latest attempt of this message
+ * finished with anything but `failed`: nothing runs) or `running` (the latest attempt is unfinished and inside its lease).
+ */
+export type JobClaim = {outcome: 'claimed'; receiptId: string; attempt: number} | {outcome: 'duplicate'} | {outcome: 'running'};
+
+/**
+ * Claims one run of a scheduled message BEFORE its task starts. The idempotency key is the (schedule ID, message ID) pair: QStash documents
+ * no scheduled-time header, and a retry of a delivery keeps its message ID. An unfinished attempt past its lease (300 seconds unless
+ * `leaseSeconds` says otherwise) and a `failed` one are replaced by the next attempt. If this throws an AccountsUnavailableError the
+ * claim may or may not have been written: the caller answers "try again" and the delivery comes back.
+ */
+export async function claimJobRun(input: {task: string; scheduleId: string; messageId: string; leaseSeconds?: number}, options: AccountsOptions = {}): Promise<JobClaim> {
+  const leaseSeconds = input.leaseSeconds ?? 300;
+  if (typeof input.task !== 'string' || !taskPattern.test(input.task)) throw new TypeError('task must be a lower-case task ID');
+  if (typeof input.scheduleId !== 'string' || !jobIdPattern.test(input.scheduleId)) throw new TypeError('scheduleId must be a QStash schedule ID');
+  if (typeof input.messageId !== 'string' || !jobIdPattern.test(input.messageId)) throw new TypeError('messageId must be a QStash message ID');
+  if (!Number.isSafeInteger(leaseSeconds) || leaseSeconds < 1 || leaseSeconds > 3600) throw new TypeError('leaseSeconds must be a whole number from 1 to 3600');
+  const row = await callRow('claim_job_run', {p_task: input.task, p_schedule_id: input.scheduleId, p_message_id: input.messageId, p_lease_seconds: leaseSeconds}, options);
+  const outcome = oneOf(row.outcome, ['claimed', 'duplicate', 'running'] as const);
+  const attempt = count(row.attempt);
+  const receiptId = text(row.receipt_id);
+  // Every answer names the receipt it is about, and the attempt is a positive number.
+  if (!receiptId || !uuidPattern.test(receiptId) || attempt === null || attempt < 1) throw unexpected();
+  if (outcome === 'claimed') return {outcome, receiptId: receiptId.toLowerCase(), attempt};
+  return {outcome};
+}
+
+/** api.finish_job_run: `finished` now, `already_finished` (a receipt is finished once: nothing changed) or `not_found`. */
+export type JobFinish = {outcome: 'finished' | 'already_finished' | 'not_found'};
+
+/** Finishes a receipt, once. The result must be counts, booleans and single words (see `isJobResult`): anything else is refused here, before the call. */
+export async function finishJobRun(input: {receiptId: string; outcome: JobOutcome; result: JobResult}, options: AccountsOptions = {}): Promise<JobFinish> {
+  const receiptId = requireUuid('receiptId', input.receiptId);
+  if (!(jobOutcomes as readonly unknown[]).includes(input.outcome)) throw new TypeError('outcome must be ran, idle, no_store or failed');
+  if (!isJobResult(input.result)) throw new TypeError('result must be a small object of counts, booleans and single words');
+  const row = await callRow('finish_job_run', {p_receipt_id: receiptId, p_outcome: input.outcome, p_result: input.result}, options);
+  return {outcome: oneOf(row.outcome, ['finished', 'already_finished', 'not_found'] as const)};
+}
+
+/** The newest finished receipt of a task, as the alarm of Story 1.13 reads it. `result` is what the run recorded: counts, booleans and words. */
+export type JobRun = {outcome: JobOutcome; attempt: number; startedAt: string; finishedAt: string; result: JobResult};
+
+/** The newest finished receipt of a task, or null when the task has never finished a run. */
+export async function lastJobRun(task: string, options: AccountsOptions = {}): Promise<JobRun | null> {
+  if (typeof task !== 'string' || !taskPattern.test(task)) throw new TypeError('task must be a lower-case task ID');
+  const row = await callRow('last_job_run', {p_task: task}, options);
+  if (row.outcome === null || row.outcome === undefined) {
+    // Never finished: every field is null, and nothing else is an answer.
+    if (Object.values(row).some((value) => value !== null && value !== undefined)) throw unexpected();
+    return null;
+  }
+  const outcome = oneOf(row.outcome, jobOutcomes);
+  const attempt = count(row.attempt);
+  const startedAt = text(row.started_at);
+  const finishedAt = text(row.finished_at);
+  if (attempt === null || attempt < 1 || !startedAt || !finishedAt || !isJobResult(row.result)) throw unexpected();
+  return {outcome, attempt, startedAt, finishedAt, result: row.result};
+}
+
+/**
+ * api.purge_dormant_identities: counts only. `deleted` identities are gone; `kept` were not deleted (no longer dormant once locked, already
+ * gone, or refused by the foreign key from an Account); `locked` were skipped because a registration (or another purge) held their row;
+ * `remaining` dormant identities are still there (at most 10,001).
+ */
+export type PurgeReport = {deleted: number; kept: number; locked: number; remaining: number};
+
+export const defaultPurgeLimit = 100;
+export const maxPurgeLimit = 500;
+
+/**
+ * Deletes Auth identities that never became Accounts and have been idle for 30 days (no sign-in, no registration attempt), at most `limit`
+ * (default 100, 1 to 500) in one database transaction. There is no age parameter: 30 days is not a setting. Each identity is locked the way
+ * registration locks it (the lock is taken first, the conditions are read again, and a foreign-key refusal keeps it), so a registration
+ * that is in flight for an identity is never undone and a purged identity's registration answers `no_identity`.
+ */
+export async function purgeDormantIdentities(input: {limit?: number} = {}, options: AccountsOptions = {}): Promise<PurgeReport> {
+  const limit = input.limit ?? defaultPurgeLimit;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > maxPurgeLimit) throw new TypeError('limit must be a whole number from 1 to 500');
+  const row = await callRow('purge_dormant_identities', {p_limit: limit}, options);
+  const deleted = count(row.deleted);
+  const kept = count(row.kept);
+  const locked = count(row.locked);
+  const remaining = count(row.remaining);
+  // The batch examines at most `limit` identities, each of which is deleted, kept or locked.
+  if (deleted === null || kept === null || locked === null || remaining === null || deleted + kept + locked > limit) throw unexpected();
+  return {deleted, kept, locked, remaining};
 }

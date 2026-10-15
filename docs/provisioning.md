@@ -63,8 +63,8 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Region: iad1
 - Spend backstop: Hobby is free and cannot incur charges. When Pro starts, set a monthly spend limit in the team's billing settings and record the figure.
 - First needed: Story 1.4
-- Verification: attestation (2)
-- Secret names by environment: staging: `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- Verification: attestation (3)
+- Secret names by environment: staging: `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `VERCEL_STAGING_DEPLOY_HOOK`, `STAGING_SITE_URL`
 - Free-tier limits relied on, with the trigger for upgrading:
   - Function request and response bodies are capped at 4.5 MB, so no user file crosses a Vercel function; uploads and downloads go through the Railway gateway. Upgrade trigger: Not an upgrade trigger. If a feature needs larger bodies, move that transfer to the gateway (Story 1.12).
   - Hobby terms allow non-commercial use only. Upgrade trigger: Upgrade to Pro before Story 2.16, because taking payments is commercial use.
@@ -76,7 +76,7 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Region: Not region-bound (GitHub-hosted).
 - Spend backstop: No paid add-on or metered billing enabled; watch container storage in the billing page.
 - First needed: Story 1.4
-- Verification: attestation (2)
+- Verification: attestation (3)
 - Secret names by environment: staging: `GHCR_TOKEN`
 - Free-tier limits relied on, with the trigger for upgrading:
   - Older generator images stay in the registry so reproducible Versions can still be rebuilt. Upgrade trigger: Review when retained image storage nears the allowance the GitHub billing page shows.
@@ -100,7 +100,7 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Region: QStash us-east-1, set explicitly because the SDK default is EU. Redis in the nearest available region to Virginia, with the actual placement recorded at provisioning.
 - Spend backstop: A monthly budget limit set in the Upstash console and recorded in the evidence export. QStash is expected to cost on the order of a dollar a month (confirm the price at provisioning).
 - First needed: Story 1.9
-- Verification: secret-present (1), attestation (2)
+- Verification: secret-present (1), attestation (3)
 - Secret names by environment: staging, production: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `QSTASH_URL`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`
 - Free-tier limits relied on, with the trigger for upgrading:
   - QStash's free tier allows roughly 1,000 messages a day; the periodic tasks need about 1,700 a day plus per-Job steps. Upgrade trigger: Pay-as-you-go from Story 1.9.
@@ -351,7 +351,7 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 
 1. Apply `supabase/migrations/20261013120000_tombstones_and_ledger.sql` to staging by hand, before the build that uses it deploys, following `docs/staging.md` (it adds four tables in the `lifecycle` schema, a status handle column on `identity.accounts`, triggers and six functions; it adds no setting or secret, and the other migrations are already there). The build's preflight now also probes all of it and fails with one line if the file is missing.
 2. Run the status route check in `docs/staging.md` (step 6): `POST /api/status` from the application's own origin answers 200 `{"state":"unknown"}` for a handle no row holds, 400 for a body that is not exactly `{"handle": "<32 lower-case hex>"}`, 403 from another origin and 405 for a GET, always with `cache-control: no-store`. A handle that is known cannot be fetched from the hosted application on purpose; do not copy one out of the database into a chat, a ticket or a log.
-3. Read `docs/deletion-verification.md` and record who will run each proof, because it must be settled before any purge code ships (Stories 8.1 to 8.3). Nothing relays the ledger yet (Story 1.9 schedules it, Story 8.9 supplies the store), so the pending count only grows until then.
+3. Read `docs/deletion-verification.md` and record who will run each proof, because it must be settled before any purge code ships (Stories 8.1 to 8.3). Story 1.9 runs the relay on a schedule, but no ledger store exists until Story 8.9, so each run records `no_store` and the pending count only grows until then.
 4. Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
 
 ### Due by Story 1.9
@@ -426,8 +426,45 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Status: staging: pending
 
 1. In the Railway project's settings create a project token for the staging environment.
-2. Add it as `RAILWAY_TOKEN` to the `staging` GitHub environment's secrets.
+2. Add it as `RAILWAY_TOKEN` to the `staging` GitHub environment's secrets. The worker image workflow does not use it yet: Railway's public API reference documents no call that points an existing service at an image digest with a project token, so the deploy of a pushed digest is a manual step until it does (`docs/staging.md`, Worker images).
 3. Save an export of the environment's secret names outside the repository, and record its file name as evidence.
+
+#### `vercel-deploy-hook`: Deploy hook of the staging Vercel project and the staging site URL, stored in the protected `staging` GitHub environment
+
+- Service: Vercel (Next.js hosting)
+- Verification: attestation
+- Environments: staging
+- Secret names: `VERCEL_STAGING_DEPLOY_HOOK`, `STAGING_SITE_URL`
+- Status: staging: pending
+
+1. In the staging Vercel project's Settings, Git, Deploy Hooks, create a hook for the `staging` branch and name it for the pipeline. Anyone who holds its URL can deploy the project, so treat it as a secret.
+2. Add the hook's URL as `VERCEL_STAGING_DEPLOY_HOOK`, and the https origin of the staging deployment (no path, no port) as `STAGING_SITE_URL`, to the `staging` GitHub environment's secrets (the origin is not secret in nature; it is stored as a secret of the environment like every other input of the staging workflow, so the workflow reads only `secrets.*`). The Supabase and Google names the staging workflow also reads are in `supabase-cli-credentials` and `docs/secrets.md`.
+3. Save an export of the environment's secret names (GitHub shows names, never values) outside the repository, and record its file name as evidence.
+
+#### `hosted-pipeline-check`: The staging workflow run on a push to `staging`: migrations applied, Auth settings checked against supabase/config.toml, deployment requested
+
+- Service: GitHub (Actions environments and Container Registry)
+- Verification: attestation
+- Environments: staging
+- Secret names: none
+- Status: staging: pending
+
+1. Before the first push, seed the accounts by hand (`docs/staging.md`, step 5): no workflow seeds anything, and a deployment that is migrated but not seeded locks everyone out.
+2. Run `git push origin main:staging` and follow the run in the Actions tab (`docs/staging.md`, "Verifying the pipeline, the schedules and the purge", check 1): every step is green, the settings check shows no differences, and the Vercel dashboard shows a deployment triggered by the deploy hook. This is the first run of the workflow against a hosted project, so it is also its first test.
+3. Write down what you saw (the date, the run, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
+
+#### `hosted-schedules-check`: The QStash schedules made equal to the registry on staging and the first scheduled runs checked
+
+- Service: Upstash (Redis and QStash)
+- Verification: attestation
+- Environments: staging
+- Secret names: none
+- Status: staging: pending
+
+1. Apply `supabase/migrations/20261014120000_scheduled_jobs.sql` to staging before the build that uses it deploys (the staging workflow does it from a push, or follow `docs/staging.md` by hand). It adds one closed table, four functions and the `no_identity` outcome of registration, and no setting or secret.
+2. With `QSTASH_URL` (the us-east-1 endpoint), `QSTASH_TOKEN`, both signing keys, `APP_ORIGIN` and `INSTANCE_ID` in `.env.staging` and the signing keys in the staging Vercel project's Production-scope variables (never in a preview), run `node --env-file=.env.staging scripts/schedules.mjs check`, then `apply --confirm staging`, then `check` again: the last exits 0.
+3. Run the checks in `docs/staging.md`, "Verifying the pipeline, the schedules and the purge" (checks 2 and 3): an unsigned POST to `/api/jobs` answers 401 and a GET 405; within five minutes `api.last_job_run('ledger-relay')` shows a finished receipt (`no_store` while no ledger store exists, `idle` when nothing is pending); after the first 03:00 UTC run `api.last_job_run('dormant-identity-purge')` shows `ran` with its counts.
+4. Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
 
 ### Due by Story 1.7
 

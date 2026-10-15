@@ -4,7 +4,8 @@
 // restore cannot bring them back (Story 8.4 replays it before access reopens). The database queues an event for every such change in
 // the same transaction as the change (`lifecycle.ledger_outbox`); the relay below copies the queue into a LedgerStore, in order,
 // as a hash chain. Story 8.9 supplies the Backblaze store; until then a fixture store (lib/ledger-fixture.ts) stands in, and the
-// relay is a FUNCTION: nothing schedules it until Story 1.9, and nothing registers its backlog alarm until Story 1.13.
+// relay is a FUNCTION. Story 1.9 runs it on a schedule (the `ledger-relay` task of lib/job-tasks.ts, every five minutes), and until a real store
+// exists it records `no_store` and relays nothing; nothing registers its backlog alarm until Story 1.13.
 //
 // The objects. Each event is one object, under the instance's own prefix:
 //

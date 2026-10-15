@@ -3,6 +3,7 @@ import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {defineConfig, devices} from '@playwright/test';
+import {testSigningKeys} from './tests/support/qstash-signature';
 import {recoveryAdministratorEmail} from './tests/support/recovery-env';
 
 const port = Number(process.env.PORT ?? 4173);
@@ -30,7 +31,15 @@ const nodeOptions = [process.env.NODE_OPTIONS, fakeNetworkPreload].filter(Boolea
 // environment gives them over `.env.local`: Administrator recovery (Story 1.6) serves the one Account whose Auth user's
 // email is the server's ADMINISTRATOR_EMAIL, and the recovery browser flows make theirs under this address, so they never
 // touch, and are never confused with, a developer's real Administrator in the same local database.
-const testServerEnv = {ADMINISTRATOR_EMAIL: recoveryAdministratorEmail};
+//
+// They are also given the QStash signing keys of the tests (tests/support/qstash-signature.ts, Story 1.9), which are made up and belong to no
+// Upstash account: the scheduled-job route verifies a signature only with the keys in its environment, and tests/e2e/jobs.spec.ts signs its
+// calls with these. They are set here, in the web server's environment, and nowhere else: not in .env.example, not in .env.local.
+const testServerEnv = {
+  ADMINISTRATOR_EMAIL: recoveryAdministratorEmail,
+  QSTASH_CURRENT_SIGNING_KEY: testSigningKeys.current,
+  QSTASH_NEXT_SIGNING_KEY: testSigningKeys.next,
+};
 
 // Browser flows run against the production build (`npm run build` first). The server verifies its
 // environment identity on startup, so run it against the Supabase CLI stack with `.env.local`

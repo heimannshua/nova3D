@@ -1,0 +1,71 @@
+name: Staging
+
+# Story 1.9. A push to the `staging` branch migrates the staging project with the Supabase CLI, checks that its Auth settings still match
+# supabase/config.toml, and then asks Vercel for a deployment. It is the ONLY workflow that touches the staging project (the manual
+# procedure in docs/staging.md is the fallback), and no workflow here touches production: that is production-migrate.yml, by hand.
+#
+# Every secret comes from the `staging` GitHub environment (docs/secrets.md); nothing in this file is a value.
+on:
+  push:
+    branches: [staging]
+
+permissions:
+  contents: read
+
+# Runs never overlap and a run that is migrating is never cancelled half way. GitHub keeps at most one run waiting in the group, so a third push
+# while one runs and one waits drops the waiting run: nothing is lost, because `db push` is cumulative and the newest run applies everything.
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Migrate staging, check its settings, deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      # config.toml names the Google client by variable; `config diff` needs both to compare the provider's settings.
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: ${{ secrets.SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID }}
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET: ${{ secrets.SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET }}
+      # Not secret in nature (the public https origin of the deployment); stored as a secret of the environment like every other input here, so the
+      # workflow reads only `secrets.*` and holds no literal (docs/secrets.md).
+      STAGING_SITE_URL: ${{ secrets.STAGING_SITE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+      - name: Link the staging project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+      # The migrations in supabase/migrations/ at this commit, nothing else: never the seed (`--include-seed`) and never roles.
+      - name: Apply the migrations
+        id: migrate
+        run: supabase db push --linked
+      # The committed config.toml is the local stack's (loopback addresses). The scratch copy carries staging's site URL and its one callback.
+      - name: Write the staging copy of config.toml
+        run: node scripts/staging-config.mjs "$RUNNER_TEMP/staging-config"
+      # Fails the run when staging's live Auth settings (providers, sign-up, redirect URLs, one-time-code expiry) differ from the file.
+      - name: Check the Auth settings against supabase/config.toml
+        run: supabase config diff --workdir "$RUNNER_TEMP/staging-config" --project-ref "$SUPABASE_PROJECT_REF" --exit-code
+      # A deployment always follows the migration: Vercel's own Git build can win the race and fail the `prebuild` preflight before the
+      # migration lands, so this asks for another one once the database is current. It runs even when the settings check above failed
+      # (the run still ends red), and not when the migration did not succeed or the run was cancelled. The hook URL is a secret: it is
+      # read from the environment, never printed.
+      - name: Ask Vercel for a deployment
+        if: ${{ !cancelled() && steps.migrate.conclusion == 'success' }}
+        env:
+          VERCEL_STAGING_DEPLOY_HOOK: ${{ secrets.VERCEL_STAGING_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$VERCEL_STAGING_DEPLOY_HOOK" ]; then
+            echo "::error::VERCEL_STAGING_DEPLOY_HOOK is not set in the staging environment (provisioning item vercel-deploy-hook)."
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 60 --request POST --output /dev/null -- "$VERCEL_STAGING_DEPLOY_HOOK"
+          echo "Vercel was asked for a staging deployment."

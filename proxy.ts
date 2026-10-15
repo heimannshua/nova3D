@@ -19,7 +19,7 @@ import {
 import {hasSupabaseConfig} from '@/lib/auth-config';
 import {recordFromCookies} from '@/lib/preferences';
 import {hasUndecodableProjectId, undecodableProjectPath} from '@/lib/project-paths';
-import {isPublicPath} from '@/lib/public-paths';
+import {isMachinePath, isPublicPath} from '@/lib/public-paths';
 import {csrfCookieName, csrfCookieOptions, decideOrigin, isCsrfToken, isDocumentNavigation, isSecureRequest, originInputOf, type OriginRefusal} from '@/lib/request-integrity';
 import {signInErrorPath, type SignInErrorCode} from '@/lib/sign-in';
 import {createSupabaseProxyClient} from '@/lib/supabase/proxy';
@@ -148,7 +148,9 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const api = isApiPath(pathname);
   if (isPublicPath(pathname, process.env)) {
-    const refusal = originRefusal(request);
+    // A machine path (Story 1.9: the scheduled-job route) is called by a scheduler, which has no browser Origin. It skips this one rule and
+    // nothing else: the route checks the call's signature, which is its only authentication.
+    const refusal = isMachinePath(pathname) ? null : originRefusal(request);
     if (refusal) return refuseOrigin(request, api, refusal);
     return clearLegacyCookie(request, NextResponse.next());
   }

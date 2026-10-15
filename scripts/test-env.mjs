@@ -20,6 +20,7 @@ const INSTANCE = '3f0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c44';
 const OTHER_INSTANCE = '9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d';
 const DB_PASSWORD = 'db-password-must-never-be-printed';
 const STRIPE_KEY = 'sk_test_must_never_be_printed';
+const QSTASH_TOKEN = 'qstash-fixture-must-never-be-printed';
 // The three hashing keys (Story 1.3, and the recovery key of Story 1.6): random, at least 32 bytes, different from each other.
 const hashKeys = () => ({
   INVITATION_HASH_KEY: randomBytes(32).toString('base64'),
@@ -107,7 +108,7 @@ const run = (env, ...args) =>
 const rejected = (result, text) => {
   assert.equal(result.status, 1, `expected exit 1, got ${result.status}\n${result.stdout}${result.stderr}`);
   assert.ok(result.stderr.includes(text), `expected stderr to include "${text}":\n${result.stderr}`);
-  for (const secret of [SERVICE_KEY, ANON_KEY, DB_PASSWORD, STRIPE_KEY]) {
+  for (const secret of [SERVICE_KEY, ANON_KEY, DB_PASSWORD, STRIPE_KEY, QSTASH_TOKEN]) {
     assert.ok(!result.stdout.includes(secret) && !result.stderr.includes(secret), 'a secret was printed');
   }
 };
@@ -171,6 +172,11 @@ describe('identity matrix', () => {
       RATE_LIMIT_HASH_KEY: randomBytes(32).toString('base64'),
       RECOVERY_HASH_KEY: randomBytes(32).toString('base64'),
       RESEND_API_KEY: MAIL_KEY,
+      // Story 1.9: the queue's address, token and signing keys. A preview has no schedule to verify, and the route fails closed without them.
+      QSTASH_URL: 'https://qstash-us-east-1.upstash.io',
+      QSTASH_TOKEN: QSTASH_TOKEN,
+      QSTASH_CURRENT_SIGNING_KEY: QSTASH_TOKEN,
+      QSTASH_NEXT_SIGNING_KEY: QSTASH_TOKEN,
     };
     for (const [name, value] of Object.entries(forbidden)) {
       const result = await run({...preview(), [name]: value});
@@ -178,6 +184,13 @@ describe('identity matrix', () => {
       assert.ok(result.stderr.includes(name), `${name} was not named`);
       assert.ok(!result.stderr.includes(value), `${name}'s value was printed`);
     }
+  });
+
+  it('a staging deployment may hold the QStash names and does not need them (Story 1.9)', async () => {
+    rows = [{environment: 'staging', instance_id: INSTANCE}];
+    const qstash = {QSTASH_URL: 'https://qstash-us-east-1.upstash.io', QSTASH_TOKEN, QSTASH_CURRENT_SIGNING_KEY: QSTASH_TOKEN, QSTASH_NEXT_SIGNING_KEY: QSTASH_TOKEN};
+    passed(await run({...staging(), ...qstash}, '--live'));
+    passed(await run(staging(), '--live'));
   });
 
   it('a development deployment is held to the same rule', async () => {

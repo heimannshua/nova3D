@@ -2,7 +2,8 @@
 title: 'Story 1.9: Provision staging and run periodic jobs'
 type: 'feature'
 created: '2026-10-14'
-status: 'in-progress'
+status: 'done'
+baseline_commit: 'aede81a6d028dd1e2a4afc1e2bd0121a1f0523fd'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -66,16 +67,16 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/20261014120000_scheduled_jobs.sql` -- receipts table and guards, claim/finish/last-run functions, `purge_dormant_identities`, `no_identity` in the registration function, preflight carrying every earlier probe -- AC-2, AC-3, AC-4
-- [ ] `package.json`, `package-lock.json` -- `@upstash/qstash` 2.11.3 as a direct dependency -- AC-2
-- [ ] `lib/schedules.ts`, `lib/jobs.ts`, `lib/job-tasks.ts`, `lib/lifecycle.ts`, `lib/accounts.ts`, `lib/environment.ts` -- registry, verify-claim-run-finish, the two tasks, typed calls, `no_identity`, preview-forbidden names -- AC-2, AC-3
-- [ ] `app/api/jobs/route.ts`, `lib/public-paths.ts`, `proxy.ts`, `app/register/actions.ts` -- the machine path and the register redirect -- AC-2, AC-3
-- [ ] `scripts/schedules.mjs` -- list, check, apply against the registry with an injected client -- AC-2, AC-6
-- [ ] `supabase/config.toml`, `scripts/ci/check-repository.mjs`, `scripts/staging-config.mjs` -- explicit declarations, the static check, the scratch config -- AC-1
-- [ ] `.github/workflows/staging.yml`, `production-migrate.yml`, `workers.yml`, `scripts/ci/list-workers.mjs` -- pipelines -- AC-5, AC-7
-- [ ] `docs/staging.md`, `docs/secrets.md`, `docs/provisioning.md`, `provisioning/ledger.json`, `README.md` -- runbook, secrets, ledger items -- AC-5, AC-6
-- [ ] `tests/` -- every matrix row: integration (receipts, claim races with real connections, purge and registration at once, other identity in flight, FK refusal, closure over REST, preflight), unit (signature verification, every status and order of checks, registry, `schedules.mjs` with a fake client, config declarations, workflow structure, `list-workers`), browser (the route over HTTP with a signed call); update the pins above -- all ACs
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- the cleanups left deferred (re-mapped), a real ledger store (8.9), alarms (1.13), schedule time not carried by QStash, the Vercel race note, hosted verification of each workflow -- housekeeping
+- [x] `supabase/migrations/20261014120000_scheduled_jobs.sql` -- receipts table and guards, claim/finish/last-run functions, `purge_dormant_identities`, `no_identity` in the registration function, preflight carrying every earlier probe -- AC-2, AC-3, AC-4
+- [x] `package.json`, `package-lock.json` -- `@upstash/qstash` 2.11.3 as a direct dependency -- AC-2
+- [x] `lib/schedules.ts`, `lib/jobs.ts`, `lib/job-tasks.ts`, `lib/lifecycle.ts`, `lib/accounts.ts`, `lib/environment.ts` -- registry, verify-claim-run-finish, the two tasks, typed calls, `no_identity`, preview-forbidden names -- AC-2, AC-3
+- [x] `app/api/jobs/route.ts`, `lib/public-paths.ts`, `proxy.ts`, `app/register/actions.ts` -- the machine path and the register redirect -- AC-2, AC-3
+- [x] `scripts/schedules.mjs` -- list, check, apply against the registry with an injected client -- AC-2, AC-6
+- [x] `supabase/config.toml`, `scripts/ci/check-repository.mjs`, `scripts/staging-config.mjs` -- explicit declarations, the static check, the scratch config -- AC-1
+- [x] `.github/workflows/staging.yml`, `production-migrate.yml`, `workers.yml`, `scripts/ci/list-workers.mjs` -- pipelines -- AC-5, AC-7 (the Railway deploy-by-digest call is left a documented manual step: Railway documents no call for it with a project token; Josh chose to keep it manual on 2026-10-15, so AC-7 is only partly met)
+- [x] `docs/staging.md`, `docs/secrets.md`, `docs/provisioning.md`, `provisioning/ledger.json`, `README.md` -- runbook, secrets, ledger items -- AC-5, AC-6
+- [x] `tests/` -- every matrix row: integration (receipts, claim races with real connections, purge and registration at once, other identity in flight, FK refusal, closure over REST, preflight), unit (signature verification, every status and order of checks, registry, `schedules.mjs` with a fake client, config declarations, workflow structure, `list-workers`), browser (the route over HTTP with a signed call); update the pins above -- all ACs
+- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- the cleanups left deferred (re-mapped), a real ledger store (8.9), alarms (1.13), schedule time not carried by QStash, the Vercel race note, hosted verification of each workflow -- housekeeping
 
 **Acceptance Criteria:**
 - Given `supabase/config.toml` and the live staging project, when CI diffs them, then drift in enabled providers, the sign-up setting, redirect URLs or OTP expiry fails the check.
@@ -110,3 +111,96 @@ POST /api/jobs   Upstash-Signature: <jwt>  Upstash-Message-Id: msg_…  Upstash-
 
 **Manual checks (if no CLI):**
 - With the stack up and test signing keys, POST a signed body to the production build twice: the second answers `duplicate`; read the receipts through `api.last_job_run`. Back-date an Auth identity, run the purge, and confirm it is gone and an Account's identity is not.
+
+
+## Suggested Review Order
+
+**The signed route (start here)**
+
+- The whole request path in order: method, keys, raw body, signature, body, environment, claim, run, finish.
+  [`jobs.ts:154`](../../lib/jobs.ts#L154)
+
+- Verification is the only authentication; the SDK's dev mode is switched off on purpose.
+  [`jobs.ts:122`](../../lib/jobs.ts#L122)
+
+- The route is one POST; the proxy skips only the Origin refusal for it.
+  [`route.ts:17`](../../app/api/jobs/route.ts#L17)
+
+- The one machine path, and the proxy line that honours it.
+  [`public-paths.ts:13`](../../lib/public-paths.ts#L13)
+  [`proxy.ts:153`](../../proxy.ts#L153)
+
+**Receipts and idempotency**
+
+- The immutable receipt table: unique per schedule, message and attempt; finished once; never deleted.
+  [`scheduled_jobs.sql:62`](../../supabase/migrations/20261014120000_scheduled_jobs.sql#L62)
+
+- Claim is serialized per key: new, duplicate, running, or the next attempt after a failure or lapsed lease.
+  [`scheduled_jobs.sql:127`](../../supabase/migrations/20261014120000_scheduled_jobs.sql#L127)
+
+- What a result may hold: counts and single words only.
+  [`scheduled_jobs.sql:39`](../../supabase/migrations/20261014120000_scheduled_jobs.sql#L39)
+
+**The two tasks**
+
+- Locks each identity, re-reads dormancy in a second statement, then deletes; the RESTRICT key backstops it.
+  [`scheduled_jobs.sql:270`](../../supabase/migrations/20261014120000_scheduled_jobs.sql#L270)
+
+- A registration that finds its identity purged answers `no_identity`, not a counted failure.
+  [`scheduled_jobs.sql:354`](../../supabase/migrations/20261014120000_scheduled_jobs.sql#L354)
+  [`actions.ts:99`](../../app/register/actions.ts#L99)
+
+- The relay task: idle, no store yet, or relay once; a damaged chain is a failed run.
+  [`job-tasks.ts:70`](../../lib/job-tasks.ts#L70)
+
+- The registry both the route and the operator command read.
+  [`schedules.ts:20`](../../lib/schedules.ts#L20)
+
+**Keeping QStash equal to the registry**
+
+- Compares live schedules with the registry and deletes only what points at this app.
+  [`schedules.mjs:137`](../../scripts/schedules.mjs#L137)
+  [`schedules.mjs:239`](../../scripts/schedules.mjs#L239)
+
+**Auth-settings drift and the pipelines**
+
+- The config reader fails closed on any form it does not understand; the static check names every provider.
+  [`config-toml.mjs:75`](../../scripts/config-toml.mjs#L75)
+  [`config-toml.mjs:172`](../../scripts/config-toml.mjs#L172)
+
+- The scratch config that carries staging's site URL, so the diff compares like with like.
+  [`staging-config.mjs:61`](../../scripts/staging-config.mjs#L61)
+
+- Staging: link, migrate, diff, then ask Vercel to deploy.
+  [`staging.yml:1`](../../.github/workflows/staging.yml#L1)
+
+- Production migrates only from a dispatch with a typed instance ID.
+  [`production-migrate.yml:10`](../../.github/workflows/production-migrate.yml#L10)
+
+- Worker images build and push by digest; the Railway step is manual by decision.
+  [`workers.yml:40`](../../.github/workflows/workers.yml#L40)
+
+**Docs and the provisioning ledger**
+
+- Runbook: pipeline, schedules, worker images, and how to verify each.
+  [`staging.md:183`](../../docs/staging.md#L183)
+
+- What Josh must create and attest; nothing was created from here.
+  [`ledger.json:508`](../../provisioning/ledger.json#L508)
+
+**Tests (peripheral)**
+
+- The purge against registration, with real connections and the re-read proven necessary.
+  [`scheduled-jobs.test.ts:735`](../../tests/integration/scheduled-jobs.test.ts#L735)
+
+- Claim races and receipts.
+  [`scheduled-jobs.test.ts:270`](../../tests/integration/scheduled-jobs.test.ts#L270)
+
+- Every status and the order of checks on the route.
+  [`jobs-route.test.ts:73`](../../tests/unit/jobs-route.test.ts#L73)
+
+- The route over HTTP with a real signature.
+  [`jobs.spec.ts:48`](../../tests/e2e/jobs.spec.ts#L48)
+
+- Workflow structure and the no-literal-secrets rule.
+  [`workflows.test.ts:30`](../../tests/unit/workflows.test.ts#L30)

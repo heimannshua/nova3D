@@ -1,15 +1,15 @@
 import {NextRequest} from 'next/server';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {proxy} from '@/proxy';
-import {isPublicPath, publicPaths} from '@/lib/public-paths';
+import {isMachinePath, isPublicPath, machinePaths, publicPaths} from '@/lib/public-paths';
 
 afterEach(() => vi.unstubAllEnvs());
 
 // The design kit is the only route that is public because of a flag. It lets tests reach the shell
 // without a sign-in, so it must never be public unless synthetic data is on (production forbids that).
 describe('public paths (Story 1.2)', () => {
-  it('keeps the sign-in, callback, health and status routes public', () => {
-    expect(publicPaths).toEqual(['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm']);
+  it('keeps the sign-in, callback, health, status and scheduled-job routes public', () => {
+    expect(publicPaths).toEqual(['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm', '/api/jobs']);
     for (const path of publicPaths) expect(isPublicPath(path, {})).toBe(true);
   });
 
@@ -25,6 +25,21 @@ describe('public paths (Story 1.2)', () => {
     for (const path of ['/api/status/', '/api/status/extra', '/api/statuses', '/api/Status', '/api', '/status', '/api/status.json']) {
       expect(isPublicPath(path, {SYNTHETIC_DATA_ENABLED: 'true'}), path).toBe(false);
     }
+  });
+
+  it('makes the scheduled-job route (Story 1.9) public at its one path, the one machine path, and nothing beneath or beside it', () => {
+    expect(machinePaths).toEqual(['/api/jobs']);
+    expect(isPublicPath('/api/jobs', {})).toBe(true);
+    expect(isMachinePath('/api/jobs')).toBe(true);
+    for (const path of ['/api/jobs/', '/api/jobs/extra', '/api/job', '/api/Jobs', '/api/jobs.json', '/jobs', '/api', '/api/jobs?x=1']) {
+      expect(isPublicPath(path, {SYNTHETIC_DATA_ENABLED: 'true'}), path).toBe(false);
+      expect(isMachinePath(path), path).toBe(false);
+    }
+  });
+
+  it('is a machine path only where a scheduler, not a browser, makes the call: no other public path skips the origin check', () => {
+    for (const path of publicPaths.filter((entry) => entry !== '/api/jobs')) expect(isMachinePath(path), path).toBe(false);
+    expect(isMachinePath('/kit')).toBe(false);
   });
 
   it('adds /kit only when SYNTHETIC_DATA_ENABLED is exactly true', () => {
