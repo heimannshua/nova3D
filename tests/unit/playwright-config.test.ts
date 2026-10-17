@@ -16,8 +16,8 @@ async function load(env: Record<string, string | undefined> = {}) {
   const before = process.env.NOVA3D_FAKE_NETWORK_DIR;
   const config = (await import('../../playwright.config')).default as {webServer: Server[]; globalTeardown?: string};
   if (process.env.NOVA3D_FAKE_NETWORK_DIR && process.env.NOVA3D_FAKE_NETWORK_DIR !== before) created.push(process.env.NOVA3D_FAKE_NETWORK_DIR);
-  const [app, fake] = config.webServer;
-  return {config, app, fake};
+  const [app, fake, gateway] = config.webServer;
+  return {config, app, fake, gateway};
 }
 
 beforeEach(() => {
@@ -89,5 +89,42 @@ describe('the second server, with the fake network', () => {
     const teardown = (await import('../support/fake-network-teardown')).default;
     teardown();
     expect(existsSync(directory)).toBe(false);
+  });
+});
+
+describe('the third server, the file gateway (Story 1.12)', () => {
+  it('is on the port after the second server\'s: another origin than the application\'s, so a browser reaches it across origins', async () => {
+    const {app, gateway} = await load();
+    expect(gateway.url).toBe('http://127.0.0.1:4175/healthz');
+    expect(new URL(gateway.url).origin).not.toBe(new URL(app.url).origin);
+    expect(gateway.env!.PORT).toBe('4175');
+    expect(gateway.env!.APP_ORIGIN).toBe('http://127.0.0.1:4173');
+  });
+
+  it('runs the gateway the way its image does, reading .env.local when there is one, and is never an already-running server', async () => {
+    const {gateway} = await load();
+    expect(gateway.command).toBe('node --env-file-if-exists=.env.local workers/files/src/main.ts');
+    expect(gateway.reuseExistingServer).toBe(false);
+  });
+
+  it('gives both application servers the signing key, the key set and the gateway\'s address, and the gateway the public key set ONLY', async () => {
+    const {app, fake, gateway} = await load();
+    for (const server of [app, fake]) {
+      expect(server.env!.SERVICE_SIGNING_KEY_APPLICATION, server.url).toMatch(/^[A-Za-z0-9+/]+=*$/);
+      expect(JSON.parse(server.env!.SERVICE_KEYS_APPLICATION)).toMatchObject({issuer: 'application', retiring: null});
+      expect(server.env!.FILE_GATEWAY_URL, server.url).toBe('http://127.0.0.1:4175');
+    }
+    expect(gateway.env!.SERVICE_KEYS_APPLICATION).toBe(app.env!.SERVICE_KEYS_APPLICATION);
+    // The private half is the application's alone.
+    expect(Object.keys(gateway.env!).filter((name) => /SIGNING_KEY|SECRET|PASSWORD|TOKEN/.test(name))).toEqual([]);
+  });
+
+  it('follows PORT for all three, and refuses a PORT whose third server would not be a port', async () => {
+    vi.stubEnv('PORT', '5000');
+    const {app, fake, gateway} = await load({PORT: '5000'});
+    expect([app.url, fake.url, gateway.url]).toEqual(['http://127.0.0.1:5000/api/health', 'http://127.0.0.1:5001/api/health', 'http://127.0.0.1:5002/healthz']);
+    expect(app.env!.FILE_GATEWAY_URL).toBe('http://127.0.0.1:5002');
+    expect(gateway.env!.APP_ORIGIN).toBe('http://127.0.0.1:5000');
+    await expect(load({PORT: '65534'})).rejects.toThrow(/PORT \+ 2/);
   });
 });

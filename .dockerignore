@@ -1,0 +1,10 @@
+# The build context of a worker image is the repository root (workers/files/Dockerfile: `docker build -f workers/files/Dockerfile .`), so this
+# keeps it to what the image copies and nothing else: the repository's other files (the application, the tests, the docs, node_modules, .env files,
+# .git) never reach the daemon and can never end up in an image. A new worker adds what it copies here, on purpose.
+*
+!package.json
+!package-lock.json
+!lib/service-signing.ts
+!lib/canonical-json.ts
+!workers/files
+**/node_modules

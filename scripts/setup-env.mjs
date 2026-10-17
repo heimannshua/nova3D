@@ -11,13 +11,17 @@
 //        valid key as it is, so hashes already stored in the local database stay valid. A trailing
 //        `# comment` on an unquoted value is not part of the key. If two keys are valid but are the
 //        same key, the later one (in the order above) is replaced.
+//        Story 1.12: it also writes the application's service-signing key (SERVICE_SIGNING_KEY_APPLICATION, the private half of an Ed25519 pair, and
+//        SERVICE_KEYS_APPLICATION, the public key set the file gateway holds) when the pair is missing or does not match, and keeps a valid pair; and,
+//        when the stack reports them, the file gateway's own database role and Storage key pair (GATEWAY_DATABASE_URL and GATEWAY_STORAGE_S3_*).
 //
 // NOVA3D_SETUP_ROOT overrides the project root (tests point it at a temporary directory).
 import {spawnSync} from 'node:child_process';
-import {randomBytes} from 'node:crypto';
+import {generateKeyPairSync, randomBytes} from 'node:crypto';
 import {chmodSync, constants, copyFileSync, existsSync, readFileSync, writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {fetchInstanceIdentity, hashKeyProblem, hashKeyVariables, isLoopbackUrl, parseEnvValue, sameKey} from '../lib/environment.ts';
+import {keySetVariable, loadSigner, parseKeySet, signingKeyVariable} from '../lib/service-signing.ts';
 
 const target = process.argv[2] || 'local';
 if (!['local', 'staging', 'production'].includes(target)) { console.error('Usage: node scripts/setup-env.mjs [local|staging|production]'); process.exit(2); }
@@ -95,6 +99,40 @@ for (const name of hashKeyVariables) {
   if (!usable[name]) continue;
   if (kept.some((other) => sameKey(usable[other], usable[name]))) updates[name] = randomBytes(32).toString('base64');
   else kept.push(name);
+}
+// Story 1.12: the application's service-signing key, an Ed25519 pair, random per machine and never taken from the template. The private half signs transfer
+// tickets and gateway commands; the public key set is what the local gateway verifies them with. A pair that is already there and matches is kept (tickets
+// signed by it stay valid); one that is missing or does not match is replaced as a pair, so the two halves are never out of step.
+const signingKeyName = signingKeyVariable('application');
+const keySetName = keySetVariable('application');
+const [existingPrivate] = keyValues(signingKeyName);
+const [existingKeySet] = keyValues(keySetName);
+const parsedKeySet = existingKeySet ? parseKeySet(existingKeySet, 'application') : null;
+if (!(parsedKeySet?.ok && existingPrivate && loadSigner(existingPrivate, parsedKeySet.keySet).ok)) {
+  const pair = generateKeyPairSync('ed25519');
+  updates[signingKeyName] = pair.privateKey.export({type: 'pkcs8', format: 'der'}).toString('base64');
+  updates[keySetName] = `'${JSON.stringify({issuer: 'application', active: 'local-1', retiring: null, keys: {'local-1': pair.publicKey.export({type: 'spki', format: 'der'}).toString('base64')}})}'`;
+}
+// ... and the gateway's own database role and Storage key pair, from the stack (the role's password is the local one supabase/seed.sql sets).
+if (stack.DB_URL) {
+  try {
+    const url = new URL(stack.DB_URL);
+    if (isLoopbackUrl(`http://${url.host}`)) {
+      url.username = 'nova3d_gateway';
+      url.password = 'nova3d-gateway-local';
+      updates.GATEWAY_DATABASE_URL = url.href;
+    }
+  } catch {
+    // A database URL that cannot be read gives the gateway no database value; the gateway then says which variable it lacks.
+  }
+}
+for (const [name, value] of [
+  ['GATEWAY_STORAGE_S3_ENDPOINT', stack.STORAGE_S3_URL],
+  ['GATEWAY_STORAGE_S3_REGION', stack.S3_PROTOCOL_REGION],
+  ['GATEWAY_STORAGE_S3_ACCESS_KEY_ID', stack.S3_PROTOCOL_ACCESS_KEY_ID],
+  ['GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY', stack.S3_PROTOCOL_ACCESS_KEY_SECRET],
+]) {
+  if (value) updates[name] = value;
 }
 // Variables the template gained since this file was written (for example ADMINISTRATOR_EMAIL).
 for (const [, name, value] of readFileSync(source, 'utf8').matchAll(/^([A-Z][A-Z0-9_]*)=(.*)$/gm)) {

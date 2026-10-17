@@ -1,8 +1,13 @@
 name: Workers
 
-# Story 1.9. A change under `workers/` on the `staging` branch builds each worker's image (every `workers/<name>/Dockerfile`), pushes it to
-# GitHub Container Registry and records the image's DIGEST, which is what is deployed: a tag can move, a digest cannot. No worker exists yet
-# (the first arrives with Story 2.7), so until then the image job is skipped.
+# Story 1.9. A change under `workers/` (or to anything an image copies in, below) on the `staging` branch builds each worker's image (every `workers/<name>/Dockerfile`), pushes it to
+# GitHub Container Registry and records the image's DIGEST, which is what is deployed: a tag can move, a digest cannot. The first worker is the file
+# gateway (Story 1.12, `workers/files`); the others arrive with Story 2.7, and until a worker has a Dockerfile the image job is skipped.
+#
+# Story 1.12: a worker is built from the REPOSITORY ROOT (`context: .`, with `file:` naming its own Dockerfile), because the gateway shares two modules
+# of `lib/` with the application and installs from the one root lockfile. The root `.dockerignore` keeps the context to what the images copy. So the push
+# trigger names what an image bakes in, besides `workers/**`: `lib/service-signing.ts` and `lib/canonical-json.ts`, `package.json` and `package-lock.json`
+# (the installed packages) and `.dockerignore` (what reaches the build). A new worker that copies more adds it here, on purpose.
 #
 # Deploying the digest to Railway is a documented manual step and not a step here: Railway's public API reference documents no call that
 # points an existing service at an image digest with a project token (docs/staging.md, "Worker images"). The job summary prints the
@@ -12,6 +17,11 @@ on:
     branches: [staging]
     paths:
       - 'workers/**'
+      - 'lib/service-signing.ts'
+      - 'lib/canonical-json.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.dockerignore'
 
 permissions:
   contents: read
@@ -65,7 +75,7 @@ jobs:
         id: push
         uses: docker/build-push-action@v7
         with:
-          context: workers/${{ matrix.worker }}
+          context: .
           file: workers/${{ matrix.worker }}/Dockerfile
           push: true
           tags: ${{ steps.image.outputs.name }}:${{ github.sha }}

@@ -1,7 +1,9 @@
 import {randomUUID} from 'node:crypto';
 import {describe, expect, it, vi} from 'vitest';
 import {AccountsUnavailableError} from '@/lib/accounts';
-import {configuredLedgerStore, LedgerConflictError, LedgerCorruptError, purgeBatchLimit, relayBatchLimit, relayLeaseSeconds, runTask, tasks} from '@/lib/job-tasks';
+import {GatewayError, GatewayUnavailableError, type GatewayClient} from '@/lib/gateway-client';
+import {configuredLedgerStore, LedgerConflictError, LedgerCorruptError, purgeBatchLimit, relayBatchLimit, relayLeaseSeconds, runTask, stagingCleanupLimit, StagingCleanupIncompleteError, tasks} from '@/lib/job-tasks';
+import {isJobResult} from '@/lib/lifecycle';
 import {verifyChain, type LedgerStore} from '@/lib/ledger';
 import {createFixtureLedgerStore} from '@/lib/ledger-fixture';
 import {scheduledTasks} from '@/lib/schedules';
@@ -238,5 +240,148 @@ describe('what a receipt may hold', () => {
     spy.mockResolvedValue({outcome: 'ran', result: {count: 3, ok: true, outcome: 'relayed', error_class: 'TypeError'}});
     await expect(runTask('ledger-relay', {instanceId: INSTANCE})).resolves.toMatchObject({outcome: 'ran'});
     spy.mockRestore();
+  });
+});
+
+// Story 1.12: the hourly staging cleanup. The database is the same stand-in (`list_expired_staging` is the one call the task makes), and the gateway is
+// a fake client that records the signed commands the real one would send (the real client is tests/unit/gateway-client.test.ts, the gateway's
+// handling of `delete-staging` tests/unit/gateway-server.test.ts, and the whole path tests/integration/file-gateway.test.ts).
+describe('staging-cleanup', () => {
+  const lease = (index: number) => ({upload_id: `0000000${index}-aaaa-4bbb-8ccc-00000000000${index}`, account_id: `1111111${index}-dddd-4eee-8fff-11111111111${index}`});
+  const asked = (leases: unknown) => fakeDatabase(0, {list_expired_staging: () => json({leases})});
+  const gatewayOf = (answers: ('deleted' | 'kept' | Error)[] = []) => {
+    const calls: {accountId: string; uploadId: string}[] = [];
+    const deleteStaging = vi.fn(async (input: {accountId: string; uploadId: string}) => {
+      calls.push(input);
+      const answer = answers[calls.length - 1] ?? 'deleted';
+      if (answer instanceof Error) throw answer;
+      return {outcome: answer};
+    });
+    const client: GatewayClient = {deleteStaging, deleteRoot: vi.fn(), attach: vi.fn()};
+    return {client, calls, deleteStaging};
+  };
+  const withGateway = (database: {fetch: (input: string, init?: RequestInit) => Promise<Response>}, gateway: GatewayClient | null | undefined) => ({
+    ...context(database),
+    ...(gateway === undefined ? {} : {gateway}),
+  });
+
+  it('holds the limit the contract states: at most 50 leases in one firing', () => {
+    expect(stagingCleanupLimit).toBe(50);
+  });
+
+  it('is `no_store` with no gateway configured, and reads nothing: no list, no database call at all', async () => {
+    const database = asked([lease(1)]);
+    expect(await runTask('staging-cleanup', withGateway(database, null))).toEqual({outcome: 'no_store', result: {configured: false}});
+    expect(database.calls).toEqual([]);
+  });
+
+  it('uses the gateway the environment configures when none is passed, and with none configured that is `no_store` too', async () => {
+    for (const name of ['SERVICE_SIGNING_KEY_APPLICATION', 'SERVICE_KEYS_APPLICATION', 'FILE_GATEWAY_URL']) vi.stubEnv(name, '');
+    try {
+      const database = asked([lease(1)]);
+      expect(await runTask('staging-cleanup', withGateway(database, undefined))).toEqual({outcome: 'no_store', result: {configured: false}});
+      expect(database.calls).toEqual([]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('is `idle` when nothing is expired or released, having asked for at most 50 and sent no command', async () => {
+    const database = asked([]);
+    const gateway = gatewayOf();
+    expect(await runTask('staging-cleanup', withGateway(database, gateway.client))).toEqual({outcome: 'idle', result: {expired: 0}});
+    expect(database.calls).toEqual([{name: 'list_expired_staging', body: {p_limit: 50}}]);
+    expect(gateway.deleteStaging).not.toHaveBeenCalled();
+  });
+
+  it('sends one signed delete command for each lease, in the order listed, for that upload and that Account, and records counts only', async () => {
+    const database = asked([lease(1), lease(2), lease(3)]);
+    const gateway = gatewayOf(['deleted', 'kept', 'deleted']);
+    const answer = await runTask('staging-cleanup', withGateway(database, gateway.client));
+    expect(answer).toEqual({outcome: 'ran', result: {expired: 3, deleted: 2, kept: 1}});
+    expect(gateway.calls).toEqual([1, 2, 3].map((index) => ({accountId: lease(index).account_id, uploadId: lease(index).upload_id})));
+    // One at a time, in order: the second command is not sent until the first has been answered.
+    expect(gateway.deleteStaging.mock.invocationCallOrder).toEqual([...gateway.deleteStaging.mock.invocationCallOrder].sort((a, b) => a - b));
+    expect(isJobResult(answer.result)).toBe(true);
+    expect(Object.keys(answer.result).sort()).toEqual(['deleted', 'expired', 'kept']);
+    expect(JSON.stringify(answer)).not.toMatch(/0000000|1111111/);
+    expect(database.names()).toEqual(['list_expired_staging']);
+  });
+
+  it('keeps a lease the gateway keeps (renewed meanwhile) and counts it, without failing the run', async () => {
+    const answer = await runTask('staging-cleanup', withGateway(asked([lease(1), lease(2)]), gatewayOf(['kept', 'kept']).client));
+    expect(answer).toEqual({outcome: 'ran', result: {expired: 2, deleted: 0, kept: 2}});
+  });
+
+  it('signs the lower-case, canonical spelling of an ID the database answered in capitals', async () => {
+    const gateway = gatewayOf();
+    await runTask('staging-cleanup', withGateway(asked([{upload_id: lease(1).upload_id.toUpperCase(), account_id: lease(1).account_id.toUpperCase()}]), gateway.client));
+    // lib/lifecycle.ts lower-cases an ID it has accepted, so what is signed is the canonical spelling.
+    expect(gateway.calls).toEqual([{accountId: lease(1).account_id, uploadId: lease(1).upload_id}]);
+  });
+
+  it('FAILS the run at the first lease when the gateway is UNAVAILABLE (cannot be reached, or says so), and attempts no other: the class of the error survives to the receipt', async () => {
+    const database = asked([lease(1), lease(2), lease(3)]);
+    const down = gatewayOf([new GatewayUnavailableError()]);
+    await expect(runTask('staging-cleanup', withGateway(database, down.client))).rejects.toMatchObject({name: 'GatewayUnavailableError'});
+    expect(down.calls).toHaveLength(1);
+    const refused = gatewayOf(['deleted', new GatewayError(503)]);
+    await expect(runTask('staging-cleanup', withGateway(database, refused.client))).rejects.toMatchObject({name: 'GatewayError', status: 503});
+    // The second lease met an unavailable gateway: the first was deleted and the third was never tried. The next firing lists afresh and the commands are idempotent.
+    expect(refused.calls).toHaveLength(2);
+    const failing = gatewayOf([new GatewayError(500)]);
+    await expect(runTask('staging-cleanup', withGateway(database, failing.client))).rejects.toMatchObject({name: 'GatewayError', status: 500});
+    expect(failing.calls).toHaveLength(1);
+  });
+
+  // Story 1.12 review (P10): the finding was real. One lease the gateway refuses for itself (a 4xx, an answer that is not an answer) used to fail the run at
+  // that lease, so a poison lease at the head of the list kept every lease behind it from ever being cleaned.
+  it('handles each lease on its own when the gateway refuses ONE of them: a poison lease first does not keep the others from being cleaned, and the run still fails', async () => {
+    const database = asked([lease(1), lease(2), lease(3)]);
+    for (const refusal of [new GatewayError(401), new GatewayError(400), new GatewayError(404), new GatewayError(409), new GatewayError(200)]) {
+      const gateway = gatewayOf([refusal, 'deleted', 'kept']);
+      await expect(runTask('staging-cleanup', withGateway(database, gateway.client)), String(refusal.status)).rejects.toMatchObject({name: 'StagingCleanupIncompleteError'});
+      // All three were tried, in order: the poison lease did not stop the loop.
+      expect(gateway.calls).toEqual([1, 2, 3].map((index) => ({accountId: lease(index).account_id, uploadId: lease(index).upload_id})));
+    }
+  });
+
+  it('records the failure by class name only (no ID, no count of leases in the message), and counts stay in the result only when the run succeeds', async () => {
+    const database = asked([lease(1), lease(2)]);
+    const error = await runTask('staging-cleanup', withGateway(database, gatewayOf([new GatewayError(401), 'deleted']).client)).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(StagingCleanupIncompleteError);
+    expect(error).toMatchObject({name: 'StagingCleanupIncompleteError'});
+    expect(String((error as Error).message)).not.toMatch(/0000000|1111111/);
+    expect(/^[A-Z][A-Za-z]{0,47}$/.test((error as Error).name)).toBe(true);
+    // A run in which every lease is handled succeeds, with its counts.
+    expect(await runTask('staging-cleanup', withGateway(database, gatewayOf(['deleted', 'kept']).client))).toEqual({outcome: 'ran', result: {expired: 2, deleted: 1, kept: 1}});
+  });
+
+  it('stops at an unavailable gateway even after an earlier lease was refused for itself: the run fails as unavailable and the rest are not tried', async () => {
+    const gateway = gatewayOf([new GatewayError(403), new GatewayUnavailableError()]);
+    await expect(runTask('staging-cleanup', withGateway(asked([lease(1), lease(2), lease(3)]), gateway.client))).rejects.toMatchObject({name: 'GatewayUnavailableError'});
+    expect(gateway.calls).toHaveLength(2);
+  });
+
+  it('throws when the database does not answer, and sends no command', async () => {
+    const database = fakeDatabase(0, {list_expired_staging: () => json({message: 'down'}, 503)});
+    const gateway = gatewayOf();
+    await expect(runTask('staging-cleanup', withGateway(database, gateway.client))).rejects.toBeInstanceOf(AccountsUnavailableError);
+    expect(gateway.deleteStaging).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['text', 'staged'],
+    ['a list that is not a list', {leases: {}}],
+    ['more than were asked for', {leases: Array.from({length: 51}, (_unused, index) => ({upload_id: `0000${String(index).padStart(4, '0')}-aaaa-4bbb-8ccc-000000000000`, account_id: lease(1).account_id}))}],
+    ['an upload that is not an ID', {leases: [{upload_id: '../../objects', account_id: lease(1).account_id}]}],
+    ['an Account that is not an ID', {leases: [{upload_id: lease(1).upload_id, account_id: 'staging/x'}]}],
+    ['a lease with no Account', {leases: [{upload_id: lease(1).upload_id}]}],
+    ['a lease that is not an object', {leases: ['x']}],
+  ])('throws for %s, and sends no command: an ID names the prefix that is deleted', async (_name, answer) => {
+    const database = fakeDatabase(0, {list_expired_staging: () => json(answer)});
+    const gateway = gatewayOf();
+    await expect(runTask('staging-cleanup', withGateway(database, gateway.client))).rejects.toBeInstanceOf(AccountsUnavailableError);
+    expect(gateway.deleteStaging).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,7 @@
 import {randomBytes, randomUUID} from 'node:crypto';
 import {describe, expect, it, vi} from 'vitest';
 import {AccountsUnavailableError, hashClientAddress} from '@/lib/accounts';
-import {claimJobRun, claimLedgerEvents, defaultPurgeLimit, finishJobRun, finishLedgerEvents, guardTarget, isJobResult, isStatusHandle, jobOutcomes, lastJobRun, ledgerPending, lookupStatus, maxPurgeLimit, purgeDormantIdentities, recordTombstone, targetOutcomes} from '@/lib/lifecycle';
+import {claimJobRun, claimLedgerEvents, defaultPurgeLimit, finishJobRun, finishLedgerEvents, guardTarget, isJobResult, isStatusHandle, jobOutcomes, lastJobRun, ledgerPending, listExpiredStaging, lookupStatus, maxExpiredStaging, maxPurgeLimit, purgeDormantIdentities, recordTombstone, revokeServiceKey, targetOutcomes} from '@/lib/lifecycle';
 
 // The typed calls of the Lifecycle functions (lib/lifecycle.ts, Story 1.8) against a fake fetch: what each sends, what each accepts as
 // an answer, and that an answer that cannot be got is an error, never an "unknown" handle, an empty backlog or a permission.
@@ -427,5 +427,129 @@ describe('purgeDormantIdentities', () => {
 
   it('throws when the database cannot be reached: the batch is one transaction, so nothing is half done', async () => {
     await expect(purgeDormantIdentities({}, down)).rejects.toMatchObject({retryable: true, outcomeUnknown: true});
+  });
+});
+
+// Story 1.12: the two typed calls of the file gateway's database half. Neither is called by a request: the operator revokes a key, and the hourly
+// staging cleanup lists what to delete. What is pinned is what each sends, what each accepts as an answer, and that an answer that is not an answer
+// is an error (an ID in a list names the prefix that is deleted, so an ID that is not an ID is never passed on).
+const EXPIRED_UPLOAD = '9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a';
+
+describe('revokeServiceKey', () => {
+  it('sends the issuer, the key ID and the reason, as the service role, and reads how many leases and transfers it ended', async () => {
+    const {sent, options} = fake({outcome: 'revoked', leases: 2, transfers: 3});
+    expect(await revokeServiceKey({issuer: 'application', kid: 'k-1.a_b', reason: 'compromise'}, options)).toEqual({outcome: 'revoked', leases: 2, transfers: 3});
+    expect(sent).toEqual([expect.objectContaining({name: 'revoke_service_key', body: {p_issuer: 'application', p_kid: 'k-1.a_b', p_reason: 'compromise'}})]);
+    expect(sent[0].headers).toMatchObject({authorization: 'Bearer service-key-for-tests-only', 'content-profile': 'api'});
+  });
+
+  it('reads `exists` with what it ended again, and zeros', async () => {
+    expect(await revokeServiceKey({issuer: 'application', kid: 'k1', reason: 'compromise'}, fake({outcome: 'exists', leases: 0, transfers: 0}).options)).toEqual({outcome: 'exists', leases: 0, transfers: 0});
+  });
+
+  it('takes each of the six issuers, and no other word', async () => {
+    for (const issuer of ['application', 'gateway', 'cad-worker', 'engine-worker', 'backup-service', 'heartbeat']) {
+      const {sent, options} = fake({outcome: 'revoked', leases: 0, transfers: 0});
+      await revokeServiceKey({issuer, kid: 'k1', reason: 'rotation'}, options);
+      expect(sent[0].body.p_issuer).toBe(issuer);
+    }
+    const {fetch, options} = fake({});
+    for (const issuer of ['root', 'APPLICATION', 'Application', '', ' application', 'worker', 'constructor']) {
+      await expect(revokeServiceKey({issuer, kid: 'k1', reason: 'compromise'}, options), issuer).rejects.toBeInstanceOf(TypeError);
+    }
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('refuses a key ID that is not a key ID and a reason that is not one lower-case word, before asking', async () => {
+    const {fetch, options} = fake({});
+    for (const kid of ['', '-k', '.k', 'has space', 'a/b', 'x'.repeat(65), 7 as never, null as never]) {
+      await expect(revokeServiceKey({issuer: 'application', kid, reason: 'compromise'}, options), String(kid)).rejects.toBeInstanceOf(TypeError);
+    }
+    for (const reason of ['', 'Compromise', 'with space', '1x', 'x'.repeat(41), 'a-b', 7 as never, null as never]) {
+      await expect(revokeServiceKey({issuer: 'application', kid: 'k1', reason}, options), String(reason)).rejects.toBeInstanceOf(TypeError);
+    }
+    expect(fetch).not.toHaveBeenCalled();
+    await revokeServiceKey({issuer: 'application', kid: 'x'.repeat(64), reason: 'x'.repeat(40)}, fake({outcome: 'revoked', leases: 0, transfers: 0}).options);
+  });
+
+  it.each([
+    ['an outcome it does not know', {outcome: 'done', leases: 0, transfers: 0}],
+    ['no outcome', {leases: 0, transfers: 0}],
+    ['no count of leases', {outcome: 'revoked', transfers: 0}],
+    ['no count of transfers', {outcome: 'revoked', leases: 0}],
+    ['a negative count', {outcome: 'revoked', leases: -1, transfers: 0}],
+    ['a count that is text', {outcome: 'revoked', leases: '1', transfers: 0}],
+    ['a fractional count', {outcome: 'revoked', leases: 0, transfers: 1.5}],
+    ['text', 'revoked'],
+    ['a list', [{outcome: 'revoked', leases: 0, transfers: 0}]],
+  ])('treats %s as no answer at all', async (_name, answer) => {
+    await expect(revokeServiceKey({issuer: 'application', kid: 'k1', reason: 'compromise'}, fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('throws when the database cannot be reached, with the outcome unknown: the revocation is idempotent, so the operator calls it again', async () => {
+    await expect(revokeServiceKey({issuer: 'application', kid: 'k1', reason: 'compromise'}, down)).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true, outcomeUnknown: true});
+  });
+});
+
+describe('listExpiredStaging', () => {
+  const lease = (uploadId = EXPIRED_UPLOAD, accountId = ACCOUNT) => ({upload_id: uploadId, account_id: accountId});
+
+  it('asks for at most 50 by default, and says the limit is 50', async () => {
+    expect(maxExpiredStaging).toBe(50);
+    const {sent, options} = fake({leases: []});
+    expect(await listExpiredStaging({}, options)).toEqual([]);
+    expect(await listExpiredStaging(undefined, options)).toEqual([]);
+    expect(sent.map((call) => [call.name, call.body])).toEqual([['list_expired_staging', {p_limit: 50}], ['list_expired_staging', {p_limit: 50}]]);
+    expect(sent[0].headers).toMatchObject({authorization: 'Bearer service-key-for-tests-only', 'content-profile': 'api'});
+  });
+
+  it('sends the limit it is given, from 1 to 50', async () => {
+    const {sent, options} = fake({leases: []});
+    await listExpiredStaging({limit: 1}, options);
+    await listExpiredStaging({limit: 50}, options);
+    expect(sent.map((call) => call.body)).toEqual([{p_limit: 1}, {p_limit: 50}]);
+  });
+
+  it('refuses a limit out of range or not a whole number, before asking', async () => {
+    const {fetch, options} = fake({leases: []});
+    for (const limit of [0, -1, 51, 1.5, Number.NaN, Number.POSITIVE_INFINITY, '5' as never]) await expect(listExpiredStaging({limit}, options), String(limit)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('reads each lease as its upload and its Account, in the order the database listed them, with the IDs lower-cased', async () => {
+    const other = '8b2c3d4e-5f6a-4b7c-9d8e-1f2a3b4c5d6e';
+    const {options} = fake({leases: [lease(EXPIRED_UPLOAD.toUpperCase(), ACCOUNT.toUpperCase()), lease(other, TARGET)]});
+    expect(await listExpiredStaging({}, options)).toEqual([
+      {uploadId: EXPIRED_UPLOAD, accountId: ACCOUNT},
+      {uploadId: other, accountId: TARGET},
+    ]);
+  });
+
+  it('reads as many as were asked for, and no more', async () => {
+    const full = Array.from({length: 3}, (_unused, index) => lease(`0000000${index}-aaaa-4bbb-8ccc-000000000000`));
+    expect(await listExpiredStaging({limit: 3}, fake({leases: full}).options)).toHaveLength(3);
+    await expect(listExpiredStaging({limit: 2}, fake({leases: full}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it.each([
+    ['text', 'expired'],
+    ['no list', {}],
+    ['a list that is not a list', {leases: {}}],
+    ['null for the list', {leases: null}],
+    ['a lease that is not an object', {leases: ['x']}],
+    ['a lease that is a list', {leases: [[EXPIRED_UPLOAD, ACCOUNT]]}],
+    ['an upload that is not an ID', {leases: [lease('../../objects')]}],
+    ['an upload that is a prefix', {leases: [lease('staging/x')]}],
+    ['an upload with an ID and more', {leases: [lease(`${EXPIRED_UPLOAD}/..`)]}],
+    ['an Account that is not an ID', {leases: [lease(EXPIRED_UPLOAD, 'objects/x')]}],
+    ['a lease with no Account', {leases: [{upload_id: EXPIRED_UPLOAD}]}],
+    ['a lease with no upload', {leases: [{account_id: ACCOUNT}]}],
+    ['an ID that is a number', {leases: [lease(EXPIRED_UPLOAD, 5 as never)]}],
+  ])('treats %s as no answer at all: an ID names the prefix that is deleted', async (_name, answer) => {
+    await expect(listExpiredStaging({}, fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('throws when the database cannot be reached: nothing is deleted on the strength of a list that was not read', async () => {
+    await expect(listExpiredStaging({}, down)).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true});
   });
 });

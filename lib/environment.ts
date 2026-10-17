@@ -25,9 +25,14 @@ const supabaseVariables = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANO
 // A preview must hold none of these: any SUPABASE_* or NEXT_PUBLIC_SUPABASE_* variable, a database
 // URL, POSTGRES_* or STRIPE_*, the account hashing keys (Story 1.3), the recovery hashing key and the mail key
 // (Story 1.6), and any QSTASH_* name (Story 1.9: the queue's token, URL and signing keys: a preview has no schedule to verify, and the
-// route fails closed without the keys). Previews are protected by this rejection, not by a database check. The QStash names are NOT added
-// to the hosted required list (`requiredVariables`, `supabaseVariables`): the route answers 503 without them, and /api/health is unchanged.
-const previewForbiddenName = /^(?:(?:NEXT_PUBLIC_)?SUPABASE_|POSTGRES_|(?:NEXT_PUBLIC_)?STRIPE_|QSTASH_)|^DATABASE_URL$|^(?:INVITATION|RATE_LIMIT|RECOVERY)_HASH_KEY$|^RESEND_API_KEY$/;
+// route fails closed without the keys), and any SERVICE_SIGNING_KEY_* name (Story 1.12: the private half of a service-signing key, which signs transfer
+// tickets and gateway commands: a preview must never be able to), and the file gateway's two secrets (GATEWAY_DATABASE_URL, the password of its database
+// role, and GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY, its Storage key: only the gateway service holds them, and a preview is not that). The gateway's non-secret
+// names (GATEWAY_STORAGE_S3_ACCESS_KEY_ID, GATEWAY_STORAGE_S3_ENDPOINT, GATEWAY_STORAGE_S3_REGION) are not forbidden. Previews are protected by this
+// rejection, not by a database check. The QStash names and the application's gateway names (SERVICE_KEYS_APPLICATION, FILE_GATEWAY_URL,
+// SERVICE_SIGNING_KEY_APPLICATION) are NOT added to the hosted required list
+// (`requiredVariables`, `supabaseVariables`): the routes that use them answer 503 without them, and /api/health is unchanged.
+const previewForbiddenName = /^(?:(?:NEXT_PUBLIC_)?SUPABASE_|POSTGRES_|(?:NEXT_PUBLIC_)?STRIPE_|QSTASH_|SERVICE_SIGNING_KEY_)|^DATABASE_URL$|^(?:INVITATION|RATE_LIMIT|RECOVERY)_HASH_KEY$|^RESEND_API_KEY$|^GATEWAY_DATABASE_URL$|^GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY$/;
 // Bare words are anchored so a real value such as todos@example.com is not mistaken for a placeholder.
 const placeholder = /^(?:replace-with-|<[^>]+>)|^(?:changeme|todo)$/i;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -222,7 +227,7 @@ export function validateEnvironment(env: Env, options: CheckOptions = {}): strin
     if (env.SYNTHETIC_DATA_ENABLED !== 'true') errors.push('preview/development requires SYNTHETIC_DATA_ENABLED=true');
     if (env.PAID_ADAPTERS_ENABLED !== 'false') errors.push('preview/development requires PAID_ADAPTERS_ENABLED=false');
     const held = Object.keys(env).filter((name) => previewForbiddenName.test(name) && env[name]);
-    if (held.length) errors.push(`preview/development deployments must hold no Supabase, database or Stripe variables, account hashing keys, mail key or QStash variables: ${held.sort().join(', ')}`);
+    if (held.length) errors.push(`preview/development deployments must hold no Supabase, database or Stripe variables, account hashing keys, mail key, service-signing keys, file gateway secrets or QStash variables: ${held.sort().join(', ')}`);
   }
   if (environment === 'production' && env.SYNTHETIC_DATA_ENABLED === 'true') errors.push('production cannot enable synthetic data');
 

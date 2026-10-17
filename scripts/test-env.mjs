@@ -21,6 +21,7 @@ const OTHER_INSTANCE = '9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d';
 const DB_PASSWORD = 'db-password-must-never-be-printed';
 const STRIPE_KEY = 'sk_test_must_never_be_printed';
 const QSTASH_TOKEN = 'qstash-fixture-must-never-be-printed';
+const SIGNING_KEY = 'service-signing-key-fixture-must-never-be-printed';
 // The three hashing keys (Story 1.3, and the recovery key of Story 1.6): random, at least 32 bytes, different from each other.
 const hashKeys = () => ({
   INVITATION_HASH_KEY: randomBytes(32).toString('base64'),
@@ -108,7 +109,7 @@ const run = (env, ...args) =>
 const rejected = (result, text) => {
   assert.equal(result.status, 1, `expected exit 1, got ${result.status}\n${result.stdout}${result.stderr}`);
   assert.ok(result.stderr.includes(text), `expected stderr to include "${text}":\n${result.stderr}`);
-  for (const secret of [SERVICE_KEY, ANON_KEY, DB_PASSWORD, STRIPE_KEY, QSTASH_TOKEN]) {
+  for (const secret of [SERVICE_KEY, ANON_KEY, DB_PASSWORD, STRIPE_KEY, QSTASH_TOKEN, SIGNING_KEY]) {
     assert.ok(!result.stdout.includes(secret) && !result.stderr.includes(secret), 'a secret was printed');
   }
 };
@@ -177,6 +178,12 @@ describe('identity matrix', () => {
       QSTASH_TOKEN: QSTASH_TOKEN,
       QSTASH_CURRENT_SIGNING_KEY: QSTASH_TOKEN,
       QSTASH_NEXT_SIGNING_KEY: QSTASH_TOKEN,
+      // Story 1.12: the private half of a service-signing key, which signs transfer tickets and gateway commands. A preview must never be able to.
+      SERVICE_SIGNING_KEY_APPLICATION: SIGNING_KEY,
+      SERVICE_SIGNING_KEY_GATEWAY: SIGNING_KEY,
+      // Story 1.12 review: the file gateway's secrets, held by its service alone.
+      GATEWAY_DATABASE_URL: `postgres://nova3d_gateway:${DB_PASSWORD}@db.example.com/postgres?sslmode=require`,
+      GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY: SIGNING_KEY,
     };
     for (const [name, value] of Object.entries(forbidden)) {
       const result = await run({...preview(), [name]: value});
@@ -190,6 +197,13 @@ describe('identity matrix', () => {
     rows = [{environment: 'staging', instance_id: INSTANCE}];
     const qstash = {QSTASH_URL: 'https://qstash-us-east-1.upstash.io', QSTASH_TOKEN, QSTASH_CURRENT_SIGNING_KEY: QSTASH_TOKEN, QSTASH_NEXT_SIGNING_KEY: QSTASH_TOKEN};
     passed(await run({...staging(), ...qstash}, '--live'));
+    passed(await run(staging(), '--live'));
+  });
+
+  it('a staging deployment may hold the service-signing key and the gateway names and does not need them (Story 1.12)', async () => {
+    rows = [{environment: 'staging', instance_id: INSTANCE}];
+    const gateway = {SERVICE_SIGNING_KEY_APPLICATION: SIGNING_KEY, SERVICE_KEYS_APPLICATION: '{}', FILE_GATEWAY_URL: 'https://files.example.test'};
+    passed(await run({...staging(), ...gateway}, '--live'));
     passed(await run(staging(), '--live'));
   });
 

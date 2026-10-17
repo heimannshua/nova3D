@@ -45,7 +45,19 @@ export function serverEnv(): Env {
         'or export NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, INSTANCE_ID, INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY and RECOVERY_HASH_KEY for it, before building and testing.',
     );
   }
-  for (const name of ['SUPABASE_SERVICE_ROLE_KEY', 'INVITATION_HASH_KEY', 'RATE_LIMIT_HASH_KEY', 'RECOVERY_HASH_KEY']) {
+  // Story 1.12: the browser tests also start the file gateway beside the application (playwright.config.ts), and it reads its own database role and Storage key
+  // pair from the same file, which `node scripts/setup-env.mjs local` fills in from the stack. (Its signing keys are the tests' own, set by the config.)
+  for (const name of [
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'INVITATION_HASH_KEY',
+    'RATE_LIMIT_HASH_KEY',
+    'RECOVERY_HASH_KEY',
+    'GATEWAY_DATABASE_URL',
+    'GATEWAY_STORAGE_S3_ENDPOINT',
+    'GATEWAY_STORAGE_S3_REGION',
+    'GATEWAY_STORAGE_S3_ACCESS_KEY_ID',
+    'GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY',
+  ]) {
     if (!env[name]) throw new Error(`${name} is not set for the application under test (see node scripts/setup-env.mjs local).`);
   }
   return env;

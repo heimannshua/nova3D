@@ -5,6 +5,7 @@ import {pathToFileURL} from 'node:url';
 import {defineConfig, devices} from '@playwright/test';
 import {testSigningKeys} from './tests/support/qstash-signature';
 import {recoveryAdministratorEmail} from './tests/support/recovery-env';
+import {testApplicationKeys} from './tests/support/service-keys';
 
 const port = Number(process.env.PORT ?? 4173);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -14,6 +15,10 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 // (tests/e2e/authorization.spec.ts). It is the same build, with a fake network preloaded into it.
 const flakyPort = port + 1;
 if (flakyPort > 65535) throw new Error('PORT + 1 must also be a valid port.');
+// The third server, for the file gateway (Story 1.12, tests/e2e/file-gateway.spec.ts): the real gateway (workers/files), a different ORIGIN from the application's
+// (another port), so a browser at the application's origin reaches it across origins and the gateway's CORS rule is the one that is exercised.
+const gatewayPort = port + 2;
+if (gatewayPort > 65535) throw new Error('PORT + 2 must also be a valid port.');
 // The step-up flows (Story 1.4b, tests/e2e/step-up.spec.ts) run a real second Google sign-in against a fake Google
 // that `npm run fake-google:up` puts behind the stack's Auth container (scripts/fake-google-stack.mjs). Nothing
 // here starts it: the swap changes the stack, not the application servers below, and the swap allows these two
@@ -35,10 +40,17 @@ const nodeOptions = [process.env.NODE_OPTIONS, fakeNetworkPreload].filter(Boolea
 // They are also given the QStash signing keys of the tests (tests/support/qstash-signature.ts, Story 1.9), which are made up and belong to no
 // Upstash account: the scheduled-job route verifies a signature only with the keys in its environment, and tests/e2e/jobs.spec.ts signs its
 // calls with these. They are set here, in the web server's environment, and nowhere else: not in .env.example, not in .env.local.
+//
+// Story 1.12: the application's service-signing key and the gateway's address are set the same way. The key pair is derived from a fixed label
+// (tests/support/service-keys.ts), belongs to no environment and is never written to a file: the application signs tickets with its private half, and the gateway
+// server below verifies them with the public key set.
 const testServerEnv = {
   ADMINISTRATOR_EMAIL: recoveryAdministratorEmail,
   QSTASH_CURRENT_SIGNING_KEY: testSigningKeys.current,
   QSTASH_NEXT_SIGNING_KEY: testSigningKeys.next,
+  SERVICE_SIGNING_KEY_APPLICATION: testApplicationKeys.privateKey,
+  SERVICE_KEYS_APPLICATION: testApplicationKeys.keySet,
+  FILE_GATEWAY_URL: `http://127.0.0.1:${gatewayPort}`,
 };
 
 // Browser flows run against the production build (`npm run build` first). The server verifies its
@@ -80,6 +92,19 @@ export default defineConfig({
       command: `npm run start -- --hostname 127.0.0.1 --port ${flakyPort}`,
       url: `http://127.0.0.1:${flakyPort}/api/health`,
       env: {...testServerEnv, NODE_OPTIONS: nodeOptions, NOVA3D_FAKE_NETWORK: 'playwright', NOVA3D_FAKE_NETWORK_DIR: process.env.NOVA3D_FAKE_NETWORK_DIR},
+      reuseExistingServer: false,
+      timeout: 60_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+    {
+      // The file gateway (Story 1.12), run the way the image runs it (`node workers/files/src/main.ts`), against the local stack: its database role, its Storage key
+      // pair, APP_ENV and INSTANCE_ID come from `.env.local` (written by `node scripts/setup-env.mjs local`), and the three values below are set here. It exits at
+      // start-up when the database it is pointed at is not this environment, so a stale `.env.local` stops this server with a message that names the variable, and
+      // never serves the wrong database. Never an already-running server: one started with other keys would fail the specs for the wrong reason.
+      command: 'node --env-file-if-exists=.env.local workers/files/src/main.ts',
+      url: `http://127.0.0.1:${gatewayPort}/healthz`,
+      env: {PORT: String(gatewayPort), APP_ORIGIN: `http://127.0.0.1:${port}`, SERVICE_KEYS_APPLICATION: testApplicationKeys.keySet},
       reuseExistingServer: false,
       timeout: 60_000,
       stdout: 'pipe',

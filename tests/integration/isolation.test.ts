@@ -156,6 +156,8 @@ describe('through the REST API', () => {
     issue_recovery: {p_token_hash: codeHash(), p_administrator_email: victim.user.email},
     last_job_run: {p_task: 'ledger-relay'},
     list_accounts: {},
+    // Story 1.12: the file gateway's two api functions (the staging cleanup's list and a service key's revocation).
+    list_expired_staging: {p_limit: 5},
     list_invitations: {},
     ledger_pending: {},
     list_projects: {p_account_id: victim.accountId, p_epoch: 1, p_limit: 10},
@@ -171,6 +173,7 @@ describe('through the REST API', () => {
     register_with_code: {p_user_id: victim.user.id, p_command_id: victim.commandId, p_code_hash: victim.codeHash, p_origin_hash: originHash()},
     revoke_grants: {p_actor: 'seed', p_reason: 'test', p_account_id: victim.accountId},
     revoke_invitation: {p_actor: 'seed', p_invitation_id: randomUUID()},
+    revoke_service_key: {p_issuer: 'application', p_kid: 'isolation-test', p_reason: 'test'},
     seed_preauthorization: {p_email: 'someone@example.test', p_role: 'administrator', p_actor: 'seed'},
     set_preference: {p_account_id: victim.accountId, p_name: 'theme', p_value: 'dark'},
     start_step_up: {p_user_id: victim.user.id, p_session_id: victim.sessionId, p_action_class: 'administration', p_secret_hash: codeHash(), p_verifier_hash: randomBytes(32).toString('base64url')},
@@ -642,14 +645,14 @@ describe('composite ownership foreign keys keep a reference inside one Workspace
 // ---------------------------------------------------------------------------------------------------
 /**
  * Every way a browser role (anon, authenticated, or PUBLIC, which both inherit) can reach anything in `identity`,
- * `projects` or `lifecycle`, read from the database itself. The list of relations is the catalog's, never a list
+ * `projects`, `lifecycle` or (Story 1.12) `artifacts`, read from the database itself. The list of relations is the catalog's, never a list
  * in this file, so a table added by a later story is checked without anyone adding it here. Each entry says what is
  * open. The `api` schema must hold no table or view at all: it is exposed to the Data API, and its functions are
  * the only thing that belongs there.
  */
 async function openings(client: Client): Promise<string[]> {
   const found: string[] = [];
-  const closed = ['identity', 'projects', 'lifecycle'];
+  const closed = ['identity', 'projects', 'lifecycle', 'artifacts'];
   const browser = ['anon', 'authenticated'];
 
   const {rows: schemas} = await client.query(`select nspname from pg_namespace where nspname = any($1)`, [[...closed, 'api']]);
@@ -688,10 +691,19 @@ async function openings(client: Client): Promise<string[]> {
     }
     const {rows: publicGrants} = await client.query(`select 1 from pg_class c, aclexplode(c.relacl) a where c.oid = $1 and a.grantee = 0`, [relation.oid]);
     if (publicGrants.length) found.push(`PUBLIC holds a privilege on ${name}`);
-    if (!sequence) {
+    // A view has no row-level security to turn on (Story 1.12's two views in `artifacts` read tables as their owner and are closed by privilege alone: the
+    // privilege checks above still apply to them, and a view that was granted to a browser role is still found).
+    if (!sequence && relation.relkind !== 'v') {
       if (!relation.rls) found.push(`${name} has row-level security off`);
-      const {rows: policies} = await client.query('select polname from pg_policy where polrelid = $1', [relation.oid]);
-      for (const policy of policies) found.push(`${name} has a policy (${policy.polname}); the pattern is none`);
+      // Story 1.12: the pattern is no policy, with ONE exception that its migration forces: a table the file gateway's own role must read and write
+      // carries a policy for that role alone (row-level security with no policy admits no role that is not the owner, and the gateway is not). A policy
+      // that names any other role, or PUBLIC, or the gateway together with another role, is an opening like any other.
+      const {rows: policies} = await client.query(`select polname, polroles from pg_policy where polrelid = $1`, [relation.oid]);
+      for (const policy of policies) {
+        const roles = (policy.polroles as number[]).map(String);
+        const gatewayOnly = roles.length === 1 && roles[0] !== '0' && (await client.query(`select $1::oid::regrole::text as role`, [roles[0]])).rows[0].role === 'nova3d_gateway';
+        if (!gatewayOnly) found.push(`${name} has a policy (${policy.polname}); the pattern is none, but for the gateway role alone`);
+      }
     }
   }
 
@@ -718,11 +730,11 @@ async function openings(client: Client): Promise<string[]> {
   return found.sort();
 }
 
-describe('every table of identity, projects and lifecycle is closed to anon and authenticated, table by table, and stays so', () => {
+describe('every table of identity, projects, lifecycle and artifacts is closed to anon and authenticated, table by table, and stays so', () => {
   it('finds the tables it is meant to check, so an empty list cannot pass for a closed one', async () => {
     const {rows} = await db.query(
       `select n.nspname || '.' || c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace
-        where n.nspname in ('identity', 'projects', 'lifecycle') and c.relkind in ('r', 'p') order by 1`,
+        where n.nspname in ('identity', 'projects', 'lifecycle', 'artifacts') and c.relkind in ('r', 'p') order by 1`,
     );
     expect(rows.map((row) => row.name)).toEqual(
       expect.arrayContaining([
@@ -746,6 +758,12 @@ describe('every table of identity, projects and lifecycle is closed to anon and 
         'projects.project_commands',
         'projects.projects',
         'projects.workspaces',
+        'artifacts.attachment_transforms',
+        'artifacts.manifests',
+        'artifacts.service_key_revocations',
+        'artifacts.staging_leases',
+        'artifacts.ticket_redemptions',
+        'artifacts.transfer_handles',
       ]),
     );
   });
@@ -754,8 +772,8 @@ describe('every table of identity, projects and lifecycle is closed to anon and 
     expect(await openings(db)).toEqual([]);
   });
 
-  it('fails for every kind of opening, in each of the three schemas, so a table added later that is not closed fails this suite', async () => {
-    for (const schema of ['identity', 'projects', 'lifecycle']) {
+  it('fails for every kind of opening, in each of the four schemas, so a table added later that is not closed fails this suite', async () => {
+    for (const schema of ['identity', 'projects', 'lifecycle', 'artifacts']) {
       await inTx(async (client) => {
         const leak = async (name: string, ddl: string[]) => {
           await client.query('savepoint leak');
@@ -791,6 +809,21 @@ describe('every table of identity, projects and lifecycle is closed to anon and 
     expect(await openings(db)).toEqual([]);
   });
 
+  it('accepts a policy for the gateway role alone (Story 1.12) and nothing wider: one that also names a browser role, or PUBLIC, is an opening', async () => {
+    await inTx(async (client) => {
+      await client.query('create table artifacts.future_gateway_table (id integer primary key, owner_id uuid)');
+      await client.query('alter table artifacts.future_gateway_table enable row level security');
+      await client.query('create policy only_gateway on artifacts.future_gateway_table for select to nova3d_gateway using (true)');
+      expect(await openings(client)).toEqual([]);
+      await client.query('savepoint wider');
+      await client.query('create policy gateway_and_anon on artifacts.future_gateway_table for select to nova3d_gateway, anon using (true)');
+      expect((await openings(client)).filter((line) => line.includes('gateway_and_anon'))).toHaveLength(1);
+      await client.query('rollback to savepoint wider');
+      await client.query('create policy for_public on artifacts.future_gateway_table for select to public using (true)');
+      expect((await openings(client)).filter((line) => line.includes('for_public'))).toHaveLength(1);
+    });
+  });
+
   it('fails for a table in the api schema, which is exposed to the Data API and holds functions only', async () => {
     await inTx(async (client) => {
       await client.query('create table api.leak_table (id integer)');
@@ -812,7 +845,7 @@ describe('every table of identity, projects and lifecycle is closed to anon and 
     await inTx(async (client) => {
       const {rows} = await client.query(
         `select n.nspname as schema, c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace
-          where n.nspname in ('identity', 'projects', 'lifecycle') and c.relkind in ('r', 'p') order by 1, 2`,
+          where n.nspname in ('identity', 'projects', 'lifecycle', 'artifacts') and c.relkind in ('r', 'p') order by 1, 2`,
       );
       for (const {schema, name} of rows) {
         for (const role of ['anon', 'authenticated']) {

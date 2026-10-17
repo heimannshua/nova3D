@@ -50,16 +50,28 @@ Story 1.6. Keyed hash (HMAC-SHA256, with its own domain label) under which the s
 
 ## Service-signing keys
 
-Story 1.12. Keys are Ed25519 pairs, one per issuer. The private half below is held only by its issuer; receivers hold public keys, which are not secret. One key is active and at most one is retiring for each issuer. The application's key also signs transfer tickets: there is no separate ticket key.
+Story 1.12. Keys are Ed25519 pairs, one per issuer. The private half below is held only by its issuer; receivers hold public keys, which are not secret. One key is active and at most one is retiring for each issuer. The application's key also signs transfer tickets and the commands it sends the file gateway: there is no separate ticket key.
+
+A **key set** is the public side: JSON of exactly `{"issuer": "<issuer>", "active": "<key ID>", "retiring": null or {"kid": "<key ID>", "until": "<ISO 8601 UTC time>"}, "keys": {"<key ID>": "<base64 SPKI Ed25519 public key>"}}`, with the named key IDs and no others in `keys`, at most one retiring key and an `until` whenever there is one. It is held in `SERVICE_KEYS_<ISSUER>` (for the application, `SERVICE_KEYS_APPLICATION`: not secret, in the application and in the file gateway). The private key is the base64 PKCS#8 of the ACTIVE key and is checked, at start-up of whatever holds it, to be the private half of the active public key. A token names the key that signed it (`kid`) and is accepted only from the active key, or from the retiring key before its `until`; a key that has been **revoked** is refused everywhere at once (`api.revoke_service_key(issuer, kid, reason)`, in the SQL editor or through the service role, which also ends every staging lease and transfer handle opened under that key). Every token is valid for at most five minutes, with at most 60 seconds of clock skew allowed.
+
+To generate an application pair on your own machine, run this (it needs only Node, which the repository already requires, and writes no file):
+
+```
+node -e "const {generateKeyPairSync}=require('node:crypto');const k=generateKeyPairSync('ed25519');console.log('private (PKCS#8):',k.privateKey.export({type:'pkcs8',format:'der'}).toString('base64'));console.log('public (SPKI):',k.publicKey.export({type:'spki',format:'der'}).toString('base64'))"
+```
+
+The first line is the private half (the base64 PKCS#8 text, for `SERVICE_SIGNING_KEY_<ISSUER>`) and the second the public half (the base64 SPKI text, for the `keys` of the key set). Store the private half straight into the password manager and the environment's store, and clear the terminal's scrollback afterwards. If you make the pair with `openssl genpkey -algorithm ed25519 -out key.pem` instead (`openssl pkey -in key.pem -outform DER | openssl base64 -A` for the private half and `openssl pkey -in key.pem -pubout -outform DER | openssl base64 -A` for the public half), delete the private PEM, `key.pem`, as soon as both are stored: it is the private key in plain text. The key ID is a short label you choose, such as `application-2026-10`, and a revoked key ID is never reused: a rotation always uses a new one.
+
+A retiring key's `until` must be no more than ten minutes after the moment the key set is read (a rotation needs six): a set with a later one is refused when it is read (the gateway exits at start-up, naming the variable, and the application treats its signing configuration as unset, so the ticket route answers 503), so a retiring key cannot be left valid for days by mistake. An `until` that has already passed is fine: it is how a finished rotation stays until the retiring key is removed from the set.
 
 ### SERVICE_SIGNING_KEY_APPLICATION
 
-Signs transfer tickets and worker dispatches. Read only by the application.
+Signs transfer tickets (`POST /api/transfers/tickets`), the commands the application sends the file gateway (attach, delete-staging, delete-root) and, later, worker dispatches. Read only by the application, and never present in a preview (the environment check rejects any `SERVICE_SIGNING_KEY_*` name there, and the gateway's two secrets, `GATEWAY_DATABASE_URL` and `GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY`; the gateway's non-secret names are not on that list). The ticket route and the staging cleanup fail closed (503, `no_store`) when it is not set, so it is not on the list of variables a hosted deployment must hold.
 
 - **Owner:** Administrator (Josh).
-- **Generation:** an Ed25519 key pair, for example `openssl genpkey -algorithm ed25519`; keep the private half here and give the public half to the gateway and the workers.
-- **Location:** local: `.env.local`; staging: the staging Vercel project's Production-scope variables; production: the production Vercel project's variables once it exists.
-- **Rotation:** add a new key as active under a new key ID, making the old one the single retiring key; receivers accept both for the outstanding-request window (at most five minutes plus 60 seconds of skew), then remove the retiring key. On suspected compromise, revoke the key and its affected leases at once.
+- **Generation:** an Ed25519 key pair (see above); keep the private half here, as base64 PKCS#8, and give the public key set (`SERVICE_KEYS_APPLICATION`, not secret) to the gateway and the workers.
+- **Location:** local: `.env.local`, written with its public key set by `node scripts/setup-env.mjs local` (a random pair per machine, kept while it is valid); staging: the staging Vercel project's Production-scope variables; production: the production Vercel project's variables once it exists.
+- **Rotation:** add a new key as active under a new key ID, making the old one the single retiring key with an `until` six minutes ahead (a ticket lives five minutes, with a minute of skew); set the new key set in the gateway first and then in the application together with the new private key; receivers accept both for the outstanding-request window, then remove the retiring key from the set. On suspected compromise, revoke the key (`api.revoke_service_key`, which ends its leases and handles in the same transaction) and rotate at once: a ticket under a revoked key is refused immediately, whatever its `until`.
 - **Cadence:** yearly, and at once on suspected compromise.
 
 ### SERVICE_SIGNING_KEY_GATEWAY
@@ -308,15 +320,25 @@ Story 1.9. The deploy hook URL of the staging Vercel project (made for the `stag
 - **Rotation:** create a new hook in Vercel, update the GitHub environment secret, push to `staging` and confirm a deployment is triggered, then delete the old hook. If the URL may have been exposed, delete the hook first.
 - **Cadence:** yearly, and at once on suspected compromise.
 
+### GATEWAY_DATABASE_URL
+
+Story 1.12. The connection string of the file gateway's own database role, `nova3d_gateway`: a role that can read the two authorization views and insert and read the redemption, handle and lease records, and execute `artifacts.publish_attachment`, and nothing else (it holds no `api`, `identity`, `projects` or `lifecycle` object, and not the service-role key). Read only by the gateway, and never present in a preview (the environment check rejects the name there). The role is created by a migration WITHOUT a password, so the password exists only where this string does.
+
+- **Owner:** Administrator (Josh).
+- **Generation:** a long random password from the password manager, set by hand on the role in the Supabase dashboard's SQL editor (`alter role nova3d_gateway with password`, the password in quotes), and the connection string for the Supabase pooler in transaction mode (the user is `nova3d_gateway.<project-ref>`), ending in `?sslmode=require` (or `verify-ca` or `verify-full`): the gateway refuses to start for staging or production with a URL that does not ask for TLS, and a hosted database is reached over the network.
+- **Location:** local: the stack's direct connection with the local password that `supabase/seed.sql` sets, written to `.env.local` by `node scripts/setup-env.mjs local`; staging: the Railway gateway service's variables; production: the production Railway gateway service's variables once it exists.
+- **Rotation:** set a new password on the role, replace the string in the gateway service and redeploy, confirm a transfer works. Until it is replaced the gateway cannot reach the database and answers 503, which is the safe answer.
+- **Cadence:** yearly, and at once on suspected compromise.
+
 ## Storage keys
 
 ### GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY
 
-Story 1.12. The file gateway's own Supabase Storage S3 key pair. Supabase cannot scope an S3 key below the project, and the key bypasses row policies, so only the gateway holds one. Read only by the gateway. `GATEWAY_STORAGE_S3_ACCESS_KEY_ID` is its identifier and is not secret.
+Story 1.12. The file gateway's own Supabase Storage S3 key pair. Supabase cannot scope an S3 key below the project, and the key bypasses row policies, so only the gateway holds one. Read only by the gateway, and never present in a preview (the environment check rejects the name there). `GATEWAY_STORAGE_S3_ACCESS_KEY_ID` is its identifier and is not secret.
 
 - **Owner:** Administrator (Josh).
 - **Generation:** in the Supabase dashboard's Storage S3 settings for the environment's own project.
-- **Location:** local: not used (the local stack's Storage is reached with local credentials from `.env.local`); staging: the Railway gateway service's variables; production: the production Railway gateway service's variables once it exists.
+- **Location:** local: the stack's own S3 key pair, written to `.env.local` by `node scripts/setup-env.mjs local` (it opens the local Storage only); staging: the Railway gateway service's variables; production: the production Railway gateway service's variables once it exists.
 - **Rotation:** create a new key pair, replace both values in the gateway service, redeploy, confirm a transfer works, then delete the old pair.
 - **Cadence:** yearly, and at once on suspected compromise.
 
@@ -382,4 +404,4 @@ Story 8.4. The separate operator key the restore tooling uses to write the resto
 
 ## Names that are not secrets
 
-These names sit beside secrets, in the provisioning ledger or in an entry above, but are not secret: `APP_ORIGIN` (the https origin of the deployed application, Story 1.6: the link in the recovery mail points at it, so it is required in staging and production and is an ordinary, readable setting; see `docs/deployment-setup.md`), `NEXT_PUBLIC_SUPABASE_ANON_KEY` (browser-visible by design), `SUPABASE_PROJECT_REF`, `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`, `QSTASH_URL`, `STAGING_SITE_URL` (Story 1.9: the https origin of the staging deployment, from which `scripts/staging-config.mjs` writes the scratch `config.toml` that `staging.yml` diffs the live Auth settings against; it is stored as a secret of the `staging` GitHub environment only so that the workflow reads every input the same way), `UPSTASH_REDIS_REST_URL`, `VAPID_PUBLIC_KEY`, the Storage S3 access key IDs `GATEWAY_STORAGE_S3_ACCESS_KEY_ID` and `BACKUP_STORAGE_S3_ACCESS_KEY_ID`, and the Backblaze key identifiers `B2_BACKUP_KEY_ID`, `B2_MANIFEST_READ_KEY_ID`, `B2_LEDGER_READ_KEY_ID` and `B2_LEDGER_APPEND_KEY_ID`. Exposing one grants nothing on its own.
+These names sit beside secrets, in the provisioning ledger or in an entry above, but are not secret: `APP_ORIGIN` (the https origin of the deployed application, Story 1.6: the link in the recovery mail points at it, so it is required in staging and production and is an ordinary, readable setting; see `docs/deployment-setup.md`), `NEXT_PUBLIC_SUPABASE_ANON_KEY` (browser-visible by design), `SUPABASE_PROJECT_REF`, `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`, `QSTASH_URL`, `STAGING_SITE_URL` (Story 1.9: the https origin of the staging deployment, from which `scripts/staging-config.mjs` writes the scratch `config.toml` that `staging.yml` diffs the live Auth settings against; it is stored as a secret of the `staging` GitHub environment only so that the workflow reads every input the same way), `UPSTASH_REDIS_REST_URL`, `VAPID_PUBLIC_KEY`, the application issuer's public key set `SERVICE_KEYS_APPLICATION` (Story 1.12: the public keys that verify its tickets and commands; the gateway and the application hold it), `FILE_GATEWAY_URL` (the https origin of the file gateway, which the application hands to a browser with every ticket), the gateway's Storage endpoint and region `GATEWAY_STORAGE_S3_ENDPOINT` and `GATEWAY_STORAGE_S3_REGION`, the Storage S3 access key IDs `GATEWAY_STORAGE_S3_ACCESS_KEY_ID` and `BACKUP_STORAGE_S3_ACCESS_KEY_ID`, and the Backblaze key identifiers `B2_BACKUP_KEY_ID`, `B2_MANIFEST_READ_KEY_ID`, `B2_LEDGER_READ_KEY_ID` and `B2_LEDGER_APPEND_KEY_ID`. Exposing one grants nothing on its own.

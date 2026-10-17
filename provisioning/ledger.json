@@ -551,6 +551,69 @@
       "evidence": {}
     },
     {
+      "id": "gateway-database-role",
+      "service": "supabase",
+      "title": "The file gateway's database role `nova3d_gateway` given its password by hand, and its connection string stored in the Railway gateway service",
+      "kind": "attestation",
+      "due": "1-12",
+      "environments": ["staging"],
+      "secrets": ["GATEWAY_DATABASE_URL"],
+      "howto": [
+        "Apply `supabase/migrations/20261015120000_file_gateway.sql` to staging before the build that uses it deploys (the staging workflow does it from a push, or follow `docs/staging.md` by hand). It adds the unexposed `artifacts` schema with its six closed tables and two views, the role `nova3d_gateway` with NO password, the private `private-files` bucket, three functions and a preflight that probes them; no setting or secret.",
+        "In the Supabase dashboard's SQL editor give the role a password by hand: `alter role nova3d_gateway with password` and a long random password from your password manager in quotes. No migration, workflow or file holds it, and the one in `supabase/seed.sql` is the local stack's alone.",
+        "Build the connection string for the pooler in transaction mode (the user is `nova3d_gateway.<project-ref>`, on the pooler's host and port) and add `?sslmode=require` (or `verify-ca` or `verify-full`) to it, because the gateway refuses to start for staging or production with a connection that does not ask for TLS, and store it as `GATEWAY_DATABASE_URL` in the Railway gateway service's variables (`railway-files-service`). Never in Vercel, and never in a file: it is the gateway's alone.",
+        "Save an export of the Railway service's variable names (names, never values) outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "gateway-storage-s3-key",
+      "service": "supabase",
+      "title": "The file gateway's own Storage S3 key pair, stored in the Railway gateway service",
+      "kind": "attestation",
+      "due": "1-12",
+      "environments": ["staging"],
+      "secrets": ["GATEWAY_STORAGE_S3_ACCESS_KEY_ID", "GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY", "GATEWAY_STORAGE_S3_ENDPOINT", "GATEWAY_STORAGE_S3_REGION"],
+      "howto": [
+        "In the Supabase dashboard's Storage settings for the staging project, enable the S3 connection and create an access key pair for the gateway. Supabase cannot scope an S3 key below the project and the key bypasses row policies, so only the gateway holds one: the backup service gets a separate pair later (Story 8.9).",
+        "Note the S3 endpoint and the region the dashboard shows. Store the endpoint, the region, the access key ID and the secret access key as `GATEWAY_STORAGE_S3_ENDPOINT`, `GATEWAY_STORAGE_S3_REGION`, `GATEWAY_STORAGE_S3_ACCESS_KEY_ID` and `GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY` in the Railway gateway service's variables (`railway-files-service`). Never in Vercel.",
+        "Save an export of the Railway service's variable names (names, never values) outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "railway-files-service",
+      "service": "railway",
+      "title": "The file gateway service on Railway from the pushed image, with its variables, and the application's signing key and the gateway's address in Vercel",
+      "kind": "attestation",
+      "due": "1-12",
+      "environments": ["staging"],
+      "secrets": ["SERVICE_SIGNING_KEY_APPLICATION", "SERVICE_KEYS_APPLICATION", "FILE_GATEWAY_URL"],
+      "howto": [
+        "On your own machine generate the application's Ed25519 pair (`docs/secrets.md`, SERVICE_SIGNING_KEY_APPLICATION). Store the private half, as base64 PKCS#8, as `SERVICE_SIGNING_KEY_APPLICATION` in the staging Vercel project's Production-scope variables (never in a preview), and the public key set (JSON, with the key ID and the public key, the format is in `docs/secrets.md`) as `SERVICE_KEYS_APPLICATION` in the same project and in the Railway gateway service.",
+        "Push to `staging` so that `.github/workflows/workers.yml` builds `workers/files` from the repository root and prints the image digest, then create the `files` service in the Railway project (Virginia) from that digest (a manual step: `docs/staging.md`, Worker images), give it a public domain and the `/healthz` health check, and set its variables: `APP_ENV`, `INSTANCE_ID`, `APP_ORIGIN` (the staging https origin), `SERVICE_KEYS_APPLICATION`, and the five of `gateway-database-role` and `gateway-storage-s3-key`. Railway sets `PORT`. The service exits at start-up, with a message that names the variable, when anything is missing or when the database is not this environment.",
+        "Store the gateway's https origin as `FILE_GATEWAY_URL` in the staging Vercel project's Production-scope variables and redeploy. Run `node --env-file=.env.staging scripts/schedules.mjs check` and then `apply --confirm staging`: the registry now holds the hourly `staging-cleanup` task.",
+        "Save an export of the Railway service's variable names and of the Vercel project's variable names (names, never values) outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "hosted-gateway-check",
+      "service": "railway",
+      "title": "A file moved through the gateway on staging through the pooler, access ended while it streamed, and the hourly cleanup run",
+      "kind": "attestation",
+      "due": "1-12",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Run the checks in `docs/staging.md`, \"Verifying the file gateway\" (Story 1.12): `/healthz` answers; from a signed-in browser at the application's origin ask for a ticket, upload a few megabytes to the gateway, read it back whole and by range, and open a download link that carries a ticket; a request from another origin is refused. This is also the first time the gateway reaches the database through the Supabase pooler in transaction mode (no session state, no named prepared statements), which no local test can prove.",
+        "With a throwaway Account, disable it while a large file is downloading and see the stream stop; disable and re-enable it and see an old ticket refused.",
+        "Within an hour of the first expiry, `api.last_job_run('staging-cleanup')` shows a finished receipt (`idle` when nothing is expired, `ran` with its counts when something was removed, never `no_store` once the gateway is configured).",
+        "Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
       "id": "anthropic-workspace-spend-limit",
       "service": "anthropic",
       "title": "Dedicated Anthropic workspace with a spend limit for each environment",

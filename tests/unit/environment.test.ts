@@ -391,7 +391,7 @@ describe('hash keys (Story 1.3)', () => {
       for (const environment of ['preview', 'development']) {
         const value = good();
         const errors = validateEnvironment({...preview, VERCEL_ENV: environment, [name]: value});
-        expect(errors.join('\n'), `${environment} ${name}`).toMatch(new RegExp(`hold no Supabase, database or Stripe variables, account hashing keys, mail key or QStash variables: ${name}$`, 'm'));
+        expect(errors.join('\n'), `${environment} ${name}`).toMatch(new RegExp(`hold no Supabase, database or Stripe variables, account hashing keys, mail key, service-signing keys, file gateway secrets or QStash variables: ${name}$`, 'm'));
         expect(errors.join('\n')).not.toContain(value);
       }
     }
@@ -746,5 +746,83 @@ describe('the recovery variables (Story 1.6)', () => {
       const value = 'https://nova3d.example.test/with/a/path';
       expect(validateEnvironment({...staging, APP_ORIGIN: value}).join('\n')).not.toContain(value);
     });
+  });
+});
+
+// Story 1.12: the private half of a service-signing key signs transfer tickets and gateway commands, so a preview must never hold one; the
+// public key set and the gateway's address are not secret, are needed only by the routes that use them (which answer 503 without), and so are
+// neither forbidden in a preview nor required of a hosted deployment.
+describe('service-signing names (Story 1.12)', () => {
+  const signingKeys = ['SERVICE_SIGNING_KEY_APPLICATION', 'SERVICE_SIGNING_KEY_GATEWAY', 'SERVICE_SIGNING_KEY_CAD_WORKER', 'SERVICE_SIGNING_KEY_ENGINE_WORKER', 'SERVICE_SIGNING_KEY_BACKUP_SERVICE', 'SERVICE_SIGNING_KEY_HEARTBEAT'];
+  const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys, ...noMail};
+
+  it('are never set in a preview or a development deployment: each is named by the preview rule, and its value never printed', () => {
+    for (const name of signingKeys) {
+      for (const environment of ['preview', 'development']) {
+        const value = `value-of-${name.toLowerCase()}-must-never-be-printed`;
+        const errors = validateEnvironment({...preview, VERCEL_ENV: environment, [name]: value});
+        expect(errors.join('\n'), `${environment} ${name}`).toMatch(new RegExp(`hold no Supabase, database or Stripe variables, account hashing keys, mail key, service-signing keys, file gateway secrets or QStash variables: ${name}$`, 'm'));
+        expect(errors.join('\n')).not.toContain(value);
+      }
+    }
+  });
+
+  it('are all named when several are held, in order, with the other forbidden names beside them', () => {
+    const errors = validateEnvironment({...preview, SERVICE_SIGNING_KEY_GATEWAY: 'g', SERVICE_SIGNING_KEY_APPLICATION: 'a', QSTASH_TOKEN: 'q'});
+    expect(errors.join('\n')).toMatch(/: QSTASH_TOKEN, SERVICE_SIGNING_KEY_APPLICATION, SERVICE_SIGNING_KEY_GATEWAY$/m);
+  });
+
+  it('are not "held" when empty, like the other forbidden names, and do not catch names that only look like them', () => {
+    expect(validateEnvironment({...preview, SERVICE_SIGNING_KEY_APPLICATION: ''})).toEqual([]);
+    expect(validateEnvironment({...preview, MY_SERVICE_SIGNING_KEY_APPLICATION: 'x', SERVICE_SIGNING_KEYS_APPLICATION: 'x', SERVICE_KEYS_APPLICATION: 'x'})).toEqual([]);
+  });
+
+  it('may be held by a staging or production deployment, which does not need them (the ticket route and the cleanup fail closed without)', () => {
+    for (const name of signingKeys) expect(validateEnvironment({...staging, [name]: 'a-private-key-that-is-not-checked-here'}), name).toEqual([]);
+    expect(validateEnvironment({...staging, APP_ENV: 'production', NEXT_PUBLIC_APP_ENV: 'production', SYNTHETIC_DATA_ENABLED: 'false', SERVICE_SIGNING_KEY_APPLICATION: 'x'})).toEqual([]);
+    // The control: the same environment with none of them is complete.
+    expect(validateEnvironment(staging)).toEqual([]);
+    expect(Object.keys(staging).filter((name) => /^SERVICE_|^FILE_GATEWAY_URL$/.test(name))).toEqual([]);
+  });
+
+  it('leaves the public key set and the gateway\'s address out of the preview rule: they are not secret', () => {
+    expect(validateEnvironment({...preview, SERVICE_KEYS_APPLICATION: '{}', SERVICE_KEYS_GATEWAY: '{}', FILE_GATEWAY_URL: 'https://files.example.test'})).toEqual([]);
+    expect(validateEnvironment({...staging, SERVICE_KEYS_APPLICATION: '{}', FILE_GATEWAY_URL: 'https://files.example.test'})).toEqual([]);
+  });
+
+  it('requires none of the gateway\'s names of a hosted deployment, so /api/health and the build are unchanged', async () => {
+    const source = (await import('node:fs')).readFileSync(new URL('../../lib/environment.ts', import.meta.url), 'utf8').replace(/^\s*\/\/.*$/gm, '');
+    const required = source.slice(source.indexOf('const requiredVariables'), source.indexOf('const previewForbiddenName'));
+    expect(required).not.toMatch(/SERVICE_SIGNING|SERVICE_KEYS|FILE_GATEWAY|GATEWAY_/);
+    expect(source).toMatch(/const previewForbiddenName = [^\n]*SERVICE_SIGNING_KEY_/);
+  });
+});
+
+// Story 1.12 review: the file gateway's two secrets (the password of its database role, in GATEWAY_DATABASE_URL, and its Storage secret key) are held by the gateway
+// service and by nothing else, so a preview must not hold either. Its non-secret names are not forbidden.
+describe('the file gateway\'s secrets (Story 1.12 review)', () => {
+  const secrets = ['GATEWAY_DATABASE_URL', 'GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY'];
+  const notSecret = ['GATEWAY_STORAGE_S3_ACCESS_KEY_ID', 'GATEWAY_STORAGE_S3_ENDPOINT', 'GATEWAY_STORAGE_S3_REGION', 'SERVICE_KEYS_APPLICATION', 'FILE_GATEWAY_URL'];
+  const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys, ...noMail};
+
+  it('are never set in a preview or a development deployment: each is named, and its value never printed', () => {
+    for (const name of secrets) {
+      for (const environment of ['preview', 'development']) {
+        const value = `value-of-${name.toLowerCase()}-must-never-be-printed`;
+        const errors = validateEnvironment({...preview, VERCEL_ENV: environment, [name]: value});
+        expect(errors.join('\n'), `${environment} ${name}`).toMatch(new RegExp(`file gateway secrets or QStash variables: ${name}$`, 'm'));
+        expect(errors.join('\n')).not.toContain(value);
+      }
+    }
+    expect(validateEnvironment({...preview, GATEWAY_DATABASE_URL: ''})).toEqual([]);
+  });
+
+  it('leaves the gateway\'s non-secret names out of the rule, and does not catch a name that only looks like a secret', () => {
+    for (const name of notSecret) expect(validateEnvironment({...preview, [name]: 'x'}), name).toEqual([]);
+    expect(validateEnvironment({...preview, MY_GATEWAY_DATABASE_URL: 'x', GATEWAY_DATABASE_URL_OLD: 'x'})).toEqual([]);
+  });
+
+  it('may be held by a hosted deployment, which does not need them', () => {
+    for (const name of secrets) expect(validateEnvironment({...staging, [name]: 'x'}), name).toEqual([]);
   });
 });

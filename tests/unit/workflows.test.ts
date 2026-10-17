@@ -294,8 +294,12 @@ describe('workers.yml: an image for each worker, pushed by digest', () => {
   const list = workers.jobs.list;
   const image = workers.jobs.image;
 
-  it('runs on a push to staging that changes anything under workers/, and on nothing else', () => {
-    expect(workers.on).toEqual({push: {branches: ['staging'], paths: ['workers/**']}});
+  it('runs on a push to staging that changes anything under workers/ or anything the images copy in, and on nothing else', () => {
+    // Story 1.12 review: besides workers/**, everything the gateway image bakes in (the Dockerfile copies the two shared lib modules and the manifest and
+    // lockfile it installs from, and .dockerignore decides what reaches the build), so a change to any of them rebuilds the image.
+    expect(workers.on).toEqual({
+      push: {branches: ['staging'], paths: ['workers/**', 'lib/service-signing.ts', 'lib/canonical-json.ts', 'package.json', 'package-lock.json', '.dockerignore']},
+    });
     expect(workers.permissions).toEqual({contents: 'read'});
     expect(workers.concurrency?.['cancel-in-progress']).toBe(false);
   });
@@ -315,7 +319,8 @@ describe('workers.yml: an image for each worker, pushed by digest', () => {
     expect(login?.with).toEqual({registry: 'ghcr.io', username: '${{ github.repository_owner }}', password: '${{ secrets.GHCR_TOKEN }}'});
     const build = image.steps?.find((step) => step.uses?.startsWith('docker/build-push-action@'));
     expect(build?.id).toBe('push');
-    expect(build?.with?.context).toBe('workers/${{ matrix.worker }}');
+    // Story 1.12: the repository root is the context (a worker shares lib/ modules and the root lockfile), the Dockerfile is still its own.
+    expect(build?.with?.context).toBe('.');
     expect(build?.with?.file).toBe('workers/${{ matrix.worker }}/Dockerfile');
     expect(build?.with?.push).toBe(true);
     expect(String(build?.with?.tags)).toBe('${{ steps.image.outputs.name }}:${{ github.sha }}');

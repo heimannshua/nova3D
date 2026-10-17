@@ -2,7 +2,15 @@ import {execFileSync} from 'node:child_process';
 import {randomBytes} from 'node:crypto';
 import type {Client} from 'pg';
 
-export type Stack = {apiUrl: string; anonKey: string; serviceKey: string; dbUrl: string; jwtSecret: string | undefined};
+export type Stack = {
+  apiUrl: string;
+  anonKey: string;
+  serviceKey: string;
+  dbUrl: string;
+  jwtSecret: string | undefined;
+  /** The Storage S3 endpoint, its region and the stack's own key pair (Story 1.12: the gateway's key pair, locally). */
+  s3: {endpoint: string; region: string; accessKeyId: string; secretAccessKey: string};
+};
 
 let cached: Stack | undefined;
 
@@ -19,12 +27,26 @@ export function localStack(): Stack {
     throw new Error('The local Supabase stack is not running. Run `supabase start` first.');
   }
   const values = Object.fromEntries([...output.matchAll(/^([A-Z0-9_]+)="?([^"\n]*)"?$/gm)].map((match) => [match[1], match[2]]));
-  const stack = {apiUrl: values.API_URL, anonKey: values.ANON_KEY, serviceKey: values.SERVICE_ROLE_KEY, dbUrl: values.DB_URL, jwtSecret: values.JWT_SECRET};
+  const stack = {
+    apiUrl: values.API_URL,
+    anonKey: values.ANON_KEY,
+    serviceKey: values.SERVICE_ROLE_KEY,
+    dbUrl: values.DB_URL,
+    jwtSecret: values.JWT_SECRET,
+    s3: {endpoint: values.STORAGE_S3_URL, region: values.S3_PROTOCOL_REGION, accessKeyId: values.S3_PROTOCOL_ACCESS_KEY_ID, secretAccessKey: values.S3_PROTOCOL_ACCESS_KEY_SECRET},
+  };
   if (!stack.apiUrl || !stack.anonKey || !stack.serviceKey || !stack.dbUrl) {
     throw new Error('`supabase status -o env` did not report the API URL, keys and DB URL.');
   }
   cached = stack;
   return stack;
+}
+
+/** The stack's Storage S3 settings, for the tests that run the gateway (Story 1.12). Read lazily so no other test depends on them. */
+export function s3Of(stack: Stack) {
+  const {endpoint, region, accessKeyId, secretAccessKey} = stack.s3;
+  if (!endpoint || !region || !accessKeyId || !secretAccessKey) throw new Error('`supabase status -o env` did not report the Storage S3 endpoint, region and key pair, which this test needs. Is Storage running?');
+  return stack.s3;
 }
 
 /** The stack's JWT secret, for the one test that signs a token. Read lazily so no other test depends on it. */

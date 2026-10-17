@@ -70,8 +70,8 @@ export type JobRequestOptions = {
   accounts?: Omit<AccountsOptions, 'env'>;
   /** Runs the task; the tasks of lib/job-tasks.ts by default. The tests pass their own to make one fail. */
   run?: typeof runTask;
-  /** What the task needs besides the environment (the ledger store); the configured one by default. */
-  task?: Pick<TaskContext, 'ledgerStore'>;
+  /** What the task needs besides the environment (the ledger store, the file gateway's client); the configured ones by default. */
+  task?: Pick<TaskContext, 'ledgerStore' | 'gateway'>;
 };
 
 /** The signing keys, or null when either is not set (a placeholder is not a key). */

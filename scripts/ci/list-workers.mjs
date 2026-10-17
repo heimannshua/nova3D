@@ -5,7 +5,7 @@
 //
 // Prints the JSON array of worker names (sorted) on the first line of standard output. When GITHUB_OUTPUT is set (a workflow step) it also
 // appends `matrix=<that JSON>` and `any=true|false` to it, so .github/workflows/workers.yml can fan out over the workers and skip its image
-// job when there are none (none exists yet: the first arrives with Story 2.7). A name must be lower-case letters, digits and hyphens: it
+// job when there are none (the first worker is the file gateway, workers/files, Story 1.12; the others arrive with Story 2.7). A name must be lower-case letters, digits and hyphens: it
 // becomes part of an image name in GitHub Container Registry. Anything else stops with a message, because an image that could not be
 // named would otherwise be silently left unbuilt.
 //

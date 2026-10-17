@@ -3,9 +3,10 @@ import {chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSyn
 import {createServer, type Server} from 'node:http';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
-import {randomBytes} from 'node:crypto';
+import {generateKeyPairSync, randomBytes} from 'node:crypto';
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, it} from 'vitest';
 import {decodeHashKey, hashKeyProblem} from '@/lib/environment';
+import {loadSigner, parseKeySet} from '@/lib/service-signing';
 
 const repo = resolve(import.meta.dirname, '../..');
 const script = join(repo, 'scripts/setup-env.mjs');
@@ -312,5 +313,105 @@ describe('setup-env local hashing keys (Stories 1.3 and 1.6)', () => {
     rmSync(envFile());
     expect((await setup()).code).toBe(0);
     expect(valuesOf(read(envFile()), 'INVITATION_HASH_KEY')[0]).not.toBe(first);
+  });
+});
+
+describe('setup-env local: the file gateway (Story 1.12)', () => {
+  const privateName = 'SERVICE_SIGNING_KEY_APPLICATION';
+  const keySetName = 'SERVICE_KEYS_APPLICATION';
+  const gatewayNames = ['GATEWAY_DATABASE_URL', 'GATEWAY_STORAGE_S3_ENDPOINT', 'GATEWAY_STORAGE_S3_REGION', 'GATEWAY_STORAGE_S3_ACCESS_KEY_ID', 'GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY'];
+  // The value as the file holds it: the key set is written in single quotes, and a reader (Node's --env-file, Next, the tests) strips them.
+  const unquote = (value: string) => value.trim().replace(/^(["'])(.*)\1$/, '$2');
+  const pairOf = (text: string) => ({privateKey: unquote(valuesOf(text, privateName)[0]), keySet: unquote(valuesOf(text, keySetName)[0])});
+  const usable = (pair: {privateKey: string; keySet: string}) => {
+    const parsed = parseKeySet(pair.keySet, 'application');
+    return parsed.ok && loadSigner(pair.privateKey, parsed.keySet).ok;
+  };
+  /** A `supabase` that also reports the database and Storage values the gateway's variables come from. */
+  function stubWithStorage(extra: string[]) {
+    const lines = [`API_URL="${origin}"`, `ANON_KEY="${STUB_ANON}"`, `SERVICE_ROLE_KEY="${STUB_SERVICE}"`, ...extra];
+    writeFileSync(join(bin, 'supabase'), `#!/bin/sh\nprintf '%s\\n' ${lines.map((line) => `'${line}'`).join(' ')}\n`);
+    chmodSync(join(bin, 'supabase'), 0o755);
+  }
+  const storage = ['DB_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"', 'STORAGE_S3_URL="http://127.0.0.1:54321/storage/v1/s3"', 'S3_PROTOCOL_REGION="local"', 'S3_PROTOCOL_ACCESS_KEY_ID="stub-s3-key-id"', 'S3_PROTOCOL_ACCESS_KEY_SECRET="stub-s3-secret-never-printed"'];
+
+  it('writes an Ed25519 pair for the application: the private half and the public key set that match, never printed', async () => {
+    const result = await setup();
+    expect(result.code, result.stderr).toBe(0);
+    const text = read(envFile());
+    const pair = pairOf(text);
+    expect(usable(pair)).toBe(true);
+    expect(JSON.parse(pair.keySet)).toMatchObject({issuer: 'application', active: 'local-1', retiring: null});
+    expect(result.stdout).toContain(privateName);
+    expect(result.stdout).toContain(keySetName);
+    expect(result.stdout + result.stderr).not.toContain(pair.privateKey);
+    expect(mode(envFile())).toBe(0o600);
+    // The gateway's address comes from the template.
+    expect(valuesOf(text, 'FILE_GATEWAY_URL')).toEqual(['http://127.0.0.1:8080']);
+  });
+
+  it('keeps a pair that matches, so tickets signed by it stay valid, and says nothing changed', async () => {
+    expect((await setup()).code).toBe(0);
+    const first = pairOf(read(envFile()));
+    const second = await setup();
+    expect(second.code, second.stderr).toBe(0);
+    expect(pairOf(read(envFile()))).toEqual(first);
+    expect(second.stdout).toContain('already matches');
+  });
+
+  it('replaces a pair that does not match as a PAIR (never one half), and one that is malformed or only half there', async () => {
+    expect((await setup()).code).toBe(0);
+    const good = pairOf(read(envFile()));
+    const other = generateKeyPairSync('ed25519');
+    const strangerPrivate = other.privateKey.export({type: 'pkcs8', format: 'der'}).toString('base64');
+    for (const broken of [
+      `${privateName}=${strangerPrivate}\n${keySetName}='${JSON.stringify({issuer: 'application', active: 'local-1', retiring: null, keys: JSON.parse(good.keySet).keys})}'\n`,
+      `${privateName}=not-a-key\n${keySetName}='{}'\n`,
+      `${privateName}=${good.privateKey}\n`,
+      `${keySetName}='${good.keySet}'\n`,
+    ]) {
+      writeFileSync(envFile(), broken, {mode: 0o600});
+      const result = await setup();
+      expect(result.code, result.stderr).toBe(0);
+      const repaired = pairOf(read(envFile()));
+      expect(usable(repaired), broken.slice(0, 40)).toBe(true);
+      expect(valuesOf(read(envFile()), privateName)).toHaveLength(1);
+      expect(valuesOf(read(envFile()), keySetName)).toHaveLength(1);
+      expect(result.stdout + result.stderr).not.toContain(repaired.privateKey);
+    }
+  });
+
+  it('writes the gateway\'s database role and Storage key pair from the stack, when the stack reports them, and keeps them on a second run', async () => {
+    stubWithStorage(storage);
+    const result = await setup();
+    expect(result.code, result.stderr).toBe(0);
+    const text = read(envFile());
+    const url = new URL(valuesOf(text, 'GATEWAY_DATABASE_URL')[0]);
+    // Its own role, on the stack's host and port, with the local password supabase/seed.sql sets: not the owner's.
+    expect([url.username, url.hostname, url.port, url.pathname]).toEqual(['nova3d_gateway', '127.0.0.1', '54322', '/postgres']);
+    expect(url.password).not.toBe('postgres');
+    expect(valuesOf(text, 'GATEWAY_STORAGE_S3_ENDPOINT')).toEqual(['http://127.0.0.1:54321/storage/v1/s3']);
+    expect(valuesOf(text, 'GATEWAY_STORAGE_S3_REGION')).toEqual(['local']);
+    expect(valuesOf(text, 'GATEWAY_STORAGE_S3_ACCESS_KEY_ID')).toEqual(['stub-s3-key-id']);
+    expect(valuesOf(text, 'GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY')).toEqual(['stub-s3-secret-never-printed']);
+    for (const name of gatewayNames) expect(result.stdout, name).toContain(name);
+    expect(result.stdout + result.stderr).not.toContain('stub-s3-secret-never-printed');
+    expect(result.stdout + result.stderr).not.toContain(url.password);
+    const again = await setup();
+    expect(again.code, again.stderr).toBe(0);
+    expect(again.stdout).toContain('already matches');
+    expect(read(envFile())).toBe(text);
+  });
+
+  it('writes nothing for the gateway that the stack did not report, and never the owner\'s password', async () => {
+    const result = await setup();
+    expect(result.code, result.stderr).toBe(0);
+    const text = read(envFile());
+    for (const name of gatewayNames) expect(valuesOf(text, name), name).toEqual([]);
+    stubWithStorage(['DB_URL="postgresql://postgres:postgres@db.example.com:5432/postgres"']);
+    const hosted = await setup();
+    expect(hosted.code, hosted.stderr).toBe(0);
+    // A database that is not on loopback is not a local stack: the gateway gets no role for it.
+    expect(valuesOf(read(envFile()), 'GATEWAY_DATABASE_URL')).toEqual([]);
   });
 });

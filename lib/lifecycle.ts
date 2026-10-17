@@ -15,6 +15,11 @@
 //   lastJobRun            api.last_job_run       the newest finished receipt of a task (Story 1.13's alarm reads it)
 //   purgeDormantIdentities api.purge_dormant_identities  deletes the Auth identities that never became Accounts, 30 days idle
 //
+// Story 1.12 adds the file gateway's two (nothing else calls them; lib/job-tasks.ts and an operator are the callers):
+//
+//   revokeServiceKey      api.revoke_service_key     records a key's revocation and ends every staging lease and transfer handle opened under it
+//   listExpiredStaging    api.list_expired_staging   names the leases the hourly cleanup removes (expired or released, not yet deleted)
+//
 // SERVER-ONLY (it imports lib/accounts.ts, which holds the service-role key). Like lib/accounts.ts and lib/authority.ts it uses
 // erasable TypeScript syntax and relative `.ts` imports, so a worker outside Next.js can import it through Node type stripping.
 //
@@ -22,6 +27,7 @@
 // Nothing here logs, and no error message holds an ID, a handle or a hash.
 import {callRow, hashClientAddress, hashKey, oneOf, operationOutcomes, requireUuid, unexpected, type AccountsOptions, type OperationOutcome, type Row} from './accounts.ts';
 import {isHiddenState, type HiddenState} from './hidden-state.ts';
+import {isServiceIssuer} from './service-signing.ts';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const handlePattern = /^[0-9a-f]{32}$/;
@@ -324,4 +330,58 @@ export async function purgeDormantIdentities(input: {limit?: number} = {}, optio
   // The batch examines at most `limit` identities, each of which is deleted, kept or locked.
   if (deleted === null || kept === null || locked === null || remaining === null || deleted + kept + locked > limit) throw unexpected();
   return {deleted, kept, locked, remaining};
+}
+
+// The file gateway (Story 1.12) -----------------------------------------------------------------------------------------------------------
+
+const kidPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+const reasonPattern = /^[a-z][a-z0-9_]{0,39}$/;
+
+/**
+ * api.revoke_service_key: `revoked` (the key is revoked from this moment: a ticket or command under it is refused at redemption) or `exists` (it was
+ * revoked already; whatever was still open under it is ended again). `leases` and `transfers` are how many staging leases and transfers (their handles) this
+ * call ended, in the same transaction.
+ */
+export type KeyRevocation = {outcome: 'revoked' | 'exists'; leases: number; transfers: number};
+
+/**
+ * Revokes a service-signing key: suspected compromise. Nothing in the application calls this; the operator does (docs/secrets.md), through the
+ * service role. In one transaction it records the revocation and ends every staging lease and transfer handle opened under the key, so a transfer
+ * in flight stops at its next chunk. The issuer is one of lib/service-signing.ts `serviceIssuers`, the key ID is the `kid` of the key set, and the
+ * reason is one lower-case word such as `compromise`.
+ */
+export async function revokeServiceKey(input: {issuer: string; kid: string; reason: string}, options: AccountsOptions = {}): Promise<KeyRevocation> {
+  if (!isServiceIssuer(input.issuer)) throw new TypeError('issuer must be a service issuer');
+  if (typeof input.kid !== 'string' || !kidPattern.test(input.kid)) throw new TypeError('kid must be a key ID');
+  if (typeof input.reason !== 'string' || !reasonPattern.test(input.reason)) throw new TypeError('reason must be one lower-case word');
+  const row = await callRow('revoke_service_key', {p_issuer: input.issuer, p_kid: input.kid, p_reason: input.reason}, options);
+  const outcome = oneOf(row.outcome, ['revoked', 'exists'] as const);
+  const leases = count(row.leases);
+  const transfers = count(row.transfers);
+  if (leases === null || transfers === null) throw unexpected();
+  return {outcome, leases, transfers};
+}
+
+/** A staging lease whose staging is to be removed: its upload and its Account. Opaque IDs only. */
+export type ExpiredLease = {uploadId: string; accountId: string};
+
+export const maxExpiredStaging = 50;
+
+/**
+ * api.list_expired_staging: the leases the hourly cleanup removes (expired or released, not yet deleted), oldest first, at most `limit` (default and
+ * most: 50). Read-only: the gateway deletes, on a signed command, and checks again at that moment that the lease is still expired or released.
+ */
+export async function listExpiredStaging(input: {limit?: number} = {}, options: AccountsOptions = {}): Promise<ExpiredLease[]> {
+  const limit = input.limit ?? maxExpiredStaging;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > maxExpiredStaging) throw new TypeError('limit must be a whole number from 1 to 50');
+  const row = await callRow('list_expired_staging', {p_limit: limit}, options);
+  if (!Array.isArray(row.leases) || row.leases.length > limit) throw unexpected();
+  return row.leases.map((item: unknown) => {
+    const lease = (typeof item === 'object' && item !== null && !Array.isArray(item) ? item : {}) as Row;
+    const uploadId = text(lease.upload_id);
+    const accountId = text(lease.account_id);
+    // Both are IDs: they name a prefix that is deleted, so anything else is not an answer.
+    if (!uploadId || !uuidPattern.test(uploadId) || !accountId || !uuidPattern.test(accountId)) throw unexpected();
+    return {uploadId: uploadId.toLowerCase(), accountId: accountId.toLowerCase()};
+  });
 }

@@ -7,9 +7,8 @@
 // {"task": <task>, "instance": <INSTANCE_ID>}. `node scripts/schedules.mjs check` compares the live schedules with this list and
 // `apply` makes them equal; an operator runs both, never CI. Every cron expression is in UTC (QStash's default; none names a zone).
 //
-// Later stories add their tasks HERE and in lib/job-tasks.ts, and nowhere else:
+// Story 1.12 added the staging cleanup (hourly). Later stories add their tasks HERE and in lib/job-tasks.ts, and nowhere else:
 //   Story 2.7  the outbox sweep with lease and deadline expiry (every minute)
-//   Story 1.12 staging cleanup (hourly)
 //   Story 8.3  purge deadlines (hourly)
 //   Story 8.9  the backup monitor (every 30 minutes)
 // The cleanups this story leaves deferred (session grants, step-up nonces, recovery tokens, outbox retention) are not registered.
@@ -29,6 +28,12 @@ export const scheduleRegistry = [
     // Every five minutes, UTC.
     cron: '*/5 * * * *',
     description: 'Copies pending ledger events to the ledger store, in order, within one lease (at most 50 events). Idle when nothing is pending.',
+  },
+  {
+    task: 'staging-cleanup',
+    // Every hour, on the hour, UTC.
+    cron: '0 * * * *',
+    description: 'Removes the staging of expired or released upload leases through the file gateway, one signed delete command each (at most 50); a lease renewed meanwhile is kept.',
   },
 ] as const;
 

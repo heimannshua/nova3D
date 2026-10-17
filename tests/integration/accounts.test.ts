@@ -44,6 +44,9 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
       'step_up_nonces',
     ],
     projects: ['project_commands', 'projects', 'workspaces'],
+    // Story 1.12: the Artifacts schema (the file gateway's records). Not exposed by the Data API; only the gateway role and the owner reach it, so these
+    // are checked here as closed to anon, authenticated and service_role like the others (tests/integration/file-gateway-db.test.ts holds the rest).
+    artifacts: ['attachment_transforms', 'manifests', 'service_key_revocations', 'staging_leases', 'ticket_redemptions', 'transfer_handles'],
   };
   const apiFunctions = [
     'account_status',
@@ -70,6 +73,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'last_job_run',
     'ledger_pending',
     'list_accounts',
+    'list_expired_staging',
     'list_invitations',
     'list_projects',
     'lookup_status',
@@ -84,6 +88,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'rename_project',
     'revoke_grants',
     'revoke_invitation',
+    'revoke_service_key',
     'seed_preauthorization',
     'set_preference',
     'start_step_up',

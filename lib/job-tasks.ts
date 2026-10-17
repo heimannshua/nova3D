@@ -9,14 +9,21 @@
 //                          chain in the store is damaged, so the run FAILS (LedgerConflictError or LedgerCorruptError, recorded by class
 //                          name only) and the scheduler retries it, instead of recording a run that did what it was for.
 //   dormant-identity-purge api.purge_dormant_identities(100): the counts are the result.
+//   staging-cleanup        Story 1.12. With no gateway configured (lib/gateway-client.ts `configuredGatewayClient`: the application's keys and the gateway's
+//                          address) the run is `no_store` and nothing is read or deleted. Otherwise api.list_expired_staging(50) names the leases that are
+//                          expired or released: none is `idle`; each is one signed `delete-staging` command to the gateway, which checks AGAIN, in one
+//                          statement, that the lease is still expired or released and deletes only that upload's exact prefix (a lease renewed meanwhile is
+//                          `kept`). The result is counts only. A gateway that is down or refuses a command FAILS the run (the class of the error is recorded)
+//                          and the scheduler retries it: the list is read afresh and the commands are idempotent.
 //
 // A task returns its outcome and a result of counts, booleans and single words (lib/lifecycle.ts `isJobResult`): the receipt holds nothing
 // else. A task that throws is a `failed` run, and the route records the error's CLASS NAME only, never its message.
 //
 // SERVER-ONLY (it imports lib/lifecycle.ts). Erasable TypeScript syntax and relative `.ts` imports, like the modules it serves.
 import type {AccountsOptions} from './accounts.ts';
+import {configuredGatewayClient, GatewayError, GatewayUnavailableError, type GatewayClient} from './gateway-client.ts';
 import {relayLedger, type LedgerStore} from './ledger.ts';
-import {isJobResult, ledgerPending, purgeDormantIdentities, type JobOutcome, type JobResult} from './lifecycle.ts';
+import {isJobResult, ledgerPending, listExpiredStaging, purgeDormantIdentities, type JobOutcome, type JobResult} from './lifecycle.ts';
 import type {ScheduledTask} from './schedules.ts';
 
 /** How many events one firing of the relay copies at most, and how long it holds the relay's lease. One firing is one lease. */
@@ -24,6 +31,8 @@ export const relayBatchLimit = 50;
 export const relayLeaseSeconds = 30;
 /** How many identities one firing of the purge examines at most. */
 export const purgeBatchLimit = 100;
+/** How many expired leases one firing of the staging cleanup removes at most. */
+export const stagingCleanupLimit = 50;
 
 /**
  * The relay found the ledger store's chain damaged: another writer created the next object first with different bytes (`conflict`), or what the
@@ -43,6 +52,17 @@ export class LedgerCorruptError extends Error {
   }
 }
 
+/**
+ * The staging cleanup could not clean every lease it listed (the gateway refused a command for one or more of them). Thrown, not returned, so the receipt
+ * says `failed` with this class name only and the scheduler retries; the message holds no ID.
+ */
+export class StagingCleanupIncompleteError extends Error {
+  constructor() {
+    super('the staging cleanup left some expired leases uncleaned');
+    this.name = 'StagingCleanupIncompleteError';
+  }
+}
+
 /** What a task answers: how the run went (never `failed`: a task that cannot finish throws) and what it counted. */
 export type TaskResult = {outcome: Exclude<JobOutcome, 'failed'>; result: JobResult};
 
@@ -56,6 +76,11 @@ export type TaskContext = {
    * The tests pass the fixture store, or `null` for none.
    */
   ledgerStore?: LedgerStore | null;
+  /**
+   * The file gateway's client (Story 1.12). Left out, the configured one is used (`configuredGatewayClient`: none unless the application's signing keys and
+   * the gateway's address are set, so the cleanup answers `no_store`). The tests pass a fake, or `null` for none.
+   */
+  gateway?: GatewayClient | null;
 };
 
 /**
@@ -86,10 +111,39 @@ async function dormantIdentityPurgeTask(context: TaskContext): Promise<TaskResul
   return {outcome: 'ran', result: {deleted: report.deleted, kept: report.kept, locked: report.locked, remaining: report.remaining}};
 }
 
+async function stagingCleanupTask(context: TaskContext): Promise<TaskResult> {
+  const gateway = context.gateway === undefined ? configuredGatewayClient() : context.gateway;
+  // No gateway to delete through: nothing is read and nothing is deleted. The leases wait, and so does the work.
+  if (gateway === null) return {outcome: 'no_store', result: {configured: false}};
+  const leases = await listExpiredStaging({limit: stagingCleanupLimit}, context.accounts ?? {});
+  if (leases.length === 0) return {outcome: 'idle', result: {expired: 0}};
+  let deleted = 0;
+  let kept = 0;
+  let failed = 0;
+  // One at a time, and each on its own. A gateway that cannot be reached (or says it is unavailable) stops the loop and fails the run: the rest would fail the
+  // same way, and fifty attempts at a gateway that is down help nobody. Anything else that goes wrong is THIS lease's: it is counted and the loop goes on, so
+  // one lease the gateway refuses cannot keep the leases behind it from ever being cleaned.
+  for (const lease of leases) {
+    try {
+      const answer = await gateway.deleteStaging({accountId: lease.accountId, uploadId: lease.uploadId});
+      if (answer.outcome === 'deleted') deleted += 1;
+      else kept += 1;
+    } catch (error) {
+      if (error instanceof GatewayUnavailableError || (error instanceof GatewayError && error.status >= 500)) throw error;
+      failed += 1;
+    }
+  }
+  // A lease that could not be cleaned makes the run a failure (the receipt records the error's class, and the scheduler retries it): the lease is still
+  // listed the next time, and the commands are idempotent.
+  if (failed > 0) throw new StagingCleanupIncompleteError();
+  return {outcome: 'ran', result: {expired: leases.length, deleted, kept}};
+}
+
 /** Every registered task, by ID. A task added to lib/schedules.ts must be added here: the compiler and a test both insist. */
 export const tasks: Record<ScheduledTask, (context: TaskContext) => Promise<TaskResult>> = {
   'ledger-relay': ledgerRelayTask,
   'dormant-identity-purge': dormantIdentityPurgeTask,
+  'staging-cleanup': stagingCleanupTask,
 };
 
 /**

@@ -368,7 +368,7 @@ describe('request integrity (Story 1.4c) has one definition and one way to check
 
   it('asks the database for a token through the proxy only, and checks one through requireMutationAccess only', () => {
     expect(callers('issueCsrfToken')).toEqual(['lib/access.ts', 'proxy.ts']);
-    expect(callers('requireMutationAccess')).toEqual(['app/api/kit/mutation/route.ts', 'lib/auth.ts']);
+    expect(callers('requireMutationAccess')).toEqual(['app/api/kit/mutation/route.ts', 'app/api/transfers/tickets/route.ts', 'lib/auth.ts']);
   });
 
   it('decides the origin in one pure function, used by the proxy and the route helper and by nothing else', () => {
@@ -1182,7 +1182,7 @@ describe('Tombstones, the ledger and the status route (Story 1.8) have one write
     for (const name of apiNames) expect(withoutComments(read('lib/lifecycle.ts')), name).toMatch(new RegExp(`callRow\\(\\s*'${name}'`));
   });
 
-  it('asks the guard for a target from lib/authority.ts alone, and nothing asks it yet: the file gateway (Story 1.12) will', () => {
+  it('asks the guard for a target from lib/authority.ts alone, and nothing in the application asks it yet (the file gateway of Story 1.12 holds no service-role key and so cannot: it asks its own authorization views, artifacts.session_authority and the resolver of the target)', () => {
     expect(callers('guardTarget')).toEqual(['lib/authority.ts', 'lib/lifecycle.ts']);
     expect(callers('authorizeTarget')).toEqual(['lib/authority.ts']);
   });
@@ -1330,7 +1330,7 @@ describe('Tombstones, the ledger and the status route (Story 1.8) have one write
   });
 });
 
-describe('Scheduled jobs (Story 1.9) have one route, one verifier, two tasks and one deleter', () => {
+describe('Scheduled jobs (Story 1.9) have one route, one verifier, three tasks (Story 1.12 added the staging cleanup) and one deleter', () => {
   const sources = [
     ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
     ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
@@ -1428,12 +1428,12 @@ describe('Scheduled jobs (Story 1.9) have one route, one verifier, two tasks and
     expect(environment).toMatch(/const previewForbiddenName = [^\n]*QSTASH_/);
   });
 
-  it('registers exactly two tasks, each run by one function, and no cleanup beyond them', () => {
+  it('registers exactly three tasks, each run by one function, and no cleanup beyond them (the third is Story 1.12\'s staging cleanup)', () => {
     const registry = withoutComments(read('lib/schedules.ts'));
-    expect([...registry.matchAll(/task: '([a-z-]+)'/g)].map((match) => match[1])).toEqual(['dormant-identity-purge', 'ledger-relay']);
+    expect([...registry.matchAll(/task: '([a-z-]+)'/g)].map((match) => match[1])).toEqual(['dormant-identity-purge', 'ledger-relay', 'staging-cleanup']);
     expect(registry).not.toMatch(/^import\s|\bfrom\s+['"]/m);
     const tasks = withoutComments(read('lib/job-tasks.ts'));
-    expect([...tasks.matchAll(/^  '([a-z-]+)': \w+,$/gm)].map((match) => match[1])).toEqual(['ledger-relay', 'dormant-identity-purge']);
+    expect([...tasks.matchAll(/^  '([a-z-]+)': \w+,$/gm)].map((match) => match[1])).toEqual(['ledger-relay', 'dormant-identity-purge', 'staging-cleanup']);
     for (const deferred of ['session_grants', 'step_up_nonces', 'recovery_tokens', 'ledger_outbox']) expect(tasks, deferred).not.toContain(deferred);
   });
 
@@ -1554,5 +1554,300 @@ describe('Scheduled jobs (Story 1.9) have one route, one verifier, two tasks and
     expect(now.indexOf("'no_identity'")).toBeGreaterThan(now.indexOf('identity.verified_google(p_user_id)'));
     // The consumption of a pre-authorization is untouched by this migration.
     expect(migrationCode).not.toMatch(/function api\.consume_preauthorization/);
+  });
+});
+
+describe('The file gateway (Story 1.12): no file through a Vercel function, one place that touches Storage, one place that reads each variable', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+    'instrumentation.ts',
+    'instrumentation-node.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const gateway = files('workers/files/src', (name) => name.endsWith('.ts'));
+  const migrationFile = 'supabase/migrations/20261015120000_file_gateway.sql';
+  const migration = read(migrationFile).replace(/^\s*--.*$/gm, '');
+  const functionBody = (header: string) => {
+    const start = migration.indexOf(header);
+    expect(start, header).toBeGreaterThan(-1);
+    return migration.slice(start, migration.indexOf('$$;', migration.indexOf('$$', start) + 2));
+  };
+
+  it('finds the gateway it is meant to read', () => {
+    expect(gateway.map((file) => file.replace('workers/files/src/', '')).sort()).toEqual(['config.ts', 'database.ts', 'main.ts', 'resolvers.ts', 'server.ts', 'storage.ts', 'transfer.ts']);
+  });
+
+  it('gives the application one route about transfers, a POST that reads a capped body and moves no file', () => {
+    const routes = files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).filter((file) => /transfers|files|uploads|downloads/i.test(file));
+    expect(routes).toEqual(['app/api/transfers/tickets/route.ts']);
+    expect(handlersOf(read(routes[0])).map((handler) => handler.method)).toEqual(['POST']);
+    const code = withoutComments(read(routes[0]));
+    expect(code).toMatch(/export const dynamic = 'force-dynamic';/);
+    expect(code).toMatch(/return issueTransferTicket\(request, guard\.access, process\.env\);/);
+    expect([...code.matchAll(/process\.env/g)]).toHaveLength(1);
+    expect(code).not.toMatch(/console\.|\blog\(|request\.(?:formData|arrayBuffer|blob|body|text|json)\b/);
+    // The body is read in lib/transfer-tickets.ts, to its cap and no further: a request cannot carry a file through here.
+    const tickets = withoutComments(read('lib/transfer-tickets.ts'));
+    expect(tickets).toMatch(/export const maxTicketBodyBytes = 4096;/);
+    expect(tickets).not.toMatch(/formData\(|arrayBuffer\(|\.blob\(|multipart/);
+  });
+
+  it('reads no request body anywhere under app/ or in the proxy but the capped ones (the scheduled-job route and the ticket route) and the status lookup', () => {
+    for (const file of sources.filter((candidate) => /^app\/.*route\.ts$/.test(candidate))) {
+      const code = withoutComments(read(file));
+      expect(code, file).not.toMatch(/\.formData\(|\.arrayBuffer\(|\.blob\(|multipart\/form-data/);
+    }
+  });
+
+  it('keeps Storage out of the application: nothing under app/, components/ or lib/ names an S3 client, a signed URL or the Storage API', () => {
+    for (const file of sources) {
+      expect(withoutComments(read(file)), file).not.toMatch(/@aws-sdk|\bS3Client\b|getSignedUrl|createSignedUrl|createSignedUploadUrl|\.storage\.from\(|\bstorage\.from\(|\/storage\/v1\/object|presign/i);
+    }
+    // ... and only the gateway's own storage module holds an S3 client, with the gateway's own key pair.
+    expect(gateway.filter((file) => /@aws-sdk/.test(withoutComments(read(file))))).toEqual(['workers/files/src/storage.ts']);
+    expect(files('workers', (name) => name.endsWith('.ts') || name.endsWith('.mjs')).filter((file) => /@aws-sdk/.test(withoutComments(read(file))))).toEqual(['workers/files/src/storage.ts']);
+  });
+
+  it('hands a browser a ticket and the gateway\'s address and nothing else: no storage URL or credential is signed into a ticket or answered', () => {
+    const tickets = withoutComments(read('lib/transfer-tickets.ts'));
+    expect(tickets).toMatch(/return answer\(200, \{ticket, gateway: config\.gateway\}\);/);
+    expect(tickets).not.toMatch(/SECRET_ACCESS_KEY|ACCESS_KEY_ID|S3_ENDPOINT|storage|signedUrl/i);
+    const signing = withoutComments(read('lib/service-signing.ts'));
+    expect(signing).not.toMatch(/SECRET_ACCESS_KEY|ACCESS_KEY_ID|S3_ENDPOINT|\bstorage\b/i);
+  });
+
+  it('reads the signing configuration in one module: the keys, the gateway address and the instance are read from the environment by lib/gateway-client.ts alone', () => {
+    const readers = sources.filter((file) => /SERVICE_SIGNING_KEY_|SERVICE_KEYS_|FILE_GATEWAY_URL|signingKeyVariable|keySetVariable/.test(withoutComments(read(file)))).sort();
+    expect(readers).toEqual(['lib/environment.ts', 'lib/gateway-client.ts', 'lib/service-signing.ts']);
+    for (const file of ['lib/transfer-tickets.ts', 'lib/job-tasks.ts', 'lib/schedules.ts', 'lib/service-signing.ts', 'lib/canonical-json.ts']) {
+      expect(withoutComments(read(file)), file).not.toMatch(/process\.env|\benv\.[A-Z]/);
+    }
+    // The one new `process.env` is the default argument of the one function that is the pattern of `configuredLedgerStore`.
+    expect([...withoutComments(read('lib/gateway-client.ts')).matchAll(/process\.env/g)]).toHaveLength(1);
+    expect(withoutComments(read('lib/gateway-client.ts'))).toMatch(/export function configuredGatewayClient\(env: Env = process\.env,/);
+  });
+
+  it('keeps the database functions behind the typed calls, and nothing in the application revokes a key', () => {
+    const names = ['revoke_service_key', 'list_expired_staging'];
+    for (const file of sources.filter((candidate) => candidate !== 'lib/lifecycle.ts' && candidate !== 'lib/accounts.ts')) {
+      expect(withoutComments(read(file)), file).not.toMatch(new RegExp(`['"\`](?:${names.join('|')})['"\`]`));
+    }
+    for (const name of names) expect(withoutComments(read('lib/lifecycle.ts')), name).toMatch(new RegExp(`callRow\\(\\s*'${name}'`));
+    expect(callers('listExpiredStaging')).toEqual(['lib/job-tasks.ts', 'lib/lifecycle.ts']);
+    expect(callers('revokeServiceKey')).toEqual(['lib/lifecycle.ts']);
+    expect(callers('createGatewayClient')).toEqual(['lib/gateway-client.ts']);
+    expect(callers('configuredGatewayClient')).toEqual(['lib/gateway-client.ts', 'lib/job-tasks.ts']);
+    expect(callers('signTicket')).toEqual(['lib/service-signing.ts', 'lib/transfer-tickets.ts']);
+    expect(callers('signCommand')).toEqual(['lib/gateway-client.ts', 'lib/service-signing.ts']);
+  });
+
+  it('keeps the two modules the gateway shares with the application free of the framework, of "@/" and of everything but node:crypto', () => {
+    const signing = withoutComments(read('lib/service-signing.ts'));
+    expect([...signing.matchAll(/^import .* from '([^']+)';$/gm)].map((match) => match[1])).toEqual(['node:crypto']);
+    expect(withoutComments(read('lib/canonical-json.ts'))).not.toMatch(/^import\s|\bfrom\s+['"]|\brequire\(/m);
+    for (const file of ['lib/service-signing.ts', 'lib/canonical-json.ts']) {
+      const code = withoutComments(read(file));
+      expect(code, file).not.toMatch(/from 'next|from "next|from '@\/|\benum\s+\w+\s*\{|constructor\s*\([^)]*\b(?:private|public|readonly)\s|console\.|process\./);
+    }
+    // The gateway, and nothing else of the application, imports them.
+    const imports = gateway.flatMap((file) => [...withoutComments(read(file)).matchAll(/from '(\.\.[^']*)'/g)].map((match) => `${file.replace('workers/files/src/', '')} ${match[1]}`)).sort();
+    expect(imports).toEqual([
+      'config.ts ../../../lib/service-signing.ts',
+      'server.ts ../../../lib/canonical-json.ts',
+      'server.ts ../../../lib/service-signing.ts',
+    ]);
+  });
+
+  it('builds into an image that can run: every package the gateway imports is a production dependency, and every file it imports from outside workers/files is copied by the Dockerfile and let through by .dockerignore', () => {
+    // The image installs `npm ci --omit=dev` and copies four things; a module the gateway (or a file it shares) starts to import that is in neither place is a
+    // build that passes every test here and fails at start-up on the platform, which is the one place nobody looks.
+    const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>};
+    const dockerfile = read('workers/files/Dockerfile');
+    const copied = [...dockerfile.matchAll(/^COPY\s+(.+)$/gm)].flatMap((match) => {
+      const parts = match[1].trim().split(/\s+/);
+      return parts.slice(0, -1);
+    });
+    // .dockerignore as Docker reads it: the last pattern that matches a path (or a directory above it) decides; `!` lets it in.
+    const patterns = read('.dockerignore')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '' && !line.startsWith('#'));
+    const globbed = (pattern: string) => new RegExp(`^${pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*\//g, '(?:.*/)?').replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*')}$`);
+    const sent = (path: string) => {
+      const above = path.split('/').map((_, index, parts) => parts.slice(0, index + 1).join('/'));
+      let included = true;
+      for (const entry of patterns) {
+        const negated = entry.startsWith('!');
+        const matcher = globbed(negated ? entry.slice(1) : entry);
+        if (above.some((candidate) => matcher.test(candidate))) included = negated;
+      }
+      return included;
+    };
+    const covered = (path: string) => copied.some((source) => path === source || path.startsWith(`${source.replace(/\/$/, '')}/`));
+
+    // The closure of what main.ts imports, through relative imports, wherever they lead.
+    const seen = new Set<string>();
+    const queue = ['workers/files/src/main.ts'];
+    const bare = new Map<string, string>();
+    const outside = new Set<string>();
+    while (queue.length > 0) {
+      const file = queue.pop()!;
+      if (seen.has(file)) continue;
+      seen.add(file);
+      const code = withoutComments(read(file));
+      const found = [
+        ...[...code.matchAll(/^(import|export)(\s+type)?\s[^;]*?from\s+'([^']+)';/gm)].map((match) => ({type: match[2] !== undefined, from: match[3]})),
+        ...[...code.matchAll(/^import\s+'([^']+)';/gm)].map((match) => ({type: false, from: match[1]})),
+        ...[...code.matchAll(/\bimport\(\s*'([^']+)'/g)].map((match) => ({type: false, from: match[1]})),
+      ];
+      for (const {type, from} of found) {
+        if (from.startsWith('node:')) continue;
+        if (from.startsWith('.')) {
+          const target = join(file, '..', from).split('\\').join('/');
+          if (!target.startsWith('workers/files/')) outside.add(target);
+          queue.push(target);
+        } else if (!type) {
+          bare.set(from.startsWith('@') ? from.split('/').slice(0, 2).join('/') : from.split('/')[0], file);
+        }
+      }
+    }
+    for (const [name, importer] of bare) expect(manifest.dependencies, `${name} (imported by ${importer}) is not a production dependency`).toHaveProperty(name);
+    for (const path of [...outside, 'package.json', 'package-lock.json', ...gateway]) {
+      expect(covered(path), `${path} is not copied by workers/files/Dockerfile`).toBe(true);
+      expect(sent(path), `${path} is excluded by .dockerignore`).toBe(true);
+    }
+    // The walk found something to check (what the gateway may import at all is pinned by the test below).
+    expect([...seen].filter((file) => file.startsWith('workers/files/')).length).toBe(gateway.length);
+    expect([...outside]).toEqual(expect.arrayContaining(['lib/canonical-json.ts', 'lib/service-signing.ts']));
+    expect([...bare.keys()]).toEqual(expect.arrayContaining(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', 'pg']));
+    // The matcher is not trivially true: what the image does not copy is excluded.
+    for (const path of ['lib/environment.ts', 'app/page.tsx', 'tests/unit/gate-structure.test.ts', '.env.local']) expect(sent(path), path).toBe(false);
+  });
+
+  it('holds the gateway to node:http, its own modules, pg, the S3 client and the two shared files; reads the environment in main.ts alone; logs an error\'s name and nothing else', () => {
+    const allowed = /^(?:node:[a-z/]+|pg|@aws-sdk\/(?:client-s3|lib-storage)|\.\/[a-z]+\.ts|\.\.\/\.\.\/\.\.\/lib\/(?:service-signing|canonical-json)\.ts)$/;
+    for (const file of gateway) {
+      const code = withoutComments(read(file));
+      for (const match of code.matchAll(/^(?:import|export)\s[^;]*?from '([^']+)';/gm)) expect(match[1], `${file}: ${match[0].slice(0, 80)}`).toMatch(allowed);
+      expect(code, file).not.toMatch(/\brequire\(|\benum\s+\w+\s*\{|constructor\s*\([^)]*\b(?:private|public|readonly)\s/);
+      expect(code, file).not.toMatch(/set-cookie|\bcookie\b|access-control-allow-credentials|access-control-allow-origin['"]?\s*[:,]\s*['"]\*|getSignedUrl|presign/i);
+      // (server.ts holds the default logger's one console.error, checked below.)
+      if (file !== 'workers/files/src/main.ts') expect(code, file).not.toMatch(file === 'workers/files/src/server.ts' ? /process\.env|process\.exit/ : /process\.env|process\.exit|console\./);
+    }
+    // The one default logger prints a fixed sentence and an error's class name: never a request, a ticket, a handle, a key or a body.
+    const server = withoutComments(read('workers/files/src/server.ts'));
+    expect([...server.matchAll(/console\.error\(([^;]*)\)\)/g)].map((match) => match[1])).toEqual(['message, detail']);
+    for (const call of server.matchAll(/\blog\(([^;]*)\);/g)) expect(call[1], call[0]).toMatch(/^'[A-Z][^']*', error instanceof Error \? error\.name : 'unknown failure'$/);
+  });
+
+  it('asks the database before every chunk, in both directions, and cuts a chunk to at most 1 MiB first', () => {
+    const server = withoutComments(read('workers/files/src/server.ts'));
+    expect(withoutComments(read('lib/service-signing.ts'))).toMatch(/chunkBytes: 1024 \* 1024,/);
+    expect(server).toMatch(/const chunkBytes = transferLimits\.chunkBytes;/);
+    // Upload: the request body is cut into chunks, and each is authorized before it is counted, hashed or handed to Storage.
+    const upload = server.slice(server.indexOf('async function* chunks()'), server.indexOf('await storage.put('));
+    expect(upload).toContain('blocks(req.iterator({destroyOnReturn: false}), chunkBytes)');
+    expect(upload.indexOf('authorize(transfer)')).toBeGreaterThan(-1);
+    for (const later of ['hasher.update(block)', 'received += block.length', 'database.progress(', 'yield block']) expect(upload.indexOf('authorize(transfer)'), later).toBeLessThan(upload.indexOf(later));
+    // Download: the first chunk is authorized before the headers go out, and each later one before it is written to the client.
+    const download = server.slice(server.indexOf('const chunks = blocks(stored.body, chunkBytes);'), server.indexOf("res.end();", server.indexOf('const chunks = blocks(stored.body, chunkBytes);')));
+    expect(download).toContain('authorize(transfer)');
+    expect(download.indexOf('authorize(transfer)')).toBeLessThan(download.indexOf('res.writeHead('));
+    expect(download.indexOf('res.writeHead(')).toBeLessThan(download.indexOf('write(res, step.value)'));
+    const later = download.indexOf('if (step.done) break;');
+    expect(later).toBeGreaterThan(download.indexOf('write(res, step.value)'));
+    expect(download.indexOf('authorize(transfer)', later)).toBeGreaterThan(later);
+    expect(download.indexOf('authorize(transfer)', later)).toBeLessThan(download.indexOf('res.destroy()', later));
+    // And the decision is never kept: no cache, no memo, no remembered answer between chunks.
+    expect(server).not.toMatch(/\bcache\b(?!-control)|\bmemo|\blastDecision\b|\bremembered\b/i);
+    const database = withoutComments(read('workers/files/src/database.ts'));
+    expect(database).not.toMatch(/new Map\(|\bcache\b|\bmemo/i);
+  });
+
+  it('answers every response with no-store and nosniff, allows one origin and never a wildcard, and refuses a command that carries an Origin', () => {
+    const server = withoutComments(read('workers/files/src/server.ts'));
+    expect(server).toMatch(/res\.setHeader\('cache-control', 'no-store'\);/);
+    expect(server).toMatch(/res\.setHeader\('x-content-type-options', 'nosniff'\);/);
+    expect(server).toMatch(/res\.setHeader\('vary', 'Origin'\);/);
+    expect(server).toMatch(/if \(origin !== appOrigin\) return fail\(res, 403, 'forbidden_origin'\);/);
+    expect(server).toMatch(/if \(req\.headers\.origin !== undefined\) return fail\(res, 403, 'forbidden_origin'\);/);
+    expect(server).toMatch(/res\.setHeader\('referrer-policy', 'no-referrer'\);/);
+  });
+
+  it('is the migration of a closed schema: six tables, each with row-level security on and every privilege revoked, and a policy only for the gateway\'s own role', () => {
+    for (const table of ['service_key_revocations', 'staging_leases', 'ticket_redemptions', 'transfer_handles', 'attachment_transforms', 'manifests']) {
+      expect(migration, table).toMatch(new RegExp(`alter table artifacts\\.${table} enable row level security;`));
+      expect(migration, table).toMatch(new RegExp(`revoke all on artifacts\\.${table} from public, anon, authenticated, service_role;`));
+    }
+    expect([...migration.matchAll(/create table (artifacts\.\w+)/g)].map((match) => match[1]).sort()).toEqual([
+      'artifacts.attachment_transforms',
+      'artifacts.manifests',
+      'artifacts.service_key_revocations',
+      'artifacts.staging_leases',
+      'artifacts.ticket_redemptions',
+      'artifacts.transfer_handles',
+    ]);
+    // Every policy is for the gateway role alone, and none for another role or for PUBLIC.
+    const policies = [...migration.matchAll(/^create policy .*$/gm)].map((match) => match[0]);
+    expect(policies).toHaveLength(7);
+    for (const policy of policies) expect(policy).toMatch(/^create policy gateway_(?:select|insert|update) on artifacts\.(?:staging_leases|ticket_redemptions|transfer_handles) for (?:select|insert|update) to nova3d_gateway /);
+    expect(migration).toMatch(/alter default privileges for role postgres in schema artifacts revoke execute on functions from public, anon, authenticated, service_role;/);
+    expect(migration).toMatch(/alter default privileges for role postgres in schema artifacts revoke all on tables from public, anon, authenticated, service_role;/);
+    expect(migration).toMatch(/revoke all on schema artifacts from public, anon, authenticated, service_role;/);
+  });
+
+  it('gives the gateway role what its list names and nothing else, and no password: a password in a migration is a secret in the repository', () => {
+    const grants = [...migration.matchAll(/^grant .*$/gm)].map((match) => match[0]);
+    expect(grants).toEqual([
+      'grant usage on schema artifacts to nova3d_gateway;',
+      'grant select on artifacts.session_authority to nova3d_gateway;',
+      'grant select on artifacts.instance to nova3d_gateway;',
+      'grant select, insert on artifacts.ticket_redemptions to nova3d_gateway;',
+      'grant select, insert on artifacts.transfer_handles to nova3d_gateway;',
+      'grant select, insert on artifacts.staging_leases to nova3d_gateway;',
+      'grant update (received_length, state, expires_at) on artifacts.staging_leases to nova3d_gateway;',
+      'grant execute on function artifacts.publish_attachment(uuid, bigint, uuid, text, text, text) to nova3d_gateway;',
+      'grant execute on function api.revoke_service_key(text, text, text) to service_role;',
+      'grant execute on function api.list_expired_staging(integer) to service_role;',
+    ]);
+    for (const file of files('supabase/migrations', (name) => name.endsWith('.sql'))) {
+      expect(read(file).replace(/^\s*--.*$/gm, ''), file).not.toMatch(/(?:create|alter)\s+role[^;]*password/i);
+    }
+    expect(migration).toMatch(/create role nova3d_gateway login;/);
+    expect(read('supabase/seed.sql')).toMatch(/alter role nova3d_gateway with password '/);
+    // Every function it creates runs with an empty search_path, and the two that run as their owner say so.
+    for (const match of migration.matchAll(/create (?:or replace )?function ((?:artifacts|api)\.\w+)\(/g)) expect(functionBody(match[0]), match[1]).toMatch(/set search_path = ''/);
+    for (const header of ['create function artifacts.publish_attachment(', 'create function api.revoke_service_key(', 'create function api.list_expired_staging(', 'create function artifacts.guard_redemption(']) expect(functionBody(header), header).toMatch(/security definer/);
+  });
+
+  it('refuses a redemption under a revoked key in the insert itself, and writes a manifest from one function that asserts the authority first', () => {
+    expect(functionBody('create function artifacts.guard_redemption(')).toMatch(/errcode = 'N3040'/);
+    expect(migration).toMatch(/create trigger ticket_redemptions_guard before insert on artifacts\.ticket_redemptions/);
+    expect([...migration.matchAll(/insert into artifacts\.manifests/g)]).toHaveLength(1);
+    const publish = functionBody('create function artifacts.publish_attachment(');
+    expect(publish).toMatch(/insert into artifacts\.manifests/);
+    expect(publish.indexOf('identity.assert_operation_authority(p_account_id, p_epoch)')).toBeGreaterThan(-1);
+    expect(publish.indexOf('identity.assert_operation_authority(p_account_id, p_epoch)')).toBeLessThan(publish.indexOf('from artifacts.staging_leases'));
+    expect(publish.indexOf('from artifacts.staging_leases')).toBeLessThan(publish.indexOf('insert into artifacts.manifests'));
+    expect(publish).toMatch(/for update;/);
+  });
+
+  it('reads the session\'s liveness in a view that calls no function of another schema and writes nothing', () => {
+    const view = migration.slice(migration.indexOf('create view artifacts.session_authority'), migration.indexOf('comment on view artifacts.session_authority'));
+    expect(view).not.toMatch(/\b(?:identity|lifecycle|api|projects)\.\w+\(/);
+    expect(view).not.toMatch(/\b(?:insert|update|delete)\b/i);
+    for (const state of ['tombstoned', 'disabled', 'no_session', 'subject_mismatch', 'revoked', 'expired', 'idle', 'stale_epoch', 'active']) expect(view, state).toContain(`'${state}'`);
+    expect(view).toMatch(/interval '30 days'/);
+    expect(view).toMatch(/interval '7 days'/);
+  });
+
+  it('writes the contract down for whoever writes the next resolver, and names the three things only Josh can do', () => {
+    const contract = read('docs/authority-contract.md');
+    for (const needle of ['The file gateway', 'transfer handle', 'artifacts.session_authority', 'artifacts.publish_attachment', 'api.revoke_service_key', 'delete-staging', 'resolvers.ts', 'transferTargetKinds', 'no user file crosses a Vercel function'.replace(/^n/, 'N')]) expect(contract, needle).toContain(needle);
+    const ledger = JSON.parse(read('provisioning/ledger.json')) as {items: {id: string; due: string}[]};
+    for (const id of ['gateway-database-role', 'gateway-storage-s3-key', 'railway-files-service', 'hosted-gateway-check']) expect(ledger.items.find((item) => item.id === id)?.due, id).toBe('1-12');
   });
 });

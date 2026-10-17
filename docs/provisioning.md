@@ -50,8 +50,8 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Region: us-east-1
 - Spend backstop: The organization's spend cap, left on in the billing settings. Fixed cost is about $35-40 a month; each restore drill adds a temporary project whose hourly cost is recorded at the first drill.
 - First needed: Story 1.4
-- Verification: attestation (8)
-- Secret names by environment: staging: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF`
+- Verification: attestation (10)
+- Secret names by environment: staging: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF`, `GATEWAY_DATABASE_URL`, `GATEWAY_STORAGE_S3_ACCESS_KEY_ID`, `GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY`, `GATEWAY_STORAGE_S3_ENDPOINT`, `GATEWAY_STORAGE_S3_REGION`
 - Free-tier limits relied on, with the trigger for upgrading:
   - A Free project pauses, so staging and production never run on the Free plan. Upgrade trigger: Pro before Story 1.4, so hosted-Auth checks can run.
   - Built-in backups cover Postgres only (daily, 7 days) and exclude Storage objects. Upgrade trigger: Not an upgrade: the independent backup service of Story 8.9 backs up Postgres and Storage every 12 hours.
@@ -113,8 +113,8 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Region: Virginia (us-east4-eqdc4a)
 - Spend backstop: A usage limit set in Railway at the Hobby plan's monthly amount and recorded in the evidence export.
 - First needed: Story 1.9
-- Verification: attestation (2)
-- Secret names by environment: staging: `RAILWAY_TOKEN`
+- Verification: attestation (4)
+- Secret names by environment: staging: `RAILWAY_TOKEN`, `SERVICE_SIGNING_KEY_APPLICATION`, `SERVICE_KEYS_APPLICATION`, `FILE_GATEWAY_URL`
 - Free-tier limits relied on, with the trigger for upgrading:
   - The Hobby plan's monthly credit is shared by the CAD worker, the reconversion engine worker, the gateway and the backup service; the first deployment records actual usage against it. Upgrade trigger: Move to Pro when recorded usage nears the credit or a service needs more than Hobby resources.
   - Volume backups stay disabled because their monthly retention (89 days) would breach the 30-day deletion limit. Upgrade trigger: Never enable Railway volume backups for private data; nothing authoritative lives on Railway.
@@ -464,6 +464,59 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 1. Apply `supabase/migrations/20261014120000_scheduled_jobs.sql` to staging before the build that uses it deploys (the staging workflow does it from a push, or follow `docs/staging.md` by hand). It adds one closed table, four functions and the `no_identity` outcome of registration, and no setting or secret.
 2. With `QSTASH_URL` (the us-east-1 endpoint), `QSTASH_TOKEN`, both signing keys, `APP_ORIGIN` and `INSTANCE_ID` in `.env.staging` and the signing keys in the staging Vercel project's Production-scope variables (never in a preview), run `node --env-file=.env.staging scripts/schedules.mjs check`, then `apply --confirm staging`, then `check` again: the last exits 0.
 3. Run the checks in `docs/staging.md`, "Verifying the pipeline, the schedules and the purge" (checks 2 and 3): an unsigned POST to `/api/jobs` answers 401 and a GET 405; within five minutes `api.last_job_run('ledger-relay')` shows a finished receipt (`no_store` while no ledger store exists, `idle` when nothing is pending); after the first 03:00 UTC run `api.last_job_run('dormant-identity-purge')` shows `ran` with its counts.
+4. Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
+
+### Due by Story 1.12
+
+#### `gateway-database-role`: The file gateway's database role `nova3d_gateway` given its password by hand, and its connection string stored in the Railway gateway service
+
+- Service: Supabase (Postgres, Auth, Storage)
+- Verification: attestation
+- Environments: staging
+- Secret names: `GATEWAY_DATABASE_URL`
+- Status: staging: pending
+
+1. Apply `supabase/migrations/20261015120000_file_gateway.sql` to staging before the build that uses it deploys (the staging workflow does it from a push, or follow `docs/staging.md` by hand). It adds the unexposed `artifacts` schema with its six closed tables and two views, the role `nova3d_gateway` with NO password, the private `private-files` bucket, three functions and a preflight that probes them; no setting or secret.
+2. In the Supabase dashboard's SQL editor give the role a password by hand: `alter role nova3d_gateway with password` and a long random password from your password manager in quotes. No migration, workflow or file holds it, and the one in `supabase/seed.sql` is the local stack's alone.
+3. Build the connection string for the pooler in transaction mode (the user is `nova3d_gateway.<project-ref>`, on the pooler's host and port) and add `?sslmode=require` (or `verify-ca` or `verify-full`) to it, because the gateway refuses to start for staging or production with a connection that does not ask for TLS, and store it as `GATEWAY_DATABASE_URL` in the Railway gateway service's variables (`railway-files-service`). Never in Vercel, and never in a file: it is the gateway's alone.
+4. Save an export of the Railway service's variable names (names, never values) outside the repository, and record its file name as evidence.
+
+#### `gateway-storage-s3-key`: The file gateway's own Storage S3 key pair, stored in the Railway gateway service
+
+- Service: Supabase (Postgres, Auth, Storage)
+- Verification: attestation
+- Environments: staging
+- Secret names: `GATEWAY_STORAGE_S3_ACCESS_KEY_ID`, `GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY`, `GATEWAY_STORAGE_S3_ENDPOINT`, `GATEWAY_STORAGE_S3_REGION`
+- Status: staging: pending
+
+1. In the Supabase dashboard's Storage settings for the staging project, enable the S3 connection and create an access key pair for the gateway. Supabase cannot scope an S3 key below the project and the key bypasses row policies, so only the gateway holds one: the backup service gets a separate pair later (Story 8.9).
+2. Note the S3 endpoint and the region the dashboard shows. Store the endpoint, the region, the access key ID and the secret access key as `GATEWAY_STORAGE_S3_ENDPOINT`, `GATEWAY_STORAGE_S3_REGION`, `GATEWAY_STORAGE_S3_ACCESS_KEY_ID` and `GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY` in the Railway gateway service's variables (`railway-files-service`). Never in Vercel.
+3. Save an export of the Railway service's variable names (names, never values) outside the repository, and record its file name as evidence.
+
+#### `railway-files-service`: The file gateway service on Railway from the pushed image, with its variables, and the application's signing key and the gateway's address in Vercel
+
+- Service: Railway (workers, gateway and backup service)
+- Verification: attestation
+- Environments: staging
+- Secret names: `SERVICE_SIGNING_KEY_APPLICATION`, `SERVICE_KEYS_APPLICATION`, `FILE_GATEWAY_URL`
+- Status: staging: pending
+
+1. On your own machine generate the application's Ed25519 pair (`docs/secrets.md`, SERVICE_SIGNING_KEY_APPLICATION). Store the private half, as base64 PKCS#8, as `SERVICE_SIGNING_KEY_APPLICATION` in the staging Vercel project's Production-scope variables (never in a preview), and the public key set (JSON, with the key ID and the public key, the format is in `docs/secrets.md`) as `SERVICE_KEYS_APPLICATION` in the same project and in the Railway gateway service.
+2. Push to `staging` so that `.github/workflows/workers.yml` builds `workers/files` from the repository root and prints the image digest, then create the `files` service in the Railway project (Virginia) from that digest (a manual step: `docs/staging.md`, Worker images), give it a public domain and the `/healthz` health check, and set its variables: `APP_ENV`, `INSTANCE_ID`, `APP_ORIGIN` (the staging https origin), `SERVICE_KEYS_APPLICATION`, and the five of `gateway-database-role` and `gateway-storage-s3-key`. Railway sets `PORT`. The service exits at start-up, with a message that names the variable, when anything is missing or when the database is not this environment.
+3. Store the gateway's https origin as `FILE_GATEWAY_URL` in the staging Vercel project's Production-scope variables and redeploy. Run `node --env-file=.env.staging scripts/schedules.mjs check` and then `apply --confirm staging`: the registry now holds the hourly `staging-cleanup` task.
+4. Save an export of the Railway service's variable names and of the Vercel project's variable names (names, never values) outside the repository, and record its file name as evidence.
+
+#### `hosted-gateway-check`: A file moved through the gateway on staging through the pooler, access ended while it streamed, and the hourly cleanup run
+
+- Service: Railway (workers, gateway and backup service)
+- Verification: attestation
+- Environments: staging
+- Secret names: none
+- Status: staging: pending
+
+1. Run the checks in `docs/staging.md`, "Verifying the file gateway" (Story 1.12): `/healthz` answers; from a signed-in browser at the application's origin ask for a ticket, upload a few megabytes to the gateway, read it back whole and by range, and open a download link that carries a ticket; a request from another origin is refused. This is also the first time the gateway reaches the database through the Supabase pooler in transaction mode (no session state, no named prepared statements), which no local test can prove.
+2. With a throwaway Account, disable it while a large file is downloading and see the stream stop; disable and re-enable it and see an old ticket refused.
+3. Within an hour of the first expiry, `api.last_job_run('staging-cleanup')` shows a finished receipt (`idle` when nothing is expired, `ran` with its counts when something was removed, never `no_store` once the gateway is configured).
 4. Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
 
 ### Due by Story 1.7

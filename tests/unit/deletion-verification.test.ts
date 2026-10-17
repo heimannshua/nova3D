@@ -101,6 +101,20 @@ describe('docs/deletion-verification.md holds the order, the limits and the exce
     expect(section('Database')).toMatch(/after every restore/);
   });
 
+  it('names the file gateway\'s bucket and prefixes under Storage and its tables under the database, by the names the migration really gives them, and says the tables are purged by an Epic 8 step', () => {
+    const migration = read('supabase/migrations/20261015120000_file_gateway.sql');
+    expect(migration).toContain("'private-files'");
+    const storage = section('Storage and object stores');
+    for (const needle of ['`private-files`', '`staging/<account>/<upload>`', '`objects/<account>/<root>`', '**listing by the Account\'s prefixes**', '`delete-staging`', '`delete-root`']) expect(storage, needle).toContain(needle);
+    const database = section('Database');
+    for (const table of ['staging_leases', 'manifests', 'transfer_handles', 'ticket_redemptions']) {
+      expect(migration, table).toContain(`create table artifacts.${table} `);
+      expect(database, table).toContain(`artifacts.${table}`);
+    }
+    expect(database).toMatch(/immutable by design/);
+    expect(database).toMatch(/step of Epic 8/);
+  });
+
   it('has a monthly canary that proves a deletion reaches the database, Storage and the backups within 15 days, and a restore drill', () => {
     expect(guide).toMatch(/monthly canary/);
     expect(guide).toMatch(/database, Storage and the backups within 15 days/);

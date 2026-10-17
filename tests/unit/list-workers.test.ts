@@ -6,7 +6,7 @@ import {afterAll, describe, expect, it} from 'vitest';
 import {listWorkers} from '../../scripts/ci/list-workers.mjs';
 
 // Story 1.9. scripts/ci/list-workers.mjs finds each workers/<name>/Dockerfile; .github/workflows/workers.yml builds one image for each and
-// skips its image job when there is none (none exists yet: the first arrives with Story 2.7).
+// skips its image job when there is none (the first worker is the file gateway of Story 1.12; the others arrive with Story 2.7).
 const root = resolve(import.meta.dirname, '../..');
 const script = resolve(root, 'scripts/ci/list-workers.mjs');
 const temp = mkdtempSync(join(tmpdir(), 'nova3d-workers-'));
@@ -24,8 +24,8 @@ function layout(name: string, workers: string[]) {
 }
 
 describe('listWorkers', () => {
-  it('finds nothing in this repository: no worker exists yet', () => {
-    expect(listWorkers(root)).toEqual([]);
+  it('finds the one worker this repository has: the file gateway (Story 1.12)', () => {
+    expect(listWorkers(root)).toEqual(['files']);
   });
 
   it('finds nothing when there is no workers directory, or an empty one', () => {
@@ -60,7 +60,8 @@ describe('the command', () => {
   it('prints the JSON list on its first line', () => {
     expect(run([layout('cli-some', ['b', 'a'])]).stdout.split('\n')[0]).toBe('["a","b"]');
     expect(run([layout('cli-none', [])]).stdout.trim()).toBe('[]');
-    expect(run([]).stdout.trim()).toBe('[]');
+    // With no argument it reads this repository, which has the file gateway (Story 1.12).
+    expect(run([]).stdout.trim()).toBe('["files"]');
   });
 
   it('runs through a symlink too: the entry check compares real paths, so a link does not turn the command into a silent no-op that leaves the workflow with no output', () => {
