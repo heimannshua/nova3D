@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-09-2026 11:36
-last_updated: 10-17-2026 19:09
+last_updated: 10-17-2026 20:34
 project: nova3D
 project_key: NOKEY
 tracking_system: file-system
@@ -47,7 +47,7 @@ development_status:
   1-8-define-tombstones-and-the-hidden-state-contract: review
   1-9-provision-staging-and-run-periodic-jobs: review
   1-12-transfer-private-files-through-the-authorized-gateway: review
-  1-13-raise-operational-alarms: backlog
+  1-13-raise-operational-alarms: in-progress
   1-7-navigate-my-projects-and-project-state: review
   epic-1-retrospective: optional
 
