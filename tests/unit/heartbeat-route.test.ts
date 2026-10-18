@@ -105,6 +105,80 @@ describe('what raises the alarm (QStash stopped)', () => {
   });
 });
 
+// The matrix row "Monitor stopped": the monitor runs on QStash and cannot report on itself, so the heartbeat route (a different platform's clock) is the one that sees
+// the monitor's own receipt go stale, or never appear.
+describe('what raises the alarm (the monitor stopped)', () => {
+  const monitorAge = (database: Database, age: number | null) => {
+    const others = database.observed.value.tasks.filter((entry) => entry.task !== 'alarm-monitor');
+    database.observed.value.tasks = age === null ? others : [...others, {task: 'alarm-monitor', outcome: 'ran', at: '2026-10-17T07:00:00.000Z', age}];
+  };
+
+  it('raises monitor-late and emails it when the heartbeat arrives and the latest alarm-monitor receipt is over 600 seconds old, and resolves it at the first heartbeat after a fresh one, without a second mail', async () => {
+    const database = fakeDatabase();
+    const mail = sender();
+    monitorAge(database, 601);
+    const first = await world({}, database, mail).call();
+    expect([first.status, await first.json()]).toEqual([200, {state: 'recorded', receipt_age_seconds: 60}]);
+    expect(database.alarms).toEqual([expect.objectContaining({condition: 'monitor-late', subject: null, resolvedAt: null, detail: expect.objectContaining({receipt_task: 'alarm-monitor', receipt_outcome: 'ran', age_seconds: 601})})]);
+    expect(mail.mails).toEqual([expect.objectContaining({condition: 'monitor-late', subject: null})]);
+    expect(database.notices.map((notice) => notice.outcome)).toEqual(['sent']);
+
+    // Still stopped at the next heartbeat: the same alarm, refreshed, and no second mail inside 24 hours.
+    database.advance(30 * 60_000);
+    monitorAge(database, 2400);
+    expect((await world({}, database, mail).call({token: token({jti: 'B'.repeat(22)})})).status).toBe(200);
+    expect(database.alarms).toHaveLength(1);
+    expect(database.alarms[0]).toMatchObject({resolvedAt: null, detail: expect.objectContaining({age_seconds: 2400})});
+    expect(mail.mails).toHaveLength(1);
+
+    database.advance(30 * 60_000);
+    monitorAge(database, 45);
+    expect((await world({}, database, mail).call({token: token({jti: 'C'.repeat(22)})})).status).toBe(200);
+    expect(database.alarms[0].resolvedAt).not.toBeNull();
+    expect(mail.mails).toHaveLength(1);
+  });
+
+  it('raises it for a monitor that has never finished a run when the scheduler has been running for over 600 seconds, and does not while the first receipt of any task is younger', async () => {
+    const young = fakeDatabase();
+    monitorAge(young, null);
+    young.observed.value.first_receipt_age = 600;
+    expect((await world({}, young).call()).status).toBe(200);
+    expect(young.alarms).toEqual([]);
+
+    const old = fakeDatabase();
+    const mail = sender();
+    monitorAge(old, null);
+    old.observed.value.first_receipt_age = 601;
+    expect((await world({}, old, mail).call()).status).toBe(200);
+    expect(old.alarms).toEqual([expect.objectContaining({condition: 'monitor-late', detail: expect.objectContaining({receipt_task: 'alarm-monitor', receipt_outcome: 'never', receipt_at: 'never', age_seconds: 601})})]);
+    expect(mail.mails).toEqual([expect.objectContaining({condition: 'monitor-late'})]);
+  });
+
+  it('raises nothing for a monitor whose receipt is exactly 600 seconds old', async () => {
+    const database = fakeDatabase();
+    monitorAge(database, 600);
+    expect((await world({}, database).call()).status).toBe(200);
+    expect(database.alarms).toEqual([]);
+  });
+
+  it('is its own alarm beside qstash-stale when both platforms have stopped: two conditions, two emails', async () => {
+    const database = fakeDatabase();
+    const mail = sender();
+    database.observed.value.latest_receipt_age = 9000;
+    monitorAge(database, 9000);
+    expect((await world({}, database, mail).call()).status).toBe(200);
+    expect(database.alarms.map((alarm) => alarm.condition).sort()).toEqual(['monitor-late', 'qstash-stale']);
+    expect(mail.mails.map((mailed) => mailed.condition).sort()).toEqual(['monitor-late', 'qstash-stale']);
+  });
+
+  it('does not make a refused heartbeat evaluate it: a bad token raises nothing even with the monitor long dead', async () => {
+    const database = fakeDatabase();
+    monitorAge(database, 90_000);
+    expect((await world({}, database).call({token: token({signer: stranger.signer})})).status).toBe(401);
+    expect(database.alarms).toEqual([]);
+  });
+});
+
 describe('a heartbeat that is refused', () => {
   const refusedWith = async (call: Promise<Response>, status: number, body: unknown) => {
     const response = await call;

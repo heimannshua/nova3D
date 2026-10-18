@@ -27,6 +27,7 @@ export const conditionTitleKeys: Readonly<Record<string, MessageKey>> = {
   'identities-unaccounted': 'operations.condition.identities-unaccounted',
   'heartbeat-stale': 'operations.condition.heartbeat-stale',
   'qstash-stale': 'operations.condition.qstash-stale',
+  'monitor-late': 'operations.condition.monitor-late',
 };
 
 /** The catalog key for a condition's title, or null for a condition the catalog does not know (own entries only: `constructor` is not a condition). */
@@ -113,4 +114,30 @@ export function emailNoteKeyOf(alarm: Pick<AlarmView, 'subject' | 'lastSentAt' |
   if (state.state === 'sent') return null;
   if (state.state === 'failing') return alarm.lastNoticeOutcome === 'unknown' ? 'operations.email.unknown.note' : emailNoteKeys.failing;
   return alarm.subject === null ? 'operations.email.pending.threshold.note' : emailNoteKeys.pending;
+}
+
+/** The keys of a detail that have words of their own: the numbers the six conditions find (lib/alarm-conditions.ts). Any other key is shown as it is. */
+export const detailLabelKeys: Readonly<Record<string, MessageKey>> = {
+  age_seconds: 'operations.detail.age_seconds',
+  pending: 'operations.detail.pending',
+  oldest_seconds: 'operations.detail.oldest_seconds',
+  count: 'operations.detail.count',
+};
+
+/** The catalog key for a detail key's label, or null for a key the catalog does not know (own entries only: `constructor` is not a label). */
+export function detailLabelKey(key: string): MessageKey | null {
+  return Object.hasOwn(detailLabelKeys, key) ? detailLabelKeys[key] : null;
+}
+
+/** One value of a detail the page shows: a whole number or a boolean, with its key. */
+export type DetailValue = {key: string; value: number | boolean};
+
+/**
+ * The whole numbers and booleans of a detail, in the order the detail holds them (the text of a detail, the receipt keys apart, is not shown: the receipt is its own
+ * rows). A number that is not a whole number is not shown either.
+ */
+export function detailValuesOf(detail: AlarmView['detail']): DetailValue[] {
+  return Object.entries(detail)
+    .filter((entry): entry is [string, number | boolean] => typeof entry[1] === 'boolean' || (typeof entry[1] === 'number' && Number.isSafeInteger(entry[1])))
+    .map(([key, value]) => ({key, value}));
 }

@@ -10,14 +10,15 @@
 --                             A partial unique index allows ONE open alarm (resolved_at is null) per (condition, subject). Never deleted or truncated;
 --                             `id`, `condition`, `subject` and `first_at` never change, `latest_at` never decreases, `resolved_at` is set once (and a
 --                             resolved alarm is final).
---   lifecycle.alarm_notices   append-only: one row per attempt to email an alarm, with its outcome `sent`, `failed` or `unknown`.
+--   lifecycle.alarm_notices   append-only: one row per step of emailing an alarm, with its outcome `claimed` (written by api.alarms_due_mail alone, when it hands
+--                             the alarm to a sender), `sent`, `failed` or `unknown` (written by api.record_alarm_notice, when the sender is done).
 --   lifecycle.heartbeats      append-only: one row per accepted heartbeat of the Railway cron task: the token's `jti` (unique, so a replay is
 --                             refused), the key ID and the time received.
 --   api.raise_alarm           opens an alarm, or refreshes the open one for the same (condition, subject): `opened` | `refreshed`, with the ID.
 --   api.resolve_alarm         resolves the open alarm of a (condition, subject): `resolved` | `none`.
 --   api.list_alarms           the open alarms, newest first, and, on request, the most recently resolved ones, each with its email state.
---   api.alarms_due_mail       the open alarms that are due an email (the whole rule is here, see below).
---   api.record_alarm_notice   records the outcome of one attempt to email an alarm.
+--   api.alarms_due_mail       the open alarms that are due an email (the whole rule is here, see below), CLAIMED as it returns them: it is not read-only.
+--   api.record_alarm_notice   records the outcome of one attempt to email an alarm: `sent`, `failed` or `unknown` (a caller cannot record a claim).
 --   api.alarm_observations    every number the registry of conditions needs, as ages in seconds; the one place the Auth identities are counted.
 --   api.record_heartbeat      records a heartbeat; refuses a revoked key and a repeated `jti`.
 --   api.preflight             re-created carrying every earlier probe plus the new tables and functions.
@@ -31,6 +32,13 @@
 -- subject-keyed one at the evaluation that raised it; a threshold one unless its condition was emailed within 24 hours, in which case when that window
 -- ends, if it is still open) and reminded at most once every 24 hours while it stays open. A `failed` or `unknown` notice never closes a window, so the
 -- email is retried at the next evaluation (an `unknown` may duplicate one mail: accepted). A resolved alarm is never emailed.
+--
+-- THE CLAIM (also in api.alarms_due_mail). The monitor and the heartbeat evaluation can overlap (both fire at :00 and :30), and each would find the same alarm
+-- due and mail it. So the function takes ONE advisory lock, reads what is due, and for each alarm it returns records a `claimed` notice in the same
+-- transaction; a second caller waits for the lock and then finds those alarms not due. A `claimed` notice holds its alarm for 10 minutes (and, for an alarm
+-- with no subject, holds every subject-less alarm of its condition) unless a LATER `sent`, `failed` or `unknown` notice for that alarm exists: the sender
+-- records one of those when it is done, and `failed` and `unknown` release the claim so the email is retried at the next evaluation. A sender that crashes
+-- after the claim records nothing, and the alarm is due again after 10 minutes. `sent` still closes the 24-hour windows; a claim never does.
 --
 -- Like the Story 1.8 and 1.9 tables, each table is closed explicitly (row-level security on, no policy, every privilege revoked from public, anon,
 -- authenticated and service_role), because the `lifecycle` schema is one the Data API lists. They are reached only through the `api` functions, which
@@ -142,16 +150,17 @@ create table lifecycle.alarm_notices (
   id uuid primary key default gen_random_uuid(),
   alarm_id uuid not null references lifecycle.alarms (id) on delete restrict,
   at timestamptz not null default clock_timestamp(),
-  outcome text not null check (outcome in ('sent', 'failed', 'unknown'))
+  outcome text not null check (outcome in ('claimed', 'sent', 'failed', 'unknown'))
 );
 
 comment on table lifecycle.alarm_notices is
-  'One row per attempt to email an alarm: the alarm, the time and the outcome (sent, failed, unknown). Never updated, deleted or truncated. Written only by api.record_alarm_notice.';
+  'One row per step of emailing an alarm: the alarm, the time and the outcome (claimed, sent, failed, unknown). Never updated, deleted or truncated. A claim is written only by api.alarms_due_mail; the other outcomes only by api.record_alarm_notice.';
 
 -- The 24-hour windows look at the `sent` notices only.
 create index alarm_notices_sent_by_alarm on lifecycle.alarm_notices (alarm_id, at desc) where outcome = 'sent';
 create index alarm_notices_by_alarm on lifecycle.alarm_notices (alarm_id, at desc, id desc);
 create index alarm_notices_sent_by_time on lifecycle.alarm_notices (at desc) where outcome = 'sent';
+create index alarm_notices_claimed_by_time on lifecycle.alarm_notices (at desc) where outcome = 'claimed';
 
 create trigger alarm_notices_no_change before update or delete on lifecycle.alarm_notices
   for each row execute function lifecycle.refuse_change();
@@ -283,7 +292,9 @@ create type api.alarm_list as (alarms json);
 
 -- The open alarms, newest first (at most 500: the registry is small, so this is a defensive cap), and, when p_include_resolved is true, the
 -- p_limit (1 to 50) most recently resolved ones after them. Each alarm carries the time of its last `sent` notice and the outcome and time of its
--- latest notice of any kind, from which the page reads its email state (sent at, pending or failing). Times are UTC text to the millisecond. Read-only.
+-- latest notice that records an outcome (`sent`, `failed` or `unknown`; a `claimed` notice is a step in progress and not an outcome, so an alarm whose last
+-- try failed and is being tried again still shows that it failed), from which the page reads its email state (sent at, pending or failing). Times are UTC
+-- text to the millisecond. Read-only.
 create function api.list_alarms(p_include_resolved boolean, p_limit integer)
 returns api.alarm_list
 language plpgsql
@@ -308,8 +319,8 @@ begin
              'resolved_at', lifecycle.iso_utc(s.resolved_at),
              'detail', s.detail,
              'last_sent_at', (select lifecycle.iso_utc(max(n.at)) from lifecycle.alarm_notices n where n.alarm_id = s.id and n.outcome = 'sent'),
-             'last_notice_outcome', (select n.outcome from lifecycle.alarm_notices n where n.alarm_id = s.id order by n.at desc, n.id desc limit 1),
-             'last_notice_at', (select lifecycle.iso_utc(n.at) from lifecycle.alarm_notices n where n.alarm_id = s.id order by n.at desc, n.id desc limit 1)
+             'last_notice_outcome', (select n.outcome from lifecycle.alarm_notices n where n.alarm_id = s.id and n.outcome <> 'claimed' order by n.at desc, n.id desc limit 1),
+             'last_notice_at', (select lifecycle.iso_utc(n.at) from lifecycle.alarm_notices n where n.alarm_id = s.id and n.outcome <> 'claimed' order by n.at desc, n.id desc limit 1)
            )
            order by s.grp, s.sort_at desc, s.id
          ), '[]'::json)
@@ -332,44 +343,43 @@ end;
 $$;
 
 comment on function api.list_alarms(boolean, integer) is
-  'The open alarms, newest first, and when asked the p_limit (1 to 50) most recently resolved after them, each with its last sent notice and its latest notice. Read-only.';
+  'The open alarms, newest first, and when asked the p_limit (1 to 50) most recently resolved after them, each with its last sent notice and its latest notice that records an outcome (a claim is not one). Read-only.';
 
 -- Mail ----------------------------------------------------------------------------------------------------------------------------------------
 
 create type api.alarms_due as (alarms json);
 
--- The open alarms that are due an email, oldest first, at most p_limit (1 to 50), as [{id, condition, subject, first_at, detail}]. The rule, whole:
--- an open alarm is due when it has had no `sent` notice in the last 24 hours and, when it has no subject, no `sent` notice for any alarm of the same
--- condition in the last 24 hours. A `failed` or `unknown` notice closes nothing. Read-only.
+-- The open alarms that are due an email, oldest first, at most p_limit (1 to 50), as [{id, condition, subject, first_at, detail}], and CLAIMED: this function
+-- is not read-only. The rule, whole: an open alarm is due when it has had no `sent` notice in the last 24 hours and, when it has no subject, no `sent`
+-- notice for any alarm of the same condition in the last 24 hours, and it is not held by a claim. A `claimed` notice holds its alarm for 10 minutes, and an
+-- alarm with no subject is also held by a claim on any alarm of its condition, unless a LATER `sent`, `failed` or `unknown` notice for the claimed alarm
+-- exists. A `failed` or `unknown` notice closes no window and releases the claim; a sender that crashes after the claim is retried after 10 minutes.
+-- One advisory lock serializes the callers, so the alarms one caller is handed are never handed to another: the second waits, then reads the claims.
 create function api.alarms_due_mail(p_limit integer)
 returns api.alarms_due
 language plpgsql
-stable
 security definer
 set search_path = ''
 as $$
 declare
   c_window constant interval := interval '24 hours';
+  c_hold constant interval := interval '10 minutes';
   v_result api.alarms_due;
-  v_now timestamptz := clock_timestamp();
+  v_now timestamptz;
+  v_ids uuid[];
 begin
   if p_limit is null or p_limit not between 1 and 50 then
     raise exception 'invalid argument' using errcode = '22023';
   end if;
 
-  select coalesce(json_agg(
-           json_build_object(
-             'id', d.id,
-             'condition', d.condition,
-             'subject', d.subject,
-             'first_at', lifecycle.iso_utc(d.first_at),
-             'detail', d.detail
-           )
-           order by d.first_at, d.id
-         ), '[]'::json)
-    into v_result.alarms
+  -- Taken before anything is read, and released with the transaction: what the previous holder claimed is committed when this one reads.
+  perform pg_advisory_xact_lock(hashtextextended('nova3d:alarm-mail', 0));
+  v_now := clock_timestamp();
+
+  select coalesce(array_agg(d.id order by d.first_at, d.id), '{}')
+    into v_ids
     from (
-      select a.id, a.condition, a.subject, a.first_at, a.detail
+      select a.id, a.first_at
         from lifecycle.alarms a
        where a.resolved_at is null
          and not exists (
@@ -380,19 +390,46 @@ begin
              from lifecycle.alarm_notices n
              join lifecycle.alarms b on b.id = n.alarm_id
             where b.condition = a.condition and n.outcome = 'sent' and n.at > v_now - c_window))
+         and not exists (
+           select 1 from lifecycle.alarm_notices c
+            where c.alarm_id = a.id and c.outcome = 'claimed' and c.at > v_now - c_hold
+              and not exists (select 1 from lifecycle.alarm_notices r where r.alarm_id = c.alarm_id and r.outcome <> 'claimed' and r.at > c.at))
+         and (a.subject is not null or not exists (
+           select 1
+             from lifecycle.alarm_notices c
+             join lifecycle.alarms b on b.id = c.alarm_id
+            where b.condition = a.condition and c.outcome = 'claimed' and c.at > v_now - c_hold
+              and not exists (select 1 from lifecycle.alarm_notices r where r.alarm_id = c.alarm_id and r.outcome <> 'claimed' and r.at > c.at)))
        order by a.first_at, a.id
        limit p_limit
     ) d;
+
+  insert into lifecycle.alarm_notices (alarm_id, outcome) select i.id, 'claimed' from unnest(v_ids) as i(id);
+
+  select coalesce(json_agg(
+           json_build_object(
+             'id', a.id,
+             'condition', a.condition,
+             'subject', a.subject,
+             'first_at', lifecycle.iso_utc(a.first_at),
+             'detail', a.detail
+           )
+           order by a.first_at, a.id
+         ), '[]'::json)
+    into v_result.alarms
+    from lifecycle.alarms a
+   where a.id = any(v_ids);
   return v_result;
 end;
 $$;
 
 comment on function api.alarms_due_mail(integer) is
-  'The open alarms due an email: no sent notice in the last 24 hours and, with no subject, none for any alarm of the same condition in the last 24 hours. A failed or unknown notice closes nothing. Read-only.';
+  'The open alarms due an email, claimed as they are returned (not read-only): no sent notice in the last 24 hours and, with no subject, none for any alarm of the same condition; not held by a claim (10 minutes, and for an alarm with no subject the claim of any alarm of its condition) that no later sent, failed or unknown notice releases. One advisory lock serializes callers.';
 
 create type api.alarm_notice_receipt as (outcome text);
 
--- Records one attempt to email an alarm. `sent` closes the 24-hour windows; `failed` and `unknown` close nothing.
+-- Records the outcome of one attempt to email an alarm. `sent` closes the 24-hour windows; `failed` and `unknown` close nothing; each of the three releases the
+-- claim api.alarms_due_mail made. A `claimed` notice is not accepted here: only api.alarms_due_mail writes one, so a caller cannot hold an alarm back.
 --   recorded | not_found
 create function api.record_alarm_notice(p_alarm_id uuid, p_outcome text)
 returns api.alarm_notice_receipt
@@ -417,7 +454,7 @@ end;
 $$;
 
 comment on function api.record_alarm_notice(uuid, text) is
-  'Records one attempt to email an alarm (sent, failed, unknown). Only sent closes a 24-hour window. Answers recorded | not_found.';
+  'Records the outcome of one attempt to email an alarm (sent, failed, unknown; never claimed, which only api.alarms_due_mail writes). Only sent closes a 24-hour window; each releases the claim. Answers recorded | not_found.';
 
 -- Observations ---------------------------------------------------------------------------------------------------------------------------------
 

@@ -14,7 +14,9 @@ export const iso = (ms: number) => new Date(ms).toISOString();
 export const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {status, headers: {'content-type': 'application/json'}});
 
 type Alarm = {id: string; condition: string; subject: string | null; firstAt: number; latestAt: number; resolvedAt: number | null; detail: Record<string, unknown>};
-type Notice = {alarmId: string; at: number; outcome: string};
+type Notice = {alarmId: string; at: number; outcome: string; seq: number};
+/** A claim: `api.alarms_due_mail` handed the alarm to a sender. Kept apart from the notices (which are the outcomes a sender records), as the page's list keeps them apart. */
+type Claim = {alarmId: string; at: number; seq: number};
 
 type Observed = {
   first_receipt_age: number | null;
@@ -42,6 +44,8 @@ export function fakeDatabase() {
   const clock = {now: START};
   const alarms: Alarm[] = [];
   const notices: Notice[] = [];
+  const claims: Claim[] = [];
+  let sequence = 0;
   const calls: string[] = [];
   const observed = {value: calm()};
   const heartbeats: {jti: string; kid: string}[] = [];
@@ -51,12 +55,17 @@ export function fakeDatabase() {
 
   const open = (condition: string, subject: string | null) => alarms.find((alarm) => alarm.condition === condition && alarm.subject === subject && alarm.resolvedAt === null);
   const sent = (alarmId: string) => notices.filter((notice) => notice.alarmId === alarmId && notice.outcome === 'sent');
+  /** A claim still holds: it is under 10 minutes old and no outcome has been recorded for its alarm since (a notice made later than it). */
+  const holding = (claim: Claim) => claim.at > clock.now - 10 * 60_000 && !notices.some((notice) => notice.alarmId === claim.alarmId && notice.seq > claim.seq);
   const due = () =>
     alarms.filter((alarm) => {
       if (alarm.resolvedAt !== null) return false;
       if (sent(alarm.id).some((notice) => notice.at > clock.now - 24 * HOUR)) return false;
+      if (claims.some((claim) => claim.alarmId === alarm.id && holding(claim))) return false;
       if (alarm.subject !== null) return true;
-      return !notices.some((notice) => notice.outcome === 'sent' && notice.at > clock.now - 24 * HOUR && alarms.find((other) => other.id === notice.alarmId)?.condition === alarm.condition);
+      const sameCondition = (alarmId: string) => alarms.find((other) => other.id === alarmId)?.condition === alarm.condition;
+      if (claims.some((claim) => sameCondition(claim.alarmId) && holding(claim))) return false;
+      return !notices.some((notice) => notice.outcome === 'sent' && notice.at > clock.now - 24 * HOUR && sameCondition(notice.alarmId));
     });
 
   const fetch = async (input: string, init?: RequestInit): Promise<Response> => {
@@ -112,8 +121,12 @@ export function fakeDatabase() {
           }),
         });
       }
-      case 'alarms_due_mail':
-        return json({alarms: due().slice(0, body.p_limit).map((alarm) => ({id: alarm.id, condition: alarm.condition, subject: alarm.subject, first_at: iso(alarm.firstAt), detail: alarm.detail}))});
+      case 'alarms_due_mail': {
+        // Not read-only: every alarm it returns is claimed, so the next caller does not find it due.
+        const handed = due().slice(0, body.p_limit);
+        for (const alarm of handed) claims.push({alarmId: alarm.id, at: clock.now, seq: (sequence += 1)});
+        return json({alarms: handed.map((alarm) => ({id: alarm.id, condition: alarm.condition, subject: alarm.subject, first_at: iso(alarm.firstAt), detail: alarm.detail}))});
+      }
       case 'record_heartbeat': {
         if (revokedKeys.has(body.p_kid)) return json({outcome: 'revoked'});
         if (heartbeats.some((heartbeat) => heartbeat.jti === body.p_jti)) return json({outcome: 'duplicate'});
@@ -121,7 +134,9 @@ export function fakeDatabase() {
         return json({outcome: 'recorded'});
       }
       case 'record_alarm_notice':
-        notices.push({alarmId: body.p_alarm_id, at: clock.now, outcome: body.p_outcome});
+        // A caller cannot record a claim: only api.alarms_due_mail makes one.
+        if (!['sent', 'failed', 'unknown'].includes(body.p_outcome)) return json({code: '22023', message: 'invalid argument'}, 400);
+        notices.push({alarmId: body.p_alarm_id, at: clock.now, outcome: body.p_outcome, seq: (sequence += 1)});
         return json({outcome: 'recorded'});
       default:
         throw new Error(`the test did not expect api.${name}`);
@@ -132,6 +147,7 @@ export function fakeDatabase() {
     clock,
     alarms,
     notices,
+    claims,
     calls,
     observed,
     heartbeats,

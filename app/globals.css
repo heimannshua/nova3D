@@ -796,6 +796,8 @@ main { flex: 1; min-inline-size: 0; }
 .alarm-item .settings-help { overflow-wrap: anywhere; }
 .alarm-email { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
 .alarm-email > span:not(.status-badge) { min-inline-size: 0; overflow-wrap: anywhere; }
+/* A detail key the catalog has no words for is shown as the key itself (up to 32 characters with no space in them), and it is the label: it wraps like a value does, so it cannot push the card out of a 320 px window at 200% text. */
+.alarm-meta dt { min-inline-size: 0; overflow-wrap: anywhere; }
 /* A label beside its value needs room for both: in a narrow window, or with large text (which moves a rem breakpoint), the label sits above its value instead, so a long word in either cannot push the card out of the window. */
 @media (max-width: 30rem) {
   .alarm-meta { display: block; }

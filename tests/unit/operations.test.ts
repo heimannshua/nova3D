@@ -1,8 +1,10 @@
 import {describe, expect, it} from 'vitest';
 import {en} from '@/lib/i18n/en';
 import {he} from '@/lib/i18n/he';
-import {conditionTitleKey, conditionTitleKeys, emailNoteKeyOf, emailStateKeys, emailStateOf, emailNoteKeys, hasReceipt, receiptOf, receiptOutcomeKey, receiptOutcomeKeys, type AlarmView} from '@/lib/operations';
-import {alarmConditions} from '@/lib/alarm-conditions';
+import {conditionTitleKey, conditionTitleKeys, detailLabelKey, detailLabelKeys, detailValuesOf, emailNoteKeyOf, emailStateKeys, emailStateOf, emailNoteKeys, hasReceipt, receiptOf, receiptOutcomeKey, receiptOutcomeKeys, type AlarmView} from '@/lib/operations';
+import {alarmConditions, unobservable} from '@/lib/alarm-conditions';
+import {scheduleRegistry} from '@/lib/schedules';
+import {everythingWrong} from '../support/alarm-observations';
 
 // Story 1.13: the pure half of the Operations page. What the page says about an alarm's email, its condition and its last receipt is decided here, with no
 // clock, no database and no browser; the markup is tests/unit/operations-page.test.tsx and the page in a real browser is tests/e2e/operations.spec.ts.
@@ -124,5 +126,49 @@ describe('emailNoteKeyOf', () => {
     }
     expect(emailStateOf({lastSentAt: null, lastNoticeOutcome: 'unknown', lastNoticeAt: SENT_AT})).toEqual({state: 'failing'});
     expect(emailStateOf(base)).toEqual({state: 'pending'});
+  });
+});
+
+describe('the values of an alarm\'s detail', () => {
+  it('are its whole numbers and its booleans, with their keys, in the order the detail holds them, and nothing else', () => {
+    expect(detailValuesOf({receipt_task: 'ledger-relay', age_seconds: 700, flag: true, receipt_at: 'never', other: false, pending: 0, odd: -3})).toEqual([
+      {key: 'age_seconds', value: 700},
+      {key: 'flag', value: true},
+      {key: 'other', value: false},
+      {key: 'pending', value: 0},
+      {key: 'odd', value: -3},
+    ]);
+    expect(detailValuesOf({})).toEqual([]);
+    expect(detailValuesOf({note: 'x', receipt_outcome: 'ran'})).toEqual([]);
+  });
+
+  it('leave out a number that is not a whole number the page can show exactly (the database holds none, and the page does not round)', () => {
+    expect(detailValuesOf({half: 1.5, big: 2 ** 60, nan: Number.NaN, infinite: Number.POSITIVE_INFINITY, whole: 12})).toEqual([{key: 'whole', value: 12}]);
+  });
+
+  it('have a label for a known key and none for any other, nor for a name that only an object would have', () => {
+    for (const key of ['age_seconds', 'pending', 'oldest_seconds', 'count']) expect(detailLabelKey(key), key).toBe(detailLabelKeys[key]);
+    for (const key of ['receipt_task', 'queue_depth', '', 'constructor', '__proto__', 'toString', 'hasOwnProperty']) expect(detailLabelKey(key), key).toBeNull();
+  });
+
+  it('have words in both languages for every label, and for yes and no; the Hebrew is Hebrew', () => {
+    for (const key of [...Object.values(detailLabelKeys), 'operations.detail.yes', 'operations.detail.no'] as const) {
+      expect(en[key], key).toBeTruthy();
+      expect(he[key], key).toMatch(/[֐-׿]/);
+      expect(he[key], key).not.toBe(en[key]);
+    }
+  });
+
+  it('are labelled for every integer and boolean the six conditions put in a detail: a condition that adds one without words fails here, not on the page', () => {
+    const keys = new Set<string>();
+    for (const condition of alarmConditions) {
+      const findings = condition.evaluate(everythingWrong(), scheduleRegistry);
+      expect(findings, condition.id).not.toBe(unobservable);
+      expect((findings as unknown[]).length, `${condition.id} finds something in the worst case`).toBeGreaterThan(0);
+      for (const finding of findings as {detail: Record<string, number | boolean | string>}[]) for (const {key} of detailValuesOf(finding.detail)) keys.add(key);
+    }
+    // monitor-late's `age_seconds`, task-late's and the two stale conditions', ledger-pending's two numbers and identities-unaccounted's count.
+    expect([...keys].sort()).toEqual(['age_seconds', 'count', 'oldest_seconds', 'pending']);
+    for (const key of keys) expect(detailLabelKey(key), key).not.toBeNull();
   });
 });

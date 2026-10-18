@@ -7,12 +7,14 @@
 //                         that is due. Its receipt holds counts only.
 //   runHeartbeatEvaluation  the same for the conditions the application evaluates when the Railway heartbeat arrives (lib/heartbeat.ts), and it answers the
 //                         age of the latest receipt, which the heartbeat route returns.
-//   dispatchDueMail       asks the database which open alarms are due an email (the 24-hour rule is its), sends each through `sendAlarmMail` and records the
-//                         outcome: `sent` closes the window, `failed` and `unknown` close nothing, so the email is retried at the next evaluation. A sender that
-//                         throws is a `failed` notice, and a notice that cannot be recorded is counted as a failed mail and does not stop the alarms behind it:
-//                         neither escapes. It sends one at a time and stops STARTING sends once ten seconds have passed since it began (each send has its own
-//                         ten-second timeout, and the heartbeat task waits thirty seconds for the route that calls this): the alarms it did not reach have no
-//                         notice, so they are due at the next evaluation. Only the database failing to LIST what is due escapes.
+//   dispatchDueMail       asks the database which open alarms are due an email (the 24-hour rule is its) and is CLAIMED them as they are returned, so the monitor
+//                         and the heartbeat evaluation, which overlap at :00 and :30, never mail one alarm twice; sends each through `sendAlarmMail` and records the
+//                         outcome, which releases the claim: `sent` closes the window, `failed` and `unknown` close nothing, so the email is retried at the next
+//                         evaluation. A sender that throws is a `failed` notice, and a notice that cannot be recorded is counted as a failed mail and does not stop
+//                         the alarms behind it: neither escapes (the alarm keeps its claim and is tried again when the claim lapses, after 10 minutes). It sends
+//                         one at a time and stops STARTING sends once ten seconds have passed since it began (each send has its own ten-second timeout, and the
+//                         heartbeat task waits thirty seconds for the route that calls this): the alarms it did not reach are still claimed, with no outcome
+//                         recorded, so they are due again when the claim lapses, within 10 minutes. Only the database failing to LIST what is due escapes.
 //   raiseAlarm            for a PUSHED, subject-keyed condition (a payment exception, say): records the alarm and dispatches the same mail.
 //
 // The alarm is recorded BEFORE any mail is attempted, so a mailer that fails leaves the alarm on the Administrator's page and in the database, and the email
@@ -22,7 +24,7 @@
 // SERVER-ONLY. This file reads no environment variable and logs nothing: the environment reaches the mailer through `mail` (the mailer reads its own by
 // default), and the database calls take `accounts`.
 import type {AccountsOptions} from './accounts.ts';
-import {alarmConditions, alarmKey, evaluateConditions, type AlarmCondition, type AlarmDetail, type Observations, type ScheduleLike} from './alarm-conditions.ts';
+import {alarmConditions, alarmKey, evaluateConditions, unobservable, type AlarmCondition, type AlarmDetail, type Observations, type ScheduleLike} from './alarm-conditions.ts';
 import {
   alarmObservations,
   alarmsDueMail,
@@ -70,9 +72,11 @@ function noticeOf(answer: MailOutcome | undefined): NoticeOutcome {
 
 /**
  * Emails the Administrator the open alarms that are due and records each attempt. At most 50 alarms a call, one at a time, and no new send starts once
- * `dispatchDeadlineMs` has passed since the call began: whatever it did not reach has no notice, so it is due at the next evaluation. A notice that cannot be
- * recorded (the database went away after the mail) is counted in `mailFailed` and the next alarm is still tried; that alarm is mailed again next time, which is
- * the duplicate `unknown` already allows. It throws only when the database cannot list what is due.
+ * `dispatchDeadlineMs` has passed since the call began. The database CLAIMS each alarm it hands out (api.alarms_due_mail), so a dispatch that overlaps this one is
+ * handed none of them; the outcome recorded here releases the claim. Whatever this call did not reach, or could not record, keeps its claim and is due again when
+ * the claim lapses, 10 minutes after it was made. A notice that cannot be recorded (the database went away after the mail) is counted in `mailFailed` and the next
+ * alarm is still tried; that alarm is mailed again after the claim lapses, which is the duplicate `unknown` already allows. It throws only when the database cannot
+ * list (and claim) what is due.
  */
 export async function dispatchDueMail(deps: AlarmDeps = {}): Promise<MailReport> {
   const accounts = deps.accounts ?? {};
@@ -94,7 +98,7 @@ export async function dispatchDueMail(deps: AlarmDeps = {}): Promise<MailReport>
     try {
       await recordAlarmNotice({alarmId: alarm.id, outcome}, accounts);
     } catch {
-      // Nothing was recorded, so this alarm is still due and is tried again next time; the others behind it are not held up by it.
+      // Nothing was recorded, so this alarm keeps its claim and is tried again when the claim lapses; the others behind it are not held up by it.
       mailFailed += 1;
       continue;
     }
@@ -109,7 +113,8 @@ export type ApplyReport = {raised: number; resolved: number; failures: unknown[]
 /**
  * Raises every finding of the conditions one evaluator owns and resolves the open alarms of those conditions that are no longer found. A finding that
  * could not be raised, and a condition that could not be evaluated, leave their alarms as they are (they are never resolved on the strength of a failure) and
- * are returned in `failures`. It throws only when the open alarms cannot be listed.
+ * are returned in `failures`. A condition that answers `'unobservable'` (a precondition is missing now) raises nothing and resolves nothing: its open alarms stay
+ * open until it can be observed again and is found clear, and nothing is reported as a failure. It throws only when the open alarms cannot be listed.
  */
 export async function applyConditions(evaluatedBy: AlarmCondition['evaluatedBy'], observations: Observations, deps: MonitorDeps = {}): Promise<ApplyReport> {
   const accounts = deps.accounts ?? {};
@@ -123,6 +128,8 @@ export async function applyConditions(evaluatedBy: AlarmCondition['evaluatedBy']
       failures.push(one.failure);
       continue;
     }
+    // Neither raised nor resolved: it is not `owned` for this run, so the resolving loop below leaves its open alarms alone.
+    if (one.findings === unobservable) continue;
     owned.add(one.id);
     for (const finding of one.findings) {
       // Whatever becomes of the call, this alarm is not cleared: a database that did not answer is not a condition that went away.

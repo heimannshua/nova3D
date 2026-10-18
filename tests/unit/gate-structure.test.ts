@@ -1949,9 +1949,16 @@ describe('Operational alarms (Story 1.13) have one channel, one evaluator for ea
     expect([...mailer.matchAll(/env\.ADMINISTRATOR_EMAIL/g)]).toHaveLength(1);
     // The alarm type holds no address: a condition, a subject, a time and a detail.
     expect(mailer.slice(mailer.indexOf('export type AlarmNotice'), mailer.indexOf('export type AlarmNotice') + 160)).toMatch(/\{condition: string; subject: string \| null; firstAt: string; detail: AlarmDetail\}/);
-    // The message is built from fixed words, the condition, the subject, the first time and three named keys of the detail.
+    // The message is built from fixed words, the environment, the condition, the subject, the first time, the whole numbers and booleans of the detail by their keys,
+    // and three named keys of its text (F2: the whole detail was three keys of text before). Neither the alarm nor its detail is ever dumped whole.
     expect(mailer).toMatch(/export const alarmMailDetailKeys = \['receipt_task', 'receipt_outcome', 'receipt_at'\] as const;/);
-    expect(mailer).not.toMatch(/Object\.entries\(alarm|JSON\.stringify\(alarm/);
+    expect(mailer).not.toMatch(/JSON\.stringify\(alarm|Object\.entries\(alarm\)|Object\.values\(alarm|\.\.\.alarm\b/);
+    expect([...mailer.matchAll(/Object\.entries\(alarm\.detail\)/g)]).toHaveLength(1);
+    expect(mailer).toMatch(/typeof value === 'boolean' \|\| \(typeof value === 'number' && Number\.isSafeInteger\(value\)\)/);
+    // The environment is `APP_ENV`, read in one function of the mailer's, from the environment the mailer is given; no new variable.
+    expect(mailer).toMatch(/function configuredEnvironment\(env: Env\)/);
+    expect(mailer).toMatch(/configuredEnvironment\(options\.env \?\? process\.env\)/);
+    expect([...new Set([...mailer.matchAll(/\benv\.([A-Z][A-Z0-9_]+)/g)].map((match) => match[1]))].sort()).toEqual(['ADMINISTRATOR_EMAIL', 'APP_ENV', 'NEXT_PUBLIC_SUPABASE_URL', 'RESEND_API_KEY']);
   });
 
   it('keeps the alarm path free of environment reads and logging: lib/alarms.ts and lib/alarm-conditions.ts read no variable, print nothing and read no clock', () => {
@@ -2044,11 +2051,16 @@ describe('Operational alarms (Story 1.13) have one channel, one evaluator for ea
     expect(code('lib/jobs.ts')).toMatch(/isHeartbeatConfigured\(env\)/);
   });
 
-  it('registers exactly the five conditions this story can observe, and none of another story\'s', () => {
+  it('registers exactly the six conditions this story can observe, and none of another story\'s', () => {
     const conditions = code('lib/alarm-conditions.ts');
-    expect([...conditions.matchAll(/^\s+id: '([a-z0-9-]+)',$/gm)].map((match) => match[1])).toEqual(['task-late', 'ledger-pending', 'identities-unaccounted', 'heartbeat-stale', 'qstash-stale']);
-    expect([...conditions.matchAll(/evaluatedBy: '(monitor|heartbeat)',/g)].map((match) => match[1])).toEqual(['monitor', 'monitor', 'monitor', 'monitor', 'heartbeat']);
-    expect(conditions).toMatch(/export const alarmConditions: readonly AlarmCondition\[\] = \[taskLateCondition, ledgerPendingCondition, identitiesUnaccountedCondition, heartbeatStaleCondition, qstashStaleCondition\];/);
+    expect([...conditions.matchAll(/^\s+id: '([a-z0-9-]+)',$/gm)].map((match) => match[1])).toEqual(['task-late', 'ledger-pending', 'identities-unaccounted', 'heartbeat-stale', 'qstash-stale', 'monitor-late']);
+    expect([...conditions.matchAll(/evaluatedBy: '(monitor|heartbeat)',/g)].map((match) => match[1])).toEqual(['monitor', 'monitor', 'monitor', 'monitor', 'heartbeat', 'heartbeat']);
+    expect(conditions).toMatch(/export const alarmConditions: readonly AlarmCondition\[\] = \[taskLateCondition, ledgerPendingCondition, identitiesUnaccountedCondition, heartbeatStaleCondition, qstashStaleCondition, monitorLateCondition\];/);
+    // F4: two conditions have a precondition and answer `unobservable` without it, and no other does; F3: the monitor is the heartbeat's to watch, and task-late still skips it.
+    expect([...conditions.matchAll(/return unobservable;/g)]).toHaveLength(2);
+    expect(conditions).toMatch(/if \(relay\?\.outcome === 'no_store'\) return unobservable;/);
+    expect(conditions).toMatch(/if \(!observations\.heartbeatConfigured\) return unobservable;/);
+    expect(conditions).toMatch(/if \(entry\.task === monitorTask\) continue;/);
     // The thresholds are the story's, written once: twice the interval, 15 minutes, more than 25 identities, two hours.
     expect(conditions).toMatch(/export const lateFactor = 2;/);
     expect(conditions).toMatch(/export const ledgerPendingSeconds = 900;/);
@@ -2101,8 +2113,11 @@ describe('Operational alarms (Story 1.13) have one channel, one evaluator for ea
     expect([...migration.matchAll(/update lifecycle\.alarms\b/g)]).toHaveLength(2);
     expect(functionBody('create function api.raise_alarm(')).toMatch(/update lifecycle\.alarms a set latest_at = greatest\(a\.latest_at, v_now\), detail = p_detail/);
     expect(functionBody('create function api.resolve_alarm(')).toMatch(/update lifecycle\.alarms a\s+set resolved_at = greatest\(a\.latest_at, clock_timestamp\(\)\)/);
-    expect([...migration.matchAll(/insert into lifecycle\.alarm_notices\b/g)]).toHaveLength(1);
-    expect(functionBody('create function api.record_alarm_notice(')).toMatch(/insert into lifecycle\.alarm_notices/);
+    // Two writers of a notice (F1): the claim, written only by api.alarms_due_mail, and the outcome, written only by api.record_alarm_notice, which refuses a claim.
+    expect([...migration.matchAll(/insert into lifecycle\.alarm_notices\b/g)]).toHaveLength(2);
+    expect(functionBody('create function api.record_alarm_notice(')).toMatch(/insert into lifecycle\.alarm_notices \(alarm_id, outcome\) values \(p_alarm_id, p_outcome\)/);
+    expect(functionBody('create function api.record_alarm_notice(')).toMatch(/p_outcome not in \('sent', 'failed', 'unknown'\)/);
+    expect(functionBody('create function api.alarms_due_mail(')).toMatch(/insert into lifecycle\.alarm_notices \(alarm_id, outcome\) select i\.id, 'claimed' from unnest\(v_ids\)/);
     expect([...migration.matchAll(/insert into lifecycle\.heartbeats\b/g)]).toHaveLength(1);
     expect(functionBody('create function api.record_heartbeat(')).toMatch(/insert into lifecycle\.heartbeats/);
     expect(migration).not.toMatch(/delete from lifecycle\.(?:alarms|alarm_notices|heartbeats)|truncate lifecycle\.(?:alarms|alarm_notices|heartbeats)/);
@@ -2125,8 +2140,36 @@ describe('Operational alarms (Story 1.13) have one channel, one evaluator for ea
     expect(due).toMatch(/a\.subject is not null or not exists/);
     expect(due).toMatch(/b\.condition = a\.condition and n\.outcome = 'sent' and n\.at > v_now - c_window/);
     expect(due).toMatch(/a\.resolved_at is null/);
-    // Neither `failed` nor `unknown` is mentioned: they close nothing.
+    // Neither `failed` nor `unknown` is mentioned: they close nothing, and release a claim only by being a LATER notice that is not a claim.
     expect(due).not.toMatch(/'failed'|'unknown'/);
+  });
+
+  // F1: the dispatches overlap (the monitor and the heartbeat evaluation both fire at :00), so the function that lists what is due also claims it, under one lock.
+  it('claims what it hands out, under one advisory lock taken before anything is read, for 10 minutes, released by a later notice that is not a claim; and is no longer a read-only function', () => {
+    const header = (name: string) => { const start = migration.indexOf(name); return migration.slice(start, migration.indexOf('as $$', start)); };
+    const due = functionBody('create function api.alarms_due_mail(');
+    expect(header('create function api.alarms_due_mail(')).not.toMatch(/\bstable\b|\bimmutable\b/);
+    expect(header('create function api.alarms_due_mail(')).toMatch(/security definer\s+set search_path = ''/);
+    expect(due).toMatch(/c_hold constant interval := interval '10 minutes';/);
+    expect([...migration.matchAll(/interval '10 minutes'/g)]).toHaveLength(1);
+    expect(due).toMatch(/perform pg_advisory_xact_lock\(hashtextextended\('nova3d:alarm-mail', 0\)\);/);
+    // The lock first, then the clock, then the reading, then the claims, then the answer.
+    const order = ["perform pg_advisory_xact_lock(hashtextextended('nova3d:alarm-mail', 0));", 'v_now := clock_timestamp();', 'from lifecycle.alarms a', "insert into lifecycle.alarm_notices (alarm_id, outcome) select i.id, 'claimed'"].map((needle) => {
+      expect(due, needle).toContain(needle);
+      return due.indexOf(needle);
+    });
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    // A claim holds its alarm, and for an alarm with no subject every alarm of its condition, unless a LATER notice that is not a claim exists for the claimed alarm.
+    expect(due).toMatch(/c\.alarm_id = a\.id and c\.outcome = 'claimed' and c\.at > v_now - c_hold/);
+    expect(due).toMatch(/b\.condition = a\.condition and c\.outcome = 'claimed' and c\.at > v_now - c_hold/);
+    expect([...due.matchAll(/r\.alarm_id = c\.alarm_id and r\.outcome <> 'claimed' and r\.at > c\.at/g)]).toHaveLength(2);
+    // The table knows four outcomes, and the record function accepts three: a caller cannot hold an alarm back.
+    expect(migration).toMatch(/check \(outcome in \('claimed', 'sent', 'failed', 'unknown'\)\)/);
+    // The page's list reports outcomes, never a claim.
+    expect(functionBody('create function api.list_alarms(')).toMatch(/n\.alarm_id = s\.id and n\.outcome <> 'claimed' order by n\.at desc, n\.id desc limit 1/);
+    // The dispatch is the one caller of the claim, and it records an outcome for each alarm it was handed.
+    expect(code('lib/lifecycle.ts')).toMatch(/export const noticeOutcomes = \['sent', 'failed', 'unknown'\] as const;/);
+    expect(code('lib/alarms.ts')).toMatch(/alarmsDueMail\(\{limit: maxDueMail\}, accounts\)/);
   });
 
   it('changes one existing table, Story 1.9\'s receipts, by one index, and says so in the migration\'s header, in the staging guide\'s migration row and in the ledger (review patch P8)', () => {
@@ -2138,6 +2181,25 @@ describe('Operational alarms (Story 1.13) have one channel, one evaluator for ea
     expect(read('docs/staging.md')).toMatch(/\| `20261016120000_alarms\.sql` \|[^\n]*`job_receipts_started` on `lifecycle\.job_receipts`/);
     const ledger = JSON.parse(read('provisioning/ledger.json')) as {items: {id: string; howto: string[]}[]};
     expect(ledger.items.find((item) => item.id === 'railway-heartbeat-service')?.howto.join('\n')).toContain('job_receipts_started');
+  });
+
+  it('tells the operator what the monitor and the heartbeat now do: a stopped monitor is reported within about 40 minutes, an unobservable condition keeps its alarm open, and the statement that closes one on purpose (F3, F4)', () => {
+    const guide = read('docs/staging.md');
+    // `monitor-late` is a row of the conditions table, evaluated by the application when a heartbeat arrives, with the time it takes.
+    expect(guide).toMatch(/\| `monitor-late` \| none \| the application, when a heartbeat arrives \|[^\n]*within about 40 minutes/);
+    // The one statement an operator runs to close the alarm of a condition they removed on purpose, with and without a subject, and when to use it.
+    expect(guide).toContain("select * from api.resolve_alarm('<condition>', null)");
+    expect(guide).toContain("select * from api.resolve_alarm('<condition>', '<subject>')");
+    expect(guide).toMatch(/unobservable[^\n]*stays open|stays open[^\n]*unobservable/);
+    expect(guide).toMatch(/Use it only for a condition you have removed on purpose/);
+    // The claim: what it holds and for how long, and what the sender's outcomes do with it.
+    expect(guide).toMatch(/records a `claimed` notice for each alarm it hands out[^\n]*10 minutes/);
+    // The ledger and the README say the same of the monitor.
+    const ledger = JSON.parse(read('provisioning/ledger.json')) as {items: {id: string; howto: string[]}[]};
+    expect(ledger.items.find((item) => item.id === 'railway-heartbeat-service')?.howto.join('\n')).toMatch(/`monitor-late`[\s\S]*within about 40 minutes/);
+    expect(read('README.md')).toMatch(/`qstash-stale` and `monitor-late`/);
+    // The heartbeat route's own header names the second condition it evaluates.
+    expect(read('lib/heartbeat.ts')).toMatch(/`qstash-stale` and `monitor-late` are evaluated/);
   });
 
   it('is read only on the Operations page: no Server Action, no form, no control, and the Administrator\'s guard first', () => {

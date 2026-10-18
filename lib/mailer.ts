@@ -177,11 +177,26 @@ export async function sendRecoveryMail(link: string, options: MailerOptions = {}
 
 // The operational alarm (Story 1.13) ---------------------------------------------------------------------------------------------------------------
 
-/** What an alarm email holds: the condition, the subject, the first time and the detail (of which only the receipt keys below are put in the message). */
+/**
+ * What an alarm email holds: the condition, the subject, the first time and the detail. Of the detail the message shows every whole number and boolean with its key,
+ * and, of its text, only the three receipt keys below.
+ */
 export type AlarmNotice = {condition: string; subject: string | null; firstAt: string; detail: AlarmDetail};
 
-/** The keys of an alarm's detail that the message may show: the last receipt of the task the alarm is about. Nothing else of the detail is put in it. */
+/** The keys of an alarm's detail whose TEXT the message may show: the last receipt of the task the alarm is about. No other text of the detail is put in it. */
 export const alarmMailDetailKeys = ['receipt_task', 'receipt_outcome', 'receipt_at'] as const;
+
+/** The environments the application runs as (`APP_ENV`); the subject line of an alarm names one, because staging and production mail the same Administrator address. */
+const mailEnvironments = ['local', 'staging', 'production'] as const;
+
+/** The environment this application runs as, from `APP_ENV`, or null when it is not one of the three (the message then names none). */
+function configuredEnvironment(env: Env): (typeof mailEnvironments)[number] | null {
+  // Read exactly as the transport reads it (`env.APP_ENV === 'staging'`): a value that is none of the three has no transport, so there is no message to name it in.
+  const value = env.APP_ENV;
+  return (mailEnvironments as readonly (string | undefined)[]).includes(value) ? (value as (typeof mailEnvironments)[number]) : null;
+}
+
+const alarmDetailKey = /^[a-z][a-z0-9_]{0,31}$/;
 
 const alarmConditionPattern = /^[a-z][a-z0-9-]{0,47}$/;
 const alarmSubjectPattern = /^[A-Za-z0-9._:-]{1,64}$/;
@@ -199,25 +214,35 @@ function utcMinute(at: string): string | null {
 }
 
 /**
- * The alarm message: fixed words, the condition, the subject (when there is one), the first time (UTC) and the receipt keys of the detail, and nothing
- * else: never an address, a title, a code, a token or any private content. Null for an alarm that could not be written that way (a condition or subject
- * that is not a plain token, a first time that is not a time).
+ * The alarm message: fixed words, the environment (in the subject line and the first line), the condition, the subject (when there is one), the first time (UTC),
+ * every whole number and boolean of the detail with its key, and the three receipt keys of the detail, and nothing else: no other text of the detail, and never an
+ * address, a title, a code, a token, a hash or any private content. Null for an alarm that could not be written that way (a condition or subject that is not a
+ * plain token, a first time that is not a time). `environment` is the application's `APP_ENV` (null names none).
  */
-export function alarmMessage(alarm: AlarmNotice): MailMessage | null {
+export function alarmMessage(alarm: AlarmNotice, environment: string | null = null): MailMessage | null {
   if (typeof alarm !== 'object' || alarm === null) return null;
   if (typeof alarm.condition !== 'string' || !alarmConditionPattern.test(alarm.condition)) return null;
   if (alarm.subject !== null && (typeof alarm.subject !== 'string' || !alarmSubjectPattern.test(alarm.subject))) return null;
   const first = typeof alarm.firstAt === 'string' ? utcMinute(alarm.firstAt) : null;
   if (!first) return null;
-  const lines: [string, string][] = [['Condition', alarm.condition]];
+  const lines: [string, string][] = [];
+  if (environment !== null) lines.push(['Environment', environment]);
+  lines.push(['Condition', alarm.condition]);
   if (alarm.subject !== null) lines.push(['Subject', alarm.subject]);
   lines.push(['First seen', first]);
+  // Every whole number and boolean, by its key (the ages, counts and flags a condition found): they hold no word of anyone's, and the key is a plain lower-case word.
+  if (typeof alarm.detail === 'object' && alarm.detail !== null) {
+    for (const [key, value] of Object.entries(alarm.detail)) {
+      if (alarmDetailKey.test(key) && (typeof value === 'boolean' || (typeof value === 'number' && Number.isSafeInteger(value)))) lines.push([key, String(value)]);
+    }
+  }
   for (const key of alarmMailDetailKeys) {
     const value = alarm.detail?.[key];
     if (typeof value === 'string' && alarmDetailText.test(value)) lines.push([alarmDetailLabels[key], value]);
   }
   const closing = 'Open Administration, then Operations, in nova3D to see it. While it stays open you are reminded at most once every 24 hours. This message holds no project, file, address or code.';
-  const subject = alarm.subject === null ? `nova3D alarm: ${alarm.condition}` : `nova3D alarm: ${alarm.condition} (${alarm.subject})`;
+  const label = environment === null ? '' : `[${environment}] `;
+  const subject = alarm.subject === null ? `${label}nova3D alarm: ${alarm.condition}` : `${label}nova3D alarm: ${alarm.condition} (${alarm.subject})`;
   const text = ['nova3D has raised an operational alarm.', '', ...lines.map(([label, value]) => `${label}: ${value}`), '', closing].join('\n');
   const html = [
     '<p>nova3D has raised an operational alarm.</p>',
@@ -228,13 +253,14 @@ export function alarmMessage(alarm: AlarmNotice): MailMessage | null {
 }
 
 /**
- * Mails an operational alarm to the configured Administrator address (and only to it: there is no recipient argument). Never throws and never logs.
+ * Mails an operational alarm to the configured Administrator address (and only to it: there is no recipient argument), naming the environment it is from. Never
+ * throws and never logs.
  * `sent` when the provider accepted it, `refused` when it was definitely not sent (not configured, refused by the provider, an alarm that could not be
  * written), `unknown` when the provider did not answer in time or failed (the message may have gone out, and the caller tries again at the next
  * evaluation: one duplicate is accepted).
  */
 export async function sendAlarmMail(alarm: AlarmNotice, options: MailerOptions = {}): Promise<MailOutcome> {
-  const message = alarmMessage(alarm);
+  const message = alarmMessage(alarm, configuredEnvironment(options.env ?? process.env));
   if (!message) return {outcome: 'refused', reason: 'not_configured'};
   return deliver(message, options);
 }

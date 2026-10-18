@@ -1,7 +1,7 @@
 import {createHmac, randomBytes, randomUUID} from 'node:crypto';
 import type {Client} from 'pg';
 import {afterAll, afterEach, beforeAll, describe, expect, it} from 'vitest';
-import {alarmConditions, evaluateConditions, type AlarmCondition} from '@/lib/alarm-conditions';
+import {alarmConditions, evaluateConditions, heartbeatStaleCondition, ledgerPendingCondition, monitorLateCondition, unobservable, type AlarmCondition} from '@/lib/alarm-conditions';
 import {dispatchDueMail, raiseAlarm as pushAlarm, runAlarmMonitor, runHeartbeatEvaluation} from '@/lib/alarms';
 import {handleHeartbeatRequest} from '@/lib/heartbeat';
 import {alarmObservations, alarmsDueMail, alarmSubjectPattern, isAlarmDetail, ledgerPending, listAlarms, raiseAlarm, recordAlarmNotice, recordHeartbeat, resolveAlarm, revokeServiceKey} from '@/lib/lifecycle';
@@ -435,13 +435,17 @@ describe('api.list_alarms', () => {
     });
   });
 
-  it('is read-only: it works in a read-only transaction', async () => {
+  // CHANGED (F1): `api.alarms_due_mail` was in this list. It claims what it returns, so it writes and is not read-only; the two readers are, and the claim is its own test.
+  it('is read-only (the list and the observations): they work in a read-only transaction; the due-mail function does not, because it claims what it returns', async () => {
     await inTx(async (client) => {
       await client.query('set transaction read only');
       expect((await attempt(client, 'service_role', 'select * from api.list_alarms(true, 5)')).ok).toBe(true);
-      expect((await attempt(client, 'service_role', 'select * from api.alarms_due_mail(5)')).ok).toBe(true);
       expect((await attempt(client, 'service_role', 'select * from api.alarm_observations()')).ok).toBe(true);
+      const claiming = await attempt(client, 'service_role', 'select * from api.alarms_due_mail(5)');
+      expect(claiming.ok).toBe(false);
+      if (!claiming.ok) expect(claiming.code).toBe('25006');
     });
+    expect((await db.query(`select provolatile from pg_proc where oid = 'api.alarms_due_mail(integer)'::regprocedure`)).rows[0].provolatile).toBe('v');
   });
 });
 
@@ -556,8 +560,21 @@ describe('api.alarms_due_mail: the email rule, with notices at the times the rul
         await client.query('select pg_sleep(0.01)');
       }
       expect((await dueOf(client, prefix)).map((alarm) => alarm.id)).toEqual(ids);
-      const one = (await svc(client, 'select alarms from api.alarms_due_mail(1)')) as {alarms: unknown[]};
+    });
+    // ... and the limit holds: one is handed out, the oldest due one in the database (which, in a database that holds no other due alarm, is the first of these).
+    await inTx(async (client) => {
+      const prefix = uid();
+      const ids: string[] = [];
+      for (let index = 0; index < 3; index += 1) {
+        ids.push((await raise(client, `${prefix}-${index}`, null)).alarm_id);
+        await client.query('select pg_sleep(0.01)');
+      }
+      const one = (await svc(client, 'select alarms from api.alarms_due_mail(1)')) as {alarms: {id: string}[]};
       expect(one.alarms).toHaveLength(1);
+      // It was claimed, so the next call hands out the next one and not the same.
+      const next = (await svc(client, 'select alarms from api.alarms_due_mail(1)')) as {alarms: {id: string}[]};
+      expect(next.alarms).toHaveLength(1);
+      expect(next.alarms[0].id).not.toBe(one.alarms[0].id);
     });
   });
 
@@ -989,7 +1006,6 @@ describe('the monitor end to end against the real database, with a fixture condi
   const subjects = (id: string, found: string[]): AlarmCondition => ({id, evaluatedBy: 'monitor', evaluate: () => found.map((subject) => ({subject, detail: {n: found.length}}))});
   const options = (mail: ReturnType<typeof sender>, conditions: AlarmCondition[]) => ({accounts: {env}, send: mail.send, conditions, heartbeatConfigured: false});
   const records = async (condition: string) => (await db.query('select id, subject, resolved_at from lifecycle.alarms where condition = $1 order by first_at, id', [condition])).rows as {id: string; subject: string | null; resolved_at: Date | null}[];
-  const outcomes = async (alarmId: string) => (await db.query('select outcome from lifecycle.alarm_notices where alarm_id = $1 order by at, id', [alarmId])).rows.map((row) => row.outcome as string);
 
   it('AC-1: opens one alarm for a condition that crosses its threshold and emails it once, refreshes it without a second record or email, resolves it when it clears, and keeps the record', async () => {
     const id = uid();
@@ -1139,7 +1155,8 @@ describe('the monitor end to end against the real database, with a fixture condi
     expect(found.map((one) => one.id)).toEqual(['task-late', 'ledger-pending', 'identities-unaccounted', 'heartbeat-stale']);
     for (const one of found) {
       expect(one.findings, one.id).not.toBeNull();
-      for (const finding of one.findings ?? []) {
+      // (The relay's latest receipt may be `no_store` in this database: then `ledger-pending` is unobservable, which is an answer too.)
+      for (const finding of one.findings === unobservable || one.findings === null ? [] : one.findings) {
         expect(isAlarmDetail(finding.detail), `${one.id}: ${JSON.stringify(finding.detail)}`).toBe(true);
         if (finding.subject !== null) expect(finding.subject).toMatch(alarmSubjectPattern);
       }
@@ -1232,12 +1249,384 @@ describe('the heartbeat route end to end against the real database', () => {
 });
 
 // ---------------------------------------------------------------------------------------------------
+// F1. The monitor and the heartbeat evaluation both fire at :00 and can both find the same alarm due. The database claims what it hands out, under one lock.
+// (The outcomes a sender recorded. The claims the database made before each are `claims`; CHANGED (F1): these used to be every notice, and a claim now comes before each.)
+const outcomes = async (alarmId: string) => (await db.query(`select outcome from lifecycle.alarm_notices where alarm_id = $1 and outcome <> 'claimed' order by at, id`, [alarmId])).rows.map((row) => row.outcome as string);
+const claims = async (alarmId: string) => (await db.query(`select count(*)::int as n from lifecycle.alarm_notices where alarm_id = $1 and outcome = 'claimed'`, [alarmId])).rows[0].n as number;
+const backendPid = async (client: Client) => Number((await client.query('select pg_backend_pid() as pid')).rows[0].pid);
+async function waitForLock(pid: number) {
+  for (let tries = 0; tries < 100; tries += 1) {
+    const {rows: waiting} = await db.query('select wait_event_type as type, wait_event as event from pg_stat_activity where pid = $1', [pid]);
+    if (waiting[0]?.type === 'Lock') return waiting[0].event as string;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error('The other connection never started waiting for the lock.');
+}
+type Handed = {id: string; condition: string; subject: string | null};
+const handedBy = async (client: Client, prefix: string) => ((await client.query('select alarms from api.alarms_due_mail(50)')).rows[0].alarms as Handed[]).filter((alarm) => alarm.condition.startsWith(prefix));
+/** A `claimed` notice made `ago` ago: what a caller of api.alarms_due_mail leaves behind (the owner writes it directly; the service role cannot). */
+const claimAt = (client: Client, alarmId: string, ago: string) => client.query(`insert into lifecycle.alarm_notices (alarm_id, at, outcome) values ($1, clock_timestamp() - $2::interval, 'claimed')`, [alarmId, ago]);
+
+describe('api.alarms_due_mail claims what it returns (F1)', () => {
+  it('hands each due alarm to exactly one of several callers that ask at once (real connections), and records one claim for each', async () => {
+    const prefix = uid();
+    const ids: string[] = [];
+    for (let index = 0; index < 4; index += 1) ids.push((await db.query('select alarm_id from api.raise_alarm($1, null, $2)', [`${prefix}-${index}`, '{}'])).rows[0].alarm_id as string);
+    const clients = await Promise.all(Array.from({length: 6}, () => connect()));
+    const results = await Promise.all(clients.map((client) => handedBy(client, prefix)));
+    const handed = results.flat().map((alarm) => alarm.id);
+    expect([...handed].sort()).toEqual([...ids].sort());
+    for (const id of ids) expect(await claims(id)).toBe(1);
+    // ... and the next call, afterwards, is handed none of them.
+    expect(await handedBy(db, prefix)).toEqual([]);
+  });
+
+  // Held-transaction pattern (tests/integration/file-gateway-db.test.ts): one caller holds its claims UNCOMMITTED; the other must wait for the lock, and then find them claimed.
+  // Without the lock the second reads the alarm as due (the first has not committed) and is handed it too; without the claim it is handed it again once the first has committed.
+  it('makes a second caller WAIT for the first, and then find the alarms claimed: the lock is held until the first commits, and the claim is what it then reads', async () => {
+    const prefix = uid();
+    const id = (await db.query('select alarm_id from api.raise_alarm($1, $2, $3)', [`${prefix}-held`, 'A', '{}'])).rows[0].alarm_id as string;
+    const [first, second] = await Promise.all([connect(), connect()]);
+    try {
+      await first.query('begin');
+      expect((await handedBy(first, prefix)).map((alarm) => alarm.id)).toEqual([id]);
+      const secondPid = await backendPid(second);
+      let finished = false;
+      const waiting = second.query('select alarms from api.alarms_due_mail(50)').then((result) => {
+        finished = true;
+        return (result.rows[0].alarms as Handed[]).filter((alarm) => alarm.condition.startsWith(prefix));
+      });
+      expect(await waitForLock(secondPid)).toBe('advisory');
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect(finished, 'the second caller waits for the first').toBe(false);
+      await first.query('commit');
+      expect(await waiting).toEqual([]);
+      expect(await claims(id)).toBe(1);
+    } finally {
+      await first.query('rollback').catch(() => undefined);
+    }
+  });
+
+  it('sends one mail when two dispatches overlap (the monitor and the heartbeat evaluation at :00), with a sender that takes its time: one claim, one `sent` notice', async () => {
+    const prefix = uid();
+    const mail = sender(prefix);
+    const slow = async (alarm: AlarmNotice): Promise<MailOutcome> => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return mail.send(alarm);
+    };
+    const opened = await raiseAlarm({condition: `${prefix}-overlap`, subject: 'A', detail: {n: 1}}, {env});
+    const [one, two] = await Promise.all([dispatchDueMail({accounts: {env}, send: slow}), dispatchDueMail({accounts: {env}, send: slow})]);
+    expect(mail.mails.filter((alarm) => alarm.condition === `${prefix}-overlap`)).toHaveLength(1);
+    expect(await outcomes(opened.alarmId)).toEqual(['sent']);
+    expect(await claims(opened.alarmId)).toBe(1);
+    // (The alarms of the database that are not this test's are not its to count; what both dispatches did for this one is one mail.)
+    expect(one.mailed + two.mailed).toBeGreaterThanOrEqual(1);
+    // The next dispatch finds nothing due for it.
+    await dispatchDueMail({accounts: {env}, send: slow});
+    expect(mail.mails.filter((alarm) => alarm.condition === `${prefix}-overlap`)).toHaveLength(1);
+  });
+
+  it('retries a sender that crashed after claiming only after 10 minutes, with the claim at a real time in the past: held at 9 minutes, due at 11', async () => {
+    await inTx(async (client) => {
+      const prefix = uid();
+      const nine = (await raise(client, `${prefix}-nine`, 'A')).alarm_id;
+      const eleven = (await raise(client, `${prefix}-eleven`, 'A')).alarm_id;
+      await claimAt(client, nine, '9 minutes');
+      await claimAt(client, eleven, '11 minutes');
+      const handed = (await dueOf(client, prefix)).map((alarm) => alarm.id);
+      expect(handed).toEqual([eleven]);
+      // It was claimed again at once, so it is held again.
+      expect((await dueOf(client, prefix)).map((alarm) => alarm.id)).toEqual([]);
+    });
+  });
+
+  it('releases a claim at once with a LATER `failed`, `unknown` or `sent` notice, and not with an EARLIER one; `sent` also closes the 24 hours, the other two do not', async () => {
+    await inTx(async (client) => {
+      const prefix = uid();
+      const failed = (await raise(client, `${prefix}-failed`, 'A')).alarm_id;
+      const unknown = (await raise(client, `${prefix}-unknown`, 'A')).alarm_id;
+      const sent = (await raise(client, `${prefix}-sent`, 'A')).alarm_id;
+      const earlier = (await raise(client, `${prefix}-earlier`, 'A')).alarm_id;
+      for (const id of [failed, unknown, sent]) await claimAt(client, id, '2 minutes');
+      await noticeAt(client, failed, 'failed', '1 minute');
+      await noticeAt(client, unknown, 'unknown', '1 minute');
+      await noticeAt(client, sent, 'sent', '1 minute');
+      // The `failed` before the claim is an earlier notice: it does not release it.
+      await noticeAt(client, earlier, 'failed', '3 minutes');
+      await claimAt(client, earlier, '2 minutes');
+      expect((await dueOf(client, prefix)).map((alarm) => alarm.id).sort()).toEqual([failed, unknown].sort());
+    });
+  });
+
+  it('holds an alarm with no subject for a claim on ANY alarm of its condition (the older alarm of the condition, resolved), and a subject-keyed alarm only for a claim on itself', async () => {
+    await inTx(async (client) => {
+      const condition = uid();
+      const old = (await raise(client, condition, null)).alarm_id;
+      await claimAt(client, old, '1 minute');
+      await resolve(client, condition, null);
+      // The condition has come back: a new alarm with no subject, held by the claim on the old one. Two subject-keyed alarms of the same condition are not held by it.
+      const threshold = (await raise(client, condition, null)).alarm_id;
+      const keyedA = (await raise(client, condition, 'A')).alarm_id;
+      const keyedB = (await raise(client, condition, 'B')).alarm_id;
+      await claimAt(client, keyedB, '1 minute');
+      // A claim on a subject-keyed alarm holds that alarm; it does not hold the condition's other subjects (and the threshold alarm is held by `old` already).
+      expect((await dueOf(client, condition)).map((alarm) => alarm.id)).toEqual([keyedA]);
+    });
+    await inTx(async (client) => {
+      const condition = uid();
+      const old = (await raise(client, condition, null)).alarm_id;
+      await claimAt(client, old, '11 minutes');
+      await resolve(client, condition, null);
+      const threshold = (await raise(client, condition, null)).alarm_id;
+      // The claim lapsed 1 minute ago: the new alarm is due.
+      expect((await dueOf(client, condition)).map((alarm) => alarm.id)).toEqual([threshold]);
+    });
+    await inTx(async (client) => {
+      const condition = uid();
+      const keyed = (await raise(client, condition, 'A')).alarm_id;
+      const threshold = (await raise(client, condition, null)).alarm_id;
+      await claimAt(client, keyed, '1 minute');
+      // A claim on a subject-keyed alarm of the condition holds the threshold alarm too ("any alarm of the same condition"), as a `sent` one does.
+      expect((await dueOf(client, condition)).map((alarm) => alarm.id)).toEqual([]);
+      expect(threshold).toBeDefined();
+    });
+  });
+
+  it('does not let a caller record a claim: the record function refuses it (22023) to the service role, in the database and over REST, and the table is closed to everyone but the owner', async () => {
+    await inTx(async (client) => {
+      const id = (await raise(client, uid(), 'A')).alarm_id;
+      const refused = await attempt(client, 'service_role', 'select * from api.record_alarm_notice($1, $2)', [id, 'claimed']);
+      expect(refused.ok).toBe(false);
+      if (!refused.ok) expect(refused.code).toBe('22023');
+      const direct = await attempt(client, 'service_role', `insert into lifecycle.alarm_notices (alarm_id, outcome) values ($1, 'claimed')`, [id]);
+      expect(direct.ok).toBe(false);
+      if (!direct.ok) expect(direct.code).toBe('42501');
+      expect((await client.query(`select count(*)::int as n from lifecycle.alarm_notices where alarm_id = $1`, [id])).rows[0].n).toBe(0);
+    });
+    const id = (await db.query('select alarm_id from api.raise_alarm($1, $2, $3)', [uid(), 'A', '{}'])).rows[0].alarm_id as string;
+    const response = await fetch(`${stack.apiUrl}/rest/v1/rpc/record_alarm_notice`, {
+      method: 'POST',
+      headers: {apikey: stack.anonKey, authorization: `Bearer ${stack.serviceKey}`, 'content-type': 'application/json', 'content-profile': 'api'},
+      body: JSON.stringify({p_alarm_id: id, p_outcome: 'claimed'}),
+    });
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe('22023');
+    expect(await claims(id)).toBe(0);
+  });
+
+  it('does not show a claim as an alarm\'s latest notice: an alarm whose last try failed and is being tried again still shows that it failed, and one only claimed shows none', async () => {
+    await inTx(async (client) => {
+      const prefix = uid();
+      const retried = (await raise(client, `${prefix}-retried`, 'A')).alarm_id;
+      const claimed = (await raise(client, `${prefix}-claimed`, 'A')).alarm_id;
+      await noticeAt(client, retried, 'failed', '5 minutes');
+      await claimAt(client, retried, '1 minute');
+      await claimAt(client, claimed, '1 minute');
+      const listed = (await list(client, false)).filter((alarm) => alarm.condition.startsWith(prefix));
+      const byId = Object.fromEntries(listed.map((alarm) => [alarm.id, alarm]));
+      expect(byId[retried]).toMatchObject({last_notice_outcome: 'failed', last_sent_at: null});
+      expect(byId[claimed]).toMatchObject({last_notice_outcome: null, last_notice_at: null, last_sent_at: null});
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+/**
+ * The real database, with the observations it reports changed by `patch` before the application reads them. Receipts and heartbeats are append-only, so a database that
+ * has run for a while cannot be made to have NO fresh monitor receipt, or a relay at `no_store`, by deleting anything; the alarms, the notices, the claims and the mail
+ * rule are all still the real ones, which is what these cases are about.
+ */
+function observing(patch: (observation: Record<string, any>) => Record<string, any>) {
+  return async (input: string, init?: RequestInit) => {
+    const response = await fetch(input, init);
+    if (!String(input).endsWith('/rpc/alarm_observations') || !response.ok) return response;
+    return new Response(JSON.stringify(patch((await response.json()) as Record<string, any>)), {status: response.status, headers: {'content-type': 'application/json'}});
+  };
+}
+/** The task list of an observation with one task's newest finished receipt set (or taken out). */
+const withTask = (observation: Record<string, any>, task: string, receipt: {outcome: string; age: number} | null) => ({
+  ...observation,
+  tasks: [...(observation.tasks as {task: string}[]).filter((entry) => entry.task !== task), ...(receipt ? [{task, outcome: receipt.outcome, at: '2026-10-17T20:00:00.000Z', age: receipt.age}] : [])],
+});
+
+describe('monitor-late: the heartbeat route sees a stopped monitor (F3)', () => {
+  const instance = () => env.INSTANCE_ID;
+  const keys = (label: string) => testSigner({issuer: 'heartbeat', active: `${label}`});
+  const post = (token: string) => new Request('http://127.0.0.1:4173/api/heartbeat', {method: 'POST', headers: {authorization: `Heartbeat ${token}`}});
+  // The real condition under an ID of this run's own: the 24-hour rule is real, and a real `monitor-late` alarm left by an earlier run would hold this one's email back.
+  const monitorLate = (id: string): AlarmCondition => ({...monitorLateCondition, id});
+
+  it('raises it when a heartbeat arrives and the monitor has no receipt newer than 600 seconds, emails it once, refreshes it at the next heartbeat, and resolves it at the first heartbeat after a fresh monitor receipt (the matrix row "Monitor stopped")', async () => {
+    const label = `it-hb-${tag()}`;
+    const {signer, json} = keys(label);
+    const id = uid();
+    const mail = sender(id);
+    let monitor: {outcome: string; age: number} | null = {outcome: 'ran', age: 900};
+    // (Without a monitor receipt the condition measures from the first receipt of any task, which this database's history decides: it is set here.)
+    const options = () => ({
+      env: {...env, SERVICE_KEYS_HEARTBEAT: json},
+      accounts: {fetch: observing((observation) => ({...withTask(observation, 'alarm-monitor', monitor), first_receipt_age: 5000})) as never},
+      alarms: {send: mail.send, conditions: [monitorLate(id)]},
+    });
+    const beat = async () => handleHeartbeatRequest(post(signHeartbeat(signer, instance())), options());
+    const records = async () => (await db.query('select id, subject, resolved_at, detail from lifecycle.alarms where condition = $1 order by first_at', [id])).rows as {id: string; subject: string | null; resolved_at: Date | null; detail: Record<string, unknown>}[];
+
+    expect((await beat()).status).toBe(200);
+    const [alarm, ...others] = await records();
+    expect(others).toEqual([]);
+    expect(alarm).toMatchObject({subject: null, resolved_at: null, detail: {receipt_task: 'alarm-monitor', receipt_outcome: 'ran', receipt_at: '2026-10-17T20:00:00.000Z', age_seconds: 900}});
+    expect(mail.mails).toEqual([expect.objectContaining({condition: id, subject: null})]);
+    expect(await outcomes(alarm.id)).toEqual(['sent']);
+
+    // The next heartbeat finds it still late: the same record, refreshed, and no second email.
+    expect((await beat()).status).toBe(200);
+    expect(await records()).toHaveLength(1);
+    expect(mail.mails).toHaveLength(1);
+
+    // A monitor that never finished a run, while the scheduler has been running for over 600 seconds, is the same alarm (the schedule was never made).
+    monitor = null;
+    expect((await beat()).status).toBe(200);
+    expect(await records()).toHaveLength(1);
+    expect((await records())[0]).toMatchObject({resolved_at: null, detail: {receipt_task: 'alarm-monitor', receipt_outcome: 'never', age_seconds: 5000}});
+    expect(mail.mails).toHaveLength(1);
+
+    // A fresh monitor receipt: the first heartbeat after it resolves it, with no email.
+    monitor = {outcome: 'ran', age: 40};
+    expect((await beat()).status).toBe(200);
+    expect((await records())[0].resolved_at).toBeInstanceOf(Date);
+    expect(mail.mails).toHaveLength(1);
+  });
+
+  it('is evaluated by the heartbeat and not by the monitor: a monitor run with the same stale picture raises none of it, and the heartbeat\'s evaluation raises it and the monitor\'s conditions not', async () => {
+    const id = uid();
+    const mail = sender(id);
+    const stale = observing((observation) => withTask(observation, 'alarm-monitor', {outcome: 'ran', age: 5000}));
+    const condition = {...monitorLateCondition, id};
+    // (A monitor run owns the monitor's conditions only: this one is the heartbeat's.)
+    await runAlarmMonitor({accounts: {env, fetch: stale as never}, send: mail.send, conditions: [condition], heartbeatConfigured: false});
+    expect((await db.query('select count(*)::int as n from lifecycle.alarms where condition = $1', [id])).rows[0].n).toBe(0);
+    await runHeartbeatEvaluation({accounts: {env, fetch: stale as never}, send: mail.send, conditions: [condition]});
+    expect((await db.query('select count(*)::int as n from lifecycle.alarms where condition = $1 and resolved_at is null', [id])).rows[0].n).toBe(1);
+  });
+
+  it('reads the real observations: a finished alarm-monitor receipt of the database is the task\'s entry the condition reads, and a fresh one clears it', async () => {
+    await inTx(async (client) => {
+      await client.query(`insert into lifecycle.job_receipts (task, schedule_id, message_id, attempt, started_at, finished_at, outcome, result) values ('alarm-monitor', $1, $2, 1, clock_timestamp(), clock_timestamp(), 'ran', '{}')`, [`scd_${randomUUID()}`, `msg_${randomUUID()}`]);
+      const observed = (await svc(client, 'select tasks, first_receipt_age from api.alarm_observations()')) as {tasks: {task: string; outcome: string; age: number}[]; first_receipt_age: string};
+      const entry = observed.tasks.find((task) => task.task === 'alarm-monitor');
+      expect(entry).toMatchObject({outcome: 'ran'});
+      expect(entry!.age).toBeLessThanOrEqual(5);
+      const conditionsSaw = monitorLateCondition.evaluate({firstReceiptAge: Number(observed.first_receipt_age), latestReceiptAge: 1, firstHeartbeatAge: null, latestHeartbeatAge: null, ledgerWaiting: 0, ledgerOldest: null, unaccounted: 0, tasks: observed.tasks as never, heartbeatConfigured: false}, scheduleRegistry);
+      expect(conditionsSaw).toEqual([]);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+describe('unobservable keeps an open alarm open (F4)', () => {
+  /** The real conditions, each under an ID of this run's own (the 24-hour rule is real). */
+  const ledgerPending = (id: string): AlarmCondition => ({...ledgerPendingCondition, id});
+  const heartbeatStale = (id: string): AlarmCondition => ({...heartbeatStaleCondition, id});
+  const openOf = async (id: string) => (await db.query('select id, resolved_at from lifecycle.alarms where condition = $1 order by first_at', [id])).rows as {id: string; resolved_at: Date | null}[];
+
+  it('ledger-pending: an alarm that is open stays open while the relay\'s latest receipt is `no_store`, nothing is raised or resolved, and it resolves once the relay can relay and the backlog is clear', async () => {
+    const id = uid();
+    const mail = sender(id);
+    let relay = 'ran';
+    let backlog = {pending: 4, oldest: 2000};
+    const run = () =>
+      runAlarmMonitor({
+        accounts: {env, fetch: observing((observation) => ({...withTask(observation, 'ledger-relay', {outcome: relay, age: 60}), ledger_pending: backlog.pending, ledger_oldest: backlog.oldest})) as never},
+        send: mail.send,
+        conditions: [ledgerPending(id)],
+        heartbeatConfigured: false,
+      });
+    expect(await run()).toMatchObject({raised: 1, resolved: 0});
+    const [alarm] = await openOf(id);
+    expect(alarm.resolved_at).toBeNull();
+    // The relay now has no store to write to: unobservable, with the backlog still old and with it gone.
+    relay = 'no_store';
+    for (const next of [{pending: 4, oldest: 2000}, {pending: 0, oldest: null as never}]) {
+      backlog = next;
+      expect(await run()).toMatchObject({raised: 0, resolved: 0});
+      expect(await openOf(id)).toEqual([{id: alarm.id, resolved_at: null}]);
+    }
+    // The relay is back and the backlog is clear: resolved, once.
+    relay = 'ran';
+    expect(await run()).toMatchObject({raised: 0, resolved: 1});
+    expect((await openOf(id))[0].resolved_at).toBeInstanceOf(Date);
+    expect(mail.mails).toHaveLength(1);
+  });
+
+  it('ledger-pending: with the relay at `no_store` from the start, no alarm is ever opened, however old the backlog is', async () => {
+    const id = uid();
+    const run = () =>
+      runAlarmMonitor({
+        accounts: {env, fetch: observing((observation) => ({...withTask(observation, 'ledger-relay', {outcome: 'no_store', age: 60}), ledger_pending: 134, ledger_oldest: 90_000})) as never},
+        send: sender(id).send,
+        conditions: [ledgerPending(id)],
+        heartbeatConfigured: false,
+      });
+    expect(await run()).toMatchObject({raised: 0, resolved: 0});
+    expect(await openOf(id)).toEqual([]);
+  });
+
+  it('heartbeat-stale: an alarm that is open stays open while SERVICE_KEYS_HEARTBEAT is unset, and resolves once it is set again and the heartbeat is found fresh', async () => {
+    const id = uid();
+    const mail = sender(id);
+    let configured = true;
+    let age: number | null = 9000;
+    const run = () =>
+      runAlarmMonitor({
+        accounts: {env, fetch: observing((observation) => ({...observation, latest_heartbeat_age: age, first_heartbeat_age: age})) as never},
+        send: mail.send,
+        conditions: [heartbeatStale(id)],
+        heartbeatConfigured: configured,
+      });
+    expect(await run()).toMatchObject({raised: 1, resolved: 0});
+    const [alarm] = await openOf(id);
+    configured = false;
+    for (const next of [9000, 30, null]) {
+      age = next;
+      expect(await run()).toMatchObject({raised: 0, resolved: 0});
+      expect(await openOf(id)).toEqual([{id: alarm.id, resolved_at: null}]);
+    }
+    configured = true;
+    age = 30;
+    expect(await run()).toMatchObject({raised: 0, resolved: 1});
+    expect((await openOf(id))[0].resolved_at).toBeInstanceOf(Date);
+    expect(mail.mails).toHaveLength(1);
+  });
+
+  it('heartbeat-stale: unset from the start, none is ever opened; and the operator who removed the heartbeat on purpose closes an open one with api.resolve_alarm, through the service role', async () => {
+    const id = uid();
+    const run = (configured: boolean) =>
+      runAlarmMonitor({
+        accounts: {env, fetch: observing((observation) => ({...observation, latest_heartbeat_age: 99_999, first_heartbeat_age: 99_999})) as never},
+        send: sender(id).send,
+        conditions: [heartbeatStale(id)],
+        heartbeatConfigured: configured,
+      });
+    expect(await run(false)).toMatchObject({raised: 0});
+    expect(await openOf(id)).toEqual([]);
+    expect(await run(true)).toMatchObject({raised: 1});
+    expect(await run(false)).toMatchObject({raised: 0, resolved: 0});
+    expect((await openOf(id))[0].resolved_at).toBeNull();
+    // The statement in docs/staging.md, as the service role runs it.
+    const closed = await inTx(async (client) => svc(client, `select * from api.resolve_alarm('${id}', null)`));
+    expect(closed).toMatchObject({outcome: 'resolved'});
+    expect(await resolveAlarm({condition: id, subject: null}, {env})).toMatchObject({outcome: 'resolved'});
+    expect((await openOf(id))[0].resolved_at).toBeInstanceOf(Date);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
 describe('sendAlarmMail against the stack\'s Mailpit', () => {
   it('sends the alarm to the configured Administrator address through the real local transport, and the message holds what the spec lists and nothing else', async () => {
     const condition = uid();
     const before = new Set((await listMail()).map((message) => message.id));
     const outcome = await sendAlarmMail(
-      {condition, subject: 'ledger-relay', firstAt: '2026-10-17T20:41:16.179Z', detail: {receipt_task: 'ledger-relay', receipt_outcome: 'ran', receipt_at: '2026-10-17T20:37:22.998Z', age_seconds: 700, count: 99}},
+      {condition, subject: 'ledger-relay', firstAt: '2026-10-17T20:41:16.179Z', detail: {receipt_task: 'ledger-relay', receipt_outcome: 'ran', receipt_at: '2026-10-17T20:37:22.998Z', age_seconds: 700, count: 99, note: 'not for the mail'}},
       {env: {...env, ADMINISTRATOR_EMAIL: 'alarms-admin@example.test'}},
     );
     expect(outcome).toEqual({outcome: 'sent'});
@@ -1250,12 +1639,18 @@ describe('sendAlarmMail against the stack\'s Mailpit', () => {
       }
       expect(mine, 'the message reached Mailpit').toBeDefined();
       expect(mine!.to).toEqual(['alarms-admin@example.test']);
-      expect(mine!.subject).toBe(`nova3D alarm: ${condition} (ledger-relay)`);
+      // CHANGED (F2): the subject line names the environment, which here is the local stack's.
+      expect(mine!.subject).toBe(`[local] nova3D alarm: ${condition} (ledger-relay)`);
       expect(mine!.text).toContain(`Condition: ${condition}`);
       expect(mine!.text).toContain('Subject: ledger-relay');
       expect(mine!.text).toContain('First seen: 2026-10-17 20:41 UTC');
       expect(mine!.text).toContain('Last receipt, task: ledger-relay');
-      expect(mine!.text).not.toMatch(/\b700\b|\b99\b|age_seconds|\bcount\b|@/);
+      // CHANGED (F2): the whole numbers of the detail are in the message with their keys (it asserted they were not); the environment is its first line; no address.
+      expect(mine!.text).toContain('Environment: local');
+      expect(mine!.text).toContain('age_seconds: 700');
+      expect(mine!.text).toContain('count: 99');
+      expect(mine!.text).not.toContain('not for the mail');
+      expect(mine!.text).not.toMatch(/@/);
     } finally {
       // Only this message goes: the mailbox is left as it was found (the recovery specs read it).
       if (mine) await deleteMail([mine.id]);

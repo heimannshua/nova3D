@@ -4,7 +4,7 @@ import {useId} from 'react';
 import {formatCreatedAt, isoOf} from '@/lib/administration';
 import {useI18n} from '@/lib/i18n/react';
 import type {Translator} from '@/lib/i18n';
-import {conditionTitleKey, emailNoteKeyOf, emailStateKeys, emailStateOf, hasReceipt, receiptOf, receiptOutcomeKey, type AlarmView, type EmailState} from '@/lib/operations';
+import {conditionTitleKey, detailLabelKey, detailValuesOf, emailNoteKeyOf, emailStateKeys, emailStateOf, hasReceipt, receiptOf, receiptOutcomeKey, type AlarmView, type EmailState} from '@/lib/operations';
 import {EmptyState, ErrorState} from '../ui/states';
 import {StatusBadge, type StatusTone} from '../ui/status-badge';
 import {LtrToken} from '../ui/text-span';
@@ -78,6 +78,23 @@ function ReceiptRows({alarm, t}: {alarm: AlarmView; t: Translator}) {
   );
 }
 
+/** What the condition found, as the detail holds it: each whole number and boolean with a label (a known key has its words, any other shows its key), left to right. */
+function DetailRows({alarm, t}: {alarm: AlarmView; t: Translator}) {
+  return (
+    <>
+      {detailValuesOf(alarm.detail).map(({key, value}) => {
+        const label = detailLabelKey(key);
+        return (
+          <div key={key}>
+            <dt>{label ? t(label) : <LtrToken>{key}</LtrToken>}</dt>
+            <dd>{typeof value === 'boolean' ? t(value ? 'operations.detail.yes' : 'operations.detail.no') : <LtrToken>{String(value)}</LtrToken>}</dd>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 function SubjectRow({alarm, t}: {alarm: AlarmView; t: Translator}) {
   if (alarm.subject === null) return null;
   return (
@@ -105,6 +122,7 @@ function OpenItem({alarm}: {alarm: AlarmView}) {
           <dt>{t('operations.row.latest')}</dt>
           <dd><Moment at={alarm.latestAt}/></dd>
         </div>
+        <DetailRows alarm={alarm} t={t}/>
         <ReceiptRows alarm={alarm} t={t}/>
         <EmailRow alarm={alarm} t={t}/>
       </dl>

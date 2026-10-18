@@ -12,8 +12,8 @@ import {signRaw, testSigner} from '../support/service-keys';
 // is tested there, with a key of its own: this file revokes nothing.
 //
 // NO MAIL: the recovery specs assert that the Mailpit mailbox holds exactly 0 or 1 messages, so nothing here may make the application send an alarm. The
-// route evaluates `qstash-stale` and emails what is due, so a fresh receipt is written first (the latest receipt of any scheduler task is then seconds old, and
-// the condition does not hold), and the alarms other specs open are never due (each has its `sent` notice at once and is resolved afterwards).
+// route evaluates `qstash-stale` and `monitor-late` and emails what is due, so fresh receipts are written first (the latest receipt of any scheduler task and the
+// alarm monitor's own are then seconds old, and neither condition holds), and the alarms other specs open are never due (each has its `sent` notice at once and is resolved afterwards).
 // Heartbeats are append-only: every case asserts on its own token.
 
 let world: AccountsWorld;
@@ -41,9 +41,14 @@ const recorded = async (token: string) => {
 };
 const endpoint = (baseURL: string) => new URL('/api/heartbeat', baseURL).href;
 
-/** A scheduler task just ran: the latest receipt of any task is fresh, so the heartbeat does not find QStash stopped and sends no mail. */
+/**
+ * The scheduler's tasks just ran: the latest receipt of any task is fresh (so the heartbeat does not find QStash stopped) and the alarm monitor has a fresh one of its
+ * own (so it does not find the monitor stopped, `monitor-late`). The route evaluates the real conditions against this database, and an alarm it raised would be
+ * emailed to the stack's Mailpit: no case here may send alarm mail.
+ */
 async function freshReceipt() {
   await world.db.query(`insert into lifecycle.job_receipts (task, schedule_id, message_id, attempt, finished_at, outcome, result) values ('ledger-relay', $1, $2, 1, now(), 'idle', '{"pending": 0}')`, [`scd_hb_${randomUUID()}`, `msg_hb_${randomUUID()}`]);
+  await world.db.query(`insert into lifecycle.job_receipts (task, schedule_id, message_id, attempt, finished_at, outcome, result) values ('alarm-monitor', $1, $2, 1, now(), 'ran', '{"raised": 0}')`, [`scd_hb_${randomUUID()}`, `msg_hb_${randomUUID()}`]);
 }
 
 test.describe('a signed heartbeat', () => {

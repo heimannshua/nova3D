@@ -2,7 +2,7 @@
 title: 'Story 1.13: Raise operational alarms'
 type: 'feature'
 created: '2026-10-17'
-status: 'in-review'
+status: 'done'
 baseline_commit: '02d8659dc4f9f737eb39da35a09de953ce884fac'
 review_loop_iteration: 1
 context:
@@ -24,7 +24,7 @@ context:
 
 ## Boundaries & Constraints
 
-**Always:** Consult `node_modules/next/dist/docs/` before writing Next.js code (AGENTS.md). No new npm dependency, no new required environment variable, no new secret; the one new name is `SERVICE_KEYS_HEARTBEAT` (the heartbeat issuer's public key set, same format as Story 1.12's, not secret, optional in the application). **Records** (migration `20261016120000_alarms.sql`, `lifecycle` schema; each table closed like `job_receipts`: RLS on, no policy, every privilege revoked from public, anon, authenticated and service_role, reached only through service-role `api.*` functions that are `security definer` with `search_path = ''`): `lifecycle.alarms` (id, `condition` matching `^[a-z][a-z0-9-]{0,47}$`, optional `subject` matching `^[A-Za-z0-9._:-]{1,64}$`, `first_at`, `latest_at`, `resolved_at`, `detail` json of at most 1 KB with flat keys `^[a-z][a-z0-9_]{0,31}$` and values that are integers, booleans or strings of at most 80 printable ASCII characters), `lifecycle.alarm_notices` (alarm, time, outcome `sent|failed|unknown`) and `lifecycle.heartbeats` (id, `jti` unique, key id, `received_at`). A partial unique index allows one open alarm (`resolved_at` null) per (condition, subject). Alarms are never deleted or truncated; `id`, `condition`, `subject` and `first_at` never change, `latest_at` never decreases, `resolved_at` is set once, notices and heartbeats are append-only. Times come from the database clock (`clock_timestamp()`), and the observations below carry ages in seconds so the application never compares its own clock with the database's. **Functions** (service role only; the preflight is re-created carrying every earlier probe plus these): `api.raise_alarm(condition, subject, detail)` opens an alarm or, if one is open for that (condition, subject), refreshes its `latest_at` and `detail` (an advisory lock per pair; answers `opened` or `refreshed` with the ID); `api.resolve_alarm(condition, subject)`; `api.list_alarms(include_resolved, limit)`; `api.alarms_due_mail(limit)`; `api.record_alarm_notice(alarm, outcome)`; `api.alarm_observations()`; `api.record_heartbeat(kid, jti)`. **Email rule** (all in `api.alarms_due_mail`): an open alarm is due when it has had no `sent` notice in the last 24 hours and, for an alarm with no subject, no `sent` notice for any alarm of the same condition in the last 24 hours; so an alarm is emailed when it opens (a subject-keyed one at the evaluation that raised it, a threshold one unless its condition was emailed within 24 hours, in which case when that window ends if it is still open) and reminded at most once per 24 hours while open; a `failed` or `unknown` notice never closes a window, so the email is retried at the next evaluation (an `unknown` may duplicate one mail; accepted). A resolved alarm is never emailed. The email is `sendAlarmMail` in `lib/mailer.ts`: fixed words plus the condition, subject, first time (UTC) and the detail's whitelisted receipt keys; never an address, title, code, token or any private content; the recipient is `ADMINISTRATOR_EMAIL` read inside the mailer, with no recipient parameter; it returns `sent|refused|unknown` and never throws or logs. **Registry** (`lib/alarm-conditions.ts`): a condition is `{id, evaluatedBy: 'monitor'|'heartbeat', evaluate(observations, registry) -> findings}` where a finding is `{subject: string|null, detail}`; the monitor raises each finding and resolves every open alarm of an auto-resolving condition (`evaluatedBy` monitor or heartbeat) whose (condition, subject) is no longer found, and a later story adds a condition by adding an entry and nothing else. A pushed, subject-keyed condition raises through `lib/alarms.ts` `raiseAlarm` followed by the same mail dispatch. Conditions registered here: `task-late` (subject = the task: for each task in `lib/schedules.ts` except the monitor, its latest finished receipt older than twice its `intervalSeconds`, or, if it never finished one, the first receipt of any task older than that; detail names the task and its last receipt: `receipt_task`, `receipt_outcome`, `receipt_at` or `never`, `age_seconds`); `ledger-pending` (threshold: pending events whose oldest is over 900 seconds, only when the relay's latest finished receipt is not `no_store`, because with no store the events can never be relayed; detail `pending`, `oldest_seconds`, `receipt_*` of `ledger-relay`); `identities-unaccounted` (threshold: more than 25 `auth.users` rows with no `identity.accounts` row, counted by a function the application calls, never by naming `auth.users`; detail `count`); `heartbeat-stale` (threshold, monitor, only when `SERVICE_KEYS_HEARTBEAT` is set: the latest heartbeat older than 7,200 seconds, or none while the first receipt of any task is older than that); `qstash-stale` (threshold, heartbeat: the latest receipt of any scheduler task older than 7,200 seconds, or none while the first heartbeat is older than that). `lib/schedules.ts` gains an `intervalSeconds` for every entry (plain data, no imports) and the monitor `alarm-monitor` (`*/5 * * * *`, 300 s); its receipt holds counts only (`raised`, `resolved`, `mailed`, `mail_failed`). **Heartbeat route** `POST /api/heartbeat` (a machine path like `/api/jobs`: no cookie, no Origin, no CSRF; `/api/heartbeat` joins `machinePaths` and `lib/public-paths.ts`): `Authorization: Heartbeat <token>`, a body of at most 16 bytes, ignored; the token is a Story 1.12 service token with `typ:"heartbeat"`, `iss:"heartbeat"`, `aud:"application"`, no claim beyond the standard ones, verified with `verifyToken` against `SERVICE_KEYS_HEARTBEAT` and `INSTANCE_ID`; then `api.record_heartbeat(kid, jti)` refuses a revoked key and a repeated `jti`; then the application evaluates `qstash-stale`, raises or resolves it, dispatches due mail, and answers `200 {state:"recorded", receipt_age_seconds: n|null}` (this one signed call is the "post a heartbeat and ask for the latest receipt" of the story); `401 {error:"invalid_token"}` for every token failure, one body for all; `409 {state:"duplicate"}`; `403` when an `Origin` header is present; `400` for a bad body; `405` for other methods; `503` when the key set is unset or the database or mailer plumbing fails (never a 200 that skipped the evaluation); every answer `no-store`; nothing logged but fixed words. **Heartbeat worker** (`workers/heartbeat`, built by the Story 1.9 workflow from the repository root like `workers/files`, a cron job that exits): reads `APP_ENV`, `INSTANCE_ID`, `APP_ORIGIN`, `SERVICE_KEYS_HEARTBEAT`, `SERVICE_SIGNING_KEY_HEARTBEAT`, lists missing or malformed names (never values) and exits 1; otherwise signs one token (five minutes) with `lib/service-signing.ts`, posts it once to `<APP_ORIGIN>/api/heartbeat` with a timeout and `redirect:'error'`, prints one fixed line, exits 0 on a 200 and 1 on anything else; it holds no other secret, no database access and no storage key; Railway runs it every 30 minutes (set by hand). **Operations page** `/admin/operations` (Administrator only, 404 for anyone else, like `/admin/accounts`; read-only; no acknowledge, snooze or delete): open alarms, newest first, each with the condition's title, the subject, first and latest time (UTC, the existing format), the last receipt (`receipt_task`, `receipt_outcome`, `receipt_at`) and its email state (sent at / pending / failing), then the ten most recently resolved; empty state, error state and every string in English and Hebrew (the catalogs stay in parity; an unknown condition shows its ID); cards at every width, no horizontal overflow on phone or desktop, no information carried by colour alone, no axe violation; reached from a new area on `/admin`. **Gateway and Railway:** none of this runs against a hosted service from here; the heartbeat service and the staging check are ledger items.
+**Always:** Consult `node_modules/next/dist/docs/` before writing Next.js code (AGENTS.md). No new npm dependency, no new required environment variable, no new secret; the one new name is `SERVICE_KEYS_HEARTBEAT` (the heartbeat issuer's public key set, same format as Story 1.12's, not secret, optional in the application). **Records** (migration `20261016120000_alarms.sql`, `lifecycle` schema; each table closed like `job_receipts`: RLS on, no policy, every privilege revoked from public, anon, authenticated and service_role, reached only through service-role `api.*` functions that are `security definer` with `search_path = ''`): `lifecycle.alarms` (id, `condition` matching `^[a-z][a-z0-9-]{0,47}$`, optional `subject` matching `^[A-Za-z0-9._:-]{1,64}$`, `first_at`, `latest_at`, `resolved_at`, `detail` json of at most 1 KB with flat keys `^[a-z][a-z0-9_]{0,31}$` and values that are integers, booleans or strings of at most 80 printable ASCII characters), `lifecycle.alarm_notices` (alarm, time, outcome `claimed|sent|failed|unknown`) and `lifecycle.heartbeats` (id, `jti` unique, key id, `received_at`). A partial unique index allows one open alarm (`resolved_at` null) per (condition, subject). Alarms are never deleted or truncated; `id`, `condition`, `subject` and `first_at` never change, `latest_at` never decreases, `resolved_at` is set once, notices and heartbeats are append-only. Times come from the database clock (`clock_timestamp()`), and the observations below carry ages in seconds so the application never compares its own clock with the database's. **Functions** (service role only; the preflight is re-created carrying every earlier probe plus these): `api.raise_alarm(condition, subject, detail)` opens an alarm or, if one is open for that (condition, subject), refreshes its `latest_at` and `detail` (an advisory lock per pair; answers `opened` or `refreshed` with the ID); `api.resolve_alarm(condition, subject)`; `api.list_alarms(include_resolved, limit)`; `api.alarms_due_mail(limit)`; `api.record_alarm_notice(alarm, outcome)`; `api.alarm_observations()`; `api.record_heartbeat(kid, jti)`. **Email rule** (all in `api.alarms_due_mail`): an open alarm is due when it has had no `sent` notice in the last 24 hours and, for an alarm with no subject, no `sent` notice for any alarm of the same condition in the last 24 hours; so an alarm is emailed when it opens (a subject-keyed one at the evaluation that raised it, a threshold one unless its condition was emailed within 24 hours, in which case when that window ends if it is still open) and reminded at most once per 24 hours while open; a `failed` or `unknown` notice never closes a window, so the email is retried at the next evaluation (an `unknown` may duplicate one mail; accepted). `api.alarms_due_mail` also claims what it returns: for each alarm it returns it records a `claimed` notice in the same transaction, under an advisory lock, so a second caller (the monitor and the heartbeat evaluation can overlap at :00 and :30) finds those alarms not due; a `claimed` notice holds its alarm (and, for an alarm with no subject, its condition) for 10 minutes unless a later `sent`, `failed` or `unknown` notice for that alarm exists, so a sender that crashes after claiming is retried after 10 minutes. A resolved alarm is never emailed. The email is `sendAlarmMail` in `lib/mailer.ts`: fixed words plus the environment (`APP_ENV`, in the subject line, because staging and production share one Administrator address), the condition, subject, first time (UTC), every integer and boolean value of the detail with its key, and the detail's whitelisted receipt keys (`receipt_task`, `receipt_outcome`, `receipt_at`); never an address, title, code, token or any private content; the recipient is `ADMINISTRATOR_EMAIL` read inside the mailer, with no recipient parameter; it returns `sent|refused|unknown` and never throws or logs. **Registry** (`lib/alarm-conditions.ts`): a condition is `{id, evaluatedBy: 'monitor'|'heartbeat', evaluate(observations, registry) -> findings | 'unobservable'}` where a finding is `{subject: string|null, detail}` and `'unobservable'` means a precondition of the condition is missing now; the monitor raises each finding and resolves every open alarm of an auto-resolving condition (`evaluatedBy` monitor or heartbeat) whose (condition, subject) is no longer found (an `unobservable` condition raises nothing and resolves nothing, so an alarm already open stays open until the condition can be observed and is found clear), and a later story adds a condition by adding an entry and nothing else. A pushed, subject-keyed condition raises through `lib/alarms.ts` `raiseAlarm` followed by the same mail dispatch. Conditions registered here: `task-late` (subject = the task: for each task in `lib/schedules.ts` except the monitor, its latest finished receipt older than twice its `intervalSeconds`, or, if it never finished one, the first receipt of any task older than that; detail names the task and its last receipt: `receipt_task`, `receipt_outcome`, `receipt_at` or `never`, `age_seconds`); `ledger-pending` (threshold: pending events whose oldest is over 900 seconds; unobservable when the relay's latest finished receipt is `no_store`, because with no store the events can never be relayed, so no alarm opens and one already open stays open; detail `pending`, `oldest_seconds`, `receipt_*` of `ledger-relay`); `identities-unaccounted` (threshold: more than 25 `auth.users` rows with no `identity.accounts` row, counted by a function the application calls, never by naming `auth.users`; detail `count`); `heartbeat-stale` (threshold, monitor, unobservable when `SERVICE_KEYS_HEARTBEAT` is unset: the latest heartbeat older than 7,200 seconds, or none while the first receipt of any task is older than that); `qstash-stale` (threshold, heartbeat: the latest receipt of any scheduler task older than 7,200 seconds, or none while the first heartbeat is older than that); `monitor-late` (threshold, heartbeat, no subject: the latest finished `alarm-monitor` receipt older than 600 seconds, or none while the first receipt of any task is older than that, so a missing or dead monitor schedule is seen by the application when the Railway heartbeat arrives; `task-late` still skips the monitor). `lib/schedules.ts` gains an `intervalSeconds` for every entry (plain data, no imports) and the monitor `alarm-monitor` (`*/5 * * * *`, 300 s); its receipt holds counts only (`raised`, `resolved`, `mailed`, `mail_failed`). **Heartbeat route** `POST /api/heartbeat` (a machine path like `/api/jobs`: no cookie, no Origin, no CSRF; `/api/heartbeat` joins `machinePaths` and `lib/public-paths.ts`): `Authorization: Heartbeat <token>`, a body of at most 16 bytes, ignored; the token is a Story 1.12 service token with `typ:"heartbeat"`, `iss:"heartbeat"`, `aud:"application"`, no claim beyond the standard ones, verified with `verifyToken` against `SERVICE_KEYS_HEARTBEAT` and `INSTANCE_ID`; then `api.record_heartbeat(kid, jti)` refuses a revoked key and a repeated `jti`; then the application evaluates `qstash-stale`, raises or resolves it, dispatches due mail, and answers `200 {state:"recorded", receipt_age_seconds: n|null}` (this one signed call is the "post a heartbeat and ask for the latest receipt" of the story); `401 {error:"invalid_token"}` for every token failure, one body for all; `409 {state:"duplicate"}`; `403` when an `Origin` header is present; `400` for a bad body; `405` for other methods; `503` when the key set is unset or the database or mailer plumbing fails (never a 200 that skipped the evaluation); every answer `no-store`; nothing logged but fixed words. **Heartbeat worker** (`workers/heartbeat`, built by the Story 1.9 workflow from the repository root like `workers/files`, a cron job that exits): reads `APP_ENV`, `INSTANCE_ID`, `APP_ORIGIN`, `SERVICE_KEYS_HEARTBEAT`, `SERVICE_SIGNING_KEY_HEARTBEAT`, lists missing or malformed names (never values) and exits 1; otherwise signs one token (five minutes) with `lib/service-signing.ts`, posts it once to `<APP_ORIGIN>/api/heartbeat` with a timeout and `redirect:'error'`, prints one fixed line, exits 0 on a 200 and 1 on anything else; it holds no other secret, no database access and no storage key; Railway runs it every 30 minutes (set by hand). **Operations page** `/admin/operations` (Administrator only, 404 for anyone else, like `/admin/accounts`; read-only; no acknowledge, snooze or delete): open alarms, newest first, each with the condition's title, the subject, first and latest time (UTC, the existing format), the last receipt (`receipt_task`, `receipt_outcome`, `receipt_at`), the detail's integer and boolean values each with a label (a known key has a translated label, any other shows its key) and its email state (sent at / pending / failing), then the ten most recently resolved; empty state, error state and every string in English and Hebrew (the catalogs stay in parity; an unknown condition shows its ID); cards at every width, no horizontal overflow on phone or desktop, no information carried by colour alone, no axe violation; reached from a new area on `/admin`. **Gateway and Railway:** none of this runs against a hosted service from here; the heartbeat service and the staging check are ledger items.
 
 **Ask First:** Any new channel (SMS, chat, push, a second address), acknowledge or snooze controls, or a retention rule for alarms; a different threshold, interval or dedupe window; new environment variables, secrets or dependencies; changing the Story 1.9 or 1.12 contracts beyond what is named here; any step against staging, production, Railway or Resend.
 
@@ -39,10 +39,13 @@ context:
 | Re-crossing | Condition returns after a resolve | A new alarm; emailed unless its condition was emailed in the last 24 h, then when that window ends if still open | N/A |
 | Still open after 24 h | Open alarm, last `sent` notice over 24 h old | One reminder email | N/A |
 | Task stops | `ledger-relay` has no finished receipt for over 600 s | `task-late` alarm with subject `ledger-relay`, naming it and its last receipt | Never-ran task: late once the first receipt of any task is over twice its interval old |
-| Ledger event pending | Oldest pending over 900 s, relay latest receipt not `no_store` | `ledger-pending` alarm with the count and age | Relay latest receipt `no_store`: no alarm |
+| Ledger event pending | Oldest pending over 900 s, relay latest receipt not `no_store` | `ledger-pending` alarm with the count and age | Relay latest receipt `no_store`: no alarm opens (an open one stays) |
 | Identities | 26 `auth.users` rows with no Account (25: none) | `identities-unaccounted` alarm | N/A |
 | Subject-keyed | Subjects A and B raise within 24 h, then A raises again | Alarm and email for A, for B; the repeat creates nothing | N/A |
 | Mailer failing | `sendAlarmMail` refuses or reports `unknown` | Alarm still recorded and on the page; a `failed`/`unknown` notice; email retried at the next evaluation | A throw in the sender is a `failed` notice, never an escaped error |
+| Overlapping dispatch | The monitor and the heartbeat evaluation both find the same alarm due at once | Exactly one of them sends; the other finds it not due; one `sent` notice | A sender that crashes after claiming: due again after 10 minutes |
+| Unobservable | `ledger-pending` is open and the relay's latest receipt becomes `no_store`; or `heartbeat-stale` is open and `SERVICE_KEYS_HEARTBEAT` is unset | The alarm stays open; nothing raised or resolved; once observable and clear it resolves | N/A |
+| Monitor stopped | `alarm-monitor` has no finished receipt for over 600 s when a heartbeat arrives | `monitor-late` alarm (no subject) and one email; resolved by a fresh monitor receipt at the next heartbeat | N/A |
 | Later condition | A fixture condition with its own threshold | Same raise, resolve, page and mail path; no other send function exists | N/A |
 | Heartbeat accepted | Valid token, new `jti` | 200 `recorded` with `receipt_age_seconds`; heartbeat row added | N/A |
 | Heartbeat refused | Replayed `jti`; revoked key; wrong issuer, audience, environment, key; expired; tampered; `Origin` present | 409; 401 (one body); 401; 401; 401; 403; nothing recorded except the first | Key set unset or database down: 503 |
@@ -91,13 +94,15 @@ context:
 
 ## Spec Change Log
 
+- **Review 1 (2026-10-18), four review fixes approved by the human ("whatever u recommend", on a recommendation of all four).** Triggering findings: Blind Hunter, Edge Case Hunter and Verification Gap (duplicate mail from overlapping dispatches), Blind Hunter (bare condition names and shared staging/production address), Blind Hunter and Edge Case Hunter (a missing `alarm-monitor` schedule is invisible), Blind Hunter (an outage hides its own alarm). Amended: the notice outcomes and the claim rule, the email and page content, the registry's `unobservable` answer with `ledger-pending` and `heartbeat-stale`, the new `monitor-late` condition, three matrix rows, and a Design Note; applied as a targeted patch, not a re-derivation. Known-bad states avoided: two senders mailing one alarm; a mail that names only a condition; a dead monitor schedule that raises nothing; an open alarm resolved because its precondition vanished. KEEP: everything else, including the nine batch-1 review patches (mail-send deadline and 30 s worker timeout, per-alarm notice-recording errors, `jti` guard, integer limit, email-state notes, empty state, first-setup notes, page-cap and revocation-lock tests).
+
 ## Design Notes
 
 The monitor runs on QStash, so it cannot see QStash die; the application therefore evaluates `qstash-stale` when the Railway heartbeat arrives, and the monitor evaluates `heartbeat-stale`. Each direction has exactly one observer on the other platform. One signed call carries both the heartbeat and the "latest receipt" answer, which keeps a single new machine path and lets the worker exit non-zero when the application refuses it, so Railway marks the run failed as well.
 
 Intervals live in `lib/schedules.ts`, not SQL, so the monitor runs in TypeScript and the database only reports ages in seconds (`api.alarm_observations`); that keeps the registry the single source of truth and avoids comparing the application's clock with the database's. A never-ran task is measured from the first receipt of any task (the scheduler has been running that long). `ledger-pending` is silenced while the relay reports `no_store` because, until the Backblaze adapter exists, events can never leave the outbox and the alarm would stay open for ever.
 
-The 24-hour rule is about email, not records: while a condition holds there is one open record, refreshed in place; a resolve closes it and a new crossing opens a new one, so a second incident is never hidden. An `unknown` mailer answer may mean the mail was sent; it is retried, so one duplicate is possible and accepted. Alarm history is kept for ever in this story; the Spine's 30-day expiry of payment alarms and their purge with an Account is the first retention rule and belongs to the story that raises them.
+The 24-hour rule is about email, not records: while a condition holds there is one open record, refreshed in place; a resolve closes it and a new crossing opens a new one, so a second incident is never hidden. A condition that cannot be observed keeps its open alarms open, so an outage cannot hide its own alarm by removing the thing that raised it; the cost is that the page has no resolve control, so an alarm whose condition was removed on purpose is closed by the operator with `api.resolve_alarm` through the service role (the one statement is in `docs/staging.md`). An `unknown` mailer answer may mean the mail was sent; it is retried, so one duplicate is possible and accepted. Alarm history is kept for ever in this story; the Spine's 30-day expiry of payment alarms and their purge with an Account is the first retention rule and belongs to the story that raises them.
 
 ```
 POST /api/heartbeat            Authorization: Heartbeat <header.payload.signature>
@@ -116,3 +121,118 @@ payload = {"iss":"heartbeat","aud":"application","env":"<INSTANCE_ID>","jti":"â€
 
 **Manual checks (if no CLI):**
 - With the stack up, `INSTANCE_ID` and the local heartbeat key from `.env.local`, run `node workers/heartbeat/src/main.ts` against the running app: exit 0; run it twice with the same token and the second is refused. Insert an old receipt through the service role, run the monitor task and open `/admin/operations` as the Administrator on a phone-width window.
+
+## Suggested Review Order
+
+**The alarm path (start here)**
+
+- A registry entry adds a condition; `unobservable` keeps already-open alarms open.
+  [`alarm-conditions.ts:57`](../../lib/alarm-conditions.ts#L57)
+  [`alarm-conditions.ts:186`](../../lib/alarm-conditions.ts#L186)
+
+- The monitor: observations in, conditions evaluated, alarms raised or resolved, due mail sent.
+  [`alarms.ts:163`](../../lib/alarms.ts#L163)
+  [`alarms.ts:119`](../../lib/alarms.ts#L119)
+
+- The heartbeat evaluation runs the two conditions the monitor cannot see: `qstash-stale`, `monitor-late`.
+  [`alarms.ts:180`](../../lib/alarms.ts#L180)
+  [`alarm-conditions.ts:174`](../../lib/alarm-conditions.ts#L174)
+
+- One open alarm per condition and subject, refreshed in place; a resolve keeps the record.
+  [`alarms.sql:209`](../../supabase/migrations/20261016120000_alarms.sql#L209)
+  [`alarms.sql:255`](../../supabase/migrations/20261016120000_alarms.sql#L255)
+
+**The email rule: once per condition per 24 hours**
+
+- `alarms_due_mail` claims what it returns, so the monitor and the heartbeat cannot both send.
+  [`alarms.sql:358`](../../supabase/migrations/20261016120000_alarms.sql#L358)
+
+- Dispatch: a 10-second deadline, and a notice that cannot be recorded never aborts the rest.
+  [`alarms.ts:81`](../../lib/alarms.ts#L81)
+
+- Fixed words, the environment in the subject, detail numbers, no recipient parameter.
+  [`mailer.ts:222`](../../lib/mailer.ts#L222)
+  [`mailer.ts:262`](../../lib/mailer.ts#L262)
+
+- Notices are append-only: claimed, sent, failed, unknown.
+  [`alarms.sql:149`](../../supabase/migrations/20261016120000_alarms.sql#L149)
+  [`alarms.sql:434`](../../supabase/migrations/20261016120000_alarms.sql#L434)
+
+**Records, closure and the clock**
+
+- Alarms are never deleted; only `latest_at`, the detail and a single resolve may change.
+  [`alarms.sql:100`](../../supabase/migrations/20261016120000_alarms.sql#L100)
+  [`alarms.sql:122`](../../supabase/migrations/20261016120000_alarms.sql#L122)
+
+- Ages come from the database clock in seconds; the application never compares clocks.
+  [`alarms.sql:487`](../../supabase/migrations/20261016120000_alarms.sql#L487)
+
+- An index on an existing Story 1.9 table, so "first/latest receipt" does not scan.
+  [`alarms.sql:463`](../../supabase/migrations/20261016120000_alarms.sql#L463)
+
+- The preflight carries every earlier probe plus these.
+  [`alarms.sql:579`](../../supabase/migrations/20261016120000_alarms.sql#L579)
+
+**Heartbeat: Railway to the application**
+
+- A machine path with one 401 body for every token failure, and 503 when it cannot evaluate.
+  [`heartbeat.ts:130`](../../lib/heartbeat.ts#L130)
+  [`route.ts:15`](../../app/api/heartbeat/route.ts#L15)
+  [`public-paths.ts:17`](../../lib/public-paths.ts#L17)
+
+- A revoked key and a repeated `jti` are refused under the key's lock.
+  [`alarms.sql:542`](../../supabase/migrations/20261016120000_alarms.sql#L542)
+
+- The heartbeat token's claims, closed like the ticket's.
+  [`service-signing.ts:463`](../../lib/service-signing.ts#L463)
+
+- The cron worker signs one token, posts once and exits 0 or 1; it holds no other secret.
+  [`main.ts:44`](../../workers/heartbeat/src/main.ts#L44)
+  [`config.ts:40`](../../workers/heartbeat/src/config.ts#L40)
+  [`Dockerfile:1`](../../workers/heartbeat/Dockerfile#L1)
+
+**Scheduling and the page**
+
+- `alarm-monitor` every 5 minutes; every entry now states its interval in seconds.
+  [`schedules.ts:33`](../../lib/schedules.ts#L33)
+  [`job-tasks.ts:153`](../../lib/job-tasks.ts#L153)
+
+- The Administrator-only, read-only page; anyone else gets a 404.
+  [`page.tsx:35`](../../app/admin/operations/page.tsx#L35)
+
+- Open alarms as cards with detail values and email state, resolved ones below.
+  [`alarm-list.tsx:160`](../../components/admin/alarm-list.tsx#L160)
+
+- A third area on the Administration index, and the copy in two languages.
+  [`admin-content.tsx:16`](../../components/admin/admin-content.tsx#L16)
+  [`en.ts:503`](../../lib/i18n/en.ts#L503)
+
+**Runbook and ledger**
+
+- What to expect on first setup, the Railway cron and the statement that closes an alarm.
+  [`staging.md:242`](../../docs/staging.md#L242)
+  [`staging.md:310`](../../docs/staging.md#L310)
+
+- Two items for the human: the Railway heartbeat service and the hosted check.
+  [`ledger.json:617`](../../provisioning/ledger.json#L617)
+  [`ledger.json:635`](../../provisioning/ledger.json#L635)
+
+**Tests (peripheral)**
+
+- The email rule with notices at real past times, including two callers at once.
+  [`alarms.test.ts:453`](../../tests/integration/alarms.test.ts#L453)
+
+- The monitor end to end, with a fixture condition and a fake sender.
+  [`alarms.test.ts:997`](../../tests/integration/alarms.test.ts#L997)
+
+- The heartbeat route against the real database: replay, revoked key, both directions.
+  [`alarms.test.ts:1168`](../../tests/integration/alarms.test.ts#L1168)
+
+- Each condition with its observations as data.
+  [`alarm-conditions.test.ts:1`](../../tests/unit/alarm-conditions.test.ts#L1)
+
+- The page on desktop and phone, in both languages, axe and overflow included.
+  [`operations.spec.ts:1`](../../tests/e2e/operations.spec.ts#L1)
+
+- The signed route over HTTP.
+  [`heartbeat.spec.ts:1`](../../tests/e2e/heartbeat.spec.ts#L1)

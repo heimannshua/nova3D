@@ -6,6 +6,10 @@ import {createTranslator, locales, translate, type Locale, type MessageKey} from
 import {I18nProvider} from '@/lib/i18n/react';
 import type {AlarmView} from '@/lib/operations';
 import {parentRoute} from '@/components/shell/routes';
+import {alarmConditions} from '@/lib/alarm-conditions';
+import {detailLabelKey, detailValuesOf} from '@/lib/operations';
+import {scheduleRegistry} from '@/lib/schedules';
+import {everythingWrong} from '../support/alarm-observations';
 
 // Story 1.13: the Administrator's Operations page, rendered to markup in both languages. What needs a browser (the layout at phone width, the accessibility
 // run, the 404 for a member, the title) is in tests/e2e/operations.spec.ts.
@@ -179,6 +183,81 @@ describe.each(locales)('the Operations page in %s', (locale) => {
 });
 
 // Review patch P5: the line beside an email state is true of what happened.
+/** The label and value rows of a card (`<div><dt>…</dt><dd>…</dd></div>`), as text. */
+const rowsOf = (card: string) => [...card.matchAll(/<div><dt>([\s\S]*?)<\/dt><dd>([\s\S]*?)<\/dd><\/div>/g)].map((match) => [text(match[1]).trim(), text(match[2]).trim()] as const);
+
+describe.each(locales)('the detail of an open alarm on the page in %s', (locale) => {
+  const view = (condition: string, subject: string | null, detail: AlarmView['detail'], index: number) =>
+    alarm({id: `${index}`.padStart(8, '0') + '-0000-4000-8000-000000000000', condition, subject, detail, lastSentAt: '2026-10-17T20:41:20.000Z', lastNoticeOutcome: 'sent', lastNoticeAt: '2026-10-17T20:41:20.000Z'});
+
+  it('lists, on the card of every condition\'s own finding, each whole number and boolean of the detail with its translated label and its value, and no string of it', () => {
+    // The real conditions, against observations in which each of them finds something: their details are what the page is asked to show.
+    const views = alarmConditions.flatMap((condition) => {
+      const findings = condition.evaluate(everythingWrong(), scheduleRegistry);
+      if (findings === 'unobservable') throw new Error(`${condition.id} is unobservable`);
+      return findings.map((finding) => ({condition: condition.id, view: view(condition.id, finding.subject, finding.detail, 0)}));
+    });
+    expect(new Set(views.map((one) => one.condition))).toEqual(new Set(alarmConditions.map((condition) => condition.id)));
+    for (const {condition, view: one} of views) {
+      const card = cards(render(locale, [one]))[0];
+      const shown = rowsOf(card);
+      for (const {key, value} of detailValuesOf(one.detail)) {
+        const labelKey = detailLabelKey(key);
+        expect(labelKey, `${condition}: ${key}`).not.toBeNull();
+        expect(shown, `${condition}: ${key}`).toContainEqual([t(locale, labelKey!), String(value)]);
+      }
+      // A string of the detail is not a row of its own (the receipt has rows of its own, with words).
+      const labels = shown.map(([label]) => label);
+      for (const raw of ['heartbeat', 'receipts', 'receipt_task', 'receipt_outcome', 'receipt_at']) expect(labels, `${condition}: ${raw}`).not.toContain(raw);
+    }
+  });
+
+  it('shows the numbers left to right in a token of their own, between the times and the receipt', () => {
+    const markup = render(locale, [view('task-late', 'ledger-relay', {receipt_task: 'ledger-relay', receipt_outcome: 'ran', receipt_at: '2026-10-17T20:30:00.000Z', age_seconds: 700}, 1)]);
+    const card = cards(markup)[0];
+    expect(card).toMatch(new RegExp(`<dt>${t(locale, 'operations.detail.age_seconds')}</dt><dd><bdi[^>]*class="ltr-token"[^>]*>700</bdi></dd>`));
+    expect(card.indexOf(t(locale, 'operations.row.latest'))).toBeLessThan(card.indexOf(t(locale, 'operations.detail.age_seconds')));
+    expect(card.indexOf(t(locale, 'operations.detail.age_seconds'))).toBeLessThan(card.indexOf(t(locale, 'operations.row.receiptTask')));
+  });
+
+  it('shows a key the catalog does not know as the key itself, left to right, and a boolean as a word, never a colour; a string, a fraction and a name only an object has are not shown as values', () => {
+    const odd = view('payment-exception', null, {queue_depth: 4, healthy: false, retrying: true, ratio: 1.5, note: 'x', constructor_x: 0}, 2);
+    const card = cards(render(locale, [odd]))[0];
+    expect(card).toMatch(/<dt><bdi[^>]*class="ltr-token"[^>]*>queue_depth<\/bdi><\/dt><dd><bdi[^>]*class="ltr-token"[^>]*>4<\/bdi><\/dd>/);
+    expect(rowsOf(card)).toEqual(
+      expect.arrayContaining([
+        ['queue_depth', '4'],
+        ['healthy', t(locale, 'operations.detail.no')],
+        ['retrying', t(locale, 'operations.detail.yes')],
+        ['constructor_x', '0'],
+      ]),
+    );
+    const labels = rowsOf(card).map(([label]) => label);
+    expect(labels).not.toContain('ratio');
+    expect(labels).not.toContain('note');
+    // The words yes and no, not a colour or a shape alone: the boolean is text in the card.
+    expect(text(card)).toContain(t(locale, 'operations.detail.yes'));
+    expect(text(card)).toContain(t(locale, 'operations.detail.no'));
+  });
+
+  it('shows no value row for an alarm whose detail has no whole number or boolean, and none on a resolved alarm', () => {
+    const bare = view('task-late', 'ledger-relay', {receipt_task: 'ledger-relay', receipt_outcome: 'never', receipt_at: 'never'}, 3);
+    const labels = (card: string) => rowsOf(card).map(([label]) => label);
+    expect(labels(cards(render(locale, [bare]))[0])).not.toContain(t(locale, 'operations.detail.age_seconds'));
+    const closed = {...view('task-late', 'ledger-relay', {age_seconds: 700, count: 3}, 4), resolvedAt: '2026-10-17T22:00:00.000Z'};
+    const resolvedCard = cards(render(locale, [closed]))[0];
+    expect(labels(resolvedCard)).not.toContain(t(locale, 'operations.detail.age_seconds'));
+    expect(labels(resolvedCard)).not.toContain(t(locale, 'operations.detail.count'));
+  });
+
+  it('labels the monitor-late card with its own title, and its age', () => {
+    const late = view('monitor-late', null, {receipt_task: 'alarm-monitor', receipt_outcome: 'never', receipt_at: 'never', age_seconds: 5000}, 5);
+    const card = cards(render(locale, [late]))[0];
+    expect(text(/<h3\b[^>]*>([\s\S]*?)<\/h3>/.exec(card)![1]).trim()).toBe(t(locale, 'operations.condition.monitor-late'));
+    expect(rowsOf(card)).toContainEqual([t(locale, 'operations.detail.age_seconds'), '5000']);
+  });
+});
+
 describe.each(locales)('the line beside each email state in %s', (locale) => {
   const FAILED_MAIL = alarm({id: '88888888-8888-4888-8888-888888888888', condition: 'ledger-pending', lastNoticeOutcome: 'failed', lastNoticeAt: '2026-10-17T20:45:00.000Z'});
   const UNKNOWN_MAIL = alarm({id: '99999999-9999-4999-8999-999999999999', condition: 'ledger-pending', lastNoticeOutcome: 'unknown', lastNoticeAt: '2026-10-17T20:45:00.000Z'});

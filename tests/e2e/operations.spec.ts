@@ -128,7 +128,7 @@ test.describe('the alarms', () => {
     const mine = [
       await seed('task-late', late, {receipt_task: 'ledger-relay', receipt_outcome: 'ran', receipt_at: '2026-10-17T20:30:00.000Z', age_seconds: 700}),
       await seed('task-late', never, {receipt_task: 'staging-cleanup', receipt_outcome: 'never', receipt_at: 'never', age_seconds: 9000}),
-      await seed(`e2e-fixture-${unknown}`, null, {count: 3}),
+      await seed(`e2e-fixture-${unknown}`, null, {count: 3, spare_flag: true, spare_flag_not_in_the_catalog: 12}),
       await seed('task-late', cleared, {receipt_task: 'ledger-relay', receipt_outcome: 'failed', receipt_at: '2026-10-17T19:00:00.000Z'}, {resolve: true}),
     ];
     try {
@@ -147,6 +147,8 @@ test.describe('the alarms', () => {
       await expect(row(first, 'en', 'operations.row.receiptTask')).toContainText('ledger-relay');
       await expect(row(first, 'en', 'operations.row.receiptOutcome')).toContainText(t('en', 'operations.outcome.ran'));
       await expect(row(first, 'en', 'operations.row.receiptAt').locator('time')).toHaveText('2026-10-17 20:30 UTC');
+      // The detail's whole numbers are on the card, with their words (F2): the age the condition found, in seconds. The strings of the detail are not.
+      await expect(row(first, 'en', 'operations.detail.age_seconds')).toContainText('700');
       // The email state is a word and a shape: it went out, and when.
       const email = row(first, 'en', 'operations.row.email');
       await expect(email.locator('.status-badge')).toHaveText(t('en', 'operations.email.sent'));
@@ -155,6 +157,7 @@ test.describe('the alarms', () => {
 
       // A task that has never finished a run says so once, and has no time.
       const second = card(page, never);
+      await expect(row(second, 'en', 'operations.detail.age_seconds')).toContainText('9000');
       await expect(row(second, 'en', 'operations.row.receiptTask')).toContainText('staging-cleanup');
       await expect(row(second, 'en', 'operations.row.receiptOutcome')).toContainText(t('en', 'operations.outcome.never'));
       await expect(second.locator('dt', {hasText: t('en', 'operations.row.receiptAt')})).toHaveCount(0);
@@ -165,6 +168,13 @@ test.describe('the alarms', () => {
       await expect(third.getByRole('heading', {level: 3})).toHaveText(`e2e-fixture-${unknown}`);
       await expect(third.locator('dt', {hasText: t('en', 'operations.row.subject')})).toHaveCount(0);
       await expect(row(third, 'en', 'operations.row.receipt')).toContainText(t('en', 'operations.row.receipt.none'));
+      // A key the catalog knows has its words; a boolean is a word, not a colour; any other key shows the key itself.
+      await expect(row(third, 'en', 'operations.detail.count')).toContainText('3');
+      const flag = third.locator('dl > div').filter({has: page.locator('dt', {hasText: /^spare_flag$/})});
+      await expect(flag).toHaveCount(1);
+      await expect(flag.locator('dd')).toHaveText(t('en', 'operations.detail.yes'));
+      const stray = third.locator('dl > div').filter({has: page.locator('dt', {hasText: /^spare_flag_not_in_the_catalog$/})});
+      await expect(stray.locator('dd')).toHaveText('12');
 
       // The resolved one is under the resolved heading, with its word and shape, its first and resolved time, and no email state.
       const resolved = card(page, cleared);
@@ -279,9 +289,10 @@ test.describe('on every screen', () => {
   for (const variant of variants) {
     test(`has no accessibility violations and no sideways scrolling: ${variant.name}`, async ({page, context, baseURL}) => {
       const long = `${'long-subject-'.repeat(3)}${tag()}`;
+      const fixture = `e2e-fixture-${'x'.repeat(16)}-${tag()}`;
       const mine = [
         await seed('task-late', long, {receipt_task: 'ledger-relay', receipt_outcome: 'ran', receipt_at: '2026-10-17T20:30:00.000Z', age_seconds: 700}),
-        await seed(`e2e-fixture-${'x'.repeat(16)}-${tag()}`, null, {count: 1}),
+        await seed(fixture, null, {count: 1, a_detail_key_that_is_thirty_two_: 123456789012345, spare_flag: false}),
         await seed('task-late', tag(), {receipt_task: 'staging-cleanup', receipt_outcome: 'never', receipt_at: 'never'}, {resolve: true}),
       ];
       try {
@@ -293,6 +304,13 @@ test.describe('on every screen', () => {
         await expect(page.getByRole('heading', {level: 1, name: t(variant.locale, 'operations.title')})).toBeVisible();
         await expect(card(page, long)).toBeVisible();
         await expect(card(page, long).getByRole('heading', {level: 3})).toHaveText(t(variant.locale, 'operations.condition.task-late'));
+        // The detail's number is visible beside its label, in both languages, on a phone and on a desktop; the false flag says so in words.
+        const ageRow = row(card(page, long), variant.locale, 'operations.detail.age_seconds');
+        await expect(ageRow).toBeVisible();
+        await expect(ageRow.locator('dd')).toHaveText('700');
+        const flagged = card(page, fixture).locator('dl > div').filter({has: page.locator('dt', {hasText: /^spare_flag$/})});
+        await expect(flagged.locator('dd')).toHaveText(t(variant.locale, 'operations.detail.no'));
+        await expect(card(page, fixture).locator('dd', {hasText: '123456789012345'})).toBeVisible();
         expect(await violations(page)).toEqual([]);
         expect(await overflowReport(page)).toEqual({scroll: 0, clipped: []});
       } finally {
@@ -309,7 +327,7 @@ test.describe('on every screen', () => {
       const long = `${'long-subject-'.repeat(3)}${tag()}`;
       const mine = [
         await seed('task-late', long, {receipt_task: 'ledger-relay', receipt_outcome: 'ran', receipt_at: '2026-10-17T20:30:00.000Z', age_seconds: 700}),
-        await seed(`e2e-fixture-${'y'.repeat(14)}-${tag()}`, `${'long-subject-'.repeat(3)}${tag()}`, {count: 1}),
+        await seed(`e2e-fixture-${'y'.repeat(14)}-${tag()}`, `${'long-subject-'.repeat(3)}${tag()}`, {count: 1, a_detail_key_that_is_thirty_two_: 123456789012345}),
       ];
       try {
         await administrator(context, baseURL!, {locale: variant.locale, theme: variant.theme});

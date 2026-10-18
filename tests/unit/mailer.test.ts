@@ -251,7 +251,8 @@ describe('sendAlarmMail: the transports and the recipient', () => {
     expect(body.to).toEqual(['administrator@example.test']);
     expect(body.from).toBe(resendSender);
     expect(Object.keys(body).sort()).toEqual(['from', 'html', 'subject', 'text', 'to']);
-    expect(body.subject).toBe('nova3D alarm: task-late (ledger-relay)');
+    // CHANGED (F2): the subject line names the environment (`APP_ENV`), because staging and production mail the same Administrator address.
+    expect(body.subject).toBe(`[${env.APP_ENV}] nova3D alarm: task-late (ledger-relay)`);
   });
 
   it('posts to Mailpit when the environment is local, to the configured address, and to nothing that is not a loopback', async () => {
@@ -304,36 +305,97 @@ describe('sendAlarmMail: the transports and the recipient', () => {
 });
 
 describe('the alarm message', () => {
-  const message = alarmMessage(ALARM)!;
+  const message = alarmMessage(ALARM, 'staging')!;
+  const closing = 'Open Administration, then Operations, in nova3D to see it. While it stays open you are reminded at most once every 24 hours. This message holds no project, file, address or code.';
 
-  it('says what it is, in fixed words, with the condition, the subject, the first time in UTC and the receipt keys of the detail', () => {
-    expect(message.subject).toBe('nova3D alarm: task-late (ledger-relay)');
+  // CHANGED (F2): the subject line and the first line name the environment, and every whole number and boolean of the detail is written with its key (age_seconds,
+  // pending, count); this test pinned the message without either. The receipt keys and the fixed words are as they were.
+  it('says what it is, in fixed words, with the environment, the condition, the subject, the first time in UTC, every whole number of the detail and the receipt keys', () => {
+    expect(message.subject).toBe('[staging] nova3D alarm: task-late (ledger-relay)');
     expect(message.text).toBe(
       [
         'nova3D has raised an operational alarm.',
         '',
+        'Environment: staging',
         'Condition: task-late',
         'Subject: ledger-relay',
         'First seen: 2026-10-17 20:41 UTC',
+        'age_seconds: 700',
+        'pending: 4',
+        'count: 30',
         'Last receipt, task: ledger-relay',
         'Last receipt, outcome: ran',
         'Last receipt, time: 2026-10-17T20:37:22.998Z',
         '',
-        'Open Administration, then Operations, in nova3D to see it. While it stays open you are reminded at most once every 24 hours. This message holds no project, file, address or code.',
+        closing,
       ].join('\n'),
     );
+    expect(message.html).toContain('<li>Environment: staging</li>');
     expect(message.html).toContain('<li>Condition: task-late</li>');
     expect(message.html).toContain('<li>First seen: 2026-10-17 20:41 UTC</li>');
+    expect(message.html).toContain('<li>age_seconds: 700</li>');
     expect([...alarmMailDetailKeys]).toEqual(['receipt_task', 'receipt_outcome', 'receipt_at']);
   });
 
-  it('puts in the detail\'s receipt keys and no other key: not a count, an age, a note, or anything a later condition adds', () => {
+  it('names the environment from APP_ENV in the subject: staging, production and local; and none for a value that is none of them', () => {
+    for (const environment of ['local', 'staging', 'production']) expect(alarmMessage(ALARM, environment)!.subject).toBe(`[${environment}] nova3D alarm: task-late (ledger-relay)`);
+    expect(alarmMessage(ALARM)!.subject).toBe('nova3D alarm: task-late (ledger-relay)');
+    expect(alarmMessage(ALARM, null)!.text).not.toContain('Environment:');
+    expect(alarmMessage({...ALARM, subject: null}, 'production')!.subject).toBe('[production] nova3D alarm: task-late');
+  });
+
+  it('reads the environment from the environment the mailer is given, in the one way it reads it for the transport: APP_ENV, exactly one of the three', async () => {
+    const subjectFor = async (env: Env) => {
+      const {seen, fetch} = recorder(accepted);
+      await sendAlarmMail(ALARM, {env: {...env}, fetch});
+      return seen.length === 0 ? null : (JSON.parse(seen[0].init.body as string) as {subject?: string; Subject?: string});
+    };
+    expect((await subjectFor(staging))!.subject).toBe('[staging] nova3D alarm: task-late (ledger-relay)');
+    expect((await subjectFor(production))!.subject).toBe('[production] nova3D alarm: task-late (ledger-relay)');
+    expect((await subjectFor(local))!.Subject).toBe('[local] nova3D alarm: task-late (ledger-relay)');
+    // The same reading as the transport's: exactly the three names. 'STAGING' has no transport, so nothing is sent.
+    expect(await subjectFor({...staging, APP_ENV: 'STAGING'})).toBeNull();
+    // An APP_ENV that is none of the three has no transport at all (nothing is sent), so there is no subject to name it in.
+    expect(await subjectFor({...staging, APP_ENV: 'preview'})).toBeNull();
+  });
+
+  it('writes every whole number and boolean of the detail with its key, in the detail\'s order, and no other text of it: not a note, not a word a later condition adds', () => {
+    const richer = alarmMessage(
+      {condition: 'ledger-pending', subject: null, firstAt: ALARM.firstAt, detail: {pending: 3, oldest_seconds: 1200, held: true, cleared: false, negative: -5, note: 'not for the mail', heartbeat: 'stale', receipt_task: 'ledger-relay', receipt_outcome: 'ran', receipt_at: '2026-10-17T20:00:00.000Z'}},
+      'staging',
+    )!;
+    expect(richer.text.split('\n').slice(2, -2)).toEqual([
+      'Environment: staging',
+      'Condition: ledger-pending',
+      'First seen: 2026-10-17 20:41 UTC',
+      'pending: 3',
+      'oldest_seconds: 1200',
+      'held: true',
+      'cleared: false',
+      'negative: -5',
+      'Last receipt, task: ledger-relay',
+      'Last receipt, outcome: ran',
+      'Last receipt, time: 2026-10-17T20:00:00.000Z',
+    ]);
+    for (const part of [richer.text, richer.html]) expect(part).not.toMatch(/not for the mail|heartbeat|stale/);
+  });
+
+  it('leaves out a number that is not a whole number and a key that is not a plain lower-case word, and strings, whatever they hold', () => {
+    const odd = alarmMessage(
+      {...ALARM, detail: {fraction: 1.5, huge: 1e21, nan: Number.NaN, Capital: 7, 'with-hyphen': 8, '9digit': 9, ok_key: 10, text: '12345', address: 'someone@example.test', token: 'abcdef', hash: 'f'.repeat(64)} as never},
+      'staging',
+    )!;
+    expect(odd.text.split('\n').filter((line) => /^[a-z]/.test(line) && !/^(?:nova3D|Environment|Condition|Subject|First|Last|Open)/.test(line))).toEqual(['ok_key: 10']);
+    expect(odd.text).not.toMatch(/someone|abcdef|f{64}|12345|fraction|Capital|hyphen/);
+  });
+
+  it('puts in the text of the detail the receipt keys and no other key: not a note, not a word of anyone\'s', () => {
     for (const part of [message.text, message.html]) {
-      expect(part).not.toMatch(/700|\bcount\b|not for the mail|age_seconds|pending/);
+      expect(part).not.toMatch(/not for the mail/);
     }
-    const bare = alarmMessage({condition: 'identities-unaccounted', subject: null, firstAt: ALARM.firstAt, detail: {count: 30}})!;
-    expect(bare.subject).toBe('nova3D alarm: identities-unaccounted');
-    expect(bare.text).toBe(['nova3D has raised an operational alarm.', '', 'Condition: identities-unaccounted', 'First seen: 2026-10-17 20:41 UTC', '', message.text.split('\n').at(-1)].join('\n'));
+    const bare = alarmMessage({condition: 'identities-unaccounted', subject: null, firstAt: ALARM.firstAt, detail: {count: 30}}, 'staging')!;
+    expect(bare.subject).toBe('[staging] nova3D alarm: identities-unaccounted');
+    expect(bare.text).toBe(['nova3D has raised an operational alarm.', '', 'Environment: staging', 'Condition: identities-unaccounted', 'First seen: 2026-10-17 20:41 UTC', 'count: 30', '', closing].join('\n'));
     expect(bare.text).not.toContain('Subject:');
   });
 

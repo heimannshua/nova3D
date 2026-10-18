@@ -1,7 +1,7 @@
 // Story 1.13. The heartbeat route's one definition: `POST /api/heartbeat` (app/api/heartbeat/route.ts is a one-line caller of `handleHeartbeatRequest`).
 //
-// Each scheduler watches the other. The monitor runs on QStash, so it cannot see QStash stop; the application therefore evaluates `qstash-stale` when the
-// Railway cron task (workers/heartbeat) posts its signed heartbeat, every 30 minutes, and the monitor evaluates `heartbeat-stale`. This one signed call is both
+// Each scheduler watches the other. The monitor runs on QStash, so it cannot see QStash stop, nor itself stop; the application therefore evaluates `qstash-stale`
+// and `monitor-late` when the Railway cron task (workers/heartbeat) posts its signed heartbeat, every 30 minutes, and the monitor evaluates `heartbeat-stale`. This one signed call is both
 // the heartbeat and the "ask for the latest receipt" of the story: it answers how old the latest scheduler receipt is, and a worker that is refused exits
 // non-zero, so Railway marks the run failed as well.
 //
@@ -23,11 +23,13 @@
 //   6. record          api.record_heartbeat(kid, jti): a revoked key                   401 {error: "invalid_token"}
 //                      a repeated jti                                                  409 {state: "duplicate"}
 //                      the database did not answer                                     503
-//   7. evaluate        `qstash-stale` is evaluated, raised or resolved, the email that    200 {state: "recorded", receipt_age_seconds: n | null}
-//                      is due is sent; the database failing to observe, to raise or      503 (never a 200 that skipped the evaluation)
-//                      resolve, or to list what is due (a mail that is refused, or
-//                      whose notice cannot be recorded, is counted and is retried at
-//                      the next evaluation: the evaluation itself ran, so it is a 200)
+//   7. evaluate        `qstash-stale` and `monitor-late` are evaluated, raised or        200 {state: "recorded", receipt_age_seconds: n | null}
+//                      resolved, the email that is due is claimed and sent; the         503 (never a 200 that skipped the evaluation)
+//                      database failing to observe, to raise or resolve, or to list
+//                      what is due (a mail that is refused is counted and retried at
+//                      the next evaluation; one whose notice cannot be recorded keeps
+//                      its claim and is retried after 10 minutes: the evaluation
+//                      itself ran, so it is a 200)
 //
 // Every answer is `no-store`. Nothing from the request is logged or reflected, and nothing is logged but fixed words.
 //

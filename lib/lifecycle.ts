@@ -25,8 +25,8 @@
 //   raiseAlarm            api.raise_alarm          opens an alarm for a (condition, subject) or refreshes the open one
 //   resolveAlarm          api.resolve_alarm        resolves the open alarm of a (condition, subject); the record is kept
 //   listAlarms            api.list_alarms          the open alarms and, on request, the most recently resolved ones, each with its email state
-//   alarmsDueMail         api.alarms_due_mail      the open alarms due an email (the 24-hour rule is the database's)
-//   recordAlarmNotice     api.record_alarm_notice  the outcome of one attempt to email an alarm: sent | failed | unknown
+//   alarmsDueMail         api.alarms_due_mail      the open alarms due an email (the 24-hour rule is the database's), CLAIMED as they are returned: not read-only
+//   recordAlarmNotice     api.record_alarm_notice  the outcome of one attempt to email an alarm: sent | failed | unknown (it releases the claim; a claim is not recordable)
 //   alarmObservations     api.alarm_observations   every number the registry of conditions looks at, as ages in seconds on the database clock
 //   recordHeartbeat       api.record_heartbeat     a heartbeat of the Railway cron task: recorded | duplicate | revoked
 //
@@ -467,8 +467,14 @@ export async function resolveAlarm(input: {condition: string; subject: string | 
   return {outcome, alarmId: alarmId.toLowerCase()};
 }
 
+/**
+ * The outcomes a caller can record for an attempt to email an alarm. The database has a fourth, `claimed`, which only `api.alarms_due_mail` writes (it claims what
+ * it returns, so two callers never mail one alarm) and which no caller can record: it is not here, `recordAlarmNotice` refuses it before the call, and the list
+ * of alarms never reports one as an alarm's latest notice (a claim is a step in progress, not an outcome).
+ */
 export const noticeOutcomes = ['sent', 'failed', 'unknown'] as const;
 export type NoticeOutcome = (typeof noticeOutcomes)[number];
+
 
 /** An alarm as the Administrator's page and the monitor read it. Times are UTC text to the millisecond. */
 export type AlarmRecord = {
@@ -539,12 +545,17 @@ export async function listAlarms(input: {includeResolved?: boolean; limit?: numb
   return alarms;
 }
 
-/** An alarm that is due an email: only what the mail holds (the condition, the subject, the first time and the detail, of which the mailer keeps the receipt keys). */
+/** An alarm that is due an email: only what the mail holds (the condition, the subject, the first time and the detail, of which the mailer keeps the whole numbers, the booleans and the receipt keys). */
 export type DueAlarm = {id: string; condition: string; subject: string | null; firstAt: string; detail: AlarmDetail};
 
 export const maxDueMail = 50;
 
-/** api.alarms_due_mail: the open alarms due an email, oldest first, at most `limit` (default and most: 50). Read-only. */
+/**
+ * api.alarms_due_mail: the open alarms due an email, oldest first, at most `limit` (default and most: 50). NOT read-only: the database CLAIMS every alarm it returns
+ * (a `claimed` notice, for 10 minutes), so a second caller at the same time is handed none of them. The caller must record the outcome of each (`recordAlarmNotice`:
+ * `sent` closes the 24 hours, `failed` and `unknown` release the claim so the email is retried at the next evaluation); an alarm whose outcome is never recorded is due
+ * again after 10 minutes.
+ */
 export async function alarmsDueMail(input: {limit?: number} = {}, options: AccountsOptions = {}): Promise<DueAlarm[]> {
   const limit = input.limit ?? maxDueMail;
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > maxDueMail) throw new TypeError('limit must be a whole number from 1 to 50');
@@ -556,10 +567,10 @@ export async function alarmsDueMail(input: {limit?: number} = {}, options: Accou
   });
 }
 
-/** api.record_alarm_notice: `recorded`, or `not_found` (no such alarm). */
+/** api.record_alarm_notice: `recorded` (the outcome is recorded and the claim released), or `not_found` (no such alarm). */
 export type AlarmNoticeReceipt = {outcome: 'recorded' | 'not_found'};
 
-/** Records the outcome of one attempt to email an alarm. Only `sent` closes a 24-hour window; `failed` and `unknown` are retried at the next evaluation. */
+/** Records the outcome of one attempt to email an alarm (never a claim: only the database claims). Only `sent` closes a 24-hour window; `failed` and `unknown` are retried at the next evaluation. */
 export async function recordAlarmNotice(input: {alarmId: string; outcome: NoticeOutcome}, options: AccountsOptions = {}): Promise<AlarmNoticeReceipt> {
   const alarmId = requireUuid('alarmId', input.alarmId);
   if (!(noticeOutcomes as readonly unknown[]).includes(input.outcome)) throw new TypeError('outcome must be sent, failed or unknown');
