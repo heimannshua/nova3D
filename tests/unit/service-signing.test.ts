@@ -6,6 +6,7 @@ import {
   commandClaimsOf,
   commandNames,
   defaultLifetimeSeconds,
+  heartbeatClaimsOf,
   isServiceIssuer,
   isTransferTargetKind,
   isUploadTicket,
@@ -20,6 +21,7 @@ import {
   parseKeySet,
   serviceIssuers,
   signCommand,
+  signHeartbeat,
   signToken,
   signTicket,
   signingKeyVariable,
@@ -987,5 +989,51 @@ describe('the kinds of target and the UUID test', () => {
   it('holds an ID to the lower-case canonical UUID spelling', () => {
     expect(isUuid(ACCOUNT)).toBe(true);
     for (const value of [ACCOUNT.toUpperCase(), ` ${ACCOUNT}`, `${ACCOUNT}\n`, ACCOUNT.replace(/-/g, ''), '', 5, null, undefined, `${ACCOUNT}0`]) expect(isUuid(value), String(value)).toBe(false);
+  });
+});
+
+describe('heartbeats (Story 1.13)', () => {
+  const heartbeat = testSigner({issuer: 'heartbeat', active: 'heartbeat-1'});
+  const verifyHeartbeat = (value: string, change: Partial<VerifyOptions> = {}) =>
+    verifyToken(value, {issuer: 'heartbeat', audience: 'application', environment: ENV, keySet: heartbeat.keySet, now: NOW, type: 'heartbeat', ...change});
+
+  it('is signed by the heartbeat issuer for the application, with no claim beyond the standard ones, valid for five minutes', async () => {
+    const value = signHeartbeat(heartbeat.signer, ENV, {now: NOW});
+    const verified = await verifyHeartbeat(value);
+    expect(verified.ok).toBe(true);
+    if (!verified.ok) return;
+    expect(verified.kid).toBe('test-heartbeat-1');
+    expect(Object.keys(verified.payload).sort()).toEqual(['aud', 'env', 'exp', 'iat', 'iss', 'jti', 'typ']);
+    expect(verified.payload).toMatchObject({iss: 'heartbeat', aud: 'application', env: ENV, typ: 'heartbeat', iat: NOW, exp: NOW + defaultLifetimeSeconds});
+    expect(heartbeatClaimsOf(verified.payload)).toEqual({});
+  });
+
+  it('can be signed for less than five minutes, never for more, and is a different token each time (a fresh jti)', () => {
+    expect(() => signHeartbeat(heartbeat.signer, ENV, {now: NOW, lifetimeSeconds: 301})).toThrow(TypeError);
+    expect(() => signHeartbeat(heartbeat.signer, ENV, {now: NOW, lifetimeSeconds: 0})).toThrow(TypeError);
+    expect(() => signHeartbeat(heartbeat.signer, '', {now: NOW})).toThrow(TypeError);
+    expect(signHeartbeat(heartbeat.signer, ENV, {now: NOW, lifetimeSeconds: 60})).not.toBe(signHeartbeat(heartbeat.signer, ENV, {now: NOW, lifetimeSeconds: 60}));
+  });
+
+  it('is refused by the application\'s verification of anything else: for the gateway, for another issuer, for another environment, and a ticket is not a heartbeat', async () => {
+    const value = signHeartbeat(heartbeat.signer, ENV, {now: NOW});
+    expect((await verifyHeartbeat(value, {environment: '3f1c8a5e-7b2d-4c6a-9e0f-1a2b3c4d5e6f'})).ok).toBe(false);
+    expect((await verifyHeartbeat(value, {audience: 'gateway'})).ok).toBe(false);
+    expect((await verifyHeartbeat(value, {issuer: 'application'})).ok).toBe(false);
+    expect((await verifyHeartbeat(value, {type: 'ticket'})).ok).toBe(false);
+    expect((await verifyHeartbeat(value, {now: NOW + 301})).ok).toBe(false);
+  });
+
+  it('is exactly a heartbeat: heartbeatClaimsOf refuses another type, issuer or audience, and any claim beyond the standard ones', async () => {
+    const payload = (change: Record<string, unknown> = {}) => ({iss: 'heartbeat', aud: 'application', env: ENV, jti: newJti(), iat: NOW, exp: NOW + 300, typ: 'heartbeat', ...change}) as TokenPayload;
+    expect(heartbeatClaimsOf(payload())).toEqual({});
+    for (const change of [{typ: 'ticket'}, {iss: 'application'}, {aud: 'gateway'}, {acct: ACCOUNT}, {extra: 1}, {cmd: 'attach'}]) expect(heartbeatClaimsOf(payload(change)), JSON.stringify(change)).toBeNull();
+  });
+
+  it('has a key set of its own: the application\'s keys do not verify it, and neither does a key set of another issuer', async () => {
+    const value = signHeartbeat(heartbeat.signer, ENV, {now: NOW});
+    expect((await verifyHeartbeat(value, {keySet: testSigner({issuer: 'application'}).keySet})).ok).toBe(false);
+    expect(keySetVariable('heartbeat')).toBe('SERVICE_KEYS_HEARTBEAT');
+    expect(signingKeyVariable('heartbeat')).toBe('SERVICE_SIGNING_KEY_HEARTBEAT');
   });
 });

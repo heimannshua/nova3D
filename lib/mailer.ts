@@ -1,5 +1,5 @@
-// Story 1.6. The one door the application mails through: the Administrator recovery link, to the configured
-// Administrator address and to nobody else. (Story 1.13's alarm mail will go through here too.)
+// Story 1.6. The one door the application mails through: the Administrator recovery link (`sendRecoveryMail`) and, since Story 1.13, the operational
+// alarm (`sendAlarmMail`), each to the configured Administrator address and to nobody else.
 //
 //   * The recipient is not a parameter. It is ADMINISTRATOR_EMAIL from the server's own environment, read here, so no
 //     caller, and no request behind one, can choose where a message goes.
@@ -13,6 +13,7 @@
 //
 // SERVER-ONLY: it reads RESEND_API_KEY. It is not marked with the `server-only` package, like lib/accounts.ts, because that
 // would be a new dependency; tests/unit/gate-structure.test.ts pins which files may import it.
+import type {AlarmDetail} from '@/lib/alarm-conditions';
 import {isEmailAddress, isLoopbackUrl, isPlaceholder, type Env} from '@/lib/environment';
 
 if (typeof window !== 'undefined') {
@@ -49,6 +50,9 @@ export type MailerOptions = {
 };
 
 export const recoverySubject = 'Your nova3D recovery link';
+
+/** A message: a subject, plain text and HTML. */
+export type MailMessage = {subject: string; text: string; html: string};
 
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
@@ -95,7 +99,7 @@ function isLink(value: string) {
 type Transport = {url: string; headers: Record<string, string>; body: string};
 
 /** The request for this environment, or null when it cannot be made (the environment says which transport, and holds what it needs). */
-function transportFor(env: Env, to: string, message: ReturnType<typeof recoveryMessage>): Transport | null {
+function transportFor(env: Env, to: string, message: MailMessage): Transport | null {
   if (env.APP_ENV === 'local') {
     // The stack's own Mailpit, on the host the Supabase URL names, which APP_ENV=local requires to be a loopback.
     const base = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -120,15 +124,15 @@ function transportFor(env: Env, to: string, message: ReturnType<typeof recoveryM
 }
 
 /**
- * Mails the recovery link to the configured Administrator address (and only to it: there is no recipient argument).
- * Never throws and never logs. A 2xx is `sent`; any other answer below 500 is `refused` (the message was not sent: a
- * rejected key, an unaccepted recipient, a rate limit); a 5xx, a timeout, a network failure or a redirect is `unknown`.
+ * Sends a message to the configured Administrator address and to nobody else (there is no recipient argument: it is read from the environment here).
+ * Never throws and never logs. A 2xx is `sent`; any other answer below 500 is `refused` (the message was not sent: a rejected key, an unaccepted
+ * recipient, a rate limit); a 5xx, a timeout, a network failure or a redirect is `unknown`.
  */
-export async function sendRecoveryMail(link: string, options: MailerOptions = {}): Promise<MailOutcome> {
+async function deliver(message: MailMessage, options: MailerOptions): Promise<MailOutcome> {
   const env = options.env ?? process.env;
   const to = recipientOf(env);
-  if (!to || !isLink(link)) return {outcome: 'refused', reason: 'not_configured'};
-  const transport = transportFor(env, to, recoveryMessage(link));
+  if (!to) return {outcome: 'refused', reason: 'not_configured'};
+  const transport = transportFor(env, to, message);
   if (!transport) return {outcome: 'refused', reason: 'not_configured'};
   try {
     new Headers(transport.headers);
@@ -159,4 +163,78 @@ export async function sendRecoveryMail(link: string, options: MailerOptions = {}
   }
   if (response.ok) return {outcome: 'sent'};
   return response.status >= 500 ? {outcome: 'unknown', reason: 'provider_error'} : {outcome: 'refused', reason: 'provider_refused'};
+}
+
+/**
+ * Mails the recovery link to the configured Administrator address (and only to it: there is no recipient argument).
+ * Never throws and never logs. A 2xx is `sent`; any other answer below 500 is `refused` (the message was not sent: a
+ * rejected key, an unaccepted recipient, a rate limit); a 5xx, a timeout, a network failure or a redirect is `unknown`.
+ */
+export async function sendRecoveryMail(link: string, options: MailerOptions = {}): Promise<MailOutcome> {
+  if (!isLink(link)) return {outcome: 'refused', reason: 'not_configured'};
+  return deliver(recoveryMessage(link), options);
+}
+
+// The operational alarm (Story 1.13) ---------------------------------------------------------------------------------------------------------------
+
+/** What an alarm email holds: the condition, the subject, the first time and the detail (of which only the receipt keys below are put in the message). */
+export type AlarmNotice = {condition: string; subject: string | null; firstAt: string; detail: AlarmDetail};
+
+/** The keys of an alarm's detail that the message may show: the last receipt of the task the alarm is about. Nothing else of the detail is put in it. */
+export const alarmMailDetailKeys = ['receipt_task', 'receipt_outcome', 'receipt_at'] as const;
+
+const alarmConditionPattern = /^[a-z][a-z0-9-]{0,47}$/;
+const alarmSubjectPattern = /^[A-Za-z0-9._:-]{1,64}$/;
+const alarmDetailText = /^[ -~]{1,80}$/;
+const alarmDetailLabels: Record<(typeof alarmMailDetailKeys)[number], string> = {
+  receipt_task: 'Last receipt, task',
+  receipt_outcome: 'Last receipt, outcome',
+  receipt_at: 'Last receipt, time',
+};
+
+/** `2026-10-17T20:41:16.179Z` as `2026-10-17 20:41 UTC`; null for a time that is not one. */
+function utcMinute(at: string): string | null {
+  const moment = new Date(at);
+  return Number.isNaN(moment.getTime()) ? null : `${moment.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+}
+
+/**
+ * The alarm message: fixed words, the condition, the subject (when there is one), the first time (UTC) and the receipt keys of the detail, and nothing
+ * else: never an address, a title, a code, a token or any private content. Null for an alarm that could not be written that way (a condition or subject
+ * that is not a plain token, a first time that is not a time).
+ */
+export function alarmMessage(alarm: AlarmNotice): MailMessage | null {
+  if (typeof alarm !== 'object' || alarm === null) return null;
+  if (typeof alarm.condition !== 'string' || !alarmConditionPattern.test(alarm.condition)) return null;
+  if (alarm.subject !== null && (typeof alarm.subject !== 'string' || !alarmSubjectPattern.test(alarm.subject))) return null;
+  const first = typeof alarm.firstAt === 'string' ? utcMinute(alarm.firstAt) : null;
+  if (!first) return null;
+  const lines: [string, string][] = [['Condition', alarm.condition]];
+  if (alarm.subject !== null) lines.push(['Subject', alarm.subject]);
+  lines.push(['First seen', first]);
+  for (const key of alarmMailDetailKeys) {
+    const value = alarm.detail?.[key];
+    if (typeof value === 'string' && alarmDetailText.test(value)) lines.push([alarmDetailLabels[key], value]);
+  }
+  const closing = 'Open Administration, then Operations, in nova3D to see it. While it stays open you are reminded at most once every 24 hours. This message holds no project, file, address or code.';
+  const subject = alarm.subject === null ? `nova3D alarm: ${alarm.condition}` : `nova3D alarm: ${alarm.condition} (${alarm.subject})`;
+  const text = ['nova3D has raised an operational alarm.', '', ...lines.map(([label, value]) => `${label}: ${value}`), '', closing].join('\n');
+  const html = [
+    '<p>nova3D has raised an operational alarm.</p>',
+    `<ul>${lines.map(([label, value]) => `<li>${escapeHtml(label)}: ${escapeHtml(value)}</li>`).join('')}</ul>`,
+    `<p>${escapeHtml(closing)}</p>`,
+  ].join('\n');
+  return {subject, text, html};
+}
+
+/**
+ * Mails an operational alarm to the configured Administrator address (and only to it: there is no recipient argument). Never throws and never logs.
+ * `sent` when the provider accepted it, `refused` when it was definitely not sent (not configured, refused by the provider, an alarm that could not be
+ * written), `unknown` when the provider did not answer in time or failed (the message may have gone out, and the caller tries again at the next
+ * evaluation: one duplicate is accepted).
+ */
+export async function sendAlarmMail(alarm: AlarmNotice, options: MailerOptions = {}): Promise<MailOutcome> {
+  const message = alarmMessage(alarm);
+  if (!message) return {outcome: 'refused', reason: 'not_configured'};
+  return deliver(message, options);
 }

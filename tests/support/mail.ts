@@ -22,6 +22,12 @@ export async function clearMailbox() {
   await call('/messages', {method: 'DELETE', headers: {'content-type': 'application/json'}, body: '{}'});
 }
 
+/** Deletes the named messages and no others, for a test that must leave the mailbox as it found it while other specs may be reading it (Story 1.13's alarm mail). */
+export async function deleteMail(ids: string[]) {
+  if (ids.length === 0) return;
+  await call('/messages', {method: 'DELETE', headers: {'content-type': 'application/json'}, body: JSON.stringify({IDs: ids})});
+}
+
 /** Every message in the mailbox (newest first), as a summary. */
 export async function listMail(): Promise<MailSummary[]> {
   const body = (await (await call('/messages?limit=200')).json()) as {messages: {ID: string; To: {Address: string}[]; From: {Address: string}; Subject: string; Created: string}[]};

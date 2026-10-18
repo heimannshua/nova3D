@@ -415,3 +415,75 @@ describe('setup-env local: the file gateway (Story 1.12)', () => {
     expect(valuesOf(read(envFile()), 'GATEWAY_DATABASE_URL')).toEqual([]);
   });
 });
+
+describe('setup-env local: the heartbeat pair (Story 1.13)', () => {
+  const privateName = 'SERVICE_SIGNING_KEY_HEARTBEAT';
+  const keySetName = 'SERVICE_KEYS_HEARTBEAT';
+  const applicationPrivate = 'SERVICE_SIGNING_KEY_APPLICATION';
+  const applicationKeySet = 'SERVICE_KEYS_APPLICATION';
+  // The value as the file holds it: the key set is written in single quotes, and a reader (Node's --env-file, Next, the tests) strips them.
+  const unquote = (value: string) => value.trim().replace(/^(["'])(.*)\1$/, '$2');
+  const pairOf = (text: string, privateKeyName = privateName, keysName = keySetName) => ({privateKey: unquote(valuesOf(text, privateKeyName)[0]), keySet: unquote(valuesOf(text, keysName)[0])});
+  const usable = (pair: {privateKey: string; keySet: string}, issuer: 'heartbeat' | 'application' = 'heartbeat') => {
+    const parsed = parseKeySet(pair.keySet, issuer);
+    return parsed.ok && loadSigner(pair.privateKey, parsed.keySet).ok;
+  };
+
+  it('writes an Ed25519 pair for the heartbeat issuer, apart from the application\'s: the private half and the public key set match, and the private half is never printed', async () => {
+    const result = await setup();
+    expect(result.code, result.stderr).toBe(0);
+    const text = read(envFile());
+    const pair = pairOf(text);
+    expect(usable(pair)).toBe(true);
+    expect(JSON.parse(pair.keySet)).toMatchObject({issuer: 'heartbeat', active: 'local-1', retiring: null});
+    expect(result.stdout).toContain(privateName);
+    expect(result.stdout).toContain(keySetName);
+    expect(result.stdout + result.stderr).not.toContain(pair.privateKey);
+    // A pair of its own: the application's is another key, and neither key set verifies the other issuer's.
+    const application = pairOf(text, applicationPrivate, applicationKeySet);
+    expect(usable(application, 'application')).toBe(true);
+    expect(application.privateKey).not.toBe(pair.privateKey);
+    expect(usable({privateKey: pair.privateKey, keySet: application.keySet}, 'application')).toBe(false);
+    expect(mode(envFile())).toBe(0o600);
+  });
+
+  it('keeps a pair that matches and says nothing changed; a different machine gets a different pair', async () => {
+    expect((await setup()).code).toBe(0);
+    const first = pairOf(read(envFile()));
+    const second = await setup();
+    expect(second.code, second.stderr).toBe(0);
+    expect(pairOf(read(envFile()))).toEqual(first);
+    expect(second.stdout).toContain('already matches');
+    rmSync(envFile());
+    expect((await setup()).code).toBe(0);
+    expect(pairOf(read(envFile())).privateKey).not.toBe(first.privateKey);
+  });
+
+  it('replaces a heartbeat pair that does not match as a PAIR, leaves the application\'s pair as it was, and refuses the application\'s key set under the heartbeat name', async () => {
+    expect((await setup()).code).toBe(0);
+    const good = pairOf(read(envFile()));
+    const application = pairOf(read(envFile()), applicationPrivate, applicationKeySet);
+    const other = generateKeyPairSync('ed25519');
+    const strangerPrivate = other.privateKey.export({type: 'pkcs8', format: 'der'}).toString('base64');
+    const kept = `${applicationPrivate}=${application.privateKey}\n${applicationKeySet}='${application.keySet}'\n`;
+    for (const broken of [
+      `${privateName}=${strangerPrivate}\n${keySetName}='${good.keySet}'\n`,
+      `${privateName}=not-a-key\n${keySetName}='{}'\n`,
+      `${privateName}=${good.privateKey}\n`,
+      `${keySetName}='${good.keySet}'\n`,
+      // The application's key set is a valid key set, but for another issuer.
+      `${privateName}=${application.privateKey}\n${keySetName}='${application.keySet}'\n`,
+    ]) {
+      writeFileSync(envFile(), kept + broken, {mode: 0o600});
+      const result = await setup();
+      expect(result.code, result.stderr).toBe(0);
+      const text = read(envFile());
+      const repaired = pairOf(text);
+      expect(usable(repaired), broken.slice(0, 40)).toBe(true);
+      expect(valuesOf(text, privateName)).toHaveLength(1);
+      expect(valuesOf(text, keySetName)).toHaveLength(1);
+      expect(pairOf(text, applicationPrivate, applicationKeySet)).toEqual(application);
+      expect(result.stdout + result.stderr).not.toContain(repaired.privateKey);
+    }
+  });
+});

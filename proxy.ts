@@ -148,8 +148,8 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const api = isApiPath(pathname);
   if (isPublicPath(pathname, process.env)) {
-    // A machine path (Story 1.9: the scheduled-job route) is called by a scheduler, which has no browser Origin. It skips this one rule and
-    // nothing else: the route checks the call's signature, which is its only authentication.
+    // A machine path (Story 1.9: the scheduled-job route; Story 1.13: the heartbeat route) is called by a scheduler or a worker, which has no browser
+    // Origin. It skips this one rule and nothing else: the route checks the call's signature or signed token, which is its only authentication.
     const refusal = isMachinePath(pathname) ? null : originRefusal(request);
     if (refusal) return refuseOrigin(request, api, refusal);
     return clearLegacyCookie(request, NextResponse.next());

@@ -200,9 +200,9 @@ describe('identity matrix', () => {
     passed(await run(staging(), '--live'));
   });
 
-  it('a staging deployment may hold the service-signing key and the gateway names and does not need them (Story 1.12)', async () => {
+  it('a staging deployment may hold the service-signing key, the public key sets and the gateway names and does not need them (Stories 1.12 and 1.13)', async () => {
     rows = [{environment: 'staging', instance_id: INSTANCE}];
-    const gateway = {SERVICE_SIGNING_KEY_APPLICATION: SIGNING_KEY, SERVICE_KEYS_APPLICATION: '{}', FILE_GATEWAY_URL: 'https://files.example.test'};
+    const gateway = {SERVICE_SIGNING_KEY_APPLICATION: SIGNING_KEY, SERVICE_KEYS_APPLICATION: '{}', SERVICE_KEYS_HEARTBEAT: '{}', FILE_GATEWAY_URL: 'https://files.example.test'};
     passed(await run({...staging(), ...gateway}, '--live'));
     passed(await run(staging(), '--live'));
   });

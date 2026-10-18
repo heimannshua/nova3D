@@ -614,6 +614,40 @@
       "evidence": {}
     },
     {
+      "id": "railway-heartbeat-service",
+      "service": "railway",
+      "title": "The heartbeat cron service on Railway from the pushed image, on a 30-minute schedule, with its signing key, and the heartbeat key set in the application",
+      "kind": "attestation",
+      "due": "1-13",
+      "environments": ["staging"],
+      "secrets": ["SERVICE_SIGNING_KEY_HEARTBEAT"],
+      "howto": [
+        "Apply `supabase/migrations/20261016120000_alarms.sql` to staging before the build that uses it deploys (the staging workflow does it from a push, or follow `docs/staging.md` by hand). It adds three closed Lifecycle tables (`lifecycle.alarms`, `lifecycle.alarm_notices`, `lifecycle.heartbeats`), seven functions, a preflight that probes them and one index on an existing table, `job_receipts_started` on `lifecycle.job_receipts` (Story 1.9's receipts: it changes no row, column or contract of that table); no setting or secret.",
+        "On your own machine generate the heartbeat issuer's Ed25519 pair (`docs/secrets.md`, Service-signing keys and SERVICE_SIGNING_KEY_HEARTBEAT) and choose a key ID, such as `heartbeat-2026-10`. Store the private half, as base64 PKCS#8, as `SERVICE_SIGNING_KEY_HEARTBEAT` in the Railway heartbeat service's variables only (never in Vercel, never in a preview, never in a file), and the public key set (JSON `{\"issuer\": \"heartbeat\", \"active\": \"<key ID>\", \"retiring\": null, \"keys\": {\"<key ID>\": \"<base64 SPKI public key>\"}}`: not secret) as `SERVICE_KEYS_HEARTBEAT` in the same Railway service and in the staging Vercel project's Production-scope variables, then redeploy the application.",
+        "Push to `staging` so that `.github/workflows/workers.yml` builds `workers/heartbeat` from the repository root and prints the image digest, then create the `heartbeat` service in the Railway project (Virginia) from that digest (a manual step: `docs/staging.md`, Worker images). Give it no public domain and no health check, set its cron schedule to `*/30 * * * *`, and set its five variables: `APP_ENV` (`staging`), `INSTANCE_ID`, `APP_ORIGIN` (the staging https origin), `SERVICE_KEYS_HEARTBEAT` and `SERVICE_SIGNING_KEY_HEARTBEAT`. It holds no database access and no Storage key. With a variable missing or malformed it exits 1 and names the variable.",
+        "What to expect on first setup, so it is not mistaken for a fault: setting `SERVICE_KEYS_HEARTBEAT` in the application makes the monitor raise `heartbeat-stale` (and email it) within about five minutes on any database whose scheduler has been running for over two hours, until the first heartbeat arrives; the alarm and its email are expected and the first successful heartbeat resolves it. So create the Railway service first, and trigger one run of it immediately after you set the key set in the application (`docs/staging.md`, \"What to expect on first setup\"). The heartbeat task waits thirty seconds for the application's answer.",
+        "Run `node --env-file=.env.staging scripts/schedules.mjs check` and then `apply --confirm staging`: the registry now holds the `alarm-monitor` task (every five minutes), which evaluates the alarm conditions. Run it right after the deploy that adds a task: a task a later story adds raises `task-late` (and an email) until its schedule exists and has fired once.",
+        "Within 30 minutes the service's run log shows `The heartbeat was recorded.` and the run is successful. Save an export of the Railway service's variable names and of the Vercel project's variable names (names, never values) outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
+      "id": "hosted-alarm-check",
+      "service": "railway",
+      "title": "An alarm raised on staging, listed on the Operations page on a phone and a desktop, emailed to the Administrator once and resolved, and the heartbeat received",
+      "kind": "attestation",
+      "due": "1-13",
+      "environments": ["staging"],
+      "secrets": [],
+      "howto": [
+        "Run the checks in `docs/staging.md`, \"Verifying the alarms\" (Story 1.13): the `alarm-monitor` receipt (`api.last_job_run('alarm-monitor')`) is `ran` with its four counts; `api.alarm_observations()` shows a recent heartbeat; the Railway service's runs succeed.",
+        "In the SQL editor raise `api.raise_alarm('hosted-check', null, '{}')`: within five minutes the Administrator address receives one email for it (this is also the first time the mailer sends an alarm through Resend from the `resend.dev` sender, which reaches only the address the Resend account is registered with), the alarm is on `/admin/operations` as the Administrator on a phone and on a desktop and is a 404 for a member, and `api.resolve_alarm('hosted-check', null)` moves it to the resolved list without a second email.",
+        "Optionally, to see each scheduler watch the other, pause the Railway cron for a little over two hours (the monitor raises `heartbeat-stale` and emails it) or pause the QStash schedules for a little over two hours (the next heartbeat raises `qstash-stale` and emails it), resume, and see the alarm resolve itself.",
+        "Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence."
+      ],
+      "evidence": {}
+    },
+    {
       "id": "anthropic-workspace-spend-limit",
       "service": "anthropic",
       "title": "Dedicated Anthropic workspace with a spend limit for each environment",

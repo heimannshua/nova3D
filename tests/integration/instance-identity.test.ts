@@ -45,12 +45,12 @@ describe('lifecycle.instance_identity migration', () => {
     expect(rows[2].column_default).toContain('gen_random_uuid()');
   });
 
-  it('is the only table this story added, and Stories 1.8 and 1.9 added five more to the lifecycle schema (nothing is in public)', async () => {
+  it('is the only table this story added, and Stories 1.8, 1.9 and 1.13 added eight more to the lifecycle schema (nothing is in public)', async () => {
     const {rows} = await db.query(
       `select schemaname, tablename from pg_tables where schemaname in ('public', 'lifecycle') order by 1, 2`,
     );
     expect(rows).toEqual(
-      ['instance_identity', 'job_receipts', 'ledger_outbox', 'ledger_relay', 'status_requests', 'tombstones'].map((tablename) => ({schemaname: 'lifecycle', tablename})),
+      ['alarm_notices', 'alarms', 'heartbeats', 'instance_identity', 'job_receipts', 'ledger_outbox', 'ledger_relay', 'status_requests', 'tombstones'].map((tablename) => ({schemaname: 'lifecycle', tablename})),
     );
   });
 

@@ -5,7 +5,7 @@ import {pathToFileURL} from 'node:url';
 import {defineConfig, devices} from '@playwright/test';
 import {testSigningKeys} from './tests/support/qstash-signature';
 import {recoveryAdministratorEmail} from './tests/support/recovery-env';
-import {testApplicationKeys} from './tests/support/service-keys';
+import {testApplicationKeys, testHeartbeatKeys} from './tests/support/service-keys';
 
 const port = Number(process.env.PORT ?? 4173);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -44,12 +44,17 @@ const nodeOptions = [process.env.NODE_OPTIONS, fakeNetworkPreload].filter(Boolea
 // Story 1.12: the application's service-signing key and the gateway's address are set the same way. The key pair is derived from a fixed label
 // (tests/support/service-keys.ts), belongs to no environment and is never written to a file: the application signs tickets with its private half, and the gateway
 // server below verifies them with the public key set.
+//
+// Story 1.13: the application is also given the heartbeat issuer's PUBLIC key set (SERVICE_KEYS_HEARTBEAT), so the heartbeat route verifies a heartbeat and the
+// monitor knows the heartbeat is configured. The private half is not given to any server: the tests that play the Railway task derive it from the same fixed label
+// (tests/support/service-keys.ts) and sign with it themselves.
 const testServerEnv = {
   ADMINISTRATOR_EMAIL: recoveryAdministratorEmail,
   QSTASH_CURRENT_SIGNING_KEY: testSigningKeys.current,
   QSTASH_NEXT_SIGNING_KEY: testSigningKeys.next,
   SERVICE_SIGNING_KEY_APPLICATION: testApplicationKeys.privateKey,
   SERVICE_KEYS_APPLICATION: testApplicationKeys.keySet,
+  SERVICE_KEYS_HEARTBEAT: testHeartbeatKeys.keySet,
   FILE_GATEWAY_URL: `http://127.0.0.1:${gatewayPort}`,
 };
 

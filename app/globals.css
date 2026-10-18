@@ -792,6 +792,16 @@ main { flex: 1; min-inline-size: 0; }
   /* A word of status that is wider than the card, as at 200% text in a 320 px window, wraps under its shape instead of pushing the card out. */
   .account-item .status-badge { flex-wrap: wrap; }
 }
+/* The Operations page (Story 1.13): an alarm is a card like a code or an Account, read-only. Its email state is a badge (a word and a shape) beside the time it went out or the line that says why not. */
+.alarm-item .settings-help { overflow-wrap: anywhere; }
+.alarm-email { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+.alarm-email > span:not(.status-badge) { min-inline-size: 0; overflow-wrap: anywhere; }
+/* A label beside its value needs room for both: in a narrow window, or with large text (which moves a rem breakpoint), the label sits above its value instead, so a long word in either cannot push the card out of the window. */
+@media (max-width: 30rem) {
+  .alarm-meta { display: block; }
+  .alarm-meta > div:not(:first-child) dt { margin-block-start: var(--space-2); }
+  .alarm-item .status-badge { flex-wrap: wrap; }
+}
 .invite-actions { display: grid; justify-items: start; gap: var(--space-3); }
 .invite-actions .invite-notice { margin-block-start: 0; }
 

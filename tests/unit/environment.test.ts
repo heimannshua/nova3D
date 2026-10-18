@@ -786,14 +786,14 @@ describe('service-signing names (Story 1.12)', () => {
   });
 
   it('leaves the public key set and the gateway\'s address out of the preview rule: they are not secret', () => {
-    expect(validateEnvironment({...preview, SERVICE_KEYS_APPLICATION: '{}', SERVICE_KEYS_GATEWAY: '{}', FILE_GATEWAY_URL: 'https://files.example.test'})).toEqual([]);
-    expect(validateEnvironment({...staging, SERVICE_KEYS_APPLICATION: '{}', FILE_GATEWAY_URL: 'https://files.example.test'})).toEqual([]);
+    expect(validateEnvironment({...preview, SERVICE_KEYS_APPLICATION: '{}', SERVICE_KEYS_GATEWAY: '{}', SERVICE_KEYS_HEARTBEAT: '{}', FILE_GATEWAY_URL: 'https://files.example.test'})).toEqual([]);
+    expect(validateEnvironment({...staging, SERVICE_KEYS_APPLICATION: '{}', SERVICE_KEYS_HEARTBEAT: '{}', FILE_GATEWAY_URL: 'https://files.example.test'})).toEqual([]);
   });
 
   it('requires none of the gateway\'s names of a hosted deployment, so /api/health and the build are unchanged', async () => {
     const source = (await import('node:fs')).readFileSync(new URL('../../lib/environment.ts', import.meta.url), 'utf8').replace(/^\s*\/\/.*$/gm, '');
     const required = source.slice(source.indexOf('const requiredVariables'), source.indexOf('const previewForbiddenName'));
-    expect(required).not.toMatch(/SERVICE_SIGNING|SERVICE_KEYS|FILE_GATEWAY|GATEWAY_/);
+    expect(required).not.toMatch(/SERVICE_SIGNING|SERVICE_KEYS|FILE_GATEWAY|GATEWAY_|HEARTBEAT/);
     expect(source).toMatch(/const previewForbiddenName = [^\n]*SERVICE_SIGNING_KEY_/);
   });
 });
@@ -802,7 +802,7 @@ describe('service-signing names (Story 1.12)', () => {
 // service and by nothing else, so a preview must not hold either. Its non-secret names are not forbidden.
 describe('the file gateway\'s secrets (Story 1.12 review)', () => {
   const secrets = ['GATEWAY_DATABASE_URL', 'GATEWAY_STORAGE_S3_SECRET_ACCESS_KEY'];
-  const notSecret = ['GATEWAY_STORAGE_S3_ACCESS_KEY_ID', 'GATEWAY_STORAGE_S3_ENDPOINT', 'GATEWAY_STORAGE_S3_REGION', 'SERVICE_KEYS_APPLICATION', 'FILE_GATEWAY_URL'];
+  const notSecret = ['GATEWAY_STORAGE_S3_ACCESS_KEY_ID', 'GATEWAY_STORAGE_S3_ENDPOINT', 'GATEWAY_STORAGE_S3_REGION', 'SERVICE_KEYS_APPLICATION', 'SERVICE_KEYS_HEARTBEAT', 'FILE_GATEWAY_URL'];
   const preview = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys, ...noMail};
 
   it('are never set in a preview or a development deployment: each is named, and its value never printed', () => {

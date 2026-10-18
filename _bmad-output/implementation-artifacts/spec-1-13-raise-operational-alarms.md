@@ -2,8 +2,9 @@
 title: 'Story 1.13: Raise operational alarms'
 type: 'feature'
 created: '2026-10-17'
-status: 'in-progress'
-review_loop_iteration: 0
+status: 'in-review'
+baseline_commit: '02d8659dc4f9f737eb39da35a09de953ce884fac'
+review_loop_iteration: 1
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
   - '{project-root}/_bmad-output/implementation-artifacts/spec-1-9-provision-staging-and-run-periodic-jobs.md'
@@ -70,15 +71,15 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/20261016120000_alarms.sql` -- the three tables, guards, the seven functions, preflight -- AC-1, AC-2, AC-3, AC-5, AC-6
-- [ ] `lib/service-signing.ts`, `lib/lifecycle.ts`, `lib/alarm-conditions.ts`, `lib/alarms.ts`, `lib/heartbeat.ts`, `lib/mailer.ts` -- claims, typed calls, registry, monitor and dispatch, the heartbeat logic, `sendAlarmMail` -- AC-1 to AC-6
-- [ ] `lib/schedules.ts`, `lib/job-tasks.ts`, `lib/jobs.ts` -- intervals, the `alarm-monitor` task and its injection -- AC-1, AC-2, AC-4
-- [ ] `app/api/heartbeat/route.ts`, `proxy.ts`, `lib/public-paths.ts` -- the signed machine route -- AC-3
-- [ ] `app/admin/operations/page.tsx`, `components/admin/*`, `lib/i18n/en.ts`, `lib/i18n/he.ts`, `app/globals.css` -- the page, the new area on `/admin`, copy in both languages -- AC-1
-- [ ] `workers/heartbeat/*`, `.dockerignore`, `scripts/ci/list-workers.mjs`, `scripts/setup-env.mjs` -- the cron worker and its image -- AC-3
-- [ ] `docs/staging.md`, `docs/secrets.md`, `provisioning/ledger.json`, `docs/provisioning.md`, `README.md`, `.env*.example` -- the runbook, the names, two ledger items -- AC-3
-- [ ] `tests/` -- every matrix row: unit (registry and each condition with the observations as data, window and reminder rules through the database function mocked and real, mailer content and failure, heartbeat route statuses, worker exit codes and output, page rendering), integration (the functions and guards against the real database, the monitor end to end with a fake sender and a fixture condition, subject-keyed AC-6, replay and revoked key, closure, preflight, `sendAlarmMail` against Mailpit with cleanup), browser (page on desktop and phone for Administrator, member 404, empty, error, axe, overflow, Hebrew; the heartbeat route over HTTP with a signed token); update the pins above; `docker build` once -- all ACs
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- failed-run and relay `conflict`/`corrupt` alarms, alarm retention against the 30-day payment alarms, heartbeat retention, other deferred conditions mapped here and left, hosted checks -- housekeeping
+- [x] `supabase/migrations/20261016120000_alarms.sql` -- the three tables, guards, the seven functions, preflight -- AC-1, AC-2, AC-3, AC-5, AC-6
+- [x] `lib/service-signing.ts`, `lib/lifecycle.ts`, `lib/alarm-conditions.ts`, `lib/alarms.ts`, `lib/heartbeat.ts`, `lib/mailer.ts` -- claims, typed calls, registry, monitor and dispatch, the heartbeat logic, `sendAlarmMail` -- AC-1 to AC-6
+- [x] `lib/schedules.ts`, `lib/job-tasks.ts`, `lib/jobs.ts` -- intervals, the `alarm-monitor` task and its injection -- AC-1, AC-2, AC-4
+- [x] `app/api/heartbeat/route.ts`, `proxy.ts`, `lib/public-paths.ts` -- the signed machine route -- AC-3
+- [x] `app/admin/operations/page.tsx`, `components/admin/*`, `lib/i18n/en.ts`, `lib/i18n/he.ts`, `app/globals.css` -- the page, the new area on `/admin`, copy in both languages -- AC-1
+- [x] `workers/heartbeat/*`, `.dockerignore`, `scripts/ci/list-workers.mjs`, `scripts/setup-env.mjs` -- the cron worker and its image -- AC-3
+- [x] `docs/staging.md`, `docs/secrets.md`, `provisioning/ledger.json`, `docs/provisioning.md`, `README.md`, `.env*.example` -- the runbook, the names, two ledger items -- AC-3
+- [x] `tests/` -- every matrix row: unit (registry and each condition with the observations as data, window and reminder rules through the database function mocked and real, mailer content and failure, heartbeat route statuses, worker exit codes and output, page rendering), integration (the functions and guards against the real database, the monitor end to end with a fake sender and a fixture condition, subject-keyed AC-6, replay and revoked key, closure, preflight, `sendAlarmMail` against Mailpit with cleanup), browser (page on desktop and phone for Administrator, member 404, empty, error, axe, overflow, Hebrew; the heartbeat route over HTTP with a signed token); update the pins above; `docker build` once -- all ACs
+- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- failed-run and relay `conflict`/`corrupt` alarms, alarm retention against the 30-day payment alarms, heartbeat retention, other deferred conditions mapped here and left, hosted checks -- housekeeping
 
 **Acceptance Criteria:**
 - Given a condition that crosses its threshold, when the monitor evaluates, then one alarm record is created, shown on the operations page on phone and desktop and emailed once per condition per 24 hours, and clearing the condition marks it resolved without deleting history.

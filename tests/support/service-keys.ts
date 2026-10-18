@@ -1,5 +1,5 @@
-import {createHash, createPrivateKey, createPublicKey} from 'node:crypto';
-import {loadSigner, parseKeySet, type ParsedKeySet, type ServiceIssuer, type Signer} from '../../lib/service-signing';
+import {createHash, createPrivateKey, createPublicKey, sign} from 'node:crypto';
+import {loadSigner, parseKeySet, tokenLabel, type ParsedKeySet, type ServiceIssuer, type Signer} from '../../lib/service-signing';
 
 // Service-signing keys for the tests (Story 1.12). They are made up, belong to no environment, and are derived from a label by a fixed rule, so
 // the unit and integration tests, the application server and the gateway server of the browser tests all hold the same pair without a key file
@@ -60,3 +60,23 @@ export const testApplicationKeys = (() => {
   const keys = testKeys();
   return {kid: keys.active.kid, privateKey: keys.privateKey, keySet: keys.json};
 })();
+
+/**
+ * The heartbeat issuer's keys as the browser tests' application server holds them (Story 1.13): the PUBLIC key set (`SERVICE_KEYS_HEARTBEAT`, which the application
+ * verifies the Railway cron task's heartbeat with) and the private half the heartbeat worker signs with, which only the tests that play the worker use.
+ */
+export const testHeartbeatKeys = (() => {
+  const keys = testKeys({issuer: 'heartbeat', active: 'heartbeat-1'});
+  return {kid: keys.active.kid, privateKey: keys.privateKey, keySet: keys.json};
+})();
+
+/**
+ * A token with exactly the payload given, validly signed by the signer: for a test that needs a token `signToken` would never make (a `jti` of the wrong shape,
+ * a claim it forbids). The signature is over the label and the two parts as written, as the module signs, so only what the test changes is wrong.
+ */
+export function signRaw(signer: Signer, payload: Record<string, unknown>): string {
+  const part = (value: unknown) => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
+  const header = part({v: 1, alg: 'EdDSA', kid: signer.kid});
+  const body = part(payload);
+  return `${header}.${body}.${sign(null, Buffer.from(`${tokenLabel}${header}.${body}`, 'utf8'), signer.privateKey).toString('base64url')}`;
+}

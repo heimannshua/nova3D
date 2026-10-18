@@ -2,7 +2,7 @@ name: Workers
 
 # Story 1.9. A change under `workers/` (or to anything an image copies in, below) on the `staging` branch builds each worker's image (every `workers/<name>/Dockerfile`), pushes it to
 # GitHub Container Registry and records the image's DIGEST, which is what is deployed: a tag can move, a digest cannot. The first worker is the file
-# gateway (Story 1.12, `workers/files`); the others arrive with Story 2.7, and until a worker has a Dockerfile the image job is skipped.
+# gateway (Story 1.12, `workers/files`) and the second the Railway heartbeat cron task (Story 1.13, `workers/heartbeat`, which copies only `lib/service-signing.ts`); the others arrive with Story 2.7, and until a worker has a Dockerfile the image job is skipped.
 #
 # Story 1.12: a worker is built from the REPOSITORY ROOT (`context: .`, with `file:` naming its own Dockerfile), because the gateway shares two modules
 # of `lib/` with the application and installs from the one root lockfile. The root `.dockerignore` keeps the context to what the images copy. So the push

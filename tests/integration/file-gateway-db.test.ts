@@ -1748,11 +1748,11 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
       'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'v.revoked_at', 'artifacts.session_authority', 'w.state', 'artifacts.instance', 'n.instance_id',
       'api.revoke_service_key(text,text,text)', 'api.list_expired_staging(integer)', 'artifacts.publish_attachment(uuid,bigint,uuid,text,text,text)', 'Story 1.12 migration', 'private-files', 'storage.buckets',
     ]) expect(definition, needle).toContain(needle);
-    // The two new `api` functions are among those the service role must be able to execute (twenty-four in all).
+    // The two new `api` functions are among those the service role must be able to execute (thirty-one in all since Story 1.13 added seven).
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
     expect(check).toBeGreaterThan(-1);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(24);
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(31);
     for (const signature of ['api.revoke_service_key(text,text,text)', 'api.list_expired_staging(integer)']) {
       expect((await db.query(`select has_function_privilege('service_role', $1, 'execute') as can`, [signature])).rows[0].can).toBe(true);
     }
@@ -1818,6 +1818,7 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
         'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands',
         'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
         'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance',
+        'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats',
         'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
       ];
       await inTx(async (client) => {
@@ -1859,6 +1860,7 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
       'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
       'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance',
+      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
     ];
     await admin.query('begin');

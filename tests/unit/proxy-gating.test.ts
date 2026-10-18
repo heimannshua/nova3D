@@ -422,7 +422,7 @@ describe('a failure while deciding denies access (fail closed)', () => {
 });
 
 describe('public paths are not gated', () => {
-  it.each(['/login', '/auth/callback', '/api/health', '/api/status', '/api/jobs'])('lets %s through without asking anyone', async (path) => {
+  it.each(['/login', '/auth/callback', '/api/health', '/api/status', '/api/jobs', '/api/heartbeat'])('lets %s through without asking anyone', async (path) => {
     const response = await run(path, {cookie: null});
     expect(passes(response)).toBe(true);
     expect(calls).toEqual([]);
@@ -941,6 +941,21 @@ describe('origin checks (Story 1.4c)', () => {
     }
   });
 
+  it('skips ONLY the origin rule for the second machine path, /api/heartbeat (Story 1.13): the Railway task has no browser Origin, and the signed token is the route\'s authentication', async () => {
+    for (const headers of [{}, {origin: 'https://evil.example'}, {origin: 'null'}, {'sec-fetch-site': 'cross-site'}] as Record<string, string>[]) {
+      const response = await run('/api/heartbeat', {cookie: null, method: 'POST', origin: null, headers});
+      expect(passes(response), JSON.stringify(headers)).toBe(true);
+    }
+    expect(passes(await run('/api/heartbeat', {cookie: null, method: 'POST'}))).toBe(true);
+    // No session is asked for and no Account state is read.
+    expect(calls).toEqual([]);
+    // Nothing beside it is a machine path.
+    for (const path of ['/api/heartbeat/', '/api/heartbeat/extra', '/api/heartbeats']) {
+      const response = await run(path, {cookie: null, method: 'POST', origin: null});
+      expect(passes(response), path).toBe(false);
+    }
+  });
+
   it('applies to the synthetic design kit when it is public', async () => {
     vi.stubEnv('SYNTHETIC_DATA_ENABLED', 'true');
     expect((await run('/kit', {cookie: null, method: 'POST', origin: 'https://evil.example'})).status).toBe(403);
@@ -1210,7 +1225,7 @@ describe('the CSRF cookie (Story 1.4c)', () => {
 
   it('is not issued by a public path, which has no session to give it to', async () => {
     vi.stubEnv('SYNTHETIC_DATA_ENABLED', 'true');
-    for (const path of ['/login', '/auth/callback', '/api/health', '/api/status', '/api/jobs', '/kit']) {
+    for (const path of ['/login', '/auth/callback', '/api/health', '/api/status', '/api/jobs', '/api/heartbeat', '/kit']) {
       const response = await run(path, {navigation: true});
       expect(csrfSetCookie(response), path).toBeUndefined();
     }

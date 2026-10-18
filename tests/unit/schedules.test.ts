@@ -5,7 +5,7 @@ import {join} from 'node:path';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {afterAll, describe, expect, it} from 'vitest';
-import {isScheduledTask, jobsPath, scheduleBody, scheduleRegistry, scheduledTasks} from '@/lib/schedules';
+import {isScheduledTask, jobsPath, monitorTask, scheduleBody, scheduleRegistry, scheduledTasks} from '@/lib/schedules';
 
 // The schedule registry (Story 1.9, lib/schedules.ts) and the operator's command that makes QStash's live schedules equal it
 // (scripts/schedules.mjs), driven with a fake client: no network call is made, and nothing here is run against QStash.
@@ -81,17 +81,40 @@ const lines = () => {
 const callsOf = (client: FakeClient) => client.log.map((entry) => entry.call);
 
 describe('the registry', () => {
-  it('lists the three tasks: the daily dormant-identity purge, the ledger relay every five minutes and (Story 1.12) the hourly staging cleanup, all in UTC', () => {
+  it('lists the four tasks: the daily dormant-identity purge, the ledger relay every five minutes, (Story 1.12) the hourly staging cleanup and (Story 1.13) the alarm monitor every five minutes, all in UTC', () => {
     expect(scheduleRegistry.map(({task, cron}) => ({task, cron}))).toEqual([
       {task: 'dormant-identity-purge', cron: '0 3 * * *'},
       {task: 'ledger-relay', cron: '*/5 * * * *'},
       {task: 'staging-cleanup', cron: '0 * * * *'},
+      {task: 'alarm-monitor', cron: '*/5 * * * *'},
     ]);
     for (const entry of scheduleRegistry) {
       expect(entry.description.length, entry.task).toBeGreaterThan(20);
       expect(entry.cron.split(' '), entry.task).toHaveLength(5);
       expect(entry.cron, entry.task).not.toMatch(/TZ=/i);
     }
+  });
+
+  it('says how often each task fires, in whole seconds, and agrees with its cron expression (Story 1.13: the condition `task-late` is twice this)', () => {
+    expect(scheduleRegistry.map(({task, intervalSeconds}) => ({task, intervalSeconds}))).toEqual([
+      {task: 'dormant-identity-purge', intervalSeconds: 86400},
+      {task: 'ledger-relay', intervalSeconds: 300},
+      {task: 'staging-cleanup', intervalSeconds: 3600},
+      {task: 'alarm-monitor', intervalSeconds: 300},
+    ]);
+    // The interval is what the cron expression says: a step in the minutes field (`*/5`) is that many minutes, a fixed minute with `*` hours is an hour, and a fixed hour is a day.
+    for (const entry of scheduleRegistry) {
+      const [minute, hour] = entry.cron.split(' ');
+      const step = /^\*\/(\d+)$/.exec(minute);
+      const expected = step ? Number(step[1]) * 60 : hour === '*' ? 3600 : 86400;
+      expect(entry.intervalSeconds, `${entry.task} (${entry.cron})`).toBe(expected);
+      expect(Number.isSafeInteger(entry.intervalSeconds), entry.task).toBe(true);
+    }
+  });
+
+  it('names the monitor once, as a registered task: the one task `task-late` leaves out', () => {
+    expect(monitorTask).toBe('alarm-monitor');
+    expect(scheduledTasks).toContain(monitorTask);
   });
 
   it('names each task once, in the shape the database and the route accept', () => {
@@ -123,17 +146,18 @@ describe('scripts/schedules.mjs list', () => {
     const output = lines();
     expect(await script.run(['list'], {env: {}, ...output.deps})).toBe(0);
     expect(output.out).toEqual(script.listLines());
-    expect(output.out).toHaveLength(3);
+    expect(output.out).toHaveLength(4);
     expect(output.out[0]).toContain('dormant-identity-purge  0 3 * * *  (UTC)');
     expect(output.out[1]).toContain('ledger-relay  */5 * * * *  (UTC)');
     expect(output.out[2]).toContain('staging-cleanup  0 * * * *  (UTC)');
+    expect(output.out[3]).toContain('alarm-monitor  */5 * * * *  (UTC)');
     expect(output.err).toEqual([]);
   });
 
   it('is what the command line prints, from a bare process, with no environment', () => {
     const result = spawnSync(process.execPath, [scriptPath, 'list'], {encoding: 'utf8', env: {PATH: process.env.PATH ?? ''} as unknown as NodeJS.ProcessEnv});
     expect(result.status).toBe(0);
-    expect(result.stdout.trim().split('\n').map((line) => line.split('  ')[0])).toEqual(['dormant-identity-purge', 'ledger-relay', 'staging-cleanup']);
+    expect(result.stdout.trim().split('\n').map((line) => line.split('  ')[0])).toEqual(['dormant-identity-purge', 'ledger-relay', 'staging-cleanup', 'alarm-monitor']);
   });
 });
 
@@ -195,6 +219,7 @@ describe('what a schedule must be', () => {
       {task: 'dormant-identity-purge', cron: '0 3 * * *', destination: `${ORIGIN}/api/jobs`, method: 'POST', body: `{"task":"dormant-identity-purge","instance":"${INSTANCE}"}`},
       {task: 'ledger-relay', cron: '*/5 * * * *', destination: `${ORIGIN}/api/jobs`, method: 'POST', body: `{"task":"ledger-relay","instance":"${INSTANCE}"}`},
       {task: 'staging-cleanup', cron: '0 * * * *', destination: `${ORIGIN}/api/jobs`, method: 'POST', body: `{"task":"staging-cleanup","instance":"${INSTANCE}"}`},
+      {task: 'alarm-monitor', cron: '*/5 * * * *', destination: `${ORIGIN}/api/jobs`, method: 'POST', body: `{"task":"alarm-monitor","instance":"${INSTANCE}"}`},
     ]);
   });
 });
@@ -213,7 +238,7 @@ describe('comparing the live schedules with the registry', () => {
   it('finds a missing schedule for each task that has none', async () => {
     const script = await load();
     const desired = script.desiredSchedules(config);
-    expect(script.compareSchedules(desired, [])).toEqual([{kind: 'missing', task: 'dormant-identity-purge'}, {kind: 'missing', task: 'ledger-relay'}, {kind: 'missing', task: 'staging-cleanup'}]);
+    expect(script.compareSchedules(desired, [])).toEqual([{kind: 'missing', task: 'dormant-identity-purge'}, {kind: 'missing', task: 'ledger-relay'}, {kind: 'missing', task: 'staging-cleanup'}, {kind: 'missing', task: 'alarm-monitor'}]);
   });
 
   it.each([
@@ -242,6 +267,7 @@ describe('comparing the live schedules with the registry', () => {
     expect(script.compareSchedules(script.desiredSchedules(config), live)).toEqual([
       {kind: 'duplicate', task: 'ledger-relay', scheduleId: 'scd_ledger-relay_again'},
       {kind: 'duplicate', task: 'staging-cleanup', scheduleId: 'scd_staging-cleanup_again'},
+      {kind: 'duplicate', task: 'alarm-monitor', scheduleId: 'scd_alarm-monitor_again'},
       {kind: 'unregistered', scheduleId: 'scd_other'},
       {kind: 'unregistered', scheduleId: 'scd_nobody'},
       {kind: 'unregistered', scheduleId: 'scd_empty'},
@@ -264,7 +290,7 @@ describe('check', () => {
     const output = lines();
     expect(await script.run(['check'], {env, client, ...output.deps})).toBe(0);
     expect(callsOf(client)).toEqual(['list']);
-    expect(output.out.at(-1)).toContain('equal the registry (3)');
+    expect(output.out.at(-1)).toContain('equal the registry (4)');
   });
 
   it('exits 1, lists every difference and changes nothing when they differ', async () => {
@@ -314,16 +340,17 @@ describe('apply', () => {
     const client = fakeClient();
     const output = lines();
     expect(await script.run(['apply', '--confirm', 'staging'], {env, client, ...output.deps})).toBe(0);
-    expect(output.out).toEqual(expect.arrayContaining(['created dormant-identity-purge', 'created ledger-relay', 'created staging-cleanup']));
+    expect(output.out).toEqual(expect.arrayContaining(['created dormant-identity-purge', 'created ledger-relay', 'created staging-cleanup', 'created alarm-monitor']));
     const created = client.log.filter((entry) => entry.call === 'create').map((entry) => entry.args as Created);
     expect(created).toEqual([
       {destination: `${ORIGIN}/api/jobs`, cron: '0 3 * * *', method: 'POST', body: `{"task":"dormant-identity-purge","instance":"${INSTANCE}"}`, headers: {'Content-Type': 'application/json'}},
       {destination: `${ORIGIN}/api/jobs`, cron: '*/5 * * * *', method: 'POST', body: `{"task":"ledger-relay","instance":"${INSTANCE}"}`, headers: {'Content-Type': 'application/json'}},
       {destination: `${ORIGIN}/api/jobs`, cron: '0 * * * *', method: 'POST', body: `{"task":"staging-cleanup","instance":"${INSTANCE}"}`, headers: {'Content-Type': 'application/json'}},
+      {destination: `${ORIGIN}/api/jobs`, cron: '*/5 * * * *', method: 'POST', body: `{"task":"alarm-monitor","instance":"${INSTANCE}"}`, headers: {'Content-Type': 'application/json'}},
     ]);
     // Retries, delay, callbacks, timeouts and flow control are the account's defaults: this command sets none of them.
     for (const request of created) for (const name of ['retries', 'delay', 'callback', 'failureCallback', 'timeout', 'flowControl', 'retryDelay', 'queueName']) expect(request, name).not.toHaveProperty(name);
-    expect(client.live).toHaveLength(3);
+    expect(client.live).toHaveLength(4);
     expect(await script.run(['check'], {env, client, ...lines().deps})).toBe(0);
   });
 
@@ -335,7 +362,7 @@ describe('apply', () => {
     expect(creates).toHaveLength(1);
     expect(creates[0]).toMatchObject({scheduleId: 'scd_dormant-identity-purge', cron: '0 3 * * *', destination: `${ORIGIN}/api/jobs`});
     expect(callsOf(client)).not.toContain('delete');
-    expect(client.live.map((schedule) => schedule.scheduleId).sort()).toEqual(['scd_dormant-identity-purge', 'scd_ledger-relay', 'scd_staging-cleanup']);
+    expect(client.live.map((schedule) => schedule.scheduleId).sort()).toEqual(['scd_alarm-monitor', 'scd_dormant-identity-purge', 'scd_ledger-relay', 'scd_staging-cleanup']);
   });
 
   it('resumes a paused schedule and rewrites nothing else', async () => {
@@ -353,8 +380,8 @@ describe('apply', () => {
     const client = fakeClient([...matching(script), ...matching(script, '_again'), {scheduleId: 'scd_stray', cron: '* * * * *', destination: `${ORIGIN}/api/jobs`, method: 'POST', body: 'x', isPaused: false}]);
     const output = lines();
     expect(await script.run(['apply', '--confirm', 'staging'], {env, client, ...output.deps})).toBe(0);
-    expect(client.log.filter((entry) => entry.call === 'delete').map((entry) => entry.args).sort()).toEqual(['scd_dormant-identity-purge_again', 'scd_ledger-relay_again', 'scd_staging-cleanup_again', 'scd_stray']);
-    expect(client.live.map((schedule) => schedule.scheduleId).sort()).toEqual(['scd_dormant-identity-purge', 'scd_ledger-relay', 'scd_staging-cleanup']);
+    expect(client.log.filter((entry) => entry.call === 'delete').map((entry) => entry.args).sort()).toEqual(['scd_alarm-monitor_again', 'scd_dormant-identity-purge_again', 'scd_ledger-relay_again', 'scd_staging-cleanup_again', 'scd_stray']);
+    expect(client.live.map((schedule) => schedule.scheduleId).sort()).toEqual(['scd_alarm-monitor', 'scd_dormant-identity-purge', 'scd_ledger-relay', 'scd_staging-cleanup']);
   });
 
   it('does NOT delete a schedule for no registered task, or a duplicate, whose destination is anything but this application\'s jobs URL: it names the schedule ID and the field, and exits 1 saying a person must remove it', async () => {
@@ -404,25 +431,25 @@ describe('apply', () => {
     const output = lines();
     expect(await script.run(['apply', '--confirm', 'staging'], {env, client, ...output.deps})).toBe(1);
     expect(client.log.filter((entry) => entry.call === 'delete').map((entry) => entry.args)).toEqual(['scd_owned_stray']);
-    expect(client.log.filter((entry) => entry.call === 'create')).toHaveLength(2);
-    expect(client.live.map((schedule) => schedule.scheduleId).sort()).toEqual(['scd_dormant-identity-purge', 'scd_foreign', 'scd_new1', 'scd_new2']);
+    expect(client.log.filter((entry) => entry.call === 'create')).toHaveLength(3);
+    expect(client.live.map((schedule) => schedule.scheduleId).sort()).toEqual(['scd_dormant-identity-purge', 'scd_foreign', 'scd_new1', 'scd_new2', 'scd_new3']);
     expect(output.err.join('\n')).toContain('scd_foreign');
   });
 
   it('keeps the schedule that is right, or that already calls this application, and never makes the correct schedule the duplicate of a foreign one', async () => {
     const script = await load();
-    const [purge, relay, cleanup] = matching(script);
+    const [purge, relay, cleanup, monitor] = matching(script);
     const foreignFirst = {...relay, scheduleId: 'scd_old_domain', destination: 'https://old-deployment.example/api/jobs'};
     // The foreign one is listed first; the one that is right is the one kept, and the foreign one is reported (and left alone).
-    const client = fakeClient([purge, foreignFirst, relay, cleanup]);
+    const client = fakeClient([purge, foreignFirst, relay, cleanup, monitor]);
     const output = lines();
     expect(await script.run(['apply', '--confirm', 'staging'], {env, client, ...output.deps})).toBe(1);
     expect(callsOf(client)).toEqual(['list', 'list']);
     expect(output.out.join('\n')).toContain('will NOT delete scd_old_domain');
-    expect(script.compareSchedules(script.desiredSchedules(config), [purge, foreignFirst, relay, cleanup])).toEqual([{kind: 'duplicate', task: 'ledger-relay', scheduleId: 'scd_old_domain'}]);
+    expect(script.compareSchedules(script.desiredSchedules(config), [purge, foreignFirst, relay, cleanup, monitor])).toEqual([{kind: 'duplicate', task: 'ledger-relay', scheduleId: 'scd_old_domain'}]);
     // Of two schedules that both need a change, the one that already calls this application is the one corrected.
     const wrongCron = {...relay, scheduleId: 'scd_ours', cron: '*/10 * * * *'};
-    expect(script.compareSchedules(script.desiredSchedules(config), [purge, foreignFirst, wrongCron, cleanup])).toEqual([
+    expect(script.compareSchedules(script.desiredSchedules(config), [purge, foreignFirst, wrongCron, cleanup, monitor])).toEqual([
       {kind: 'duplicate', task: 'ledger-relay', scheduleId: 'scd_old_domain'},
       {kind: 'wrong', task: 'ledger-relay', scheduleId: 'scd_ours', fields: ['cron']},
     ]);
@@ -446,6 +473,7 @@ describe('apply', () => {
       'out:will update dormant-identity-purge (scd_dormant-identity-purge): cron',
       'out:will resume ledger-relay (scd_ledger-relay)',
       'out:will create the schedule of staging-cleanup',
+      'out:will create the schedule of alarm-monitor',
     ]);
     const firstChange = timeline.findIndex((entry) => ['call:create', 'call:resume', 'call:delete'].includes(entry));
     const lastPlanned = timeline.lastIndexOf(planned[planned.length - 1]);
@@ -453,8 +481,8 @@ describe('apply', () => {
     // ... and a creation is announced by task.
     const fresh = fakeClient([], {timeline: (timeline.length = 0, timeline)});
     await script.run(['apply', '--confirm', 'staging'], {env, client: fresh, out: (line) => timeline.push(`out:${line}`), err: () => undefined});
-    expect(timeline.filter((entry) => entry.startsWith('out:will '))).toEqual(['out:will create the schedule of dormant-identity-purge', 'out:will create the schedule of ledger-relay', 'out:will create the schedule of staging-cleanup']);
-    expect(timeline.findIndex((entry) => entry === 'call:create')).toBeGreaterThan(timeline.lastIndexOf('out:will create the schedule of staging-cleanup'));
+    expect(timeline.filter((entry) => entry.startsWith('out:will '))).toEqual(['out:will create the schedule of dormant-identity-purge', 'out:will create the schedule of ledger-relay', 'out:will create the schedule of staging-cleanup', 'out:will create the schedule of alarm-monitor']);
+    expect(timeline.findIndex((entry) => entry === 'call:create')).toBeGreaterThan(timeline.lastIndexOf('out:will create the schedule of alarm-monitor'));
   });
 
   it('says nothing is going to change, and changes nothing, when the schedules are equal', async () => {
@@ -514,7 +542,7 @@ describe('the command line entry point', () => {
     const linked = spawnSync(process.execPath, [link, 'list'], {encoding: 'utf8', env: bare});
     expect(linked.status).toBe(0);
     expect(linked.stdout).toBe(direct.stdout);
-    expect(linked.stdout.trim().split('\n')).toHaveLength(3);
+    expect(linked.stdout.trim().split('\n')).toHaveLength(4);
     // ... and a symlink to a symlink, and a symlinked directory, behave the same.
     const second = join(temp, 'second-link.mjs');
     symlinkSync(link, second);

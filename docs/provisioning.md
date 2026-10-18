@@ -113,8 +113,8 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 - Region: Virginia (us-east4-eqdc4a)
 - Spend backstop: A usage limit set in Railway at the Hobby plan's monthly amount and recorded in the evidence export.
 - First needed: Story 1.9
-- Verification: attestation (4)
-- Secret names by environment: staging: `RAILWAY_TOKEN`, `SERVICE_SIGNING_KEY_APPLICATION`, `SERVICE_KEYS_APPLICATION`, `FILE_GATEWAY_URL`
+- Verification: attestation (6)
+- Secret names by environment: staging: `RAILWAY_TOKEN`, `SERVICE_SIGNING_KEY_APPLICATION`, `SERVICE_KEYS_APPLICATION`, `FILE_GATEWAY_URL`, `SERVICE_SIGNING_KEY_HEARTBEAT`
 - Free-tier limits relied on, with the trigger for upgrading:
   - The Hobby plan's monthly credit is shared by the CAD worker, the reconversion engine worker, the gateway and the backup service; the first deployment records actual usage against it. Upgrade trigger: Move to Pro when recorded usage nears the credit or a service needs more than Hobby resources.
   - Volume backups stay disabled because their monthly retention (89 days) would breach the 30-day deletion limit. Upgrade trigger: Never enable Railway volume backups for private data; nothing authoritative lives on Railway.
@@ -517,6 +517,36 @@ Tasks are ordered by the build order in `_bmad-output/implementation-artifacts/s
 1. Run the checks in `docs/staging.md`, "Verifying the file gateway" (Story 1.12): `/healthz` answers; from a signed-in browser at the application's origin ask for a ticket, upload a few megabytes to the gateway, read it back whole and by range, and open a download link that carries a ticket; a request from another origin is refused. This is also the first time the gateway reaches the database through the Supabase pooler in transaction mode (no session state, no named prepared statements), which no local test can prove.
 2. With a throwaway Account, disable it while a large file is downloading and see the stream stop; disable and re-enable it and see an old ticket refused.
 3. Within an hour of the first expiry, `api.last_job_run('staging-cleanup')` shows a finished receipt (`idle` when nothing is expired, `ran` with its counts when something was removed, never `no_store` once the gateway is configured).
+4. Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
+
+### Due by Story 1.13
+
+#### `railway-heartbeat-service`: The heartbeat cron service on Railway from the pushed image, on a 30-minute schedule, with its signing key, and the heartbeat key set in the application
+
+- Service: Railway (workers, gateway and backup service)
+- Verification: attestation
+- Environments: staging
+- Secret names: `SERVICE_SIGNING_KEY_HEARTBEAT`
+- Status: staging: pending
+
+1. Apply `supabase/migrations/20261016120000_alarms.sql` to staging before the build that uses it deploys (the staging workflow does it from a push, or follow `docs/staging.md` by hand). It adds three closed Lifecycle tables (`lifecycle.alarms`, `lifecycle.alarm_notices`, `lifecycle.heartbeats`), seven functions, a preflight that probes them and one index on an existing table, `job_receipts_started` on `lifecycle.job_receipts` (Story 1.9's receipts: it changes no row, column or contract of that table); no setting or secret.
+2. On your own machine generate the heartbeat issuer's Ed25519 pair (`docs/secrets.md`, Service-signing keys and SERVICE_SIGNING_KEY_HEARTBEAT) and choose a key ID, such as `heartbeat-2026-10`. Store the private half, as base64 PKCS#8, as `SERVICE_SIGNING_KEY_HEARTBEAT` in the Railway heartbeat service's variables only (never in Vercel, never in a preview, never in a file), and the public key set (JSON `{"issuer": "heartbeat", "active": "<key ID>", "retiring": null, "keys": {"<key ID>": "<base64 SPKI public key>"}}`: not secret) as `SERVICE_KEYS_HEARTBEAT` in the same Railway service and in the staging Vercel project's Production-scope variables, then redeploy the application.
+3. Push to `staging` so that `.github/workflows/workers.yml` builds `workers/heartbeat` from the repository root and prints the image digest, then create the `heartbeat` service in the Railway project (Virginia) from that digest (a manual step: `docs/staging.md`, Worker images). Give it no public domain and no health check, set its cron schedule to `*/30 * * * *`, and set its five variables: `APP_ENV` (`staging`), `INSTANCE_ID`, `APP_ORIGIN` (the staging https origin), `SERVICE_KEYS_HEARTBEAT` and `SERVICE_SIGNING_KEY_HEARTBEAT`. It holds no database access and no Storage key. With a variable missing or malformed it exits 1 and names the variable.
+4. What to expect on first setup, so it is not mistaken for a fault: setting `SERVICE_KEYS_HEARTBEAT` in the application makes the monitor raise `heartbeat-stale` (and email it) within about five minutes on any database whose scheduler has been running for over two hours, until the first heartbeat arrives; the alarm and its email are expected and the first successful heartbeat resolves it. So create the Railway service first, and trigger one run of it immediately after you set the key set in the application (`docs/staging.md`, "What to expect on first setup"). The heartbeat task waits thirty seconds for the application's answer.
+5. Run `node --env-file=.env.staging scripts/schedules.mjs check` and then `apply --confirm staging`: the registry now holds the `alarm-monitor` task (every five minutes), which evaluates the alarm conditions. Run it right after the deploy that adds a task: a task a later story adds raises `task-late` (and an email) until its schedule exists and has fired once.
+6. Within 30 minutes the service's run log shows `The heartbeat was recorded.` and the run is successful. Save an export of the Railway service's variable names and of the Vercel project's variable names (names, never values) outside the repository, and record its file name as evidence.
+
+#### `hosted-alarm-check`: An alarm raised on staging, listed on the Operations page on a phone and a desktop, emailed to the Administrator once and resolved, and the heartbeat received
+
+- Service: Railway (workers, gateway and backup service)
+- Verification: attestation
+- Environments: staging
+- Secret names: none
+- Status: staging: pending
+
+1. Run the checks in `docs/staging.md`, "Verifying the alarms" (Story 1.13): the `alarm-monitor` receipt (`api.last_job_run('alarm-monitor')`) is `ran` with its four counts; `api.alarm_observations()` shows a recent heartbeat; the Railway service's runs succeed.
+2. In the SQL editor raise `api.raise_alarm('hosted-check', null, '{}')`: within five minutes the Administrator address receives one email for it (this is also the first time the mailer sends an alarm through Resend from the `resend.dev` sender, which reaches only the address the Resend account is registered with), the alarm is on `/admin/operations` as the Administrator on a phone and on a desktop and is a 404 for a member, and `api.resolve_alarm('hosted-check', null)` moves it to the resolved list without a second email.
+3. Optionally, to see each scheduler watch the other, pause the Railway cron for a little over two hours (the monitor raises `heartbeat-stale` and emails it) or pause the QStash schedules for a little over two hours (the next heartbeat raises `qstash-stale` and emails it), resume, and see the alarm resolve itself.
 4. Write down what you saw (the date, the build that was deployed, which checks passed and anything that did not), save the note outside the repository, and record its file name as evidence.
 
 ### Due by Story 1.7

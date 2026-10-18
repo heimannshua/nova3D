@@ -10,7 +10,11 @@
 // session to ask for and no browser Origin to check. It is public in the sense that the proxy asks no Account of it, and it is a machine path
 // in that the proxy skips ONLY its origin refusal for it (`isMachinePath`); every other proxy rule still applies, and the signature, checked
 // by the route over the raw body, is the only authentication. It is one exact path: nothing beneath or beside it is public.
-export const machinePaths = ['/api/jobs'];
+//
+// /api/heartbeat (Story 1.13) is the second machine path: the Railway cron task posts a signed heartbeat to it (a POST with an `Authorization: Heartbeat <token>`
+// header and no meaningful body), so the same rule holds: no session, no CSRF cookie, no browser Origin check by the proxy, and the signed token, verified by the
+// route (lib/heartbeat.ts), is the only authentication. The route itself refuses a request that carries an `Origin` header, which a worker never sends.
+export const machinePaths = ['/api/jobs', '/api/heartbeat'];
 export const publicPaths = ['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm', ...machinePaths];
 
 /**

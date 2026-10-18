@@ -135,6 +135,9 @@ describe('through the REST API', () => {
   const bodiesAgainst = (victim: Fixture): Record<string, unknown> => ({
     account_status: {p_user_id: victim.user.id},
     adopt_preferences: {p_account_id: victim.accountId, p_locale: 'en', p_theme: 'dark', p_detail: 'technical', p_guidance: 'dismissed'},
+    // Story 1.13: the alarm path's seven api functions.
+    alarm_observations: {},
+    alarms_due_mail: {p_limit: 5},
     authorize_session: {p_user_id: victim.user.id, p_session_id: victim.sessionId},
     before_user_created: {event: {}},
     check_recovery: {p_token_hash: codeHash(), p_administrator_email: victim.user.email},
@@ -156,6 +159,7 @@ describe('through the REST API', () => {
     issue_recovery: {p_token_hash: codeHash(), p_administrator_email: victim.user.email},
     last_job_run: {p_task: 'ledger-relay'},
     list_accounts: {},
+    list_alarms: {p_include_resolved: true, p_limit: 5},
     // Story 1.12: the file gateway's two api functions (the staging cleanup's list and a service key's revocation).
     list_expired_staging: {p_limit: 5},
     list_invitations: {},
@@ -164,10 +168,14 @@ describe('through the REST API', () => {
     lookup_status: {p_handle: '0'.repeat(32), p_origin_hash: codeHash()},
     preflight: {},
     purge_dormant_identities: {p_limit: 1},
+    raise_alarm: {p_condition: 'isolation-test', p_subject: null, p_detail: {}},
     raise_authorization_epoch: {p_account_id: victim.accountId, p_actor: 'seed'},
     record_account_refusal: {p_user_id: victim.user.id, p_action: 'account.denied', p_account_id: victim.accountId},
+    record_alarm_notice: {p_alarm_id: randomUUID(), p_outcome: 'sent'},
+    record_heartbeat: {p_kid: 'isolation-test', p_jti: 'AAAAAAAAAAAAAAAAAAAAAA'},
     record_invitation_refusal: {p_user_id: victim.user.id, p_action: 'invitation.denied', p_invitation_id: null},
     record_tombstone: {p_kind: 'account', p_target_id: victim.accountId},
+    resolve_alarm: {p_condition: 'isolation-test', p_subject: null},
     rename_project: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_project_id: randomUUID(), p_expected_revision: 1, p_title: 'Renamed by another Account'},
     redeem_recovery: {p_token_hash: codeHash(), p_administrator_email: victim.user.email, p_user_id: victim.user.id, p_session_id: victim.sessionId},
     register_with_code: {p_user_id: victim.user.id, p_command_id: victim.commandId, p_code_hash: victim.codeHash, p_origin_hash: originHash()},

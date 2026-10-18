@@ -8,8 +8,8 @@ afterEach(() => vi.unstubAllEnvs());
 // The design kit is the only route that is public because of a flag. It lets tests reach the shell
 // without a sign-in, so it must never be public unless synthetic data is on (production forbids that).
 describe('public paths (Story 1.2)', () => {
-  it('keeps the sign-in, callback, health, status and scheduled-job routes public', () => {
-    expect(publicPaths).toEqual(['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm', '/api/jobs']);
+  it('keeps the sign-in, callback, health, status, scheduled-job and heartbeat routes public', () => {
+    expect(publicPaths).toEqual(['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm', '/api/jobs', '/api/heartbeat']);
     for (const path of publicPaths) expect(isPublicPath(path, {})).toBe(true);
   });
 
@@ -27,8 +27,8 @@ describe('public paths (Story 1.2)', () => {
     }
   });
 
-  it('makes the scheduled-job route (Story 1.9) public at its one path, the one machine path, and nothing beneath or beside it', () => {
-    expect(machinePaths).toEqual(['/api/jobs']);
+  it('makes the scheduled-job route (Story 1.9) public at its one path, a machine path, and nothing beneath or beside it', () => {
+    expect(machinePaths).toEqual(['/api/jobs', '/api/heartbeat']);
     expect(isPublicPath('/api/jobs', {})).toBe(true);
     expect(isMachinePath('/api/jobs')).toBe(true);
     for (const path of ['/api/jobs/', '/api/jobs/extra', '/api/job', '/api/Jobs', '/api/jobs.json', '/jobs', '/api', '/api/jobs?x=1']) {
@@ -37,8 +37,17 @@ describe('public paths (Story 1.2)', () => {
     }
   });
 
-  it('is a machine path only where a scheduler, not a browser, makes the call: no other public path skips the origin check', () => {
-    for (const path of publicPaths.filter((entry) => entry !== '/api/jobs')) expect(isMachinePath(path), path).toBe(false);
+  it('makes the heartbeat route (Story 1.13) public at its one path, the second machine path, and nothing beneath or beside it', () => {
+    expect(isPublicPath('/api/heartbeat', {})).toBe(true);
+    expect(isMachinePath('/api/heartbeat')).toBe(true);
+    for (const path of ['/api/heartbeat/', '/api/heartbeat/extra', '/api/heartbeats', '/api/Heartbeat', '/api/heartbeat.json', '/heartbeat', '/api/heartbeat?x=1']) {
+      expect(isPublicPath(path, {SYNTHETIC_DATA_ENABLED: 'true'}), path).toBe(false);
+      expect(isMachinePath(path), path).toBe(false);
+    }
+  });
+
+  it('is a machine path only where a scheduler or a worker, not a browser, makes the call: no other public path skips the origin check', () => {
+    for (const path of publicPaths.filter((entry) => !machinePaths.includes(entry))) expect(isMachinePath(path), path).toBe(false);
     expect(isMachinePath('/kit')).toBe(false);
   });
 

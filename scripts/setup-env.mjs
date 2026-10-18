@@ -14,6 +14,8 @@
 //        Story 1.12: it also writes the application's service-signing key (SERVICE_SIGNING_KEY_APPLICATION, the private half of an Ed25519 pair, and
 //        SERVICE_KEYS_APPLICATION, the public key set the file gateway holds) when the pair is missing or does not match, and keeps a valid pair; and,
 //        when the stack reports them, the file gateway's own database role and Storage key pair (GATEWAY_DATABASE_URL and GATEWAY_STORAGE_S3_*).
+//        Story 1.13: the same for the heartbeat issuer (SERVICE_SIGNING_KEY_HEARTBEAT, the private half the heartbeat worker signs with, and SERVICE_KEYS_HEARTBEAT,
+//        the public key set the application verifies the heartbeat with).
 //
 // NOVA3D_SETUP_ROOT overrides the project root (tests point it at a temporary directory).
 import {spawnSync} from 'node:child_process';
@@ -103,15 +105,20 @@ for (const name of hashKeyVariables) {
 // Story 1.12: the application's service-signing key, an Ed25519 pair, random per machine and never taken from the template. The private half signs transfer
 // tickets and gateway commands; the public key set is what the local gateway verifies them with. A pair that is already there and matches is kept (tickets
 // signed by it stay valid); one that is missing or does not match is replaced as a pair, so the two halves are never out of step.
-const signingKeyName = signingKeyVariable('application');
-const keySetName = keySetVariable('application');
-const [existingPrivate] = keyValues(signingKeyName);
-const [existingKeySet] = keyValues(keySetName);
-const parsedKeySet = existingKeySet ? parseKeySet(existingKeySet, 'application') : null;
-if (!(parsedKeySet?.ok && existingPrivate && loadSigner(existingPrivate, parsedKeySet.keySet).ok)) {
-  const pair = generateKeyPairSync('ed25519');
-  updates[signingKeyName] = pair.privateKey.export({type: 'pkcs8', format: 'der'}).toString('base64');
-  updates[keySetName] = `'${JSON.stringify({issuer: 'application', active: 'local-1', retiring: null, keys: {'local-1': pair.publicKey.export({type: 'spki', format: 'der'}).toString('base64')}})}'`;
+// Story 1.13: the heartbeat issuer gets the same, locally: its private half is what the heartbeat worker (workers/heartbeat) signs with, and its public key set is
+// what the application verifies the heartbeat with (SERVICE_KEYS_HEARTBEAT, which also tells the monitor the heartbeat is configured). Hosted, the two halves live in
+// different places (the key set in the application, the private half only in the Railway task), but locally one file holds both.
+for (const issuer of ['application', 'heartbeat']) {
+  const signingKeyName = signingKeyVariable(issuer);
+  const keySetName = keySetVariable(issuer);
+  const [existingPrivate] = keyValues(signingKeyName);
+  const [existingKeySet] = keyValues(keySetName);
+  const parsedKeySet = existingKeySet ? parseKeySet(existingKeySet, issuer) : null;
+  if (!(parsedKeySet?.ok && existingPrivate && loadSigner(existingPrivate, parsedKeySet.keySet).ok)) {
+    const pair = generateKeyPairSync('ed25519');
+    updates[signingKeyName] = pair.privateKey.export({type: 'pkcs8', format: 'der'}).toString('base64');
+    updates[keySetName] = `'${JSON.stringify({issuer, active: 'local-1', retiring: null, keys: {'local-1': pair.publicKey.export({type: 'spki', format: 'der'}).toString('base64')}})}'`;
+  }
 }
 // ... and the gateway's own database role and Storage key pair, from the stack (the role's password is the local one supabase/seed.sql sets).
 if (stack.DB_URL) {

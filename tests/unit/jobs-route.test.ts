@@ -6,7 +6,9 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import * as route from '@/app/api/jobs/route';
 import {handleJobRequest, maxJobBodyBytes} from '@/lib/jobs';
 import {runTask} from '@/lib/job-tasks';
+import {fakeDatabase, sender} from '../support/alarm-fakes';
 import {signDelivery, signedCall, testSigningKeys} from '../support/qstash-signature';
+import {testHeartbeatKeys} from '../support/service-keys';
 
 // The scheduled-job route (Story 1.9, lib/jobs.ts) without a database: the handler is called with a Request, the database is a stand-in for
 // the four calls it makes (the instance identity read, api.claim_job_run, api.finish_job_run and, for the tasks, theirs), and what the route
@@ -67,7 +69,7 @@ const calls = () => sent.map((call) => call.name);
 const body = (task = 'ledger-relay', instance = INSTANCE) => ({task, instance});
 
 /** Sends a call as QStash would: a POST with the signature, message ID and schedule ID of a scheduled message. */
-function post(call: ReturnType<typeof signedCall> | {body: string; headers: Record<string, string>}, options: {env?: Record<string, string | undefined>; run?: typeof runTask; task?: {ledgerStore?: never | null}; method?: string} = {}) {
+function post(call: ReturnType<typeof signedCall> | {body: string; headers: Record<string, string>}, options: {env?: Record<string, string | undefined>; run?: typeof runTask; task?: {ledgerStore?: never | null; alarms?: Record<string, unknown>}; method?: string} = {}) {
   const request = new Request('http://127.0.0.1:4173/api/jobs', {method: options.method ?? 'POST', headers: call.headers, ...(options.method === 'GET' ? {} : {body: call.body})});
   return handleJobRequest(request, {env: options.env ?? env, accounts: {fetch: database}, run: options.run, task: options.task as never});
 }
@@ -492,6 +494,75 @@ describe('7. the run and the receipt', () => {
     Object.defineProperty(request, 'headers', {get() { throw new Error('boom'); }});
     const response = await handleJobRequest(request, {env, accounts: {fetch: database}});
     expect(response.status).toBe(503);
+  });
+});
+
+describe('the alarm monitor (Story 1.13) through the route', () => {
+  const alarmNames = ['alarm_observations', 'raise_alarm', 'resolve_alarm', 'list_alarms', 'alarms_due_mail', 'record_alarm_notice'];
+  /** Gives the route the alarm database stand-in for the six alarm calls. */
+  function withAlarms() {
+    const alarmDatabase = fakeDatabase();
+    for (const name of alarmNames) answers[name] = (requestBody) => alarmDatabase.fetch(`http://database.test/rest/v1/rpc/${name}`, {body: JSON.stringify(requestBody)} as RequestInit);
+    return alarmDatabase;
+  }
+  const finished = () => sent.filter((entry) => entry.name === 'finish_job_run').map((entry) => entry.body);
+
+  it('claims the monitor under its own ID, runs it, and finishes its receipt with counts only: raised, resolved, mailed, mail_failed', async () => {
+    const alarmDatabase = withAlarms();
+    alarmDatabase.observed.value.unaccounted = 40;
+    const mail = sender();
+    const response = await post(call({}, body('alarm-monitor')), {task: {alarms: {send: mail.send}}});
+    expect([response.status, await response.json()]).toEqual([200, {outcome: 'ran'}]);
+    expect(sent.find((entry) => entry.name === 'claim_job_run')?.body).toMatchObject({p_task: 'alarm-monitor'});
+    expect(finished()).toEqual([{p_receipt_id: RECEIPT, p_outcome: 'ran', p_result: {raised: 1, resolved: 0, mailed: 1, mail_failed: 0}}]);
+    expect(alarmDatabase.alarms).toEqual([expect.objectContaining({condition: 'identities-unaccounted', subject: null})]);
+    expect(mail.mails).toEqual([expect.objectContaining({condition: 'identities-unaccounted'})]);
+  });
+
+  it('records a mailer that fails as a run that ran, with the failure counted: the alarm is still recorded and the mail is retried at the next firing', async () => {
+    const alarmDatabase = withAlarms();
+    alarmDatabase.observed.value.unaccounted = 40;
+    const mail = sender([{outcome: 'refused', reason: 'provider_refused'}]);
+    const response = await post(call({}, body('alarm-monitor')), {task: {alarms: {send: mail.send}}});
+    expect([response.status, await response.json()]).toEqual([200, {outcome: 'ran'}]);
+    expect(finished()[0].p_result).toEqual({raised: 1, resolved: 0, mailed: 0, mail_failed: 1});
+    expect(alarmDatabase.notices.map((notice) => notice.outcome)).toEqual(['failed']);
+  });
+
+  it('knows the heartbeat is configured only when SERVICE_KEYS_HEARTBEAT is set in the route\'s environment', async () => {
+    const alarmDatabase = withAlarms();
+    alarmDatabase.observed.value.latest_heartbeat_age = 9000;
+    const mail = sender();
+    await post(call({}, body('alarm-monitor')), {task: {alarms: {send: mail.send}}});
+    expect(alarmDatabase.alarms).toEqual([]);
+    await post(call({}, body('alarm-monitor')), {env: {...env, SERVICE_KEYS_HEARTBEAT: testHeartbeatKeys.keySet}, task: {alarms: {send: mail.send}}});
+    expect(alarmDatabase.alarms).toEqual([expect.objectContaining({condition: 'heartbeat-stale', subject: null})]);
+  });
+
+  it('mails through the environment this route reads: the Administrator address of the route\'s own env, through the injected fetch', async () => {
+    const alarmDatabase = withAlarms();
+    alarmDatabase.observed.value.unaccounted = 40;
+    const posted: {url: string; body: string}[] = [];
+    const mailFetch = async (url: string, init?: RequestInit) => {
+      posted.push({url, body: String(init?.body)});
+      return new Response('{}', {status: 200});
+    };
+    const response = await post(call({}, body('alarm-monitor')), {task: {alarms: {mail: {fetch: mailFetch}}}});
+    expect(response.status).toBe(200);
+    expect(posted).toHaveLength(1);
+    expect(posted[0].url).toBe('http://127.0.0.1:54324/api/v1/send');
+    expect(JSON.parse(posted[0].body).To).toEqual([{Email: 'admin@example.test'}]);
+    expect(finished()[0].p_result).toEqual({raised: 1, resolved: 0, mailed: 1, mail_failed: 0});
+  });
+
+  it('records `failed` and answers 500 when an alarm cannot be evaluated or written, after the rest of the run, so the scheduler retries', async () => {
+    const alarmDatabase = withAlarms();
+    alarmDatabase.observed.value.unaccounted = 40;
+    alarmDatabase.fail.raise_alarm = () => json({message: 'down'}, 503);
+    const mail = sender();
+    const response = await post(call({}, body('alarm-monitor')), {task: {alarms: {send: mail.send}}});
+    expect([response.status, await response.json()]).toEqual([500, {outcome: 'failed'}]);
+    expect(finished()).toEqual([{p_receipt_id: RECEIPT, p_outcome: 'failed', p_result: {error_class: 'AccountsUnavailableError'}}]);
   });
 });
 

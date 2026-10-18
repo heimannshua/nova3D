@@ -1,7 +1,7 @@
 import {randomBytes, randomUUID} from 'node:crypto';
 import {describe, expect, it, vi} from 'vitest';
 import {AccountsUnavailableError, hashClientAddress} from '@/lib/accounts';
-import {claimJobRun, claimLedgerEvents, defaultPurgeLimit, finishJobRun, finishLedgerEvents, guardTarget, isJobResult, isStatusHandle, jobOutcomes, lastJobRun, ledgerPending, listExpiredStaging, lookupStatus, maxExpiredStaging, maxPurgeLimit, purgeDormantIdentities, recordTombstone, revokeServiceKey, targetOutcomes} from '@/lib/lifecycle';
+import {alarmConditionPattern, alarmObservations, alarmsDueMail, alarmSubjectPattern, claimJobRun, claimLedgerEvents, defaultPurgeLimit, finishJobRun, finishLedgerEvents, guardTarget, isJobResult, isStatusHandle, jobOutcomes, lastJobRun, ledgerPending, listExpiredStaging, listAlarms, lookupStatus, maxDueMail, maxExpiredStaging, maxPurgeLimit, noticeOutcomes, purgeDormantIdentities, raiseAlarm, recordAlarmNotice, recordHeartbeat, recordTombstone, resolveAlarm, revokeServiceKey, targetOutcomes, isAlarmDetail} from '@/lib/lifecycle';
 
 // The typed calls of the Lifecycle functions (lib/lifecycle.ts, Story 1.8) against a fake fetch: what each sends, what each accepts as
 // an answer, and that an answer that cannot be got is an error, never an "unknown" handle, an empty backlog or a permission.
@@ -551,5 +551,352 @@ describe('listExpiredStaging', () => {
 
   it('throws when the database cannot be reached: nothing is deleted on the strength of a list that was not read', async () => {
     await expect(listExpiredStaging({}, down)).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true});
+  });
+});
+
+// Operational alarms (Story 1.13) ---------------------------------------------------------------------------------------------------------------------
+
+const ALARM = '5b6c7d8e-9f0a-4b1c-8d2e-3f4a5b6c7d8e';
+const OTHER_ALARM = '6c7d8e9f-0a1b-4c2d-9e3f-4a5b6c7d8e9f';
+const AT = '2026-10-17T08:00:00.000Z';
+const LATER = '2026-10-17T08:05:00.000Z';
+const alarmRow = (change: Record<string, unknown> = {}) => ({
+  id: ALARM,
+  condition: 'task-late',
+  subject: 'ledger-relay',
+  first_at: AT,
+  latest_at: LATER,
+  resolved_at: null,
+  detail: {receipt_task: 'ledger-relay', receipt_outcome: 'ran', receipt_at: AT, age_seconds: 700},
+  last_sent_at: null,
+  last_notice_outcome: null,
+  last_notice_at: null,
+  ...change,
+});
+
+describe('isAlarmDetail', () => {
+  it('accepts a flat object of whole numbers, booleans and short printable text', () => {
+    expect(isAlarmDetail({})).toBe(true);
+    expect(isAlarmDetail({count: 26, ok: true, receipt_task: 'ledger-relay', receipt_at: '2026-10-17T08:00:00.000Z', empty: ''})).toBe(true);
+    expect(isAlarmDetail({negative: -5})).toBe(true);
+    expect(isAlarmDetail({text: 'x'.repeat(80)})).toBe(true);
+  });
+
+  it.each([
+    ['a text of 81 characters', {text: 'x'.repeat(81)}],
+    ['text that is not printable ASCII', {text: 'caf\u00e9'}],
+    ['a line break', {text: 'a\nb'}],
+    ['a fraction', {n: 1.5}],
+    ['an infinite number', {n: Number.POSITIVE_INFINITY}],
+    ['a number too large to be exact', {n: 2 ** 60}],
+    ['a nested object', {n: {a: 1}}],
+    ['a list', {n: [1]}],
+    ['null', {n: null}],
+    ['a key with a capital', {Count: 1}],
+    ['a key with a hyphen', {'receipt-task': 'x'}],
+    ['a key that starts with a digit', {'1a': 1}],
+    ['a key of 33 characters', {['k'.repeat(33)]: 1}],
+    ['more than 1 KB', Object.fromEntries(Array.from({length: 30}, (_unused, index) => [`key_${index}`, 'x'.repeat(60)]))],
+  ])('refuses %s', (_name, detail) => {
+    expect(isAlarmDetail(detail)).toBe(false);
+  });
+
+  it.each([[null], [undefined], ['x'], [5], [['a']]])('refuses %j, which is not an object', (value) => {
+    expect(isAlarmDetail(value)).toBe(false);
+  });
+
+  // Review patch P4: the database reads a number by its text, `^-?(0|[1-9][0-9]{0,14})$` (lifecycle.alarm_detail_ok), so a whole number of sixteen digits is whole
+  // and "safe" for JavaScript and is still refused by the database (a 22023 after the call). The check here accepts exactly what the database accepts; the
+  // integration test (tests/integration/alarms.test.ts) puts the same values to the database itself.
+  it.each([
+    ['zero', 0, true],
+    ['negative zero (it is sent as 0)', -0, true],
+    ['one', 1, true],
+    ['minus one', -1, true],
+    ['the largest of 15 digits', 999_999_999_999_999, true],
+    ['the smallest of 15 digits below zero', -999_999_999_999_999, true],
+    ['the smallest of 16 digits', 1_000_000_000_000_000, false],
+    ['the smallest of 16 digits below zero', -1_000_000_000_000_000, false],
+    ['the largest safe integer (16 digits)', Number.MAX_SAFE_INTEGER, false],
+    ['the smallest safe integer (16 digits)', Number.MIN_SAFE_INTEGER, false],
+    ['a number too large to be exact', 2 ** 60, false],
+    ['a fraction', 1.5, false],
+    ['a fraction that looks whole', 1 + Number.EPSILON, false],
+    ['not a number', Number.NaN, false],
+    ['infinity', Number.POSITIVE_INFINITY, false],
+  ])('treats %s (%s) as %s', (_name, value, accepted) => {
+    expect(isAlarmDetail({n: value})).toBe(accepted);
+  });
+
+  it('accepts a string of digits as text, whatever its length up to 80: only a NUMBER is held to 15 digits', () => {
+    expect(isAlarmDetail({n: '1000000000000000'})).toBe(true);
+    expect(isAlarmDetail({n: '9'.repeat(80)})).toBe(true);
+    expect(isAlarmDetail({n: '9'.repeat(81)})).toBe(false);
+    expect(isAlarmDetail({n: '-5'})).toBe(true);
+  });
+
+  it('holds the same patterns the database holds for a condition and a subject', () => {
+    expect(alarmConditionPattern.test('task-late')).toBe(true);
+    expect(['Task', 'task_late', '1task', '', 'x'.repeat(49)].some((value) => alarmConditionPattern.test(value))).toBe(false);
+    expect(alarmSubjectPattern.test('ledger-relay')).toBe(true);
+    expect(alarmSubjectPattern.test('pay_A:1.2-b')).toBe(true);
+    expect(['', 'a b', 'x'.repeat(65), 'a/b', 'é'].some((value) => alarmSubjectPattern.test(value))).toBe(false);
+  });
+});
+
+describe('raiseAlarm', () => {
+  it('sends the condition, the subject and the detail, and reads `opened` and `refreshed` with the alarm\'s ID', async () => {
+    const detail = {count: 26};
+    const opened = fake({outcome: 'opened', alarm_id: ALARM});
+    expect(await raiseAlarm({condition: 'identities-unaccounted', subject: null, detail}, opened.options)).toEqual({outcome: 'opened', alarmId: ALARM});
+    expect(opened.sent).toEqual([expect.objectContaining({name: 'raise_alarm', body: {p_condition: 'identities-unaccounted', p_subject: null, p_detail: detail}})]);
+    expect(opened.sent[0].headers).toMatchObject({authorization: 'Bearer service-key-for-tests-only', 'content-profile': 'api'});
+    expect(await raiseAlarm({condition: 'task-late', subject: 'ledger-relay', detail}, fake({outcome: 'refreshed', alarm_id: ALARM.toUpperCase()}).options)).toEqual({outcome: 'refreshed', alarmId: ALARM});
+  });
+
+  it('refuses a condition, a subject or a detail the database would refuse, before asking', async () => {
+    const {fetch, options} = fake({outcome: 'opened', alarm_id: ALARM});
+    for (const input of [
+      {condition: 'Task-Late', subject: null, detail: {}},
+      {condition: 'task_late', subject: null, detail: {}},
+      {condition: '', subject: null, detail: {}},
+      {condition: 'task-late', subject: '', detail: {}},
+      {condition: 'task-late', subject: 'a b', detail: {}},
+      {condition: 'task-late', subject: undefined as never, detail: {}},
+      {condition: 'task-late', subject: null, detail: {text: 'é'}},
+      {condition: 'task-late', subject: null, detail: null as never},
+    ] as Parameters<typeof raiseAlarm>[0][]) await expect(raiseAlarm(input, options), JSON.stringify(input)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['an outcome it does not know', {outcome: 'created', alarm_id: ALARM}],
+    ['no ID', {outcome: 'opened', alarm_id: null}],
+    ['an ID that is not one', {outcome: 'opened', alarm_id: 'nope'}],
+    ['text', 'opened'],
+  ])('treats %s as no answer at all', async (_name, answer) => {
+    await expect(raiseAlarm({condition: 'task-late', subject: null, detail: {}}, fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('throws when the database cannot be reached, with the outcome unknown: raising again is idempotent', async () => {
+    await expect(raiseAlarm({condition: 'task-late', subject: null, detail: {}}, down)).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true, outcomeUnknown: true});
+  });
+});
+
+describe('resolveAlarm', () => {
+  it('sends the pair and reads `resolved` with the ID, or `none`', async () => {
+    const resolved = fake({outcome: 'resolved', alarm_id: ALARM});
+    expect(await resolveAlarm({condition: 'task-late', subject: 'ledger-relay'}, resolved.options)).toEqual({outcome: 'resolved', alarmId: ALARM});
+    expect(resolved.sent[0]).toMatchObject({name: 'resolve_alarm', body: {p_condition: 'task-late', p_subject: 'ledger-relay'}});
+    expect(await resolveAlarm({condition: 'qstash-stale', subject: null}, fake({outcome: 'none', alarm_id: null}).options)).toEqual({outcome: 'none'});
+  });
+
+  it('refuses a pair that could not name an alarm, and an answer that is not one', async () => {
+    const {fetch, options} = fake({});
+    await expect(resolveAlarm({condition: 'Bad', subject: null}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(resolveAlarm({condition: 'task-late', subject: 'a b'}, options)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(resolveAlarm({condition: 'task-late', subject: null}, fake({outcome: 'resolved', alarm_id: null}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+    await expect(resolveAlarm({condition: 'task-late', subject: null}, fake({outcome: 'gone'}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+});
+
+describe('listAlarms', () => {
+  it('asks for the open alarms by default, and for the resolved ones (ten by default) on request', async () => {
+    const open = fake({alarms: []});
+    expect(await listAlarms({}, open.options)).toEqual([]);
+    expect(await listAlarms(undefined, open.options)).toEqual([]);
+    const both = fake({alarms: []});
+    await listAlarms({includeResolved: true}, both.options);
+    await listAlarms({includeResolved: true, limit: 50}, both.options);
+    expect(open.sent.map((call) => call.body)).toEqual([{p_include_resolved: false, p_limit: 10}, {p_include_resolved: false, p_limit: 10}]);
+    expect(both.sent.map((call) => call.body)).toEqual([{p_include_resolved: true, p_limit: 10}, {p_include_resolved: true, p_limit: 50}]);
+  });
+
+  it('reads each alarm with its times, its detail and what its email state is read from', async () => {
+    const answer = {
+      alarms: [
+        alarmRow({last_sent_at: LATER, last_notice_outcome: 'sent', last_notice_at: LATER}),
+        alarmRow({id: OTHER_ALARM, condition: 'qstash-stale', subject: null, detail: {age_seconds: 9000}, last_notice_outcome: 'failed', last_notice_at: LATER}),
+        alarmRow({id: '7d8e9f0a-1b2c-4d3e-8f4a-5b6c7d8e9f0a', resolved_at: LATER}),
+      ],
+    };
+    const alarms = await listAlarms({includeResolved: true}, fake(answer).options);
+    expect(alarms).toEqual([
+      {id: ALARM, condition: 'task-late', subject: 'ledger-relay', firstAt: AT, latestAt: LATER, resolvedAt: null, detail: expect.objectContaining({receipt_task: 'ledger-relay'}), lastSentAt: LATER, lastNoticeOutcome: 'sent', lastNoticeAt: LATER},
+      {id: OTHER_ALARM, condition: 'qstash-stale', subject: null, firstAt: AT, latestAt: LATER, resolvedAt: null, detail: {age_seconds: 9000}, lastSentAt: null, lastNoticeOutcome: 'failed', lastNoticeAt: LATER},
+      expect.objectContaining({resolvedAt: LATER, lastSentAt: null, lastNoticeOutcome: null, lastNoticeAt: null}),
+    ]);
+    expect([...noticeOutcomes]).toEqual(['sent', 'failed', 'unknown']);
+  });
+
+  it('refuses a limit out of range, before asking', async () => {
+    const {fetch, options} = fake({alarms: []});
+    for (const limit of [0, 51, 1.5, Number.NaN, '5' as never]) await expect(listAlarms({includeResolved: true, limit}, options), String(limit)).rejects.toBeInstanceOf(TypeError);
+    await expect(listAlarms({includeResolved: 'yes' as never}, options)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['text', 'alarms'],
+    ['no list', {}],
+    ['a list that is not a list', {alarms: {}}],
+    ['an alarm that is not an object', {alarms: ['x']}],
+    ['an alarm with no ID', {alarms: [alarmRow({id: null})]}],
+    ['an alarm with an ID that is not one', {alarms: [alarmRow({id: 'nope'})]}],
+    ['an alarm with a condition that is not one', {alarms: [alarmRow({condition: 'Task Late'})]}],
+    ['a subject that is a number', {alarms: [alarmRow({subject: 5})]}],
+    ['a subject that is not a subject key', {alarms: [alarmRow({subject: 'a b'})]}],
+    ['a first time that is not a time', {alarms: [alarmRow({first_at: 'yesterday'})]}],
+    ['a latest time with no milliseconds', {alarms: [alarmRow({latest_at: '2026-10-17T08:00:00Z'})]}],
+    ['a resolved time that is not a time', {alarms: [alarmRow({resolved_at: 'now'})]}],
+    ['a detail that is not a detail', {alarms: [alarmRow({detail: {nested: {a: 1}}})]}],
+    ['a detail that is a list', {alarms: [alarmRow({detail: [1]})]}],
+    ['a notice outcome it does not know', {alarms: [alarmRow({last_notice_outcome: 'queued'})]}],
+    ['a last sent time that is not a time', {alarms: [alarmRow({last_sent_at: 'x'})]}],
+  ])('treats %s as no answer at all', async (_name, answer) => {
+    await expect(listAlarms({}, fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('refuses resolved alarms when none were asked for, resolved alarms before open ones, and more resolved alarms than were asked for', async () => {
+    const resolved = alarmRow({id: OTHER_ALARM, resolved_at: LATER});
+    await expect(listAlarms({}, fake({alarms: [alarmRow(), resolved]}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+    await expect(listAlarms({includeResolved: true}, fake({alarms: [resolved, alarmRow()]}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+    await expect(listAlarms({includeResolved: true, limit: 1}, fake({alarms: [alarmRow(), resolved, resolved]}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+    expect(await listAlarms({includeResolved: true, limit: 1}, fake({alarms: [alarmRow(), resolved]}).options)).toHaveLength(2);
+  });
+
+  it('throws when the database cannot be reached', async () => {
+    await expect(listAlarms({}, down)).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true});
+  });
+});
+
+describe('alarmsDueMail', () => {
+  const due = (change: Record<string, unknown> = {}) => ({id: ALARM, condition: 'task-late', subject: 'ledger-relay', first_at: AT, detail: {receipt_task: 'ledger-relay'}, ...change});
+
+  it('asks for at most 50, and reads only what a mail holds: the ID, the condition, the subject, the first time and the detail', async () => {
+    const {sent, options} = fake({alarms: [due(), due({id: OTHER_ALARM, condition: 'qstash-stale', subject: null, detail: {}})]});
+    expect(maxDueMail).toBe(50);
+    expect(await alarmsDueMail({}, options)).toEqual([
+      {id: ALARM, condition: 'task-late', subject: 'ledger-relay', firstAt: AT, detail: {receipt_task: 'ledger-relay'}},
+      {id: OTHER_ALARM, condition: 'qstash-stale', subject: null, firstAt: AT, detail: {}},
+    ]);
+    expect(sent).toEqual([expect.objectContaining({name: 'alarms_due_mail', body: {p_limit: 50}})]);
+  });
+
+  it('sends the limit it is given, from 1 to 50, and refuses any other before asking', async () => {
+    const {sent, fetch, options} = fake({alarms: []});
+    await alarmsDueMail({limit: 1}, options);
+    expect(sent[0].body).toEqual({p_limit: 1});
+    for (const limit of [0, 51, 2.5, Number.NaN]) await expect(alarmsDueMail({limit}, options)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['text', 'due'],
+    ['no list', {}],
+    ['more than were asked for', {alarms: Array.from({length: 51}, () => due())}],
+    ['an alarm with no first time', {alarms: [due({first_at: null})]}],
+    ['an alarm with a detail that is not one', {alarms: [due({detail: 'x'})]}],
+    ['an alarm with no ID', {alarms: [due({id: undefined})]}],
+  ])('treats %s as no answer at all', async (_name, answer) => {
+    await expect(alarmsDueMail({}, fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+});
+
+describe('recordAlarmNotice', () => {
+  it('sends the alarm and the outcome, and reads `recorded` or `not_found`', async () => {
+    for (const outcome of ['sent', 'failed', 'unknown'] as const) {
+      const {sent, options} = fake({outcome: 'recorded'});
+      expect(await recordAlarmNotice({alarmId: ALARM.toUpperCase(), outcome}, options)).toEqual({outcome: 'recorded'});
+      expect(sent[0]).toMatchObject({name: 'record_alarm_notice', body: {p_alarm_id: ALARM, p_outcome: outcome}});
+    }
+    expect(await recordAlarmNotice({alarmId: ALARM, outcome: 'sent'}, fake({outcome: 'not_found'}).options)).toEqual({outcome: 'not_found'});
+  });
+
+  it('refuses an alarm that is not an ID and an outcome that is not one, before asking, and an answer that is not one', async () => {
+    const {fetch, options} = fake({outcome: 'recorded'});
+    await expect(recordAlarmNotice({alarmId: 'nope', outcome: 'sent'}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(recordAlarmNotice({alarmId: ALARM, outcome: 'delivered' as never}, options)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(recordAlarmNotice({alarmId: ALARM, outcome: 'sent'}, fake({outcome: 'noted'}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+});
+
+describe('alarmObservations', () => {
+  const observed = (change: Record<string, unknown> = {}) => ({
+    first_receipt_age: 50000,
+    latest_receipt_age: 60,
+    first_heartbeat_age: null,
+    latest_heartbeat_age: null,
+    ledger_pending: 0,
+    ledger_oldest: null,
+    unaccounted: 3,
+    tasks: [{task: 'ledger-relay', outcome: 'ran', at: AT, age: 61}],
+    ...change,
+  });
+
+  it('asks for nothing and reads every age as seconds, with null for never', async () => {
+    const {sent, options} = fake(observed({first_heartbeat_age: 3000, latest_heartbeat_age: 100, ledger_pending: 2, ledger_oldest: 950}));
+    expect(await alarmObservations(options)).toEqual({
+      firstReceiptAge: 50000,
+      latestReceiptAge: 60,
+      firstHeartbeatAge: 3000,
+      latestHeartbeatAge: 100,
+      ledgerWaiting: 2,
+      ledgerOldest: 950,
+      unaccounted: 3,
+      tasks: [{task: 'ledger-relay', outcome: 'ran', at: AT, age: 61}],
+    });
+    expect(sent).toEqual([expect.objectContaining({name: 'alarm_observations', body: {}})]);
+    expect(await alarmObservations(fake(observed({first_receipt_age: null, latest_receipt_age: null, tasks: []})).options)).toMatchObject({firstReceiptAge: null, latestReceiptAge: null, tasks: []});
+  });
+
+  it.each([
+    ['text', 'observed'],
+    ['an age that is negative', observed({latest_receipt_age: -1})],
+    ['an age that is a fraction', observed({latest_receipt_age: 1.5})],
+    ['an age that is text', observed({first_receipt_age: 'old'})],
+    ['no backlog count', observed({ledger_pending: null})],
+    ['something pending with no oldest', observed({ledger_pending: 2, ledger_oldest: null})],
+    ['nothing pending with an oldest', observed({ledger_pending: 0, ledger_oldest: 5})],
+    ['no count of identities', observed({unaccounted: null})],
+    ['a negative count of identities', observed({unaccounted: -1})],
+    ['tasks that are not a list', observed({tasks: {}})],
+    ['a task with a name that is not one', observed({tasks: [{task: 'Ledger Relay', outcome: 'ran', at: AT, age: 1}]})],
+    ['a task with an outcome it does not know', observed({tasks: [{task: 'ledger-relay', outcome: 'done', at: AT, age: 1}]})],
+    ['a task with a time that is not one', observed({tasks: [{task: 'ledger-relay', outcome: 'ran', at: 'x', age: 1}]})],
+    ['a task with no age', observed({tasks: [{task: 'ledger-relay', outcome: 'ran', at: AT, age: null}]})],
+  ])('treats %s as no answer at all', async (_name, answer) => {
+    await expect(alarmObservations(fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('throws when the database cannot be reached: no observation is no observation, never "calm"', async () => {
+    await expect(alarmObservations(down)).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true});
+  });
+});
+
+describe('recordHeartbeat', () => {
+  const JTI = 'AAAAAAAAAAAAAAAAAAAAAA';
+
+  it('sends the key ID and the jti, and reads `recorded`, `duplicate` and `revoked`', async () => {
+    for (const outcome of ['recorded', 'duplicate', 'revoked'] as const) {
+      const {sent, options} = fake({outcome});
+      expect(await recordHeartbeat({kid: 'heartbeat-2026-10', jti: JTI}, options)).toEqual({outcome});
+      expect(sent[0]).toMatchObject({name: 'record_heartbeat', body: {p_kid: 'heartbeat-2026-10', p_jti: JTI}});
+    }
+  });
+
+  it('refuses a key ID and a jti that are not those of a token, before asking, and an answer that is not one', async () => {
+    const {fetch, options} = fake({outcome: 'recorded'});
+    for (const input of [{kid: '', jti: JTI}, {kid: 'bad kid', jti: JTI}, {kid: '-x', jti: JTI}, {kid: 'ok', jti: 'short'}, {kid: 'ok', jti: `${JTI}A`}, {kid: 'ok', jti: 'A'.repeat(21) + '!'}]) {
+      await expect(recordHeartbeat(input, options), JSON.stringify(input)).rejects.toBeInstanceOf(TypeError);
+    }
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(recordHeartbeat({kid: 'ok', jti: JTI}, fake({outcome: 'accepted'}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('throws when the database cannot be reached, so the route answers 503 and never a success', async () => {
+    await expect(recordHeartbeat({kid: 'ok', jti: JTI}, down)).rejects.toMatchObject({name: 'AccountsUnavailableError'});
   });
 });

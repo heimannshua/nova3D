@@ -136,13 +136,15 @@ describe('every route handler answers only an active Account, and every one that
   const exempt: Record<string, string> = {
     'app/api/health/route.ts': 'the health check is public (lib/public-paths.ts) and reports no private data',
     'app/api/status/route.ts': 'the status route (Story 1.8) is public (lib/public-paths.ts): a device whose Account may be gone asks what became of a handle it holds',
-    'app/api/jobs/route.ts': 'the scheduled-job route (Story 1.9) is the one machine path (lib/public-paths.ts): a scheduler calls it with no session and no browser Origin, and the signature over the raw body, checked in lib/jobs.ts, is its only authentication',
+    'app/api/jobs/route.ts': 'the scheduled-job route (Story 1.9) is a machine path (lib/public-paths.ts): a scheduler calls it with no session and no browser Origin, and the signature over the raw body, checked in lib/jobs.ts, is its only authentication',
+    'app/api/heartbeat/route.ts': 'the heartbeat route (Story 1.13) is the second machine path (lib/public-paths.ts): the Railway cron task calls it with no session and no browser Origin, and the signed heartbeat token, verified in lib/heartbeat.ts, is its only authentication',
   };
   // The public routes that take a POST, and why it changes nothing a caller could use: a lookup reads, and the database counts it (a
   // rate-limit counter is all it writes). The proxy still refuses it from another site, and the database rate limits it.
   const publicPosts: Record<string, string> = {
     'app/api/status/route.ts': 'a lookup of a status handle: it changes nothing but its own rate-limit counter',
     'app/api/jobs/route.ts': 'a signed call of a registered task: nothing runs and nothing is written until the signature, the body and the instance are right, and then only that task and its own receipt',
+    'app/api/heartbeat/route.ts': 'a signed heartbeat: nothing is recorded or evaluated until the token verifies for this environment, and then only one heartbeat row, the alarm records its evaluation opens or resolves, and the mail that is due',
   };
   // Routes that may put the synthetic check (and nothing else) ahead of their guard.
   const syntheticOnly: Record<string, string> = {
@@ -154,7 +156,7 @@ describe('every route handler answers only an active Account, and every one that
   const guarded = routes.filter((file) => !(file in exempt));
 
   it('finds the routes, under app/api and elsewhere', () => {
-    expect(routes).toEqual(expect.arrayContaining(['app/api/health/route.ts', 'app/api/jobs/route.ts', 'app/api/kit/mutation/route.ts', 'app/api/status/route.ts', 'app/auth/callback/route.ts']));
+    expect(routes).toEqual(expect.arrayContaining(['app/api/health/route.ts', 'app/api/heartbeat/route.ts', 'app/api/jobs/route.ts', 'app/api/kit/mutation/route.ts', 'app/api/status/route.ts', 'app/auth/callback/route.ts']));
     expect(apiRoutes.length).toBeGreaterThan(0);
   });
 
@@ -1358,9 +1360,9 @@ describe('Scheduled jobs (Story 1.9) have one route, one verifier, three tasks (
     expect(code).toMatch(/import \{handleJobRequest\} from '@\/lib\/jobs';/);
     expect(code).toMatch(/export async function POST\(request: Request\) \{\s*return handleJobRequest\(request\);\s*\}/);
     expect(code).not.toMatch(/console\.|\blog\(|process\.env|request\.url|nextUrl|searchParams|cookies\(|headers\(\)/);
-    // The path is the machine path and the only one, written once in the one list the proxy reads.
+    // The paths are the machine paths and the only ones (Story 1.13 added the heartbeat), written once in the one list the proxy reads.
     const publicPaths = withoutComments(read('lib/public-paths.ts'));
-    expect(publicPaths).toMatch(/export const machinePaths = \['\/api\/jobs'\];/);
+    expect(publicPaths).toMatch(/export const machinePaths = \['\/api\/jobs', '\/api\/heartbeat'\];/);
     expect(publicPaths).toMatch(/export const publicPaths = \[[^\]]*\.\.\.machinePaths\];/);
     expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).filter((file) => file.startsWith('app/api/jobs'))).toEqual([route]);
   });
@@ -1428,12 +1430,14 @@ describe('Scheduled jobs (Story 1.9) have one route, one verifier, three tasks (
     expect(environment).toMatch(/const previewForbiddenName = [^\n]*QSTASH_/);
   });
 
-  it('registers exactly three tasks, each run by one function, and no cleanup beyond them (the third is Story 1.12\'s staging cleanup)', () => {
+  it('registers exactly four tasks, each run by one function, and no cleanup beyond them (the third is Story 1.12\'s staging cleanup, the fourth Story 1.13\'s alarm monitor)', () => {
     const registry = withoutComments(read('lib/schedules.ts'));
-    expect([...registry.matchAll(/task: '([a-z-]+)'/g)].map((match) => match[1])).toEqual(['dormant-identity-purge', 'ledger-relay', 'staging-cleanup']);
+    expect([...registry.matchAll(/task: '([a-z-]+)'/g)].map((match) => match[1])).toEqual(['dormant-identity-purge', 'ledger-relay', 'staging-cleanup', 'alarm-monitor']);
     expect(registry).not.toMatch(/^import\s|\bfrom\s+['"]/m);
+    // Every entry says how often it fires, in whole seconds (Story 1.13: the alarm condition `task-late` reads it).
+    expect([...registry.matchAll(/intervalSeconds: (\d+),/g)].map((match) => Number(match[1]))).toEqual([86400, 300, 3600, 300]);
     const tasks = withoutComments(read('lib/job-tasks.ts'));
-    expect([...tasks.matchAll(/^  '([a-z-]+)': \w+,$/gm)].map((match) => match[1])).toEqual(['ledger-relay', 'dormant-identity-purge', 'staging-cleanup']);
+    expect([...tasks.matchAll(/^  '([a-z-]+)': \w+,$/gm)].map((match) => match[1])).toEqual(['ledger-relay', 'dormant-identity-purge', 'staging-cleanup', 'alarm-monitor']);
     for (const deferred of ['session_grants', 'step_up_nonces', 'recovery_tokens', 'ledger_outbox']) expect(tasks, deferred).not.toContain(deferred);
   });
 
@@ -1446,7 +1450,7 @@ describe('Scheduled jobs (Story 1.9) have one route, one verifier, three tasks (
     expect(callers('claimJobRun')).toEqual(['lib/jobs.ts', 'lib/lifecycle.ts']);
     expect(callers('finishJobRun')).toEqual(['lib/jobs.ts', 'lib/lifecycle.ts']);
     expect(callers('purgeDormantIdentities')).toEqual(['lib/job-tasks.ts', 'lib/lifecycle.ts']);
-    // Nothing reads a receipt yet: the alarm of Story 1.13 will.
+    // Nothing reads a receipt through it: the alarm of Story 1.13 reads them all in one function (api.alarm_observations), not through this one.
     expect(callers('lastJobRun')).toEqual(['lib/lifecycle.ts']);
   });
 
@@ -1621,7 +1625,8 @@ describe('The file gateway (Story 1.12): no file through a Vercel function, one 
 
   it('reads the signing configuration in one module: the keys, the gateway address and the instance are read from the environment by lib/gateway-client.ts alone', () => {
     const readers = sources.filter((file) => /SERVICE_SIGNING_KEY_|SERVICE_KEYS_|FILE_GATEWAY_URL|signingKeyVariable|keySetVariable/.test(withoutComments(read(file)))).sort();
-    expect(readers).toEqual(['lib/environment.ts', 'lib/gateway-client.ts', 'lib/service-signing.ts']);
+    // (Story 1.13 adds lib/heartbeat.ts, which reads the heartbeat issuer's PUBLIC key set (SERVICE_KEYS_HEARTBEAT) to verify the Railway task's token, and no private key.)
+    expect(readers).toEqual(['lib/environment.ts', 'lib/gateway-client.ts', 'lib/heartbeat.ts', 'lib/service-signing.ts']);
     for (const file of ['lib/transfer-tickets.ts', 'lib/job-tasks.ts', 'lib/schedules.ts', 'lib/service-signing.ts', 'lib/canonical-json.ts']) {
       expect(withoutComments(read(file)), file).not.toMatch(/process\.env|\benv\.[A-Z]/);
     }
@@ -1661,11 +1666,28 @@ describe('The file gateway (Story 1.12): no file through a Vercel function, one 
     ]);
   });
 
-  it('builds into an image that can run: every package the gateway imports is a production dependency, and every file it imports from outside workers/files is copied by the Dockerfile and let through by .dockerignore', () => {
-    // The image installs `npm ci --omit=dev` and copies four things; a module the gateway (or a file it shares) starts to import that is in neither place is a
+  // Every worker is an image (Story 1.13 made the check below cover all of them, not the gateway alone): each directory under workers/ that holds a Dockerfile.
+  const workers = files('workers', (name) => name === 'Dockerfile').map((file) => file.split('/')[1]).sort();
+  // What each worker's image has to carry: the files it imports from outside its own directory (all of them, for the heartbeat task: it is pinned exactly) and
+  // the packages it imports. A new worker adds its entry here on purpose.
+  const imageExpectations: Record<string, {outside: string[]; bare: string[]; exact: boolean}> = {
+    files: {outside: ['lib/canonical-json.ts', 'lib/service-signing.ts'], bare: ['@aws-sdk/client-s3', '@aws-sdk/lib-storage', 'pg'], exact: false},
+    heartbeat: {outside: ['lib/service-signing.ts'], bare: [], exact: true},
+  };
+
+  it('finds the workers it is meant to read', () => {
+    expect(workers).toEqual(['files', 'heartbeat']);
+    for (const worker of workers) expect(imageExpectations, `workers/${worker} needs its entry in imageExpectations`).toHaveProperty(worker);
+  });
+
+  it.each(workers)('builds the %s worker into an image that can run: every package it imports is a production dependency, and every file it imports from outside its directory is copied by the Dockerfile and let through by .dockerignore', (worker) => {
+    // The image installs `npm ci --omit=dev` and copies only what the Dockerfile names; a module a worker (or a file it shares) starts to import that is in neither place is a
     // build that passes every test here and fails at start-up on the platform, which is the one place nobody looks.
+    const dir = `workers/${worker}`;
+    const own = files(`${dir}/src`, (name) => name.endsWith('.ts'));
+    const expected = imageExpectations[worker];
     const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>};
-    const dockerfile = read('workers/files/Dockerfile');
+    const dockerfile = read(`${dir}/Dockerfile`);
     const copied = [...dockerfile.matchAll(/^COPY\s+(.+)$/gm)].flatMap((match) => {
       const parts = match[1].trim().split(/\s+/);
       return parts.slice(0, -1);
@@ -1690,7 +1712,7 @@ describe('The file gateway (Story 1.12): no file through a Vercel function, one 
 
     // The closure of what main.ts imports, through relative imports, wherever they lead.
     const seen = new Set<string>();
-    const queue = ['workers/files/src/main.ts'];
+    const queue = [`${dir}/src/main.ts`];
     const bare = new Map<string, string>();
     const outside = new Set<string>();
     while (queue.length > 0) {
@@ -1707,7 +1729,7 @@ describe('The file gateway (Story 1.12): no file through a Vercel function, one 
         if (from.startsWith('node:')) continue;
         if (from.startsWith('.')) {
           const target = join(file, '..', from).split('\\').join('/');
-          if (!target.startsWith('workers/files/')) outside.add(target);
+          if (!target.startsWith(`${dir}/`)) outside.add(target);
           queue.push(target);
         } else if (!type) {
           bare.set(from.startsWith('@') ? from.split('/').slice(0, 2).join('/') : from.split('/')[0], file);
@@ -1715,16 +1737,52 @@ describe('The file gateway (Story 1.12): no file through a Vercel function, one 
       }
     }
     for (const [name, importer] of bare) expect(manifest.dependencies, `${name} (imported by ${importer}) is not a production dependency`).toHaveProperty(name);
-    for (const path of [...outside, 'package.json', 'package-lock.json', ...gateway]) {
-      expect(covered(path), `${path} is not copied by workers/files/Dockerfile`).toBe(true);
+    for (const path of [...outside, 'package.json', 'package-lock.json', ...own]) {
+      expect(covered(path), `${path} is not copied by ${dir}/Dockerfile`).toBe(true);
       expect(sent(path), `${path} is excluded by .dockerignore`).toBe(true);
     }
-    // The walk found something to check (what the gateway may import at all is pinned by the test below).
-    expect([...seen].filter((file) => file.startsWith('workers/files/')).length).toBe(gateway.length);
-    expect([...outside]).toEqual(expect.arrayContaining(['lib/canonical-json.ts', 'lib/service-signing.ts']));
-    expect([...bare.keys()]).toEqual(expect.arrayContaining(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', 'pg']));
+    // The walk found something to check (what the worker may import at all is pinned by the tests beside this one).
+    expect([...seen].filter((file) => file.startsWith(`${dir}/`)).length).toBe(own.length);
+    if (expected.exact) {
+      expect([...outside].sort()).toEqual(expected.outside);
+      expect([...bare.keys()].sort()).toEqual(expected.bare);
+    } else {
+      expect([...outside]).toEqual(expect.arrayContaining(expected.outside));
+      expect([...bare.keys()]).toEqual(expect.arrayContaining(expected.bare));
+    }
     // The matcher is not trivially true: what the image does not copy is excluded.
     for (const path of ['lib/environment.ts', 'app/page.tsx', 'tests/unit/gate-structure.test.ts', '.env.local']) expect(sent(path), path).toBe(false);
+  });
+
+  it('holds the heartbeat task to node:*, its own two modules and lib/service-signing.ts; reads the environment, prints and exits in main.ts alone; holds one secret, its own signing key, and makes one request', () => {
+    const task = files('workers/heartbeat/src', (name) => name.endsWith('.ts'));
+    expect(task.map((file) => file.replace('workers/heartbeat/src/', '')).sort()).toEqual(['config.ts', 'main.ts']);
+    const allowed = /^(?:node:[a-z/]+|\.\/[a-z]+\.ts|\.\.\/\.\.\/\.\.\/lib\/service-signing\.ts)$/;
+    for (const file of task) {
+      const code = withoutComments(read(file));
+      for (const match of code.matchAll(/^(?:import|export)\s[^;]*?from '([^']+)';/gm)) expect(match[1], `${file}: ${match[0].slice(0, 80)}`).toMatch(allowed);
+      expect(code, file).not.toMatch(/\brequire\(|\benum\s+\w+\s*\{|constructor\s*\([^)]*\b(?:private|public|readonly)\s|@aws-sdk|from 'pg'|DATABASE|STORAGE|SERVICE_ROLE|SUPABASE|QSTASH|RESEND|PASSWORD|SECRET/);
+      // The only variables it reads are its five, and the only secret among them is its own signing key.
+      expect([...new Set([...code.matchAll(/'([A-Z][A-Z0-9]*_[A-Z0-9_]+)'/g)].map((match) => match[1]))].sort(), file).toEqual(file.endsWith('config.ts') ? ['APP_ENV', 'APP_ORIGIN', 'INSTANCE_ID', 'SERVICE_KEYS_HEARTBEAT', 'SERVICE_SIGNING_KEY_HEARTBEAT'] : []);
+      if (!file.endsWith('main.ts')) expect(code, file).not.toMatch(/process\.|console\./);
+    }
+    const config = withoutComments(read('workers/heartbeat/src/config.ts'));
+    expect(config).toMatch(/loadSigner\(privateKey, parsed\.keySet\)/);
+    expect(config).toMatch(/parseKeySet\(keysText, 'heartbeat', nowMs\)/);
+    const main = withoutComments(read('workers/heartbeat/src/main.ts'));
+    // The environment is read once, at the entry point, and the process exits there and nowhere else; the only prints are the default loggers.
+    expect([...main.matchAll(/process\.env/g)]).toHaveLength(1);
+    expect([...main.matchAll(/process\.exit\(/g)]).toHaveLength(1);
+    expect([...main.matchAll(/console\.(\w+)\(/g)].map((match) => match[1])).toEqual(['log', 'error']);
+    // Every line it prints is a fixed one (or a problem naming a variable, which readConfig builds from names and rules, never from a value).
+    const printed = [...main.matchAll(/\b(?:log|error)\(([^;]*)\);/g)].map((match) => match[1]);
+    expect(printed.length).toBeGreaterThan(4);
+    for (const call of printed) expect(call, call).toMatch(/^(?:lines\.(?:recorded|refused|unreachable|notStarted)|`  \$\{problem\}`|line\)?)$/);
+    // One request: a POST with the heartbeat scheme and no body, a timeout, no redirect followed, nothing cached.
+    expect([...main.matchAll(/\bfetch\)?\(/g)]).toHaveLength(1);
+    expect(main).toMatch(/method: 'POST',\s*headers: \{authorization: `Heartbeat \$\{token\}`\},\s*redirect: 'error',\s*cache: 'no-store',\s*signal: AbortSignal\.timeout\(postTimeoutMs\),/);
+    expect(main).not.toMatch(/\bbody:|\bcookie\b|\borigin:/i);
+    expect(main).toMatch(/signHeartbeat\(config\.signer, config\.instanceId,/);
   });
 
   it('holds the gateway to node:http, its own modules, pg, the S3 client and the two shared files; reads the environment in main.ts alone; logs an error\'s name and nothing else', () => {
@@ -1849,5 +1907,252 @@ describe('The file gateway (Story 1.12): no file through a Vercel function, one 
     for (const needle of ['The file gateway', 'transfer handle', 'artifacts.session_authority', 'artifacts.publish_attachment', 'api.revoke_service_key', 'delete-staging', 'resolvers.ts', 'transferTargetKinds', 'no user file crosses a Vercel function'.replace(/^n/, 'N')]) expect(contract, needle).toContain(needle);
     const ledger = JSON.parse(read('provisioning/ledger.json')) as {items: {id: string; due: string}[]};
     for (const id of ['gateway-database-role', 'gateway-storage-s3-key', 'railway-files-service', 'hosted-gateway-check']) expect(ledger.items.find((item) => item.id === id)?.due, id).toBe('1-12');
+  });
+});
+
+describe('Operational alarms (Story 1.13) have one channel, one evaluator for each condition, one reader for each variable and records only the api reaches', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+    'instrumentation.ts',
+    'instrumentation-node.ts',
+  ];
+  const code = (file: string) => withoutComments(read(file));
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(code(file))).sort();
+  const migrationFile = 'supabase/migrations/20261016120000_alarms.sql';
+  const migration = read(migrationFile).replace(/^\s*--.*$/gm, '');
+  const functionBody = (header: string) => {
+    const start = migration.indexOf(header);
+    expect(start, header).toBeGreaterThan(-1);
+    return migration.slice(start, migration.indexOf('$$;', migration.indexOf('$$', start) + 2));
+  };
+  const route = 'app/api/heartbeat/route.ts';
+
+  it('mails through one door: sendAlarmMail is called by lib/alarms.ts alone, and there is no other function that sends an alarm', () => {
+    expect(callers('sendAlarmMail')).toEqual(['lib/alarms.ts', 'lib/mailer.ts']);
+    expect(callers('alarmMessage')).toEqual(['lib/mailer.ts']);
+    expect(callers('dispatchDueMail')).toEqual(['lib/alarms.ts']);
+    // The mailer sends two things, the recovery link and the alarm, through one internal function; nothing else in the application reaches a mail provider.
+    const mailer = code('lib/mailer.ts');
+    expect([...mailer.matchAll(/^export async function (\w+)/gm)].map((match) => match[1])).toEqual(['sendRecoveryMail', 'sendAlarmMail']);
+    expect([...mailer.matchAll(/\bdeliver\(/g)]).toHaveLength(3);
+    for (const file of sources.filter((candidate) => candidate !== 'lib/mailer.ts')) expect(code(file), file).not.toMatch(/api\.resend\.com|\/api\/v1\/send|\bnodemailer\b|\bsmtp\b/i);
+  });
+
+  it('has no recipient anywhere but the environment: sendAlarmMail takes an alarm and options, and the address is read in the one function that delivers', () => {
+    const mailer = code('lib/mailer.ts');
+    expect(mailer).toMatch(/export async function sendAlarmMail\(alarm: AlarmNotice, options: MailerOptions = \{\}\)/);
+    expect([...mailer.matchAll(/recipientOf\(env\)/g)]).toHaveLength(1);
+    expect(mailer).toMatch(/const to = recipientOf\(env\)/);
+    expect([...mailer.matchAll(/env\.ADMINISTRATOR_EMAIL/g)]).toHaveLength(1);
+    // The alarm type holds no address: a condition, a subject, a time and a detail.
+    expect(mailer.slice(mailer.indexOf('export type AlarmNotice'), mailer.indexOf('export type AlarmNotice') + 160)).toMatch(/\{condition: string; subject: string \| null; firstAt: string; detail: AlarmDetail\}/);
+    // The message is built from fixed words, the condition, the subject, the first time and three named keys of the detail.
+    expect(mailer).toMatch(/export const alarmMailDetailKeys = \['receipt_task', 'receipt_outcome', 'receipt_at'\] as const;/);
+    expect(mailer).not.toMatch(/Object\.entries\(alarm|JSON\.stringify\(alarm/);
+  });
+
+  it('keeps the alarm path free of environment reads and logging: lib/alarms.ts and lib/alarm-conditions.ts read no variable, print nothing and read no clock', () => {
+    for (const file of ['lib/alarms.ts', 'lib/alarm-conditions.ts']) {
+      expect(code(file), file).not.toMatch(/process\.env|\benv\.[A-Z]|console\.|\blog\(|\bDate\b|Date\.now|new Date/);
+    }
+    // The one clock the dispatch reads is a monotonic one, for the elapsed time of its own work, passed in by a test or defaulted in one place (review patch P1).
+    expect([...code('lib/alarms.ts').matchAll(/performance\.now\(\)/g)]).toHaveLength(1);
+    expect(code('lib/alarms.ts')).toMatch(/const clock = deps\.clock \?\? \(\(\) => performance\.now\(\)\);/);
+    expect(code('lib/alarms.ts')).toMatch(/export const dispatchDeadlineMs = 10_000;/);
+    // The conditions are pure: the only thing they import is the schedule registry.
+    expect([...code('lib/alarm-conditions.ts').matchAll(/^import .* from '([^']+)';$/gm)].map((match) => match[1])).toEqual(['./schedules.ts']);
+    // The monitor imports the database calls and the mailer, and nothing that reads the environment.
+    expect([...code('lib/alarms.ts').matchAll(/from '([^']+)'/g)].map((match) => match[1]).sort()).toEqual(['./accounts.ts', './alarm-conditions.ts', './lifecycle.ts', './schedules.ts', '@/lib/mailer']);
+  });
+
+  it('keeps the database functions behind the typed calls: nothing but lib/lifecycle.ts names them, and each typed call has the callers it should', () => {
+    const names = ['raise_alarm', 'resolve_alarm', 'list_alarms', 'alarms_due_mail', 'record_alarm_notice', 'alarm_observations', 'record_heartbeat'];
+    for (const file of sources.filter((candidate) => candidate !== 'lib/lifecycle.ts' && candidate !== 'lib/accounts.ts')) {
+      expect(code(file), file).not.toMatch(new RegExp(`['"\`](?:${names.join('|')})['"\`]`));
+    }
+    for (const name of names) expect(code('lib/lifecycle.ts'), name).toMatch(new RegExp(`callRow\\(\\s*'${name}'`));
+    expect(callers('resolveAlarm')).toEqual(['lib/alarms.ts', 'lib/lifecycle.ts']);
+    expect(callers('alarmsDueMail')).toEqual(['lib/alarms.ts', 'lib/lifecycle.ts']);
+    expect(callers('recordAlarmNotice')).toEqual(['lib/alarms.ts', 'lib/lifecycle.ts']);
+    expect(callers('alarmObservations')).toEqual(['lib/alarms.ts', 'lib/lifecycle.ts']);
+    expect(callers('recordHeartbeat')).toEqual(['lib/heartbeat.ts', 'lib/lifecycle.ts']);
+    expect(callers('listAlarms')).toEqual(['app/admin/operations/page.tsx', 'lib/alarms.ts', 'lib/lifecycle.ts']);
+    // The monitor and the pushed helper write an alarm through the one typed call, and nothing else does.
+    expect(callers('raiseAlarmRecord')).toEqual(['lib/alarms.ts']);
+  });
+
+  it('counts the Auth identities in one function of one migration, and the application never names auth.users', () => {
+    for (const file of sources) expect(code(file), file).not.toMatch(/auth\.users/);
+    expect([...migration.matchAll(/from auth\.users/g)]).toHaveLength(1);
+    expect(functionBody('create function api.alarm_observations(')).toMatch(/from auth\.users u\s+where not exists \(select 1 from identity\.accounts a where a\.user_id = u\.id\)/);
+    // ... and the preflight reads no row of it.
+    expect(functionBody('create or replace function api.preflight(')).not.toMatch(/auth\.users u|from auth\.users/);
+  });
+
+  it('is one POST at one exact path, a one-line caller of the handler in lib/heartbeat.ts, never static, and the second machine path', () => {
+    expect(handlersOf(read(route)).map((handler) => handler.method)).toEqual(['POST']);
+    const routeCode = code(route);
+    expect(routeCode).toMatch(/export const dynamic = 'force-dynamic';/);
+    expect(routeCode).toMatch(/import \{handleHeartbeatRequest\} from '@\/lib\/heartbeat';/);
+    expect(routeCode).toMatch(/export async function POST\(request: Request\) \{\s*return handleHeartbeatRequest\(request\);\s*\}/);
+    expect(routeCode).not.toMatch(/console\.|\blog\(|process\.env|request\.url|nextUrl|searchParams|cookies\(|headers\(\)/);
+    expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).filter((file) => file.startsWith('app/api/heartbeat'))).toEqual([route]);
+    expect(code('lib/public-paths.ts')).toMatch(/export const machinePaths = \['\/api\/jobs', '\/api\/heartbeat'\];/);
+  });
+
+  it('checks in the order the contract says, and each check returns before the next one starts', () => {
+    const heartbeat = code('lib/heartbeat.ts');
+    const order = [
+      "request.method !== 'POST'",
+      "request.headers.get('origin') !== null",
+      'keySetOf(env)',
+      'tokenOf(request)',
+      'await verifyToken(token',
+      'heartbeatClaimsOf(verified.payload)',
+      'recordableJti.test(verified.payload.jti)',
+      'await readBody(request)',
+      'await recordHeartbeat(',
+      "recorded.outcome === 'revoked'",
+      "recorded.outcome === 'duplicate'",
+      'await runHeartbeatEvaluation(',
+    ].map((needle) => {
+      expect(heartbeat, needle).toContain(needle);
+      return heartbeat.indexOf(needle);
+    });
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
+  it('reads one variable and one environment: the heartbeat key set (never a private key) and the instance, with one default for the process environment', () => {
+    const heartbeat = code('lib/heartbeat.ts');
+    expect([...new Set([...heartbeat.matchAll(/\benv\.([A-Z][A-Z0-9_]+)/g)].map((match) => match[1]))].sort()).toEqual(['INSTANCE_ID']);
+    expect(heartbeat).toMatch(/env\[keySetVariable\('heartbeat'\)\]/);
+    expect(heartbeat).not.toMatch(/signingKeyVariable|SERVICE_SIGNING_KEY|loadSigner|signHeartbeat|signToken/);
+    expect([...heartbeat.matchAll(/process\.env/g)]).toHaveLength(1);
+    expect(heartbeat).toMatch(/const env = options\.env \?\? process\.env;/);
+    // It answers no-store, with the one body for every token failure, and prints two fixed sentences and nothing else.
+    expect(heartbeat).toMatch(/const headers = \{'cache-control': 'no-store'\};/);
+    expect([...heartbeat.matchAll(/console\.error\(([^;]*)\);/g)].map((match) => match[1])).toEqual(["'A heartbeat could not be recorded.'", "'A heartbeat could not be evaluated.'"]);
+    // (Four since review patch P3: no token, a token that does not verify, a jti or key ID the database would refuse, and a revoked key.)
+    expect([...heartbeat.matchAll(/return invalidToken\(\);/g)]).toHaveLength(4);
+    expect(heartbeat).toMatch(/const recordableJti = \/\^\[A-Za-z0-9_-\]\{22\}\$\/;/);
+    // The heartbeat is optional in the application, and a deployment does not need it to start.
+    const environment = code('lib/environment.ts');
+    expect(environment.slice(environment.indexOf('const requiredVariables'), environment.indexOf('const previewForbiddenName'))).not.toMatch(/SERVICE_KEYS_HEARTBEAT|SERVICE_SIGNING_KEY_HEARTBEAT/);
+    expect(code('lib/jobs.ts')).toMatch(/isHeartbeatConfigured\(env\)/);
+  });
+
+  it('registers exactly the five conditions this story can observe, and none of another story\'s', () => {
+    const conditions = code('lib/alarm-conditions.ts');
+    expect([...conditions.matchAll(/^\s+id: '([a-z0-9-]+)',$/gm)].map((match) => match[1])).toEqual(['task-late', 'ledger-pending', 'identities-unaccounted', 'heartbeat-stale', 'qstash-stale']);
+    expect([...conditions.matchAll(/evaluatedBy: '(monitor|heartbeat)',/g)].map((match) => match[1])).toEqual(['monitor', 'monitor', 'monitor', 'monitor', 'heartbeat']);
+    expect(conditions).toMatch(/export const alarmConditions: readonly AlarmCondition\[\] = \[taskLateCondition, ledgerPendingCondition, identitiesUnaccountedCondition, heartbeatStaleCondition, qstashStaleCondition\];/);
+    // The thresholds are the story's, written once: twice the interval, 15 minutes, more than 25 identities, two hours.
+    expect(conditions).toMatch(/export const lateFactor = 2;/);
+    expect(conditions).toMatch(/export const ledgerPendingSeconds = 900;/);
+    expect(conditions).toMatch(/export const unaccountedLimit = 25;/);
+    expect(conditions).toMatch(/export const schedulerStaleSeconds = 7200;/);
+    // A failed run and a damaged relay chain stay deferred: nothing here looks at a `failed` or a `conflict` receipt as a reason to alarm.
+    expect(conditions).not.toMatch(/outcome === 'failed'|conflict|corrupt/);
+  });
+
+  it('runs the monitor from the scheduler and nowhere else, and gives it no other way in', () => {
+    expect(callers('runAlarmMonitor')).toEqual(['lib/alarms.ts', 'lib/job-tasks.ts']);
+    expect(callers('runHeartbeatEvaluation')).toEqual(['lib/alarms.ts', 'lib/heartbeat.ts']);
+    expect(callers('applyConditions')).toEqual(['lib/alarms.ts']);
+    for (const file of sources.filter((candidate) => /^(?:app|components)\//.test(candidate) || candidate === 'proxy.ts')) {
+      expect(code(file), file).not.toMatch(/\brunAlarmMonitor\b|\bdispatchDueMail\b|\bapplyConditions\b|\bsendAlarmMail\b/);
+    }
+  });
+
+  it('closes the three tables and every function: row-level security on, no policy, every privilege revoked, granted to the service role by name and to nobody else', () => {
+    for (const table of ['alarms', 'alarm_notices', 'heartbeats']) {
+      expect(migration, table).toMatch(new RegExp(`alter table lifecycle\\.${table} enable row level security;`));
+      expect(migration, table).toMatch(new RegExp(`revoke all on lifecycle\\.${table} from public, anon, authenticated, service_role;`));
+    }
+    expect([...migration.matchAll(/create table (lifecycle\.\w+)/g)].map((match) => match[1])).toEqual(['lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats']);
+    expect(migration).not.toMatch(/create policy/i);
+    const grants = [...migration.matchAll(/^grant .*$/gm)].map((match) => match[0]);
+    expect(grants).toEqual([
+      'grant execute on function api.raise_alarm(text, text, json) to service_role;',
+      'grant execute on function api.resolve_alarm(text, text) to service_role;',
+      'grant execute on function api.list_alarms(boolean, integer) to service_role;',
+      'grant execute on function api.alarms_due_mail(integer) to service_role;',
+      'grant execute on function api.record_alarm_notice(uuid, text) to service_role;',
+      'grant execute on function api.alarm_observations() to service_role;',
+      'grant execute on function api.record_heartbeat(text, text) to service_role;',
+    ]);
+    // Every function runs with an empty search_path; the api ones run as their owner, and the lifecycle helpers are granted to nobody.
+    for (const match of migration.matchAll(/create (?:or replace )?function ((?:api|lifecycle)\.\w+)\(/g)) {
+      const body = functionBody(match[0]);
+      expect(body, match[1]).toMatch(/set search_path = ''/);
+      if (match[1].startsWith('api.')) expect(body, match[1]).toMatch(/security definer\s+set search_path = ''/);
+    }
+    expect(migration).not.toMatch(/grant execute on function lifecycle\./);
+    // No password, no secret and no literal address anywhere in it.
+    expect(migration).not.toMatch(/password|@|secret/i);
+  });
+
+  it('writes each table from one place, never deletes an alarm and takes every time from the database clock', () => {
+    expect([...migration.matchAll(/insert into lifecycle\.alarms\b/g)]).toHaveLength(1);
+    expect(functionBody('create function api.raise_alarm(')).toMatch(/insert into lifecycle\.alarms/);
+    expect([...migration.matchAll(/update lifecycle\.alarms\b/g)]).toHaveLength(2);
+    expect(functionBody('create function api.raise_alarm(')).toMatch(/update lifecycle\.alarms a set latest_at = greatest\(a\.latest_at, v_now\), detail = p_detail/);
+    expect(functionBody('create function api.resolve_alarm(')).toMatch(/update lifecycle\.alarms a\s+set resolved_at = greatest\(a\.latest_at, clock_timestamp\(\)\)/);
+    expect([...migration.matchAll(/insert into lifecycle\.alarm_notices\b/g)]).toHaveLength(1);
+    expect(functionBody('create function api.record_alarm_notice(')).toMatch(/insert into lifecycle\.alarm_notices/);
+    expect([...migration.matchAll(/insert into lifecycle\.heartbeats\b/g)]).toHaveLength(1);
+    expect(functionBody('create function api.record_heartbeat(')).toMatch(/insert into lifecycle\.heartbeats/);
+    expect(migration).not.toMatch(/delete from lifecycle\.(?:alarms|alarm_notices|heartbeats)|truncate lifecycle\.(?:alarms|alarm_notices|heartbeats)/);
+    expect(migration).not.toMatch(/\bnow\(\)|current_timestamp|transaction_timestamp|statement_timestamp/i);
+    // The partial unique index is what makes the open alarm of a pair one.
+    expect(migration).toMatch(/create unique index alarms_one_open on lifecycle\.alarms \(condition, \(coalesce\(subject, ''\)\)\) where resolved_at is null;/);
+    // Append-only and immutable by trigger.
+    for (const trigger of ['alarms_guard', 'alarms_no_delete', 'alarms_no_truncate', 'alarm_notices_no_change', 'alarm_notices_no_truncate', 'heartbeats_no_change', 'heartbeats_no_truncate']) expect(migration, trigger).toContain(`create trigger ${trigger} `);
+    // One advisory lock per (condition, subject), taken before the alarm is read.
+    const raise = functionBody('create function api.raise_alarm(');
+    expect(raise.indexOf("pg_advisory_xact_lock(hashtextextended('nova3d:alarm:'")).toBeGreaterThan(-1);
+    expect(raise.indexOf("pg_advisory_xact_lock(hashtextextended('nova3d:alarm:'")).toBeLessThan(raise.indexOf('from lifecycle.alarms a'));
+  });
+
+  it('holds the email rule in one function: the 24 hours, the sent notices and the same-condition rule for an alarm with no subject', () => {
+    expect([...migration.matchAll(/interval '24 hours'/g)]).toHaveLength(1);
+    const due = functionBody('create function api.alarms_due_mail(');
+    expect(due).toMatch(/c_window constant interval := interval '24 hours';/);
+    expect(due).toMatch(/n\.alarm_id = a\.id and n\.outcome = 'sent' and n\.at > v_now - c_window/);
+    expect(due).toMatch(/a\.subject is not null or not exists/);
+    expect(due).toMatch(/b\.condition = a\.condition and n\.outcome = 'sent' and n\.at > v_now - c_window/);
+    expect(due).toMatch(/a\.resolved_at is null/);
+    // Neither `failed` nor `unknown` is mentioned: they close nothing.
+    expect(due).not.toMatch(/'failed'|'unknown'/);
+  });
+
+  it('changes one existing table, Story 1.9\'s receipts, by one index, and says so in the migration\'s header, in the staging guide\'s migration row and in the ledger (review patch P8)', () => {
+    const onExisting = [...migration.matchAll(/^\s*(?:create (?:unique )?index (\w+) on|alter table|drop|create trigger \w+ \w+ \w+ on) (?:lifecycle|identity|projects|artifacts|auth)\.(?!alarms\b|alarm_notices\b|heartbeats\b)(\w+)/gm)].map((match) => `${match[1] ?? 'other'} on ${match[2]}`);
+    expect(onExisting).toEqual(['job_receipts_started on job_receipts']);
+    expect(migration).toMatch(/create index job_receipts_started on lifecycle\.job_receipts \(started_at\);/);
+    const header = read(migrationFile).split('\n').filter((line) => line.startsWith('--')).join('\n');
+    expect(header).toMatch(/job_receipts_started\s+ONE INDEX ON AN EXISTING TABLE/);
+    expect(read('docs/staging.md')).toMatch(/\| `20261016120000_alarms\.sql` \|[^\n]*`job_receipts_started` on `lifecycle\.job_receipts`/);
+    const ledger = JSON.parse(read('provisioning/ledger.json')) as {items: {id: string; howto: string[]}[]};
+    expect(ledger.items.find((item) => item.id === 'railway-heartbeat-service')?.howto.join('\n')).toContain('job_receipts_started');
+  });
+
+  it('is read only on the Operations page: no Server Action, no form, no control, and the Administrator\'s guard first', () => {
+    const page = code('app/admin/operations/page.tsx');
+    expect(page).toMatch(/await requireAdministrator\(\);/);
+    expect(page).not.toMatch(/'use server'|requireMutationAccess|formData/);
+    for (const file of ['components/admin/operations-content.tsx', 'components/admin/alarm-list.tsx']) {
+      expect(code(file), file).not.toMatch(/<form|<button|<Button|<input|<select|<textarea|onClick|onSubmit|'use server'|useActionState|\baction=/);
+    }
+    expect(files('app/admin/operations', (name) => /\.(ts|tsx)$/.test(name))).toEqual(['app/admin/operations/page.tsx']);
+  });
+
+  it('keeps the application\'s own times to the database\'s: no module of the alarm path compares a time it read from the application\'s clock with one the database wrote', () => {
+    for (const file of ['lib/alarm-conditions.ts', 'lib/alarms.ts', 'lib/operations.ts']) expect(code(file), file).not.toMatch(/Date\.now\(\)|new Date\(\)/);
+    // The one clock the heartbeat route reads is for the token's lifetime (seconds since the epoch, injectable), not for an age.
+    expect([...code('lib/heartbeat.ts').matchAll(/Date\.now\(\)/g)]).toHaveLength(1);
   });
 });

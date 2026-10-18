@@ -6,7 +6,8 @@
 // It reads no environment variable and logs nothing: callers pass the key text in, and a refusal names no reason.
 //
 // ISSUERS. `application`, `gateway`, `cad-worker`, `engine-worker`, `backup-service`, `heartbeat`. Each issuer has one Ed25519 key pair at a time
-// (plus at most one RETIRING key while a rotation settles). Only `application` issues anything in Story 1.12.
+// (plus at most one RETIRING key while a rotation settles). `application` issues the gateway's tickets and commands (Story 1.12) and `heartbeat` issues the Railway
+// cron task's heartbeat to the application (Story 1.13); the others issue nothing yet.
 //
 // KEY SET (public, not secret; `SERVICE_KEYS_<ISSUER>`): JSON
 //     {"issuer": "application", "active": "<kid>", "retiring": {"kid": "<kid>", "until": "<ISO 8601 UTC>"} | null, "keys": {"<kid>": "<base64 SPKI>"}}
@@ -450,5 +451,25 @@ export function signCommand(signer: Signer, environment: string, claims: Command
   const token = signToken(signer, {audience: 'gateway', environment, type: 'command', claims: record, ...options});
   const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8')) as TokenPayload;
   if (commandClaimsOf(payload) === null) throw new TypeError('the claims are not those of a command');
+  return token;
+}
+
+// Heartbeats (Story 1.13) ---------------------------------------------------------------------------------------------------------------------
+
+/** The claims of a heartbeat (`typ: "heartbeat"`, `iss: "heartbeat"`, `aud: "application"`): none beyond the standard ones. */
+export type HeartbeatClaims = Record<string, never>;
+
+/** The heartbeat claims of a verified payload (none), or null when it is not exactly a heartbeat: any claim beyond the standard ones is as bad as a wrong type. */
+export function heartbeatClaimsOf(payload: TokenPayload): HeartbeatClaims | null {
+  if (payload.typ !== 'heartbeat' || payload.iss !== 'heartbeat' || payload.aud !== 'application') return null;
+  if (Object.keys(payload).some((name) => !reserved.includes(name))) return null;
+  return {};
+}
+
+/** Signs the heartbeat the Railway cron task posts to the application: no claim beyond the standard ones, valid for five minutes unless asked for less. */
+export function signHeartbeat(signer: Signer, environment: string, options: {now?: number; lifetimeSeconds?: number; jti?: string} = {}): string {
+  const token = signToken(signer, {audience: 'application', environment, type: 'heartbeat', claims: {}, ...options});
+  const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8')) as TokenPayload;
+  if (heartbeatClaimsOf(payload) === null) throw new TypeError('the claims are not those of a heartbeat');
   return token;
 }

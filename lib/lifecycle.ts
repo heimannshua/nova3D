@@ -20,12 +20,23 @@
 //   revokeServiceKey      api.revoke_service_key     records a key's revocation and ends every staging lease and transfer handle opened under it
 //   listExpiredStaging    api.list_expired_staging   names the leases the hourly cleanup removes (expired or released, not yet deleted)
 //
+// Story 1.13 adds the operational alarms' seven (lib/alarms.ts, lib/heartbeat.ts and the Administrator's page are the callers):
+//
+//   raiseAlarm            api.raise_alarm          opens an alarm for a (condition, subject) or refreshes the open one
+//   resolveAlarm          api.resolve_alarm        resolves the open alarm of a (condition, subject); the record is kept
+//   listAlarms            api.list_alarms          the open alarms and, on request, the most recently resolved ones, each with its email state
+//   alarmsDueMail         api.alarms_due_mail      the open alarms due an email (the 24-hour rule is the database's)
+//   recordAlarmNotice     api.record_alarm_notice  the outcome of one attempt to email an alarm: sent | failed | unknown
+//   alarmObservations     api.alarm_observations   every number the registry of conditions looks at, as ages in seconds on the database clock
+//   recordHeartbeat       api.record_heartbeat     a heartbeat of the Railway cron task: recorded | duplicate | revoked
+//
 // SERVER-ONLY (it imports lib/accounts.ts, which holds the service-role key). Like lib/accounts.ts and lib/authority.ts it uses
 // erasable TypeScript syntax and relative `.ts` imports, so a worker outside Next.js can import it through Node type stripping.
 //
 // Every answer is checked: a reply that is not shaped like an answer is no answer, and the caller treats no answer as a denial.
 // Nothing here logs, and no error message holds an ID, a handle or a hash.
 import {callRow, hashClientAddress, hashKey, oneOf, operationOutcomes, requireUuid, unexpected, type AccountsOptions, type OperationOutcome, type Row} from './accounts.ts';
+import type {AlarmDetail, Observations} from './alarm-conditions.ts';
 import {isHiddenState, type HiddenState} from './hidden-state.ts';
 import {isServiceIssuer} from './service-signing.ts';
 
@@ -384,4 +395,227 @@ export async function listExpiredStaging(input: {limit?: number} = {}, options: 
     if (!uploadId || !uuidPattern.test(uploadId) || !accountId || !uuidPattern.test(accountId)) throw unexpected();
     return {uploadId: uploadId.toLowerCase(), accountId: accountId.toLowerCase()};
   });
+}
+
+// Operational alarms (Story 1.13) -----------------------------------------------------------------------------------------------------------------
+
+/** An alarm's condition: one lower-case word of letters, digits and hyphens. A subject names what the alarm is about (a task, a payment) and may be absent. */
+export const alarmConditionPattern = /^[a-z][a-z0-9-]{0,47}$/;
+export const alarmSubjectPattern = /^[A-Za-z0-9._:-]{1,64}$/;
+const detailKeyPattern = /^[a-z][a-z0-9_]{0,31}$/;
+const detailTextPattern = /^[ -~]{0,80}$/;
+/** The whole numbers the database accepts in a detail (lifecycle.alarm_detail_ok): zero, or at most 15 digits with no leading zero, negative or not. */
+const detailIntegerPattern = /^-?(0|[1-9][0-9]{0,14})$/;
+
+/**
+ * Whether a value is an alarm's detail: a flat object of at most 1 KB whose keys are lower-case words and whose values are whole numbers of at most 15 digits
+ * (negative or not), booleans, or strings of at most 80 printable ASCII characters. The database holds exactly the same rule (lifecycle.alarm_detail_ok, and a
+ * test compares the two on the boundary values); it is checked here first so that a condition that produces anything else fails by name before the call.
+ */
+export function isAlarmDetail(value: unknown): value is AlarmDetail {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  if (JSON.stringify(value).length > 1024) return false;
+  return Object.entries(value).every(
+    ([key, item]) =>
+      detailKeyPattern.test(key) &&
+      // A number is checked as the database reads it: by the text it is sent as. A safe integer of sixteen digits is whole but is not accepted.
+      ((typeof item === 'number' && Number.isSafeInteger(item) && detailIntegerPattern.test(JSON.stringify(item))) || typeof item === 'boolean' || (typeof item === 'string' && detailTextPattern.test(item))),
+  );
+}
+
+function requireCondition(condition: unknown): string {
+  if (typeof condition !== 'string' || !alarmConditionPattern.test(condition)) throw new TypeError('condition must be a lower-case condition ID');
+  return condition;
+}
+
+function requireSubject(subject: unknown): string | null {
+  if (subject === null) return null;
+  if (typeof subject !== 'string' || !alarmSubjectPattern.test(subject)) throw new TypeError('subject must be null or a subject key');
+  return subject;
+}
+
+/** api.raise_alarm: `opened` (a new alarm) or `refreshed` (the open alarm for the pair had its latest time and detail renewed), with the alarm's ID. */
+export type AlarmRaise = {outcome: 'opened' | 'refreshed'; alarmId: string};
+
+/**
+ * Opens an alarm for a (condition, subject), or refreshes the open one: there is never a second open alarm for a pair. If this throws an
+ * AccountsUnavailableError the alarm may or may not have been recorded; raising again is idempotent.
+ */
+export async function raiseAlarm(input: {condition: string; subject: string | null; detail: AlarmDetail}, options: AccountsOptions = {}): Promise<AlarmRaise> {
+  const condition = requireCondition(input.condition);
+  const subject = requireSubject(input.subject);
+  if (!isAlarmDetail(input.detail)) throw new TypeError('detail must be a small flat object of whole numbers, booleans and short text');
+  const row = await callRow('raise_alarm', {p_condition: condition, p_subject: subject, p_detail: input.detail}, options);
+  const outcome = oneOf(row.outcome, ['opened', 'refreshed'] as const);
+  const alarmId = text(row.alarm_id);
+  if (!alarmId || !uuidPattern.test(alarmId)) throw unexpected();
+  return {outcome, alarmId: alarmId.toLowerCase()};
+}
+
+/** api.resolve_alarm: `resolved` (the open alarm now has its resolved time; the record is kept) or `none` (nothing was open for the pair). */
+export type AlarmResolve = {outcome: 'resolved'; alarmId: string} | {outcome: 'none'};
+
+/** Resolves the open alarm of a (condition, subject), once. */
+export async function resolveAlarm(input: {condition: string; subject: string | null}, options: AccountsOptions = {}): Promise<AlarmResolve> {
+  const condition = requireCondition(input.condition);
+  const subject = requireSubject(input.subject);
+  const row = await callRow('resolve_alarm', {p_condition: condition, p_subject: subject}, options);
+  const outcome = oneOf(row.outcome, ['resolved', 'none'] as const);
+  if (outcome === 'none') return {outcome};
+  const alarmId = text(row.alarm_id);
+  if (!alarmId || !uuidPattern.test(alarmId)) throw unexpected();
+  return {outcome, alarmId: alarmId.toLowerCase()};
+}
+
+export const noticeOutcomes = ['sent', 'failed', 'unknown'] as const;
+export type NoticeOutcome = (typeof noticeOutcomes)[number];
+
+/** An alarm as the Administrator's page and the monitor read it. Times are UTC text to the millisecond. */
+export type AlarmRecord = {
+  id: string;
+  condition: string;
+  subject: string | null;
+  firstAt: string;
+  latestAt: string;
+  resolvedAt: string | null;
+  detail: AlarmDetail;
+  /** When its last `sent` notice was recorded, or null when it has never been emailed. */
+  lastSentAt: string | null;
+  /** The outcome and time of its latest notice of any kind, or null when none was ever recorded. */
+  lastNoticeOutcome: NoticeOutcome | null;
+  lastNoticeAt: string | null;
+};
+
+const recordOf = (value: unknown): Row => (typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Row) : {});
+const instantOf = (value: unknown): string => {
+  const at = text(value);
+  if (!at || !instantPattern.test(at)) throw unexpected();
+  return at;
+};
+const optionalInstantOf = (value: unknown): string | null => (value === null || value === undefined ? null : instantOf(value));
+
+function alarmOf(value: unknown): AlarmRecord {
+  const item = recordOf(value);
+  const id = text(item.id);
+  const condition = text(item.condition);
+  const subject = item.subject === null || item.subject === undefined ? null : text(item.subject);
+  if (!id || !uuidPattern.test(id) || !condition || !alarmConditionPattern.test(condition)) throw unexpected();
+  // A subject is absent (null) or a subject key; anything else is not an answer.
+  if (item.subject !== null && item.subject !== undefined && (subject === null || !alarmSubjectPattern.test(subject))) throw unexpected();
+  if (!isAlarmDetail(item.detail)) throw unexpected();
+  const notice = item.last_notice_outcome === null || item.last_notice_outcome === undefined ? null : oneOf(item.last_notice_outcome, noticeOutcomes);
+  return {
+    id: id.toLowerCase(),
+    condition,
+    subject,
+    firstAt: instantOf(item.first_at),
+    latestAt: instantOf(item.latest_at),
+    resolvedAt: optionalInstantOf(item.resolved_at),
+    detail: item.detail,
+    lastSentAt: optionalInstantOf(item.last_sent_at),
+    lastNoticeOutcome: notice,
+    lastNoticeAt: optionalInstantOf(item.last_notice_at),
+  };
+}
+
+export const maxResolvedListed = 50;
+export const defaultResolvedListed = 10;
+
+/**
+ * api.list_alarms: every open alarm, newest first (at most 500), and, when `includeResolved` is true, the `limit` (1 to 50, ten by default) most recently
+ * resolved ones after them. Each carries what its email state is read from (`lastSentAt`, `lastNoticeOutcome`, `lastNoticeAt`). Read-only.
+ */
+export async function listAlarms(input: {includeResolved?: boolean; limit?: number} = {}, options: AccountsOptions = {}): Promise<AlarmRecord[]> {
+  const includeResolved = input.includeResolved ?? false;
+  const limit = input.limit ?? defaultResolvedListed;
+  if (typeof includeResolved !== 'boolean') throw new TypeError('includeResolved must be true or false');
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > maxResolvedListed) throw new TypeError('limit must be a whole number from 1 to 50');
+  const row = await callRow('list_alarms', {p_include_resolved: includeResolved, p_limit: limit}, options);
+  if (!Array.isArray(row.alarms) || row.alarms.length > 500 + limit) throw unexpected();
+  const alarms = row.alarms.map(alarmOf);
+  // Open alarms come first, then resolved ones, and nothing resolved when none was asked for.
+  const firstResolved = alarms.findIndex((alarm) => alarm.resolvedAt !== null);
+  if (firstResolved !== -1 && (!includeResolved || alarms.slice(firstResolved).some((alarm) => alarm.resolvedAt === null) || alarms.length - firstResolved > limit)) throw unexpected();
+  return alarms;
+}
+
+/** An alarm that is due an email: only what the mail holds (the condition, the subject, the first time and the detail, of which the mailer keeps the receipt keys). */
+export type DueAlarm = {id: string; condition: string; subject: string | null; firstAt: string; detail: AlarmDetail};
+
+export const maxDueMail = 50;
+
+/** api.alarms_due_mail: the open alarms due an email, oldest first, at most `limit` (default and most: 50). Read-only. */
+export async function alarmsDueMail(input: {limit?: number} = {}, options: AccountsOptions = {}): Promise<DueAlarm[]> {
+  const limit = input.limit ?? maxDueMail;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > maxDueMail) throw new TypeError('limit must be a whole number from 1 to 50');
+  const row = await callRow('alarms_due_mail', {p_limit: limit}, options);
+  if (!Array.isArray(row.alarms) || row.alarms.length > limit) throw unexpected();
+  return row.alarms.map((value: unknown) => {
+    const alarm = alarmOf({...recordOf(value), latest_at: recordOf(value).first_at});
+    return {id: alarm.id, condition: alarm.condition, subject: alarm.subject, firstAt: alarm.firstAt, detail: alarm.detail};
+  });
+}
+
+/** api.record_alarm_notice: `recorded`, or `not_found` (no such alarm). */
+export type AlarmNoticeReceipt = {outcome: 'recorded' | 'not_found'};
+
+/** Records the outcome of one attempt to email an alarm. Only `sent` closes a 24-hour window; `failed` and `unknown` are retried at the next evaluation. */
+export async function recordAlarmNotice(input: {alarmId: string; outcome: NoticeOutcome}, options: AccountsOptions = {}): Promise<AlarmNoticeReceipt> {
+  const alarmId = requireUuid('alarmId', input.alarmId);
+  if (!(noticeOutcomes as readonly unknown[]).includes(input.outcome)) throw new TypeError('outcome must be sent, failed or unknown');
+  const row = await callRow('record_alarm_notice', {p_alarm_id: alarmId, p_outcome: input.outcome}, options);
+  return {outcome: oneOf(row.outcome, ['recorded', 'not_found'] as const)};
+}
+
+/** What the database reports; the application adds `heartbeatConfigured` (lib/alarm-conditions.ts `Observations`). */
+export type DatabaseObservations = Omit<Observations, 'heartbeatConfigured'>;
+
+const optionalAge = (value: unknown): number | null => {
+  if (value === null || value === undefined) return null;
+  const age = count(value);
+  if (age === null) throw unexpected();
+  return age;
+};
+
+/**
+ * api.alarm_observations: every number the registry of conditions looks at, as AGES IN SECONDS on the database clock (the application never compares its
+ * own clock with the database's), the ledger backlog, how many Auth identities have no Account (the one place they are counted: the application never
+ * names `auth.users`) and each task's newest finished receipt. Read-only.
+ */
+export async function alarmObservations(options: AccountsOptions = {}): Promise<DatabaseObservations> {
+  const row = await callRow('alarm_observations', {}, options);
+  const ledgerWaiting = count(row.ledger_pending);
+  const unaccounted = count(row.unaccounted);
+  const ledgerOldest = optionalAge(row.ledger_oldest);
+  if (ledgerWaiting === null || unaccounted === null || !Array.isArray(row.tasks)) throw unexpected();
+  // Nothing pending has no oldest, and something pending has one.
+  if ((ledgerWaiting === 0) !== (ledgerOldest === null)) throw unexpected();
+  const tasks = row.tasks.map((value: unknown) => {
+    const item = recordOf(value);
+    const task = text(item.task);
+    const age = count(item.age);
+    if (!task || !taskPattern.test(task) || age === null) throw unexpected();
+    return {task, outcome: oneOf(item.outcome, jobOutcomes), at: instantOf(item.at), age};
+  });
+  return {
+    firstReceiptAge: optionalAge(row.first_receipt_age),
+    latestReceiptAge: optionalAge(row.latest_receipt_age),
+    firstHeartbeatAge: optionalAge(row.first_heartbeat_age),
+    latestHeartbeatAge: optionalAge(row.latest_heartbeat_age),
+    ledgerWaiting,
+    ledgerOldest,
+    unaccounted,
+    tasks,
+  };
+}
+
+/** api.record_heartbeat: `recorded`, `duplicate` (this `jti` was accepted before) or `revoked` (the key is revoked). */
+export type HeartbeatReceipt = {outcome: 'recorded' | 'duplicate' | 'revoked'};
+
+/** Records a heartbeat of the Railway cron task, after the route has verified its token: the key ID and the token's `jti`. */
+export async function recordHeartbeat(input: {kid: string; jti: string}, options: AccountsOptions = {}): Promise<HeartbeatReceipt> {
+  if (typeof input.kid !== 'string' || !kidPattern.test(input.kid)) throw new TypeError('kid must be a key ID');
+  if (typeof input.jti !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(input.jti)) throw new TypeError('jti must be 128 bits in base64url');
+  const row = await callRow('record_heartbeat', {p_kid: input.kid, p_jti: input.jti}, options);
+  return {outcome: oneOf(row.outcome, ['recorded', 'duplicate', 'revoked'] as const)};
 }

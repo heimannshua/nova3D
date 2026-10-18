@@ -115,8 +115,19 @@ describe('the third server, the file gateway (Story 1.12)', () => {
       expect(server.env!.FILE_GATEWAY_URL, server.url).toBe('http://127.0.0.1:4175');
     }
     expect(gateway.env!.SERVICE_KEYS_APPLICATION).toBe(app.env!.SERVICE_KEYS_APPLICATION);
+    // Story 1.13: the gateway has nothing to do with the heartbeat.
+    expect(Object.keys(gateway.env!).filter((name) => /HEARTBEAT/.test(name))).toEqual([]);
     // The private half is the application's alone.
     expect(Object.keys(gateway.env!).filter((name) => /SIGNING_KEY|SECRET|PASSWORD|TOKEN/.test(name))).toEqual([]);
+  });
+
+  it('gives both application servers the heartbeat issuer\'s PUBLIC key set (Story 1.13) and neither the private half, which only the tests that play the Railway task hold', async () => {
+    const {app, fake} = await load();
+    for (const server of [app, fake]) {
+      expect(JSON.parse(server.env!.SERVICE_KEYS_HEARTBEAT), server.url).toMatchObject({issuer: 'heartbeat', retiring: null});
+      expect(Object.keys(server.env!).filter((name) => /SERVICE_SIGNING_KEY_HEARTBEAT/.test(name)), server.url).toEqual([]);
+    }
+    expect(fake.env!.SERVICE_KEYS_HEARTBEAT).toBe(app.env!.SERVICE_KEYS_HEARTBEAT);
   });
 
   it('follows PORT for all three, and refuses a PORT whose third server would not be a port', async () => {

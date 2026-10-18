@@ -13,10 +13,11 @@ type Area = {href: string; title: MessageKey; help: MessageKey; open: MessageKey
 const areas: Area[] = [
   {href: '/admin/invitations', title: 'admin.invitations.title', help: 'admin.invitations.help', open: 'admin.invitations.open'},
   {href: '/admin/accounts', title: 'admin.accounts.title', help: 'admin.accounts.help', open: 'admin.accounts.open'},
+  {href: '/admin/operations', title: 'admin.operations.title', help: 'admin.operations.help', open: 'admin.operations.open'},
 ];
 
 /**
- * The Administration index (Story 1.5): the way to Invitation codes and Accounts. It is where the `administration` step-up
+ * The Administration index (Story 1.5): the way to Invitation codes, Accounts and Operations. It is where the `administration` step-up
  * returns, so when the person has just confirmed it is them it says so, and for how long. It says nothing when they have not:
  * the pages that change something offer the step-up themselves, at the moment it is needed. `recovered` is the number of
  * other sessions a recovery of the Administrator's access (Story 1.6) has just signed out, or null when this is not the

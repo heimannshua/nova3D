@@ -1504,7 +1504,9 @@ describe('a browser-native download: a ticket in a URL, then a handle in another
     const who = await member();
     const {stored, response} = await opened(who, randomBytes(MiB));
     const {handle} = handleOf(response.headers.get('location')!);
-    for (const path of [`/h/${handle}/${randomUUID()}`, `/h/${handle.slice(0, 42)}A/${stored.id}`, `/h/${randomBytes(32).toString('base64url')}/${stored.id}`, `/h/${handle.slice(1)}/${stored.id}`]) {
+    // (The tampered handle changes the last character, to a letter it is not already: the last character of a 43-character base64url handle is one of 16 letters, and 'A' is one of them,
+    // so tampering with an 'A' → 'A' made the REAL handle one time in sixteen, and this case failed with a 200 that was no fault of the gateway's.)
+    for (const path of [`/h/${handle}/${randomUUID()}`, `/h/${handle.slice(0, 42)}${handle.endsWith('A') ? 'E' : 'A'}/${stored.id}`, `/h/${randomBytes(32).toString('base64url')}/${stored.id}`, `/h/${handle.slice(1)}/${stored.id}`]) {
       const refused = await fetch(`${gateway.url}${path}`);
       expect([403, 404], path).toContain(refused.status);
       if (refused.status === 403) expect(await refused.json()).toEqual(errorBody('forbidden'));

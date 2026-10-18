@@ -16,11 +16,17 @@
 //                          `kept`). The result is counts only. A gateway that is down or refuses a command FAILS the run (the class of the error is recorded)
 //                          and the scheduler retries it: the list is read afresh and the commands are idempotent.
 //
+//   alarm-monitor         Story 1.13. Evaluates the registry of alarm conditions (lib/alarm-conditions.ts) against the observations the database reports
+//                         (lib/alarms.ts `runAlarmMonitor`): raises an alarm for each finding, resolves the open alarms of its conditions that cleared, and
+//                         emails the Administrator what is due. The result is counts only: `raised`, `resolved`, `mailed`, `mail_failed`. A condition that
+//                         cannot be evaluated, or an alarm that cannot be written, FAILS the run (after the rest was done) and the scheduler retries it.
+//
 // A task returns its outcome and a result of counts, booleans and single words (lib/lifecycle.ts `isJobResult`): the receipt holds nothing
 // else. A task that throws is a `failed` run, and the route records the error's CLASS NAME only, never its message.
 //
 // SERVER-ONLY (it imports lib/lifecycle.ts). Erasable TypeScript syntax and relative `.ts` imports, like the modules it serves.
 import type {AccountsOptions} from './accounts.ts';
+import {runAlarmMonitor, type MonitorDeps} from './alarms.ts';
 import {configuredGatewayClient, GatewayError, GatewayUnavailableError, type GatewayClient} from './gateway-client.ts';
 import {relayLedger, type LedgerStore} from './ledger.ts';
 import {isJobResult, ledgerPending, listExpiredStaging, purgeDormantIdentities, type JobOutcome, type JobResult} from './lifecycle.ts';
@@ -81,6 +87,11 @@ export type TaskContext = {
    * the gateway's address are set, so the cleanup answers `no_store`). The tests pass a fake, or `null` for none.
    */
   gateway?: GatewayClient | null;
+  /**
+   * The alarm monitor's injections (Story 1.13): the mail sender, the registry of conditions, the schedules they look at, whether the heartbeat is configured.
+   * Left out, the registered conditions and the real sender are used. The tests pass a fixture condition and a fake sender.
+   */
+  alarms?: Omit<MonitorDeps, 'accounts'>;
 };
 
 /**
@@ -139,11 +150,17 @@ async function stagingCleanupTask(context: TaskContext): Promise<TaskResult> {
   return {outcome: 'ran', result: {expired: leases.length, deleted, kept}};
 }
 
+async function alarmMonitorTask(context: TaskContext): Promise<TaskResult> {
+  const report = await runAlarmMonitor({...context.alarms, accounts: context.accounts ?? {}});
+  return {outcome: 'ran', result: {raised: report.raised, resolved: report.resolved, mailed: report.mailed, mail_failed: report.mailFailed}};
+}
+
 /** Every registered task, by ID. A task added to lib/schedules.ts must be added here: the compiler and a test both insist. */
 export const tasks: Record<ScheduledTask, (context: TaskContext) => Promise<TaskResult>> = {
   'ledger-relay': ledgerRelayTask,
   'dormant-identity-purge': dormantIdentityPurgeTask,
   'staging-cleanup': stagingCleanupTask,
+  'alarm-monitor': alarmMonitorTask,
 };
 
 /**

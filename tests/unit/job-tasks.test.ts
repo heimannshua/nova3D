@@ -7,6 +7,7 @@ import {isJobResult} from '@/lib/lifecycle';
 import {verifyChain, type LedgerStore} from '@/lib/ledger';
 import {createFixtureLedgerStore} from '@/lib/ledger-fixture';
 import {scheduledTasks} from '@/lib/schedules';
+import {fakeDatabase as fakeAlarmDatabase, sender as alarmSender} from '../support/alarm-fakes';
 
 // The two tasks a schedule fires (Story 1.9, lib/job-tasks.ts) against a stand-in for the database that keeps an outbox and a lease the way
 // api.claim_ledger_events, api.finish_ledger_events and api.ledger_pending do (the real ones are tested in tests/integration/tombstones.test.ts
@@ -383,5 +384,52 @@ describe('staging-cleanup', () => {
     const gateway = gatewayOf();
     await expect(runTask('staging-cleanup', withGateway(database, gateway.client))).rejects.toBeInstanceOf(AccountsUnavailableError);
     expect(gateway.deleteStaging).not.toHaveBeenCalled();
+  });
+});
+
+describe('alarm-monitor (Story 1.13)', () => {
+  const monitorContext = (database: ReturnType<typeof fakeAlarmDatabase>, alarms: NonNullable<Parameters<typeof runTask>[1]['alarms']>) => ({instanceId: INSTANCE, accounts: {env, fetch: database.fetch as never}, alarms});
+
+  it('is registered, and its result is counts only: raised, resolved, mailed and mail_failed', async () => {
+    expect(scheduledTasks).toContain('alarm-monitor');
+    const database = fakeAlarmDatabase();
+    const result = await runTask('alarm-monitor', monitorContext(database, {send: alarmSender().send}));
+    expect(result).toEqual({outcome: 'ran', result: {raised: 0, resolved: 0, mailed: 0, mail_failed: 0}});
+    expect(isJobResult(result.result)).toBe(true);
+  });
+
+  it('raises what it finds, emails it through the sender it is given, and counts both', async () => {
+    const database = fakeAlarmDatabase();
+    database.observed.value.unaccounted = 30;
+    const mail = alarmSender();
+    const result = await runTask('alarm-monitor', monitorContext(database, {send: mail.send}));
+    expect(result).toEqual({outcome: 'ran', result: {raised: 1, resolved: 0, mailed: 1, mail_failed: 0}});
+    expect(database.alarms).toEqual([expect.objectContaining({condition: 'identities-unaccounted'})]);
+    // Resolves it when the condition clears, and says so.
+    database.observed.value.unaccounted = 2;
+    expect(await runTask('alarm-monitor', monitorContext(database, {send: mail.send}))).toEqual({outcome: 'ran', result: {raised: 0, resolved: 1, mailed: 0, mail_failed: 0}});
+  });
+
+  it('fails the run, by the error\'s class, when the database does not answer: the scheduler retries it', async () => {
+    const database = fakeAlarmDatabase();
+    database.fail.alarm_observations = () => json({message: 'down'}, 503);
+    await expect(runTask('alarm-monitor', monitorContext(database, {send: alarmSender().send}))).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('uses the registered conditions and the schedule registry unless a test gives it others', async () => {
+    const database = fakeAlarmDatabase();
+    database.observed.value.tasks = [];
+    database.observed.value.first_receipt_age = 1_000_000;
+    const mail = alarmSender();
+    // Three registered tasks are late (the monitor is not one of them): the real registry, the real conditions.
+    const result = await runTask('alarm-monitor', monitorContext(database, {send: mail.send}));
+    expect(result.result).toMatchObject({raised: 3, mailed: 3});
+    expect(database.alarms.map((alarm) => alarm.subject).sort()).toEqual(['dormant-identity-purge', 'ledger-relay', 'staging-cleanup']);
+    // A registry of one task changes what is late.
+    const other = fakeAlarmDatabase();
+    other.observed.value.tasks = [];
+    other.observed.value.first_receipt_age = 1_000;
+    await runTask('alarm-monitor', monitorContext(other, {send: alarmSender().send, registry: [{task: 'outbox-sweep', intervalSeconds: 60}]}));
+    expect(other.alarms.map((alarm) => alarm.subject)).toEqual(['outbox-sweep']);
   });
 });

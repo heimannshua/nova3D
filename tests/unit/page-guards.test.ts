@@ -21,11 +21,11 @@ const exempt: Record<string, string> = {
 /** The registration page asks for the opposite: a signed-in identity that has no Account yet. */
 const registration = 'app/register/page.tsx';
 /**
- * The Administrator's pages (Stories 1.11 and 1.5: the index, Invitation codes, Accounts) ask for more than an active Account: an active Administrator, and answer 404 to
+ * The Administrator's pages (Stories 1.11, 1.5 and 1.13: the index, Invitation codes, Accounts, Operations) ask for more than an active Account: an active Administrator, and answer 404 to
  * anyone else. `requireAdministrator` starts from `requireActiveAccount` (checked below), so these pages are private too.
  * Every page under app/admin must be listed here, and nothing else may be.
  */
-const administrator = ['app/admin/page.tsx', 'app/admin/invitations/page.tsx', 'app/admin/accounts/page.tsx'];
+const administrator = ['app/admin/page.tsx', 'app/admin/invitations/page.tsx', 'app/admin/accounts/page.tsx', 'app/admin/operations/page.tsx'];
 
 function pages(directory: string): string[] {
   return readdirSync(directory).flatMap((name) => {

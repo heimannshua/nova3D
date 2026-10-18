@@ -7,7 +7,9 @@
 // {"task": <task>, "instance": <INSTANCE_ID>}. `node scripts/schedules.mjs check` compares the live schedules with this list and
 // `apply` makes them equal; an operator runs both, never CI. Every cron expression is in UTC (QStash's default; none names a zone).
 //
-// Story 1.12 added the staging cleanup (hourly). Later stories add their tasks HERE and in lib/job-tasks.ts, and nowhere else:
+// Story 1.12 added the staging cleanup (hourly). Story 1.13 gives every entry an `intervalSeconds` (how often the cron expression fires it, in seconds:
+// plain data, which the alarm condition `task-late` reads: a task whose latest finished receipt is older than twice its interval is late) and adds the
+// monitor itself, `alarm-monitor`, the task that evaluates the alarm conditions. Later stories add their tasks HERE and in lib/job-tasks.ts, and nowhere else:
 //   Story 2.7  the outbox sweep with lease and deadline expiry (every minute)
 //   Story 8.3  purge deadlines (hourly)
 //   Story 8.9  the backup monitor (every 30 minutes)
@@ -21,21 +23,34 @@ export const scheduleRegistry = [
     task: 'dormant-identity-purge',
     // Daily at 03:00 UTC.
     cron: '0 3 * * *',
+    intervalSeconds: 86400,
     description: 'Deletes Auth identities that never became Accounts and have been idle for 30 days, under the lock registration takes first.',
   },
   {
     task: 'ledger-relay',
     // Every five minutes, UTC.
     cron: '*/5 * * * *',
+    intervalSeconds: 300,
     description: 'Copies pending ledger events to the ledger store, in order, within one lease (at most 50 events). Idle when nothing is pending.',
   },
   {
     task: 'staging-cleanup',
     // Every hour, on the hour, UTC.
     cron: '0 * * * *',
+    intervalSeconds: 3600,
     description: 'Removes the staging of expired or released upload leases through the file gateway, one signed delete command each (at most 50); a lease renewed meanwhile is kept.',
   },
+  {
+    task: 'alarm-monitor',
+    // Every five minutes, UTC.
+    cron: '*/5 * * * *',
+    intervalSeconds: 300,
+    description: 'Evaluates the operational alarm conditions: raises an alarm for each finding, resolves the ones that cleared, and emails the Administrator the alarms that are due (Story 1.13).',
+  },
 ] as const;
+
+/** The monitor: the task that evaluates the alarm conditions. It cannot report on itself, so the condition `task-late` leaves it out. */
+export const monitorTask = 'alarm-monitor';
 
 export type ScheduleEntry = (typeof scheduleRegistry)[number];
 /** The ID of a registered task. */

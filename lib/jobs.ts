@@ -44,6 +44,7 @@
 import {Receiver} from '@upstash/qstash';
 import type {AccountsOptions} from './accounts.ts';
 import {checkInstanceIdentity, isPlaceholder, type Env} from './environment.ts';
+import {isHeartbeatConfigured} from './heartbeat.ts';
 import {runTask, type TaskContext} from './job-tasks.ts';
 import {claimJobRun, finishJobRun, isJobResult, type JobClaim} from './lifecycle.ts';
 import {isScheduledTask, type ScheduledTask} from './schedules.ts';
@@ -70,8 +71,8 @@ export type JobRequestOptions = {
   accounts?: Omit<AccountsOptions, 'env'>;
   /** Runs the task; the tasks of lib/job-tasks.ts by default. The tests pass their own to make one fail. */
   run?: typeof runTask;
-  /** What the task needs besides the environment (the ledger store, the file gateway's client); the configured ones by default. */
-  task?: Pick<TaskContext, 'ledgerStore' | 'gateway'>;
+  /** What the task needs besides the environment (the ledger store, the file gateway's client, the alarm monitor's sender and registry); the configured ones by default. */
+  task?: Pick<TaskContext, 'ledgerStore' | 'gateway' | 'alarms'>;
 };
 
 /** The signing keys, or null when either is not set (a placeholder is not a key). */
@@ -200,7 +201,9 @@ export async function handleJobRequest(request: Request, options: JobRequestOpti
     let ran: Awaited<ReturnType<typeof runTask>> | null = null;
     let failure = 'Error';
     try {
-      ran = await run(task, {instanceId, accounts, ...options.task});
+      // The alarm monitor mails through the same environment this route reads, and knows whether the Railway heartbeat is configured (Story 1.13).
+      const alarms = {heartbeatConfigured: isHeartbeatConfigured(env), ...options.task?.alarms, mail: {env, ...options.task?.alarms?.mail}};
+      ran = await run(task, {instanceId, accounts, ...options.task, alarms});
       // A receipt holds counts and words only: a result that is anything else is a failed run, not a receipt that cannot be finished.
       if (!isJobResult(ran.result)) throw new TypeError('a task answered a result a receipt cannot hold');
     } catch (error) {
