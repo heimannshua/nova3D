@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   access: null as unknown,
   listProjects: vi.fn(),
   readProject: vi.fn(),
+  readProjectRequest: vi.fn(),
 }));
 vi.mock('next/headers', () => ({
   cookies: async () => ({
@@ -28,7 +29,12 @@ vi.mock('@/lib/auth', async (importOriginal) => ({
     return mocks.access;
   },
 }));
-vi.mock('@/lib/projects', async (importOriginal) => ({...(await importOriginal<typeof import('@/lib/projects')>()), listProjects: mocks.listProjects, readProject: mocks.readProject}));
+vi.mock('@/lib/projects', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/projects')>()),
+  listProjects: mocks.listProjects,
+  readProject: mocks.readProject,
+  readProjectRequest: mocks.readProjectRequest,
+}));
 
 import HomePage from '@/app/page';
 import ProjectsPage from '@/app/projects/page';
@@ -85,6 +91,7 @@ beforeEach(() => {
     const found = rows.find((row) => row.id === id);
     return found ? {outcome: 'found', project: found} : {outcome: 'unavailable'};
   });
+  mocks.readProjectRequest.mockReset().mockResolvedValue({outcome: 'none'});
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
 
@@ -178,7 +185,8 @@ describe.each(locales)('My Projects in %s', (locale) => {
     expect(markup).toMatch(new RegExp(`<input type="search"[^>]*aria-label="${t(locale, 'projects.search')}"`));
     const select = /<select[^>]*>([\s\S]*?)<\/select>/.exec(markup)?.[1] ?? '';
     const options = [...select.matchAll(/<option value="([a-z_]+)"[^>]*>(.*?)<\/option>/g)].map((match) => [match[1], match[2]]);
-    expect(options).toEqual([['all', t(locale, 'projects.filterAllStages')], ...rows.map((row) => [row.stage, t(locale, stageDefinition(row.stage).label)])]);
+    // Every stage, in the order a Project moves through them (Story 2.1 added the first, so the list no longer follows the fixtures' order).
+    expect(options).toEqual([['all', t(locale, 'projects.filterAllStages')], ...projectStages.map((stage) => [stage, t(locale, stageDefinition(stage).label)])]);
     expect(markup).toContain(`<span class="visually-hidden">${t(locale, 'projects.filterLabel')}</span>`);
     expect(text(markup)).toContain(t(locale, 'projects.resultCount', {count: rows.length}));
   });
@@ -299,6 +307,76 @@ describe('the page functions', () => {
     });
   });
 
+  describe('the overview reads the Project\'s request as it read the Project (Story 2.1)', () => {
+    const open = () => ProjectPage({params: Promise.resolve({projectId: first.id})});
+    const requestOf = async () => ((await open()) as ReactElement<{project: {id: string}; request: unknown}>).props.request;
+    const revision = {
+      id: '11111111-2222-4333-8444-555555555555',
+      projectId: first.id,
+      seq: 1,
+      mode: 'evidence_text',
+      subjectId: 'middot-altar-ramp',
+      scope: 'The outer altar',
+      outcome: 'A model I can print',
+      description: 'Build the altar',
+      personalization: {wording: null, text: null, style: null, applied: false, reason: null},
+      confirmedAt: '2026-10-18T19:12:12.844515+00:00',
+    };
+
+    it('asks for the Account and epoch of the verified access, and the Project it was asked to open', async () => {
+      await open();
+      expect(mocks.readProjectRequest).toHaveBeenCalledWith({accountId: ACCOUNT, epoch: 4}, first.id, expect.anything());
+    });
+
+    it('shows the section with the subject\'s display name from the registry', async () => {
+      mocks.readProjectRequest.mockResolvedValue({outcome: 'found', request: revision});
+      expect(await requestOf()).toEqual({state: 'found', request: revision, subjectName: 'The outer altar and ramp (Middot 3)'});
+    });
+
+    it('has no name for a subject no registered package has any more, and shows its ID instead', async () => {
+      mocks.readProjectRequest.mockResolvedValue({outcome: 'found', request: {...revision, subjectId: 'gone-subject'}});
+      expect(await requestOf()).toMatchObject({state: 'found', subjectName: null});
+      mocks.readProjectRequest.mockResolvedValue({outcome: 'found', request: {...revision, subjectId: null}});
+      expect(await requestOf()).toMatchObject({state: 'found', subjectName: null});
+    });
+
+    it('has no section for a Project without a request', async () => {
+      mocks.readProjectRequest.mockResolvedValue({outcome: 'none'});
+      expect(await requestOf()).toEqual({state: 'none'});
+    });
+
+    it('sends a request the database refuses Home, as it does when the Project read is refused', async () => {
+      mocks.readProjectRequest.mockResolvedValue({outcome: 'denied'});
+      expect(await redirectedTo(open())).toBe('/');
+    });
+
+    it('is the one unavailable page when the Project became unavailable between the two reads', async () => {
+      mocks.readProjectRequest.mockResolvedValue({outcome: 'unavailable'});
+      expect(await isNotFound(open())).toBe(true);
+    });
+
+    it('opens the Project with a section that says it could not be loaded when only the request read failed, and never as unavailable', async () => {
+      mocks.readProjectRequest.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
+      const element = (await open()) as ReactElement<{project: {id: string}; request: unknown}>;
+      expect(element.props.project).toMatchObject({id: first.id});
+      expect(element.props.request).toEqual({state: 'unreadable'});
+      // An answer that is not an answer is a failed read too (the typed call refuses it by throwing).
+      mocks.readProjectRequest.mockRejectedValue(new AccountsUnavailableError('The accounts database answered with an unexpected shape.', {retryable: false, outcomeUnknown: true}));
+      expect(await requestOf()).toEqual({state: 'unreadable'});
+    });
+
+    it('prints a name and a message only when the request read fails: never an ID, a title or the request', async () => {
+      mocks.readProjectRequest.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
+      await open();
+      const lines = vi.mocked(console.error).mock.calls.flat().map(String);
+      expect(lines.length).toBeGreaterThan(0);
+      for (const line of lines) {
+        expect(line).not.toContain(first.id);
+        expect(line).not.toContain(ACCOUNT);
+      }
+    });
+  });
+
   it('titles the overview with the Project\'s own name, and Sources with the word for Sources', async () => {
     expect((await projectMetadata({params: Promise.resolve({projectId: hebrew.id})})).title).toBe(hebrew.title);
     expect((await sourcesMetadata({params: Promise.resolve({projectId: hebrew.id})})).title).toBe(t('en', 'meta.sources'));
@@ -330,8 +408,8 @@ describe('the shell around them', () => {
     expect(sources).toMatch(new RegExp(`<a class="back-link" aria-label="Back" href="/projects/${first.id}">`));
   });
 
-  it('has a word and a next-action sentence for each of the six stages in both languages, each different from the other five', () => {
-    expect(projectStages).toHaveLength(6);
+  it('has a word and a next-action sentence for each of the seven stages in both languages, each different from the other six', () => {
+    expect(projectStages).toHaveLength(7);
     for (const locale of locales) {
       const words = projectStages.map((stage) => translate(locale, stageDefinition(stage).label));
       const sentences = projectStages.map((stage) => translate(locale, stageDefinition(stage).nextAction));
@@ -339,8 +417,8 @@ describe('the shell around them', () => {
         expect(catalogs[locale][stageDefinition(stage).label], `${locale}:${stage}`).toBeTruthy();
         expect(catalogs[locale][stageDefinition(stage).nextAction], `${locale}:${stage}`).toBeTruthy();
       }
-      expect(new Set(words).size, locale).toBe(6);
-      expect(new Set(sentences).size, locale).toBe(6);
+      expect(new Set(words).size, locale).toBe(7);
+      expect(new Set(sentences).size, locale).toBe(7);
     }
   });
 });

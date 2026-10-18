@@ -2,7 +2,8 @@
 title: 'Story 2.1: Confirm natural-language intent and personalization'
 type: 'feature'
 created: '2026-10-18'
-status: 'in-progress'
+status: 'done'
+baseline_commit: '6a361988d124c5a228dfce2a799d0359a69d345b'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
@@ -67,15 +68,15 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `packages/contracts/domain-manifest.ts`, `packages/domains/middot/manifest.ts`, `lib/domain-registry.ts` -- the contract and its validation, the Middot manifest, the registry port and the default registry -- AC-1, AC-2
-- [ ] `lib/request-intake.ts` -- normalization, whole-word matching with Hebrew prefixes, `understand`, `classifyPersonalization`, field limits and problems -- AC-1, AC-4
-- [ ] `supabase/migrations/20261018120000_request_revisions.sql` -- table, checks, guards, widened stage check, the two functions, closure, grants, preflight -- AC-2, AC-3, AC-4
-- [ ] `lib/projects.ts`, `lib/project-stage.ts`, `lib/project-fixtures.ts`, `lib/i18n/en.ts`, `lib/i18n/he.ts` -- typed calls, the stage `request_confirmed`, all new copy in both languages -- AC-2, AC-3
-- [ ] `app/projects/new/page.tsx`, `app/projects/new/actions.ts`, `components/projects/request-intake.tsx` (and what it needs), `components/shell/create-dialog.tsx`, `app/globals.css` -- C-01, C-02 and C-06 -- AC-1, AC-2, AC-3
-- [ ] `app/projects/[projectId]/page.tsx`, `lib/project-pages.ts`, `components/projects/project-overview.tsx` -- the Request section -- AC-2, AC-3
-- [ ] `docs/domain-packages.md`, `docs/authority-contract.md`, `docs/staging.md`, `README.md` -- the contract, the create command and the successor-writer rule, the migration row -- housekeeping
-- [ ] `tests/` -- every matrix row: unit (manifest validation, registry, normalization, matching incl. Hebrew and boundaries, `understand`, personalization, stage), integration (create, replay, reused, rename collision, authority, isolation, immutability, checks, closure, preflight, typed calls), component (C-06 variants including `ambiguous` with the fixture registry), browser on desktop and phone in both languages (text, clear, no match, edit, confirm, unsupported wish, axe, overflow, 200% text, keyboard); update the pins and cleanup helpers above -- all ACs
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- the alias approval (G-1), no per-Account Project limit, the 24-character limit moving to Story 4.2, the English display name in the Hebrew UI, native Hebrew review, Project title invariants still open, request history and successors for 2.2/2.3/2.12/2.13, the picture offer's destination -- housekeeping
+- [x] `packages/contracts/domain-manifest.ts`, `packages/domains/middot/manifest.ts`, `lib/domain-registry.ts` -- the contract and its validation, the Middot manifest, the registry port and the default registry -- AC-1, AC-2
+- [x] `lib/request-intake.ts` -- normalization, whole-word matching with Hebrew prefixes, `understand`, `classifyPersonalization`, field limits and problems -- AC-1, AC-4
+- [x] `supabase/migrations/20261018120000_request_revisions.sql` -- table, checks, guards, widened stage check, the two functions, closure, grants, preflight -- AC-2, AC-3, AC-4
+- [x] `lib/projects.ts`, `lib/project-stage.ts`, `lib/project-fixtures.ts`, `lib/i18n/en.ts`, `lib/i18n/he.ts` -- typed calls, the stage `request_confirmed`, all new copy in both languages -- AC-2, AC-3
+- [x] `app/projects/new/page.tsx`, `app/projects/new/actions.ts`, `components/projects/request-intake.tsx` (and what it needs), `components/shell/create-dialog.tsx`, `app/globals.css` -- C-01, C-02 and C-06 -- AC-1, AC-2, AC-3
+- [x] `app/projects/[projectId]/page.tsx`, `lib/project-pages.ts`, `components/projects/project-overview.tsx` -- the Request section -- AC-2, AC-3
+- [x] `docs/domain-packages.md`, `docs/authority-contract.md`, `docs/staging.md`, `README.md` -- the contract, the create command and the successor-writer rule, the migration row -- housekeeping
+- [x] `tests/` -- every matrix row: unit (manifest validation, registry, normalization, matching incl. Hebrew and boundaries, `understand`, personalization, stage), integration (create, replay, reused, rename collision, authority, isolation, immutability, checks, closure, preflight, typed calls), component (C-06 variants including `ambiguous` with the fixture registry), browser on desktop and phone in both languages (text, clear, no match, edit, confirm, unsupported wish, axe, overflow, 200% text, keyboard); update the pins and cleanup helpers above -- all ACs
+- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- the alias approval (G-1), no per-Account Project limit, the 24-character limit moving to Story 4.2, the English display name in the Hebrew UI, native Hebrew review, Project title invariants still open, request history and successors for 2.2/2.3/2.12/2.13, the picture offer's destination -- housekeeping
 
 **Acceptance Criteria:**
 - Given an ambiguous or invalid description, when the user submits it, then clarification (a choice among several registered subjects) or actionable field errors (no registered subject, with the supported subjects and picture mode offered) appear before any research or paid step, and the same actions work on phone and desktop.
@@ -107,3 +108,94 @@ The Hebrew prefix rule departs from a plain "whole word" because a Hebrew articl
 
 **Manual checks (if no CLI):**
 - With the stack up, sign in as a member, open Create, choose Enter text, describe "the altar and ramp" with `add "David" raised`, confirm, and open the new Project: the Request section shows the subject, scope, outcome and the applied wish, and the stage reads "Request confirmed". Repeat in Hebrew with `המזבח`. Submit the same confirmation twice from two tabs: one Project.
+
+## Suggested Review Order
+
+**The one command that creates a Project (start here)**
+
+- Authority first, then idempotency by command and digest, then Project and revision 1 in one transaction.
+  [`request_revisions.sql:203`](../../supabase/migrations/20261018120000_request_revisions.sql#L203)
+
+- An immutable revision that doubles as the command receipt; checks tie personalization to mode.
+  [`request_revisions.sql:82`](../../supabase/migrations/20261018120000_request_revisions.sql#L82)
+  [`request_revisions.sql:144`](../../supabase/migrations/20261018120000_request_revisions.sql#L144)
+
+- The read answers one `unavailable` for unknown, foreign, deleted and tombstoned Projects.
+  [`request_revisions.sql:355`](../../supabase/migrations/20261018120000_request_revisions.sql#L355)
+
+- A new stage lets a confirmed Project tell the truth: nothing has started.
+  [`request_revisions.sql:75`](../../supabase/migrations/20261018120000_request_revisions.sql#L75)
+  [`project-stage.ts:50`](../../lib/project-stage.ts#L50)
+
+- Invisible-only text and bidi controls refused, in SQL and in the application alike.
+  [`request_revisions.sql:55`](../../supabase/migrations/20261018120000_request_revisions.sql#L55)
+  [`request-intake.ts:136`](../../lib/request-intake.ts#L136)
+
+**Understanding the request: free, deterministic, no model**
+
+- Whole-word matching on normalized text, Hebrew prefix letters, aliases only.
+  [`request-intake.ts:56`](../../lib/request-intake.ts#L56)
+  [`request-intake.ts:115`](../../lib/request-intake.ts#L115)
+
+- `understand` returns exactly one of invalid, no match, ambiguous or clear.
+  [`request-intake.ts:195`](../../lib/request-intake.ts#L195)
+
+- Free-form wording becomes the one supported kind, or is declined with a reason and recorded not applied.
+  [`request-intake.ts:260`](../../lib/request-intake.ts#L260)
+
+- The manifest contract and the registry port that later stories add fields to.
+  [`domain-manifest.ts:86`](../../packages/contracts/domain-manifest.ts#L86)
+  [`domain-registry.ts:31`](../../lib/domain-registry.ts#L31)
+
+- The one registered subject; its aliases wait for Josh's approval with the G-1 corpus.
+  [`manifest.ts:1`](../../packages/domains/middot/manifest.ts#L1)
+  [`domain-packages.md:1`](../../docs/domain-packages.md#L1)
+
+**Server actions and the typed calls**
+
+- `confirmRequest` trusts nothing the client says it understood; it recomputes, then creates.
+  [`actions.ts:68`](../../app/projects/new/actions.ts#L68)
+  [`actions.ts:38`](../../app/projects/new/actions.ts#L38)
+
+- The typed calls, with every outcome checked and unknown ones refused.
+  [`projects.ts:172`](../../lib/projects.ts#L172)
+  [`projects.ts:263`](../../lib/projects.ts#L263)
+
+- The command ID is chosen at Confirm and shared across tabs for 15 minutes.
+  [`request-view.ts:182`](../../lib/request-view.ts#L182)
+
+**Screens**
+
+- C-02 and C-06 in one page: write, understand, edit, confirm; ambiguous and no-match states.
+  [`request-intake.tsx:70`](../../components/projects/request-intake.tsx#L70)
+  [`page.tsx:13`](../../app/projects/new/page.tsx#L13)
+
+- C-01 now starts the text flow; Upload picture keeps its "later release" message.
+  [`create-dialog.tsx:54`](../../components/shell/create-dialog.tsx#L54)
+
+- The Project page shows the confirmed request between its facts and its next action.
+  [`request-section.tsx:29`](../../components/projects/request-section.tsx#L29)
+  [`project-pages.ts:64`](../../lib/project-pages.ts#L64)
+
+**Docs and rollout**
+
+- The create command and the rule every later revision writer must follow.
+  [`authority-contract.md:106`](../../docs/authority-contract.md#L106)
+
+- The migration row, and why not to roll the build back after a confirmed request.
+  [`staging.md:76`](../../docs/staging.md#L76)
+
+**Tests (peripheral)**
+
+- The command against the real database: replay, reused, authority, isolation, immutability.
+  [`request-revisions.test.ts:468`](../../tests/integration/request-revisions.test.ts#L468)
+
+- Two connections at once, and the typed calls over REST.
+  [`request-revisions.test.ts:1129`](../../tests/integration/request-revisions.test.ts#L1129)
+  [`request-revisions.test.ts:1193`](../../tests/integration/request-revisions.test.ts#L1193)
+
+- Matching, Hebrew, boundaries and personalization.
+  [`request-intake.test.ts:1`](../../tests/unit/request-intake.test.ts#L1)
+
+- The flow in a real browser on desktop and phone, both languages.
+  [`request.spec.ts:102`](../../tests/e2e/request.spec.ts#L102)

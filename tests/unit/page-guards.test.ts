@@ -44,7 +44,7 @@ const callsRequireAdministrator = (text: string) => /^[^/\n]*\bawait\s+requireAd
 
 describe('page guards', () => {
   it('finds the pages', () => {
-    expect(files).toEqual(expect.arrayContaining(['app/page.tsx', 'app/projects/page.tsx', 'app/projects/[projectId]/page.tsx', 'app/projects/[projectId]/sources/page.tsx', 'app/progress/page.tsx', 'app/settings/page.tsx', registration, ...Object.keys(exempt)]));
+    expect(files).toEqual(expect.arrayContaining(['app/page.tsx', 'app/projects/page.tsx', 'app/projects/new/page.tsx', 'app/projects/[projectId]/page.tsx', 'app/projects/[projectId]/sources/page.tsx', 'app/progress/page.tsx', 'app/settings/page.tsx', registration, ...Object.keys(exempt)]));
   });
 
   it('only exempts pages that exist', () => {

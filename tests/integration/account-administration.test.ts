@@ -942,6 +942,7 @@ describe('the preflight probes the Story 1.5 functions and the privilege to end 
         'identity.recovery_tokens',
         'projects.projects',
         'projects.project_commands',
+        'projects.request_revisions',
         'lifecycle.tombstones',
         'lifecycle.ledger_outbox',
         'lifecycle.ledger_relay',

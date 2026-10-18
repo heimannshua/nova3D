@@ -15,7 +15,7 @@ import {mainContentId} from '../ui/skip-link';
 import {Notice} from '../ui/states';
 import {LtrToken} from '../ui/text-span';
 import {Brand} from './brand';
-import {CreateDialog} from './create-dialog';
+import {CreateDialog, type Intake} from './create-dialog';
 import {isChromeless, isCurrent, parentRoute} from './routes';
 import {ShellProvider} from './shell-context';
 
@@ -149,17 +149,18 @@ export function Shell({children, accountAddress = null, pathname: pathnameOverri
   const {t} = useI18n();
   const routePathname = usePathname();
   const pathname = pathnameOverride ?? routePathname ?? '/';
-  const [createOpen, setCreateOpen] = useState(initialCreateOpen);
+  // The Create dialog: closed (null), or open with a choice made already (Upload picture, when asked for) or none.
+  const [create, setCreate] = useState<{choice: Intake | null} | null>(initialCreateOpen ? {choice: null} : null);
   const [noticeOpen, setNoticeOpen] = useState(initialNoticeOpen);
   const [accountOpen, setAccountOpen] = useState(initialAccountOpen);
   const [lastPathname, setLastPathname] = useState(pathname);
-  const actions = useMemo(() => ({openCreate: () => setCreateOpen(true)}), []);
+  const actions = useMemo(() => ({openCreate: () => setCreate({choice: null}), openCreatePicture: () => setCreate({choice: 'image'})}), []);
 
   // Menus and the Create dialog belong to the page they were opened on, so any change of path closes them:
   // a link, Back or Forward, or the address bar.
   if (lastPathname !== pathname) {
     setLastPathname(pathname);
-    setCreateOpen(false);
+    setCreate(null);
     setNoticeOpen(false);
     setAccountOpen(false);
   }
@@ -223,7 +224,7 @@ export function Shell({children, accountAddress = null, pathname: pathnameOverri
             {children}
           </main>
         </div>
-        {createOpen ? <CreateDialog onClose={() => setCreateOpen(false)}/> : null}
+        {create ? <CreateDialog initialChoice={create.choice} onClose={() => setCreate(null)}/> : null}
       </div>
     </ShellProvider>
   );

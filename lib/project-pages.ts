@@ -13,7 +13,8 @@
 import {cache} from 'react';
 import {gatingTimeoutMs, type ActiveAccess} from '@/lib/access';
 import {operationOf} from '@/lib/authority';
-import {listProjects, readProject, type ProjectRow} from '@/lib/projects';
+import {defaultDomainRegistry} from '@/lib/domain-registry';
+import {listProjects, readProject, readProjectRequest, type ProjectRequestRow, type ProjectRow} from '@/lib/projects';
 
 const describe = (error: unknown) => (error instanceof Error ? `${error.name}: ${error.message}` : 'unknown failure');
 
@@ -44,6 +45,30 @@ export const loadProject = cache(async (accountId: string, epoch: number, projec
     return read.outcome === 'found' ? {state: 'found', project: read.project} : {state: read.outcome};
   } catch (error) {
     console.error('A Project could not be read.', describe(error));
+    return {state: 'unreadable'};
+  }
+});
+
+export type ProjectRequestLoading =
+  | {state: 'found'; request: ProjectRequestRow; subjectName: string | null}
+  | {state: 'none'}
+  | {state: 'unavailable'}
+  | {state: 'unreadable'}
+  | {state: 'denied'};
+
+/**
+ * The request a Project was confirmed from (Story 2.1): its latest revision, with the display name of its subject from the registry
+ * (null if no registered subject has that ID any more). A request that cannot be read is `unreadable`, and says so on the page; it
+ * never makes the Project unavailable. One read per render for the same Account, epoch and ID, as `loadProject` is.
+ */
+export const loadProjectRequest = cache(async (accountId: string, epoch: number, projectId: string): Promise<ProjectRequestLoading> => {
+  try {
+    const read = await readProjectRequest({accountId, epoch}, projectId, {timeoutMs: gatingTimeoutMs});
+    if (read.outcome !== 'found') return {state: read.outcome};
+    const subject = read.request.subjectId ? defaultDomainRegistry.subject(read.request.subjectId) : null;
+    return {state: 'found', request: read.request, subjectName: subject?.displayName ?? null};
+  } catch (error) {
+    console.error('A Project request could not be read.', describe(error));
     return {state: 'unreadable'};
   }
 });

@@ -2,10 +2,11 @@ import type {Metadata} from 'next';
 import {notFound, redirect} from 'next/navigation';
 import {Unreadable} from '@/components/projects/unreadable';
 import {ProjectOverview} from '@/components/projects/project-overview';
+import type {RequestSectionData} from '@/components/projects/request-section';
 import {homePath} from '@/lib/access';
 import {getAccess, requireActiveAccount} from '@/lib/auth';
 import {getI18n} from '@/lib/i18n/server';
-import {loadProject} from '@/lib/project-pages';
+import {loadProject, loadProjectRequest} from '@/lib/project-pages';
 
 // Next evaluates the page's metadata before the page runs its own check, and a page's title wins over the 404 page's. So the title
 // asks the same question the page does, of the same read (`loadProject` is memoized for the render: this and the page share one
@@ -34,5 +35,13 @@ export default async function ProjectPage({params}: {params: Promise<{projectId:
       </div>
     );
   }
-  return <ProjectOverview project={loaded.project}/>;
+  // The request the Project was confirmed from, read the way the Project was: no authority sends the person Home, and a Project that has
+  // since become unavailable is the one unavailable page. Only a read that failed (or answered nonsense) leaves the Project open with its
+  // Request section saying it could not be loaded; a Project without a request has no section.
+  const request = await loadProjectRequest(access.account.accountId, access.account.epoch, projectId);
+  if (request.state === 'denied') return redirect(homePath);
+  if (request.state === 'unavailable') return notFound();
+  const data: RequestSectionData =
+    request.state === 'found' ? {state: 'found', request: request.request, subjectName: request.subjectName} : request.state === 'none' ? {state: 'none'} : {state: 'unreadable'};
+  return <ProjectOverview project={loaded.project} request={data}/>;
 }

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Story 1.7: a LOCAL-ONLY fixture seed for Projects. Nothing in the application creates a Project until Story 2.1, so this is how
-// a developer sees My Projects, the Project overview and every stage on a real page:
+// Story 1.7: a LOCAL-ONLY fixture seed for Projects. The application creates a Project only by confirming a request (Story 2.1), which
+// reaches one stage; this is how a developer sees My Projects, the Project overview and every stage on a real page:
 //
 //   node scripts/seed-projects.mjs [--email <address>]
-//       Gives the Account of <address> (default: ADMINISTRATOR_EMAIL) one Project for each of the six stages: the fixtures of
+//       Gives the Account of <address> (default: ADMINISTRATOR_EMAIL) one Project for each of the seven stages: the fixtures of
 //       lib/project-fixtures.ts. A fixture whose title the Account already has (live) is left alone, so running it twice
 //       changes nothing. The Account must exist and be active: sign in once and register first.
 //   node scripts/seed-projects.mjs --remove [--email <address>]
@@ -92,6 +92,7 @@ try {
     for (const fixture of projectFixtures) {
       const ids = (await client.query('select id from projects.projects where account_id = $1 and title = $2', [accountId, fixture.title])).rows.map((row) => row.id);
       if (!ids.length) continue;
+      await client.query('delete from projects.request_revisions where account_id = $1 and project_id = any($2)', [accountId, ids]);
       await client.query('delete from projects.project_commands where account_id = $1 and project_id = any($2)', [accountId, ids]);
       await client.query('delete from projects.projects where account_id = $1 and id = any($2)', [accountId, ids]);
       removed += ids.length;

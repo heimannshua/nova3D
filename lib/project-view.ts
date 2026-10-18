@@ -6,6 +6,7 @@
 import {attemptAdministeredAction, formatCreatedAt, isoOf} from '@/lib/administration';
 import type {MessageKey, Translator} from '@/lib/i18n';
 import type {ProjectStage} from '@/lib/project-stage';
+import type {DeclineReason, PersonalizationStyle, RequestMode} from '@/lib/request-intake';
 import {reloadHere} from '@/lib/session-actions';
 
 /**
@@ -24,9 +25,35 @@ export type ProjectRow = {
   updatedAt: string;
 };
 
+/**
+ * The request a Project was confirmed from (Story 2.1), as its page shows it: the latest request revision. Everything a person may
+ * read about it, and no approval, permission or payment (a revision has none). The wish is `applied` (text and style set), or declined
+ * (a wording and the `reason` it was not applied), or there is none (no wording).
+ */
+export type ProjectRequestRow = {
+  id: string;
+  projectId: string;
+  /** 1 for the first revision. */
+  seq: number;
+  mode: RequestMode;
+  /** The subject's ID in its domain package; the page shows the subject's display name for it. */
+  subjectId: string | null;
+  scope: string;
+  outcome: string;
+  description: string;
+  personalization: {
+    wording: string | null;
+    text: string | null;
+    style: PersonalizationStyle | null;
+    applied: boolean;
+    reason: DeclineReason | null;
+  };
+  confirmedAt: string;
+};
+
 // Where things are ---------------------------------------------------------------------------------------------------
 
-export {projectsPath, projectPath, sourcesPath} from '@/lib/project-paths';
+export {projectsPath, projectPath, sourcesPath, newProjectPath} from '@/lib/project-paths';
 
 const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

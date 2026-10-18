@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-09-2026 11:36
-last_updated: 10-18-2026 19:04
+last_updated: 10-19-2026 21:41
 project: nova3D
 project_key: NOKEY
 tracking_system: file-system
@@ -52,7 +52,7 @@ development_status:
   epic-1-retrospective: optional
 
   epic-2: in-progress
-  2-1-confirm-natural-language-intent-and-personalization: in-progress
+  2-1-confirm-natural-language-intent-and-personalization: review
   2-2-stage-ordered-multi-view-images-privately: backlog
   2-3-choose-picture-mode-and-acknowledge-uncertainty: backlog
   2-12-retain-confirmed-pictures-as-immutable-project-artifacts: backlog

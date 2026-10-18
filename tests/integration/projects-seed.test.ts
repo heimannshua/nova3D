@@ -1,13 +1,14 @@
 import {spawn} from 'node:child_process';
+import {randomUUID} from 'node:crypto';
 import {resolve} from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {projectFixtures} from '@/lib/project-fixtures';
 import {projectStages} from '@/lib/project-stage';
 import {createHarness, stack, tag} from '../support/accounts-db';
 
-// The local fixture seed (scripts/seed-projects.mjs) run against the Supabase CLI stack: one Project for each of the six stages, nothing
+// The local fixture seed (scripts/seed-projects.mjs) run against the Supabase CLI stack: one Project for each of the stages (six in Story 1.7, seven since Story 2.1 added request_confirmed), nothing
 // twice, nothing for an Account that is not active, and removal that takes only the fixtures. Its refusals are in tests/unit/seed-projects.test.ts.
-const {db, committed, addUser} = createHarness();
+const {db, committed, addUser, rows} = createHarness();
 const script = resolve(import.meta.dirname, '../../scripts/seed-projects.mjs');
 
 const run = (args: string[], overrides: Record<string, string> = {}) =>
@@ -33,7 +34,7 @@ const stored = async (accountId: string) =>
   (await db.query('select title, stage, current_version, revision::int as revision, updated_at from projects.projects where account_id = $1 order by updated_at desc', [accountId])).rows;
 
 describe('the local fixture seed', () => {
-  it('gives an Account one Project for each of the six stages, newest first in the order of the fixtures, and prints no ID', async () => {
+  it('gives an Account one Project for each of the stages (seven), newest first in the order of the fixtures, and prints no ID', async () => {
     const a = await account();
     const result = await run(['--email', a.email]);
     expect(result.code, result.stderr).toBe(0);
@@ -103,5 +104,45 @@ describe('the local fixture seed', () => {
     expect(removed.code, removed.stderr).toBe(0);
     expect((await stored(a.accountId)).map((row) => row.title).sort()).toEqual(['My own project', 'Renamed fixture']);
     expect((await db.query('select count(*)::int as n from projects.project_commands where account_id = $1', [a.accountId])).rows[0].n).toBe(1);
+  });
+
+  it('removes a fixture-titled Project that a confirmed request made, with its request revision and its rename receipt, and keeps another confirmed Project and its revision (E6)', async () => {
+    const a = await account();
+    const fixtureTitle = projectFixtures[0].title;
+    const ask = (description: string, command: string) => [
+      a.accountId, 1, command, 'The outer altar and ramp (Middot 3)', 'evidence_text', 'middot-altar-ramp', 'Scope', 'Outcome', description, null, null, null, false, null,
+    ];
+    // Two confirmed requests as the service role would make them (one transaction, committed), and one of them renamed to a fixture's title.
+    await db.query('begin');
+    let doomed: string;
+    let kept: string;
+    try {
+      const create = 'select * from api.create_project_request($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)';
+      doomed = (await rows(db, 'service_role', create, ask('Build the altar', randomUUID())))[0].project_id as string;
+      kept = (await rows(db, 'service_role', create, ask('Build the ramp', randomUUID())))[0].project_id as string;
+      const renamed = await rows(db, 'service_role', 'select * from api.rename_project($1, 1, $2, $3, 1, $4)', [a.accountId, randomUUID(), doomed, fixtureTitle]);
+      expect(renamed[0].outcome).toBe('renamed');
+      await db.query('commit');
+    } catch (error) {
+      await db.query('rollback');
+      throw error;
+    }
+    const revisionsOf = async (projectId: string) => (await db.query('select count(*)::int as n from projects.request_revisions where project_id = $1', [projectId])).rows[0].n as number;
+    const projectsOf = async (projectId: string) => (await db.query('select count(*)::int as n from projects.projects where id = $1', [projectId])).rows[0].n as number;
+    const receiptsOf = async (projectId: string) => (await db.query('select count(*)::int as n from projects.project_commands where project_id = $1', [projectId])).rows[0].n as number;
+    expect([await projectsOf(doomed), await revisionsOf(doomed), await receiptsOf(doomed)]).toEqual([1, 1, 1]);
+
+    // The Project's revision restricts its deletion (23503 for anyone who tries it directly), so --remove must take the revision first.
+    const direct = await db.query('delete from projects.projects where id = $1', [doomed]).then(() => 'deleted', (error: {code?: string}) => error.code);
+    expect(direct).toBe('23503');
+
+    const removed = await run(['--remove', '--email', a.email]);
+    expect(removed.code, removed.stderr).toBe(0);
+    expect(removed.stdout).toContain(`Removed 1 fixture Project from ${a.email}.`);
+    // Gone: the Project, the revision the request made, and the receipt the rename left.
+    expect([await projectsOf(doomed), await revisionsOf(doomed), await receiptsOf(doomed)]).toEqual([0, 0, 0]);
+    // Not a fixture by title: it and its revision stay.
+    expect([await projectsOf(kept), await revisionsOf(kept)]).toEqual([1, 1]);
+    expect((await stored(a.accountId)).map((row) => row.title)).toEqual(['The outer altar and ramp (Middot 3)']);
   });
 });

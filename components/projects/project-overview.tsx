@@ -12,6 +12,7 @@ import {Notice} from '../ui/states';
 import {StatusBadge} from '../ui/status-badge';
 import {LtrToken} from '../ui/text-span';
 import {RenameDialog} from './rename-dialog';
+import {RequestSection, type RequestSectionData} from './request-section';
 
 /**
  * A Project's overview (H-03): its title, its stage in words and in a shape of its own, its Version, when it was last updated, the
@@ -21,7 +22,7 @@ import {RenameDialog} from './rename-dialog';
  * Everything shown is what the Account's own Project row holds. The title is the person's text, in any language, isolated from the
  * text around it.
  */
-export function ProjectOverview({project}: {project: ProjectRow}) {
+export function ProjectOverview({project, request = {state: 'none'}}: {project: ProjectRow; request?: RequestSectionData}) {
   const {t, locale} = useI18n();
   const announce = useAnnounce();
   const nextId = useId();
@@ -53,6 +54,8 @@ export function ProjectOverview({project}: {project: ProjectRow}) {
           <dd>{updated ? <LtrToken><time dateTime={updatedIso(project.updatedAt)}>{updated}</time></LtrToken> : '-'}</dd>
         </div>
       </dl>
+
+      <RequestSection data={request}/>
 
       <section className="section next-action" aria-labelledby={nextId}>
         <h2 id={nextId}>{t('project.nextTitle')}</h2>

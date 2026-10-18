@@ -1,4 +1,4 @@
-// Story 1.7. Sample Projects, one for each of the six stages, for the design kit (/kit), the unit tests and the local seed
+// Story 1.7. Sample Projects, one for each of the stages (six in Story 1.7, seven since Story 2.1 added `request_confirmed`), for the design kit (/kit), the unit tests and the local seed
 // (scripts/seed-projects.mjs). They are NOT real data for any Account: no page reads this file for a signed-in person, whose
 // Projects come from the database and from nowhere else. Until the stories that own the stages exist (research is Epic 3,
 // generation Epic 4, approval and export later ones), this is how every stage is seen at all.
@@ -23,6 +23,8 @@ export const projectFixtures: readonly ProjectFixture[] = [
   {key: 'outer-altar', title: 'המזבח החיצון והכבש', stage: 'awaiting_model_approval', currentVersion: 2},
   {key: 'stair-rail', title: 'Stair rail bracket', stage: 'validation_failed', currentVersion: 3},
   {key: 'reading-lamp', title: 'Reading lamp base', stage: 'export_ready', currentVersion: 4},
+  // Story 2.1's stage comes first in a Project's life but last here, so the sample cards and the seeded lists Story 1.7 made keep their order.
+  {key: 'workshop-door', title: 'Workshop door handle', stage: 'request_confirmed', currentVersion: 0},
 ];
 
 /** The moment the fixtures' update times count back from: a fixed one, so a page that renders them says the same on the server and in the browser. */

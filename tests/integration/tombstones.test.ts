@@ -1730,7 +1730,7 @@ describe('the preflight carries every earlier probe and the new ones', () => {
   it('reads the new tables and the Account\'s handle, and still reads the old ones', async () => {
     const definition = (await db.query(`select pg_get_functiondef('api.preflight()'::regprocedure) as text`)).rows[0].text as string;
     for (const needle of [
-      'identity.session_grants', 'identity.accounts', 'a.status_handle', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands',
+      'identity.session_grants', 'identity.accounts', 'a.status_handle', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
       'delete on auth.sessions', 'api.list_accounts()', 'api.issue_recovery(text,text)', 'api.rename_project(uuid,bigint,uuid,uuid,bigint,text)',
       'api.record_tombstone(text,uuid)', 'api.guard_target(uuid,bigint,text,uuid)', 'api.claim_ledger_events(uuid,integer,integer)', 'api.finish_ledger_events(uuid,uuid[],boolean)', 'api.ledger_pending()', 'api.lookup_status(text,text)', 'lifecycle.assert_not_tombstoned(text,uuid)',

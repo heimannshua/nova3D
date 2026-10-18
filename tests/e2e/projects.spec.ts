@@ -232,8 +232,10 @@ test.describe('My Projects (UX-DR28)', () => {
     await world.addFixtureProjects(user);
     await open(page, '/projects');
     const labels = await cards(page).locator('.status-badge').allInnerTexts();
-    expect(labels.map((text) => text.trim())).toEqual(projectStages.map((stage) => t('en', stageDefinition(stage).label)));
-    expect(labels.map((text) => text.trim())).toEqual(expect.arrayContaining(['Awaiting Model Approval', 'Export ready']));
+    // The cards are in the fixtures' order (newest first); together they hold every stage once (Story 2.1's `request_confirmed` is the last fixture).
+    expect(labels.map((text) => text.trim())).toEqual(projectFixtures.map((fixture) => t('en', stageDefinition(fixture.stage).label)));
+    expect(new Set(labels.map((text) => text.trim())).size).toBe(projectStages.length);
+    expect(labels.map((text) => text.trim())).toEqual(expect.arrayContaining(['Request confirmed', 'Awaiting Model Approval', 'Export ready']));
     const shapes = await cards(page).locator('.status-badge svg').evaluateAll((icons) => icons.map((icon) => icon.innerHTML));
     expect(new Set(shapes).size).toBe(projectStages.length);
   });
@@ -319,13 +321,13 @@ test.describe('My Projects (UX-DR28)', () => {
 
 // ---------------------------------------------------------------------------------------------------
 test.describe('a Project\'s overview and its Sources entry (UX-DR29, AC-2)', () => {
-  for (const [index, stage] of projectStages.entries()) {
+  // One for each fixture, which together hold every stage once (`projectFixtures` is not in the order of `projectStages`: Story 2.1's stage is last).
+  for (const [index, fixture] of projectFixtures.entries()) {
+    const stage = fixture.stage;
     test(`shows the Project at ${stage}: stage, Version, next required action, Model and Sources entries, and Rename`, async ({page, context, baseURL}) => {
       const user = await member(context, baseURL!);
       const ids = await world.addFixtureProjects(user);
-      const fixture = projectFixtures[index];
       await openOverview(page, ids[index]);
-      expect(fixture.stage).toBe(stage);
       await expect(page.getByRole('heading', {level: 1})).toHaveText(fixture.title);
       await expect(page).toHaveTitle(`${fixture.title} · nova3D`);
       // The stage in words and in a shape.
@@ -356,7 +358,7 @@ test.describe('a Project\'s overview and its Sources entry (UX-DR29, AC-2)', () 
     const user = await member(context, baseURL!, {locale: 'he', theme: 'dark'});
     const ids = await world.addFixtureProjects(user);
     for (const stage of ['awaiting_model_approval', 'export_ready'] as const) {
-      const index = projectStages.indexOf(stage);
+      const index = projectFixtures.findIndex((fixture) => fixture.stage === stage);
       await openOverview(page, ids[index]);
       await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
       await expect(page.getByRole('heading', {level: 1})).toHaveText(projectFixtures[index].title);

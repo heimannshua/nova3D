@@ -1105,7 +1105,7 @@ describe('the preflight carries every earlier probe and the new ones', () => {
     const definition = (await db.query(`select pg_get_functiondef('api.preflight()'::regprocedure) as text`)).rows[0].text as string;
     for (const needle of [
       // Every earlier probe is still there.
-      'identity.session_grants', 'identity.accounts', 'a.status_handle', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands',
+      'identity.session_grants', 'identity.accounts', 'a.status_handle', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
       'delete on auth.sessions', 'api.list_accounts()', 'api.issue_recovery(text,text)', 'api.rename_project(uuid,bigint,uuid,uuid,bigint,text)',
       'api.record_tombstone(text,uuid)', 'api.guard_target(uuid,bigint,text,uuid)', 'api.claim_ledger_events(uuid,integer,integer)', 'api.finish_ledger_events(uuid,uuid[],boolean)', 'api.ledger_pending()', 'api.lookup_status(text,text)', 'lifecycle.assert_not_tombstoned(text,uuid)',
@@ -1155,7 +1155,7 @@ describe('the preflight carries every earlier probe and the new ones', () => {
     await admin.connect().catch((error: Error) => {
       throw new Error(`The superuser connection this case needs (supabase_admin on the local stack) failed: ${error.message}`);
     });
-    const tables = ['identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts', 'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims'];
+    const tables = ['identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts', 'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims'];
     const preflightAsServiceRole = async () => {
       await admin.query('savepoint probe');
       try {
@@ -1215,7 +1215,7 @@ describe('the preflight carries every earlier probe and the new ones', () => {
     await inTx(async (client) => {
       await client.query('grant usage on schema api, identity, projects, lifecycle to anon');
       await client.query('grant create on schema api to anon');
-      for (const table of ['identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims']) {
+      for (const table of ['identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims']) {
         await client.query(`grant select on ${table} to anon`);
       }
       await client.query('alter function api.preflight() owner to anon');

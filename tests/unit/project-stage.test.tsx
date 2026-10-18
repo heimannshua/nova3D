@@ -9,10 +9,11 @@ import {isProjectStage, nextActionDestination, projectStages, stageDefinition, s
 import {AnnouncerProvider} from '@/components/ui/announcer';
 
 // Story 1.7 (AC-2): the stages. Every Project stage has a word, a shape of its own and a sentence that names the next thing to do; a
-// stage whose page does not exist yet has no destination, and its next action is text and not a link.
-describe('the six stages', () => {
-  it('are the six the database allows, in the order a Project moves through them', () => {
-    expect([...projectStages]).toEqual(['researching', 'awaiting_plan_approval', 'generating', 'awaiting_model_approval', 'validation_failed', 'export_ready']);
+// stage whose page does not exist yet has no destination, and its next action is text and not a link. Story 2.1 added the first stage,
+// `request_confirmed` (the person confirmed what they asked for, and nothing has started or been charged): seven in all.
+describe('the seven stages', () => {
+  it('are the seven the database allows, in the order a Project moves through them', () => {
+    expect([...projectStages]).toEqual(['request_confirmed', 'researching', 'awaiting_plan_approval', 'generating', 'awaiting_model_approval', 'validation_failed', 'export_ready']);
     expect(Object.keys(stageDefinitions)).toEqual([...projectStages]);
   });
 
@@ -64,8 +65,10 @@ describe('the six stages', () => {
 });
 
 describe('the fixtures', () => {
-  it('hold one Project for each of the six stages, and no more', () => {
-    expect(projectFixtures.map((fixture) => fixture.stage)).toEqual([...projectStages]);
+  it('hold one Project for each of the seven stages, and no more', () => {
+    // The new stage's fixture comes last, so the sample cards and the seeded lists of Story 1.7 keep their order.
+    expect(projectFixtures.map((fixture) => fixture.stage)).toEqual([...projectStages.slice(1), 'request_confirmed']);
+    expect([...projectFixtures.map((fixture) => fixture.stage)].sort()).toEqual([...projectStages].sort());
     expect(new Set(projectFixtures.map((fixture) => fixture.key)).size).toBe(projectFixtures.length);
     expect(new Set(projectFixtures.map((fixture) => fixture.title)).size).toBe(projectFixtures.length);
   });

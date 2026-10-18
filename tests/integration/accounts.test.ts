@@ -43,7 +43,8 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
       'session_grants',
       'step_up_nonces',
     ],
-    projects: ['project_commands', 'projects', 'workspaces'],
+    // Story 2.1 adds request_revisions: the immutable request revisions, closed like the others.
+    projects: ['project_commands', 'projects', 'request_revisions', 'workspaces'],
     // Story 1.12: the Artifacts schema (the file gateway's records). Not exposed by the Data API; only the gateway role and the owner reach it, so these
     // are checked here as closed to anon, authenticated and service_role like the others (tests/integration/file-gateway-db.test.ts holds the rest).
     artifacts: ['attachment_transforms', 'manifests', 'service_key_revocations', 'staging_leases', 'ticket_redemptions', 'transfer_handles'],
@@ -61,6 +62,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'complete_step_up',
     'confirm_registration',
     'consume_preauthorization',
+    'create_project_request',
     'disable_account',
     'enable_account',
     'finish_job_run',
@@ -84,6 +86,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'purge_dormant_identities',
     'raise_alarm',
     'raise_authorization_epoch',
+    'read_project_request',
     'record_account_refusal',
     'record_alarm_notice',
     'record_heartbeat',
@@ -121,7 +124,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
          from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname in ('identity', 'projects') and c.relkind = 'r' order by 1`,
     );
-    expect(found).toHaveLength(15);
+    expect(found).toHaveLength(16);
     for (const row of found) expect(row, row.name).toMatchObject({rls: true, policies: 0});
   });
 

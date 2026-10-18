@@ -701,6 +701,21 @@ main { flex: 1; min-inline-size: 0; }
 .entry-copy { display: grid; justify-items: start; gap: var(--space-2); min-inline-size: 0; }
 .entry-copy h2 { font-size: var(--text-lg); }
 .entry-copy p { font-size: var(--text-sm); }
+/* The text flow (Story 2.1): C-02 and C-06 in one narrow page. */
+.request-form { justify-items: stretch; }
+.request-form .invite-field { max-inline-size: none; }
+.request-review { display: grid; gap: var(--space-4); margin-block-start: var(--space-3); }
+.request-review .lede { margin-block-start: 0; }
+.request-facts { grid-template-columns: minmax(0, 1fr); margin-block-start: 0; }
+.request-facts dd { font-weight: 500; }
+.request-quote bdi { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
+.request-wish p + p { margin-block-start: var(--space-1); }
+.wish-text { font-weight: 750; }
+.request-subjects { display: grid; gap: var(--space-2); margin: 0; padding-inline-start: var(--space-5); }
+.request-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.request-note { max-inline-size: 42rem; }
+.request-section .project-facts { margin-block-start: var(--space-3); }
+.request-section .request-note { margin-block-start: var(--space-3); }
 .rename-form { margin-block-start: var(--space-3); }
 .rename-form .dialog-actions { margin-block-start: var(--space-2); }
 
@@ -763,6 +778,8 @@ main { flex: 1; min-inline-size: 0; }
 .invite-field .invite-notice { margin-block-start: 0; }
 .invite-input { inline-size: 100%; min-block-size: var(--target); padding-inline: var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-card); color: var(--text); font: inherit; font-size: var(--text-base); }
 .invite-input[aria-invalid="true"] { border-color: var(--status-danger-fg); }
+/* A text area in the same field (Story 2.1): taller than a line, grows in height only, and its words wrap. */
+textarea.invite-input { display: block; min-block-size: calc(var(--target) * 2); padding-block: var(--space-2); line-height: 1.5; resize: vertical; overflow-wrap: anywhere; }
 .invite-form .auth-status { margin-block-start: 0; }
 .invite-state { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-block-start: var(--space-4); font-size: var(--text-sm); }
 .invite-state-block { margin-block-start: var(--space-4); }

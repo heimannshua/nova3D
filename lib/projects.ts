@@ -14,9 +14,10 @@
 import {callRow, oneOf, requireUuid, unexpected, type AccountsOptions, type Row} from '@/lib/accounts';
 import type {Operation} from '@/lib/authority';
 import {isProjectStage} from '@/lib/project-stage';
-import {projectIdOf, type ProjectRow} from '@/lib/project-view';
+import {projectIdOf, type ProjectRequestRow, type ProjectRow} from '@/lib/project-view';
+import {declineReasons, requestModes, type ConfirmedRequest, type DeclineReason, type PersonalizationStyle, type RequestMode} from '@/lib/request-intake';
 
-export type {ProjectRow};
+export type {ProjectRequestRow, ProjectRow};
 
 /** The most Projects a list carries: the 200 most recently updated. `total` still counts every one. */
 export const maxListed = 200;
@@ -143,4 +144,131 @@ export async function renameProjectCommand(
   if (!projectId || !projectIdOf(projectId) || title === null || revision === null || revision < 1) throw unexpected();
   if (outcome === 'stale') return {outcome, projectId: projectId.toLowerCase(), title, revision};
   return {outcome, projectId: projectId.toLowerCase(), title, revision, replayed: row.replayed === true};
+}
+
+// Request revisions (Story 2.1) -----------------------------------------------------------------------------------------------
+
+/**
+ * What api.create_project_request answers. `created` and `replayed` carry the IDs of the Project and of its first request revision
+ * (`replayed`: the same command sent again with the same payload, the original receipt, nothing written now). `reused`: the command
+ * ID was used before for another payload, or by a rename; nothing was written. `unavailable`: the command was a replay, but the Project
+ * it created has since been deleted or tombstoned (a receipt does not outlive its Project's visibility); nothing was written and there is
+ * no Project to go to. `denied`: the Account has no authority for this request; nothing was written.
+ */
+export type CreateRequestReceipt =
+  | {outcome: 'created' | 'replayed'; projectId: string; requestId: string}
+  | {outcome: 'reused'}
+  | {outcome: 'unavailable'}
+  | {outcome: 'denied'};
+
+/**
+ * Confirms a request: ONE database transaction creates the Project (titled with the subject's display name, in the stage
+ * `request_confirmed`) and its request revision 1, holding exactly the values given. `request` is what `checkRequest`
+ * (lib/request-intake.ts) worked out from the submitted fields; the database checks every shape again. The command ID makes a retry
+ * safe: sent again with the same payload it answers the original receipt, and with another payload it is `reused`. If this throws an
+ * AccountsUnavailableError with `outcomeUnknown`, the Project may or may not have been created: the caller tells the person to check
+ * My Projects, and may send the same command again. Nothing here starts research, approves a plan or spends anything.
+ */
+export async function createProjectRequest(
+  operation: Operation,
+  input: {commandId: string; request: ConfirmedRequest},
+  options: AccountsOptions = {},
+): Promise<CreateRequestReceipt> {
+  const {request} = input;
+  const row = await callRow(
+    'create_project_request',
+    {
+      ...requireOperation(operation),
+      p_command_id: requireUuid('commandId', input.commandId),
+      p_title: request.title,
+      p_mode: request.mode,
+      p_subject_id: request.subjectId,
+      p_scope: request.scope,
+      p_outcome: request.outcome,
+      p_description: request.description,
+      p_personalization_wording: request.personalization.wording,
+      p_personalization_text: request.personalization.text,
+      p_personalization_style: request.personalization.style,
+      p_personalization_applied: request.personalization.applied,
+      p_personalization_reason: request.personalization.reason,
+    },
+    options,
+  );
+  const outcome = oneOf(row.outcome, ['created', 'replayed', 'reused', 'unavailable', 'denied'] as const);
+  if (outcome === 'reused' || outcome === 'unavailable' || outcome === 'denied') return {outcome};
+  const projectId = text(row.project_id);
+  const requestId = text(row.request_id);
+  // An answer that does not say which Project and revision it made is not an answer.
+  if (!projectId || !projectIdOf(projectId) || !requestId || !projectIdOf(requestId)) throw unexpected();
+  return {outcome, projectId: projectId.toLowerCase(), requestId: requestId.toLowerCase()};
+}
+
+/**
+ * `found`: the latest request revision of the Project. `none`: the Project has no revision (one that was made before requests were
+ * recorded, or by a seed). `unavailable`: the Project is another Account's, deleted, tombstoned, unknown or not an ID, and the four
+ * cannot be told apart. `denied`: the Account has no authority for this request.
+ */
+export type ProjectRequestRead = {outcome: 'found'; request: ProjectRequestRow} | {outcome: 'none'} | {outcome: 'unavailable'} | {outcome: 'denied'};
+
+const oneOfModes = (value: unknown): RequestMode => oneOf(value, requestModes);
+const styleOf = (value: unknown): PersonalizationStyle | null => (value === 'raised' || value === 'recessed' ? value : null);
+const reasonOf = (value: unknown): DeclineReason | null => (typeof value === 'string' && (declineReasons as readonly string[]).includes(value) ? (value as DeclineReason) : null);
+
+/** A request revision as the database returned it, checked: one that contradicts itself is no answer. */
+function requestOf(row: Row): ProjectRequestRow {
+  const requestId = text(row.request_id);
+  const projectId = text(row.project_id);
+  const seq = wholeNumber(row.seq);
+  const mode = oneOfModes(row.mode);
+  const subjectId = row.subject_id === null ? null : text(row.subject_id);
+  const scope = text(row.scope);
+  const outcome = text(row.intended_outcome);
+  const description = text(row.description);
+  const wording = row.personalization_wording === null ? null : text(row.personalization_wording);
+  const wishText = row.personalization_text === null ? null : text(row.personalization_text);
+  const style = row.personalization_style === null ? null : styleOf(row.personalization_style);
+  const reason = row.personalization_reason === null ? null : reasonOf(row.personalization_reason);
+  const confirmedAt = text(row.confirmed_at);
+  if (
+    !requestId || !projectIdOf(requestId) || !projectId || !projectIdOf(projectId) || seq === null || seq < 1 ||
+    (row.subject_id !== null && subjectId === null) || !scope || !outcome || !description || !confirmedAt ||
+    (row.personalization_wording !== null && !wording) || (row.personalization_text !== null && !wishText) ||
+    (row.personalization_style !== null && style === null) || (row.personalization_reason !== null && reason === null) ||
+    typeof row.personalization_applied !== 'boolean'
+  ) {
+    throw unexpected();
+  }
+  const applied = row.personalization_applied;
+  // The record's own rules: an applied wish has its wording, text and style, a wish that was not applied has no text or style, and a reason
+  // belongs to a wording that was not applied.
+  if (applied ? !wording || !wishText || !style || reason !== null : wishText !== null || style !== null || (reason !== null) !== (wording !== null)) throw unexpected();
+  return {
+    id: requestId.toLowerCase(),
+    projectId: projectId.toLowerCase(),
+    seq,
+    mode,
+    subjectId,
+    scope,
+    outcome,
+    description,
+    personalization: {wording, text: wishText, style, applied, reason},
+    confirmedAt,
+  };
+}
+
+/**
+ * The latest request revision of a Project of the Account. Anything that is not a Project ID is `unavailable` without asking the
+ * database. Fails closed: if the database cannot be reached this throws, and the caller shows a retryable error, never `unavailable`.
+ */
+export async function readProjectRequest(operation: Operation, projectId: unknown, options: AccountsOptions = {}): Promise<ProjectRequestRead> {
+  const id = projectIdOf(projectId);
+  const args = requireOperation(operation);
+  if (!id) return {outcome: 'unavailable'};
+  const row = await callRow('read_project_request', {...args, p_project_id: id}, options);
+  const outcome = oneOf(row.outcome, ['found', 'none', 'unavailable', 'denied'] as const);
+  if (outcome !== 'found') return {outcome};
+  const request = requestOf(row);
+  // The revision of another Project than the one asked for is not an answer.
+  if (request.projectId !== id) throw unexpected();
+  return {outcome, request};
 }

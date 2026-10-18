@@ -24,3 +24,6 @@ export function hasUndecodableProjectId(pathname: string): boolean {
     return true;
   }
 }
+
+/** Where a person describes a model in words and confirms what was understood (Story 2.1: C-02 and C-06, one narrow page). */
+export const newProjectPath = '/projects/new';

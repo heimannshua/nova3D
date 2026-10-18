@@ -95,7 +95,8 @@ describe('the record: a Project belongs to one Workspace and Account, and only t
     });
   });
 
-  it('knows exactly the six stages, and refuses any other', async () => {
+  it('knows exactly the seven stages (Story 2.1 added request_confirmed to Story 1.7\'s six), and refuses any other', async () => {
+    expect([...projectStages]).toHaveLength(7);
     await inTx(async (client) => {
       const a = await account(client);
       for (const stage of projectStages) await project(client, a, {title: `In ${stage}`, stage});

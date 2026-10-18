@@ -887,7 +887,7 @@ describe('the preflight carries every earlier probe and the new ones', () => {
     const definition = (await db.query(`select pg_get_functiondef('api.preflight()'::regprocedure) as text`)).rows[0].text as string;
     for (const needle of [
       // Every earlier probe is still there.
-      'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands',
+      'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts', 'artifacts.staging_leases', 'artifacts.manifests', 'artifacts.session_authority', 'artifacts.instance',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims', 'delete on auth.sessions', 'delete Auth identities', 'private-files', 'Story 1.12 migration',
       // And the new ones.
@@ -897,10 +897,10 @@ describe('the preflight carries every earlier probe and the new ones', () => {
     ]) expect(definition, needle).toContain(needle);
     // It reads no row of auth.users (the identities are counted by api.alarm_observations, not here).
     expect(definition).not.toMatch(/from auth\.users/);
-    // The seven new `api` functions are among those the service role must be able to execute (thirty-one in all).
+    // The seven new `api` functions are among those the service role must be able to execute (thirty-one in all when this story added them, thirty-three since Story 2.1 added two).
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(31);
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(33);
     // The bucket check stays last.
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));
   });

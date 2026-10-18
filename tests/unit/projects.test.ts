@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 import {AccountsUnavailableError} from '@/lib/accounts';
-import {listProjects, maxListed, readProject, renameProjectCommand} from '@/lib/projects';
+import {createProjectRequest, listProjects, maxListed, readProject, readProjectRequest, renameProjectCommand} from '@/lib/projects';
 import {resolveProjectTarget} from '@/lib/project-target';
 
 // The typed calls of the Projects functions (lib/projects.ts) and the target resolver (lib/project-target.ts), against a fake fetch:
@@ -190,5 +190,175 @@ describe('resolveProjectTarget', () => {
     expect(await resolveProjectTarget({accountId: 'x', epoch: 1}, PROJECT, {...fake({}).options, log})).toEqual({outcome: 'unreachable'});
     // What it logs is a name and a message, never the ID asked for.
     for (const call of log.mock.calls) expect(JSON.stringify(call)).not.toContain(PROJECT);
+  });
+});
+
+// Request revisions (Story 2.1) --------------------------------------------------------------------------------------------------------
+const REQUEST = '0a0b0c0d-1e1f-4a2a-8b3b-4c4c5d5d6e6e';
+const confirmed = {
+  title: 'The outer altar and ramp (Middot 3)',
+  mode: 'evidence_text' as const,
+  subjectId: 'middot-altar-ramp',
+  scope: 'The outer altar',
+  outcome: 'A model I can print',
+  description: 'Build the altar and add "David" engraved',
+  personalization: {wording: 'Add "David" engraved', text: 'David', style: 'recessed' as const, applied: true, reason: null},
+};
+const revisionRow = {
+  outcome: 'found',
+  request_id: REQUEST,
+  project_id: PROJECT,
+  seq: 1,
+  mode: 'evidence_text',
+  subject_id: 'middot-altar-ramp',
+  scope: 'The outer altar',
+  intended_outcome: 'A model I can print',
+  description: 'Build the altar and add "David" engraved',
+  personalization_wording: 'Add "David" engraved',
+  personalization_text: 'David',
+  personalization_style: 'recessed',
+  personalization_applied: true,
+  personalization_reason: null,
+  confirmed_at: '2026-10-18T19:12:12.844515+00:00',
+};
+
+describe('createProjectRequest', () => {
+  it('sends the Account and epoch of the operation, the command ID and exactly the confirmed values, as the service role', async () => {
+    const {sent, options} = fake({outcome: 'created', project_id: PROJECT, request_id: REQUEST});
+    expect(await createProjectRequest(operation, {commandId: COMMAND, request: confirmed}, options)).toEqual({outcome: 'created', projectId: PROJECT, requestId: REQUEST});
+    expect(sent).toHaveLength(1);
+    expect(sent[0].name).toBe('create_project_request');
+    expect(sent[0].body).toEqual({
+      p_account_id: ACCOUNT,
+      p_epoch: 3,
+      p_command_id: COMMAND,
+      p_title: 'The outer altar and ramp (Middot 3)',
+      p_mode: 'evidence_text',
+      p_subject_id: 'middot-altar-ramp',
+      p_scope: 'The outer altar',
+      p_outcome: 'A model I can print',
+      p_description: 'Build the altar and add "David" engraved',
+      p_personalization_wording: 'Add "David" engraved',
+      p_personalization_text: 'David',
+      p_personalization_style: 'recessed',
+      p_personalization_applied: true,
+      p_personalization_reason: null,
+    });
+    expect(sent[0].headers).toMatchObject({authorization: 'Bearer service-key-for-tests-only', 'content-profile': 'api'});
+  });
+
+  it('sends a declined wish as not applied with its reason, and no text or style', async () => {
+    const {sent, options} = fake({outcome: 'created', project_id: PROJECT, request_id: REQUEST});
+    await createProjectRequest(operation, {commandId: COMMAND, request: {...confirmed, mode: 'image_direct', personalization: {wording: 'Add "David"', text: null, style: null, applied: false, reason: 'image_direct_has_no_surfaces'}}}, options);
+    expect(sent[0].body).toMatchObject({p_mode: 'image_direct', p_personalization_applied: false, p_personalization_text: null, p_personalization_style: null, p_personalization_reason: 'image_direct_has_no_surfaces'});
+  });
+
+  it('answers a replay as the same IDs, and a reused command and a denial as nothing more', async () => {
+    expect(await createProjectRequest(operation, {commandId: COMMAND, request: confirmed}, fake({outcome: 'replayed', project_id: PROJECT.toUpperCase(), request_id: REQUEST}).options)).toEqual({outcome: 'replayed', projectId: PROJECT, requestId: REQUEST});
+    expect(await createProjectRequest(operation, {commandId: COMMAND, request: confirmed}, fake({outcome: 'reused', project_id: null, request_id: null}).options)).toEqual({outcome: 'reused'});
+    expect(await createProjectRequest(operation, {commandId: COMMAND, request: confirmed}, fake({outcome: 'denied', project_id: null, request_id: null}).options)).toEqual({outcome: 'denied'});
+  });
+
+  it('answers unavailable, with no ID, for a replay whose Project has since been deleted or tombstoned', async () => {
+    expect(await createProjectRequest(operation, {commandId: COMMAND, request: confirmed}, fake({outcome: 'unavailable', project_id: null, request_id: null}).options)).toEqual({outcome: 'unavailable'});
+    // Even if the database sent IDs with it, an unavailable answer carries none: there is no Project to go to.
+    expect(await createProjectRequest(operation, {commandId: COMMAND, request: confirmed}, fake({outcome: 'unavailable', project_id: PROJECT, request_id: REQUEST}).options)).toEqual({outcome: 'unavailable'});
+  });
+
+  it('refuses a command ID, an Account or an epoch that is not shaped like one, before asking', async () => {
+    const {fetch, options} = fake({});
+    await expect(createProjectRequest(operation, {commandId: 'nope', request: confirmed}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(createProjectRequest({accountId: 'nope', epoch: 1}, {commandId: COMMAND, request: confirmed}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(createProjectRequest({accountId: ACCOUNT, epoch: 0}, {commandId: COMMAND, request: confirmed}, options)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a body that is not an object', []],
+    ['an outcome it does not know', {outcome: 'maybe', project_id: PROJECT, request_id: REQUEST}],
+    ['a creation with no Project', {outcome: 'created', project_id: null, request_id: REQUEST}],
+    ['a creation with no revision', {outcome: 'created', project_id: PROJECT, request_id: null}],
+    ['a creation whose IDs are not IDs', {outcome: 'created', project_id: 'nope', request_id: REQUEST}],
+    ['a replay with a bad revision ID', {outcome: 'replayed', project_id: PROJECT, request_id: 'nope'}],
+  ])('treats %s as no answer at all, and so as possibly saved', async (_name, answer) => {
+    await expect(createProjectRequest(operation, {commandId: COMMAND, request: confirmed}, fake(answer).options)).rejects.toMatchObject({name: 'AccountsUnavailableError', outcomeUnknown: true});
+  });
+
+  it('throws, and does not say the request was not saved, when the database cannot be reached', async () => {
+    await expect(createProjectRequest(operation, {commandId: COMMAND, request: confirmed}, {env, fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true});
+    await expect(createProjectRequest(operation, {commandId: COMMAND, request: confirmed}, fake({message: 'no'}, 503).options)).rejects.toMatchObject({retryable: true, outcomeUnknown: true});
+    // A request the database understood and refused (an invalid argument) certainly saved nothing.
+    await expect(createProjectRequest(operation, {commandId: COMMAND, request: confirmed}, fake({code: '22023'}, 400).options)).rejects.toMatchObject({retryable: false, outcomeUnknown: false, code: '22023'});
+  });
+});
+
+describe('readProjectRequest', () => {
+  it('reads the latest revision for the Account and epoch of the operation', async () => {
+    const {sent, options} = fake(revisionRow);
+    expect(await readProjectRequest(operation, PROJECT, options)).toEqual({
+      outcome: 'found',
+      request: {
+        id: REQUEST,
+        projectId: PROJECT,
+        seq: 1,
+        mode: 'evidence_text',
+        subjectId: 'middot-altar-ramp',
+        scope: 'The outer altar',
+        outcome: 'A model I can print',
+        description: 'Build the altar and add "David" engraved',
+        personalization: {wording: 'Add "David" engraved', text: 'David', style: 'recessed', applied: true, reason: null},
+        confirmedAt: '2026-10-18T19:12:12.844515+00:00',
+      },
+    });
+    expect(sent[0]).toMatchObject({name: 'read_project_request', body: {p_account_id: ACCOUNT, p_epoch: 3, p_project_id: PROJECT}});
+  });
+
+  it('reads a declined wish and no wish', async () => {
+    const declined = {...revisionRow, personalization_text: null, personalization_style: null, personalization_applied: false, personalization_reason: 'no_quoted_text'};
+    expect(await readProjectRequest(operation, PROJECT, fake(declined).options)).toMatchObject({outcome: 'found', request: {personalization: {wording: 'Add "David" engraved', text: null, style: null, applied: false, reason: 'no_quoted_text'}}});
+    const plain = {...revisionRow, personalization_wording: null, personalization_text: null, personalization_style: null, personalization_applied: false, personalization_reason: null};
+    expect(await readProjectRequest(operation, PROJECT, fake(plain).options)).toMatchObject({outcome: 'found', request: {personalization: {wording: null, text: null, style: null, applied: false, reason: null}}});
+  });
+
+  it('answers none, unavailable and denied with nothing else', async () => {
+    for (const outcome of ['none', 'unavailable', 'denied'] as const) expect(await readProjectRequest(operation, PROJECT, fake({outcome}).options)).toEqual({outcome});
+  });
+
+  it('lower-cases an ID, and answers unavailable without asking for anything that is not an ID', async () => {
+    const {sent, options, fetch} = fake(revisionRow);
+    await readProjectRequest(operation, PROJECT.toUpperCase(), options);
+    expect(sent[0].body.p_project_id).toBe(PROJECT);
+    fetch.mockClear();
+    for (const padded of [`  ${PROJECT} `, `${PROJECT}\n`, 'nope', '', null, undefined, 4]) expect(await readProjectRequest(operation, padded, options), JSON.stringify(padded)).toEqual({outcome: 'unavailable'});
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not trust the revision of another Project than the one asked for', async () => {
+    await expect(readProjectRequest(operation, PROJECT, fake({...revisionRow, project_id: '11111111-2222-4333-8444-666666666666'}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it.each([
+    ['a mode it does not know', {mode: 'both'}],
+    ['no scope', {scope: null}],
+    ['no outcome', {intended_outcome: ''}],
+    ['no description', {description: null}],
+    ['no time', {confirmed_at: null}],
+    ['a sequence of 0', {seq: 0}],
+    ['an applied wish with no text', {personalization_text: null}],
+    ['an applied wish with no style', {personalization_style: null}],
+    ['an applied wish with a reason', {personalization_reason: 'no_quoted_text'}],
+    ['a style it does not know', {personalization_style: 'engraved'}],
+    ['a reason it does not know', {personalization_applied: false, personalization_text: null, personalization_style: null, personalization_reason: 'because'}],
+    ['a wish that was not applied but has text', {personalization_applied: false, personalization_reason: 'no_quoted_text'}],
+    ['a wish that was not applied and has no reason', {personalization_applied: false, personalization_text: null, personalization_style: null, personalization_reason: null}],
+    ['a reason with no wording', {personalization_wording: null, personalization_applied: false, personalization_text: null, personalization_style: null, personalization_reason: 'no_quoted_text'}],
+    ['an applied flag that is not true or false', {personalization_applied: 'yes'}],
+    ['a bad revision ID', {request_id: 'nope'}],
+  ])('treats %s as no answer at all', async (_name, change) => {
+    await expect(readProjectRequest(operation, PROJECT, fake({...revisionRow, ...change}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('throws, and does not say there is no request, when the database cannot be reached', async () => {
+    await expect(readProjectRequest(operation, PROJECT, {env, fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true});
   });
 });

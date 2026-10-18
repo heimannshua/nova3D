@@ -2218,3 +2218,314 @@ describe('Operational alarms (Story 1.13) have one channel, one evaluator for ea
     expect([...code('lib/heartbeat.ts').matchAll(/Date\.now\(\)/g)]).toHaveLength(1);
   });
 });
+
+describe('Request revisions (Story 2.1) are created and read through two typed calls, by two Server Actions, for the verified Account, and start nothing', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const code = (file: string) => withoutComments(read(file));
+  const actions = 'app/projects/new/actions.ts';
+  const migrationFile = 'supabase/migrations/20261018120000_request_revisions.sql';
+  const migrationCode = read(migrationFile).replace(/^\s*--.*$/gm, '');
+  const functionBody = (name: string) => {
+    const start = migrationCode.indexOf(`create function api.${name}(`);
+    expect(start, name).toBeGreaterThan(-1);
+    return migrationCode.slice(start, migrationCode.indexOf('$$;', migrationCode.indexOf('$$', start) + 2));
+  };
+
+  it('creates and reads from lib/projects.ts and the few places that need it: the one Server Action and the page loader', () => {
+    expect(callers('createProjectRequest')).toEqual([actions, 'lib/projects.ts']);
+    expect(callers('readProjectRequest')).toEqual(['lib/project-pages.ts', 'lib/projects.ts']);
+    // The Project typed calls did not move.
+    expect(callers('renameProjectCommand')).toEqual(['app/projects/actions.ts', 'lib/projects.ts']);
+    expect(callers('readProject')).toEqual(['lib/project-pages.ts', 'lib/project-target.ts', 'lib/projects.ts']);
+  });
+
+  it('has no page or component call a typed call or the database, and keeps the database functions behind the typed calls', () => {
+    for (const file of sources.filter((candidate) => /^(?:app\/.*page\.tsx|components\/.*)$/.test(candidate))) {
+      expect(code(file), file).not.toMatch(/\b(?:createProjectRequest|readProjectRequest|callApi|callRow)\b/);
+    }
+    for (const file of sources.filter((candidate) => candidate !== 'lib/projects.ts' && candidate !== 'lib/accounts.ts')) {
+      expect(code(file), file).not.toMatch(/['"`](?:create_project_request|read_project_request)['"`]/);
+    }
+    expect(code('lib/projects.ts')).toMatch(/callRow\(\s*'create_project_request'/);
+    expect(code('lib/projects.ts')).toMatch(/callRow\('read_project_request'/);
+    // callApi and callRow still have the same three users.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts']);
+  });
+
+  it('is two Server Actions behind withActiveAccount in their own file, with the Account from the verified access and nothing about it from the form', () => {
+    expect(read(actions).trimStart()).toMatch(/^'use server';/);
+    expect([...code(actions).matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)].map((match) => match[1])).toEqual(['understandRequest', 'confirmRequest']);
+    expect([...code(actions).matchAll(/^export\s/gm)]).toHaveLength(2);
+    expect([...code(actions).matchAll(/return withActiveAccount<(\w+)>\(/g)].map((match) => match[1])).toEqual(['UnderstandState', 'ConfirmState']);
+    expect(code(actions)).toMatch(/operationOf\(access\.account\)/);
+    const reads = [...code(actions).matchAll(/formData\.get\(['"](\w+)['"]\)/g)].map((match) => match[1]);
+    expect(reads).toEqual(['description', 'personalization', 'commandId', 'subjectId', 'description', 'scope', 'outcome', 'personalization']);
+    for (const forbidden of [/\baccountId\s*:\s*(?:formData|String\()/, /\bepoch\s*:\s*(?:formData|Number\()/, /\bsearchParams\b/, /\bheaders\(\)/, /\brequest\.url\b/, /cookies\(/, /\badministered\b|\bcheckMarker\b/, /formData\.get\(['"](?:mode|title|approved|permission|payment)/]) {
+      expect(code(actions)).not.toMatch(forbidden);
+    }
+    // No route handler and no token: a Server Action is not an API route.
+    expect(files('app', (name) => /^route\.(ts|js)$/.test(name)).filter((file) => /project/i.test(file))).toEqual([]);
+  });
+
+  it('understands for free (no database call of its own), and confirms only after it has recomputed the request from the submitted fields', () => {
+    const body = code(actions);
+    const understanding = body.slice(body.indexOf('export async function understandRequest'), body.indexOf('function failed'));
+    expect(understanding).not.toMatch(/createProjectRequest|callRow|callApi|fetch\(|operationOf|withinBudget/);
+    expect(understanding).toMatch(/understand\(\{description, wording\}, defaultDomainRegistry\)/);
+    const confirming = body.slice(body.indexOf('export async function confirmRequest'));
+    const enclosing = confirming.indexOf('return withActiveAccount<ConfirmState>(');
+    expect(enclosing).toBeGreaterThan(-1);
+    const check = confirming.indexOf('checkRequest(');
+    const create = confirming.indexOf('createProjectRequest(operationOf');
+    expect(check).toBeGreaterThan(enclosing);
+    expect(create).toBeGreaterThan(check);
+    // The mode is the text request's, whatever the form says; the title is the registry's.
+    expect(confirming).toMatch(/mode: 'evidence_text'/);
+    expect(confirming).not.toMatch(/title:/);
+    // redirect() is called outside the try block (it throws to leave the action).
+    const tryAt = confirming.indexOf('try {');
+    const catchAt = confirming.indexOf('} catch (error)');
+    expect(tryAt).toBeGreaterThan(-1);
+    for (const match of confirming.matchAll(/redirect\(/g)) expect(match.index < tryAt || match.index > catchAt, `redirect at ${match.index}`).toBe(true);
+  });
+
+  it('prints a failure by name and message only, and never a description, a scope, a wording, a title or an ID', () => {
+    for (const file of [actions, 'lib/projects.ts', 'lib/project-pages.ts']) {
+      const lines = code(file).split('\n').filter((line) => /console\.(?:log|info|warn|error|debug)\(|\blog\(/.test(line));
+      for (const line of lines) {
+        expect(line, file).toMatch(/describe\(error\)/);
+        expect(line, file).not.toMatch(/title|projectId|accountId|formData|email|description|scope|wording|subject/);
+      }
+    }
+  });
+
+  it('keeps understanding free, pure and the same on the server and in the browser: no run-time import, no process, no I/O, no network, no model', () => {
+    const pure = ['lib/request-intake.ts', 'lib/domain-registry.ts', 'packages/contracts/domain-manifest.ts', 'packages/domains/middot/manifest.ts'];
+    for (const file of pure) {
+      const text = code(file);
+      expect(text, file).not.toMatch(/\bprocess\b|\bfetch\(|XMLHttpRequest|node:|require\(|await import\(|\bDate\.now\(|Math\.random|crypto\./);
+      // Every import is type-only, or (the registry) of the contract and the manifest it registers.
+      for (const line of text.split('\n').filter((candidate) => /^\s*import\b/.test(candidate))) {
+        if (file === 'lib/domain-registry.ts') expect(line, `${file}: ${line}`).toMatch(/^import (?:type )?\{[^}]*\} from '\.\.\/packages\/(?:contracts\/domain-manifest|domains\/middot\/manifest)\.ts';$/);
+        else expect(line, `${file}: ${line}`).toMatch(/^import type\b/);
+      }
+    }
+    for (const file of ['packages/contracts/domain-manifest.ts', 'packages/domains/middot/manifest.ts']) {
+      expect(text(file), file).not.toMatch(/^\s*import (?!type\b)/m);
+    }
+    function text(file: string) {
+      return code(file);
+    }
+    // No model, provider or new secret anywhere in the story's modules.
+    for (const file of [...pure, actions, 'lib/request-view.ts', 'components/projects/request-intake.tsx']) {
+      expect(code(file), file).not.toMatch(/anthropic|brave|stripe|openai|claude-|SECRET|process\.env/i);
+    }
+  });
+
+  it('keeps the screens\' modules free of the server-only ones', () => {
+    for (const file of ['lib/request-intake.ts', 'lib/request-view.ts', 'lib/domain-registry.ts', 'components/projects/request-intake.tsx', 'components/projects/request-section.tsx', 'components/projects/personalization-summary.tsx']) {
+      expect(code(file), file).not.toMatch(/from '@\/lib\/(?:accounts|access|auth|authority|projects|project-pages|project-target)'|node:crypto|next\/headers|next\/cache/);
+    }
+    // Only the intake screen reaches the two actions.
+    expect(callers('confirmRequest')).toEqual([actions, 'components/projects/request-intake.tsx']);
+    expect(callers('understandRequest')).toEqual([actions, 'components/projects/request-intake.tsx']);
+  });
+
+  it('puts the fixture second subject in the tests only: no production file registers it', () => {
+    for (const file of [...sources, 'packages/contracts/domain-manifest.ts', 'packages/domains/middot/manifest.ts']) expect(code(file), file).not.toMatch(/fixture-incense|incense/);
+    // The manifest moved to its own file so a test that replaces the default registry can load it; the registry file only builds on it.
+    expect(read('tests/support/fixture-manifest.ts')).toContain('fixture-incense-altar');
+    expect(read('tests/support/fixture-domains.ts')).toContain("from './fixture-manifest'");
+  });
+
+  it('adds no dependency, no environment variable and no secret', () => {
+    const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>; devDependencies: Record<string, string>};
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+    expect(Object.keys(manifest.devDependencies).sort()).toEqual(['@axe-core/playwright', '@playwright/test', '@tailwindcss/postcss', '@types/node', '@types/pg', '@types/react', '@types/react-dom', 'bmad-method', 'eslint', 'eslint-config-next', 'tailwindcss', 'typescript', 'vite', 'vitest', 'yaml']);
+  });
+
+  it('adds one closed table, two functions and four helpers, and changes the Project table by one check', () => {
+    expect([...migrationCode.matchAll(/^create table (\S+) \(/gm)].map((match) => match[1])).toEqual(['projects.request_revisions']);
+    // On purpose changed from one helper to four with the review patches: the digest's field prefix, the two text checks the table and the command share
+    // (a text that draws nothing, a bidirectional control), and the guard that refuses to edit a revision.
+    expect([...migrationCode.matchAll(/create (?:or replace )?function ([\w.]+)\(/g)].map((match) => match[1])).toEqual([
+      'projects.is_invisible',
+      'projects.has_bidi_control',
+      'projects.refuse_revision_change',
+      'projects.length_prefixed',
+      'api.create_project_request',
+      'api.read_project_request',
+      'api.preflight',
+    ]);
+    // The existing table: the stage check replaced, nothing else (no column, trigger or index).
+    const onProjects = [...migrationCode.matchAll(/^alter table projects\.projects (?:drop|add) constraint (\w+)/gm)].map((match) => match[1]);
+    expect(onProjects).toEqual(['projects_stage_check', 'projects_stage_check']);
+    expect(migrationCode).toMatch(/stage in \('request_confirmed', 'researching', 'awaiting_plan_approval', 'generating', 'awaiting_model_approval', 'validation_failed', 'export_ready'\)/);
+    expect(migrationCode).not.toMatch(/alter table projects\.projects (?:add|drop) column/);
+    // Names no table or column "manifest" (artifacts.manifests is a different thing), and no alarm subject.
+    expect(migrationCode).not.toMatch(/\bmanifest\b/i);
+  });
+
+  it('has a request revision hold the request and nothing else: no approval, permission, payment, cost or Job column', () => {
+    const table = migrationCode.slice(migrationCode.indexOf('create table projects.request_revisions'), migrationCode.indexOf('comment on table projects.request_revisions'));
+    const columns = [...table.matchAll(/^  (\w+) (?:uuid|integer|text|boolean|timestamptz)\b/gm)].map((match) => match[1]);
+    expect(columns).toEqual([
+      'id', 'project_id', 'account_id', 'seq', 'command_id', 'mode', 'subject_id', 'scope', 'outcome', 'description',
+      'personalization_wording', 'personalization_text', 'personalization_style', 'personalization_applied', 'personalization_reason', 'digest', 'confirmed_at', 'created_at',
+    ]);
+    for (const column of columns) expect(column).not.toMatch(/approv|permission|payment|cost|job|reserv|price|charge/i);
+  });
+
+  it('begins both functions with the authority check, after their argument checks and before any Project or revision is read or written', () => {
+    for (const name of ['create_project_request', 'read_project_request']) {
+      const body = functionBody(name);
+      const check = body.indexOf('identity.assert_operation_authority(p_account_id, p_epoch)');
+      expect(check, `${name} calls the authority check`).toBeGreaterThan(-1);
+      expect(check, `${name}: before any table is read`).toBeLessThan(body.search(/from projects\.|update projects\.|insert into projects\./));
+      expect(body, name).toMatch(/exception when sqlstate 'N3010' then[\s\S]*?outcome := 'denied'/);
+      expect(body, name).toMatch(/security definer\s+set search_path = ''/);
+      // The arguments are checked first (22023), as every command of the Spine does.
+      expect(body.indexOf("errcode = '22023'"), name).toBeLessThan(check);
+    }
+    const create = functionBody('create_project_request');
+    // The lock is the one api.rename_project takes, so a create and a rename of one command ID are serial; the rename ledger is looked at before the revision's.
+    expect(create).toContain("pg_advisory_xact_lock(hashtextextended('project_command:' || p_account_id::text || ':' || p_command_id::text, 0))");
+    expect(create.indexOf('identity.assert_operation_authority')).toBeLessThan(create.indexOf('pg_advisory_xact_lock'));
+    expect(create.indexOf('pg_advisory_xact_lock')).toBeLessThan(create.indexOf('from projects.project_commands'));
+    expect(create.indexOf('from projects.project_commands')).toBeLessThan(create.indexOf('from projects.request_revisions'));
+    expect(create.indexOf('from projects.request_revisions')).toBeLessThan(create.indexOf('insert into projects.projects'));
+    expect(create.indexOf('insert into projects.projects')).toBeLessThan(create.indexOf('insert into projects.request_revisions'));
+    // One Project and one revision 1, in the stage that is true.
+    expect(create).toMatch(/'request_confirmed'/);
+    expect(create).toMatch(/v_project_id, p_account_id, 1, p_command_id/);
+  });
+
+  it('filters every read by the Account in the query itself, and returns a revision of a live, untombstoned Project only', () => {
+    const read = functionBody('read_project_request');
+    for (const statement of read.match(/from projects\.\w+ \w+[\s\S]*?;/g) ?? []) expect(statement, statement.slice(0, 60)).toMatch(/account_id = p_account_id/);
+    expect(read).toMatch(/deleted_at is null/);
+    expect(read).toMatch(/not lifecycle\.is_tombstoned\('project', p\.id\)/);
+    expect(read).toMatch(/order by r\.seq desc\s+limit 1/);
+  });
+
+  it('keeps the status handle out of both functions, and sets deleted_at nowhere', () => {
+    for (const name of ['create_project_request', 'read_project_request']) expect(functionBody(name), name).not.toMatch(/status_handle|deleted_at\s*=|set\s+deleted_at/i);
+    expect(migrationCode).not.toMatch(/deleted_at\s*=|set\s+deleted_at/i);
+  });
+
+  it('closes the table like the others, grants exactly the two functions to the service role, and creates no policy', () => {
+    const grants = [...migrationCode.matchAll(/^grant .*$/gm)].map((match) => match[0]);
+    expect(grants).toEqual([
+      'grant execute on function api.create_project_request(uuid, bigint, uuid, text, text, text, text, text, text, text, text, text, boolean, text) to service_role;',
+      'grant execute on function api.read_project_request(uuid, bigint, uuid) to service_role;',
+    ]);
+    expect(migrationCode).toMatch(/alter table projects\.request_revisions enable row level security/);
+    expect(migrationCode).toMatch(/revoke all on projects\.request_revisions from public, anon, authenticated, service_role/);
+    expect(migrationCode).not.toMatch(/create policy/i);
+    expect(migrationCode).not.toMatch(/grant execute on function (?:projects|identity|lifecycle)\./);
+  });
+
+  it('never updates a revision and never truncates the table: a trigger refuses both, and deleting is the purge\'s', () => {
+    expect(migrationCode).toMatch(/create trigger request_revisions_no_update before update on projects\.request_revisions/);
+    expect(migrationCode).toMatch(/create trigger request_revisions_no_truncate before truncate on projects\.request_revisions/);
+    expect(migrationCode).not.toMatch(/(?:update|delete\s+from|truncate(?: table)?)\s+projects\.request_revisions/i);
+    expect(migrationCode).toMatch(/foreign key \(project_id, account_id\) references projects\.projects \(id, account_id\) on delete restrict/);
+  });
+
+  it('has the preflight carry the new table, the two functions and the privilege to run them, with the bucket check last', () => {
+    const preflight = migrationCode.slice(migrationCode.indexOf('create or replace function api.preflight()'));
+    expect(preflight).toContain('from projects.request_revisions q limit 1');
+    expect(preflight).toContain("the Story 2.1 migration is not applied");
+    expect(preflight).toContain("'api.create_project_request(uuid,bigint,uuid,text,text,text,text,text,text,text,text,text,boolean,text)'");
+    expect(preflight).toContain("'api.read_project_request(uuid,bigint,uuid)'");
+    expect(preflight.lastIndexOf('from storage.buckets')).toBeGreaterThan(preflight.lastIndexOf('has_table_privilege'));
+    expect(preflight.indexOf('Story 2.1 migration')).toBeGreaterThan(preflight.indexOf('Story 1.13 migration'));
+  });
+
+  it('keeps the digest\'s field prefix truly immutable: octet_length, not the stable convert_to', () => {
+    const start = migrationCode.indexOf('create function projects.length_prefixed(');
+    const body = migrationCode.slice(start, migrationCode.indexOf('$$;', migrationCode.indexOf('$$', start) + 2));
+    expect(body).toMatch(/\bimmutable\b/);
+    expect(body).toContain("octet_length(p_value)::text || ':' || p_value");
+    expect(body).not.toMatch(/convert_to/);
+    // The digest itself is built with convert_to once, over the whole text: that call is not in an immutable function.
+    expect(functionBody('create_project_request')).toContain("convert_to(");
+  });
+
+  it('refuses text that draws nothing and bidirectional controls in every free-text field, in the table\'s checks and in the command\'s validation, with the same two helpers', () => {
+    const table = migrationCode.slice(migrationCode.indexOf('create table projects.request_revisions'), migrationCode.indexOf('comment on table projects.request_revisions'));
+    const create = functionBody('create_project_request');
+    for (const field of ['scope', 'outcome', 'description', 'personalization_wording', 'personalization_text']) {
+      expect(table, `${field}: table check`).toContain(`not projects.is_invisible(${field}) and not projects.has_bidi_control(${field})`);
+      const parameter = `p_${field.startsWith('personalization') ? field : field}`;
+      expect(create, `${field}: command`).toContain(`projects.is_invisible(${parameter}) or projects.has_bidi_control(${parameter})`);
+    }
+    // The class is written out once, and neither joiner is refused as such: the bidi class is the nine controls only.
+    expect([...migrationCode.matchAll(/\^\[\\u0001-\\u0020/g)]).toHaveLength(1);
+    expect(migrationCode).toContain("p_value ~ '[\\u202a-\\u202e\\u2066-\\u2069]'");
+    expect(migrationCode).not.toMatch(/has_bidi_control[\s\S]{0,200}u200[cd]/);
+  });
+
+  it('says in the migration\'s header what the shared lock does and does not refuse, and that a replay does not outlive its Project', () => {
+    const header = read(migrationFile).split('\n').filter((line) => line.startsWith('--')).join('\n');
+    expect(header).toContain('a rename that reuses a creation\'s command ID is not refused');
+    expect(header).toContain('Only this direction is refused');
+    expect(header).toMatch(/`unavailable` once the Project is deleted or tombstoned/);
+    const create = functionBody('create_project_request');
+    expect(create).toMatch(/v_result\.outcome := 'unavailable';/);
+    expect(create.indexOf("v_result.outcome := 'unavailable'")).toBeLessThan(create.indexOf("v_result.outcome := 'replayed'"));
+    expect(create).toMatch(/p\.deleted_at is null\s+and not lifecycle\.is_tombstoned\('project', p\.id\)/);
+  });
+
+  it('maps the unavailable replay to a message and not to a redirect, and chooses the command ID only when Confirm is pressed', () => {
+    const body = code(actions);
+    expect(body).toMatch(/case 'unavailable':[\s\S]*?return \{outcome: 'gone'\};/);
+    expect(body.slice(body.indexOf("case 'unavailable':"), body.indexOf("default:"))).not.toMatch(/redirect\(/);
+    expect(code('lib/projects.ts')).toMatch(/\['created', 'replayed', 'reused', 'unavailable', 'denied'\] as const/);
+    const screen = code('components/projects/request-intake.tsx');
+    // One call that makes an ID, in the submit handler; nothing keeps an entry for each keystroke.
+    expect([...screen.matchAll(/newCommandId\(/g)]).toHaveLength(1);
+    expect(screen.indexOf('newCommandId(')).toBeGreaterThan(screen.indexOf('const submitConfirm'));
+    expect(screen).not.toMatch(/commandIds|new Map|setCommandIds/);
+    expect(screen).toMatch(/lastSent\.current = \{key, id: chosenId\}/);
+  });
+
+  it('gives the four text fields their own direction, and truncates nothing', () => {
+    const screen = code('components/projects/request-intake.tsx');
+    expect([...screen.matchAll(/dir="auto"/g)]).toHaveLength(4);
+    expect(screen).not.toMatch(/maxLength/);
+  });
+
+  it('reads a Project\'s request as the Project is read: no authority goes Home, unavailable is the unavailable page, only a failed read is an unreadable section', () => {
+    const page = code('app/projects/[projectId]/page.tsx');
+    expect(page).toMatch(/if \(request\.state === 'denied'\) return redirect\(homePath\);/);
+    expect(page).toMatch(/if \(request\.state === 'unavailable'\) return notFound\(\);/);
+    expect(page.indexOf("request.state === 'denied'")).toBeGreaterThan(page.indexOf('loadProjectRequest('));
+  });
+
+  it('holds the contract and the registry to the review\'s rules: no hole in a list, a package ID and a display name registered once', () => {
+    const contract = code('packages/contracts/domain-manifest.ts');
+    expect(contract).not.toMatch(/\.forEach\(/);
+    expect(contract).toMatch(/export function comparable\(/);
+    const registry = code('lib/domain-registry.ts');
+    expect(registry).toContain('is already registered');
+    expect(registry).toContain('has the same display name as subject');
+    expect(read('packages/contracts/domain-manifest.ts')).toContain('tests/unit/domain-manifest.test.ts holds the two equal');
+    expect(read('packages/contracts/domain-manifest.ts')).not.toContain('tests/unit/request-intake.test.ts');
+  });
+
+  it('writes the contract down for the people who add a subject and a successor revision', () => {
+    const packages = read('docs/domain-packages.md');
+    for (const needle of ['DomainManifest', 'validateManifest', 'createDomainRegistry', 'middot-altar-ramp', 'G-1', 'not approved', 'fixture-incense-altar', 'import type']) expect(packages, needle).toContain(needle);
+    const contract = read('docs/authority-contract.md');
+    for (const needle of ['api.create_project_request', 'api.read_project_request', 'projects.request_revisions', 'FOR SHARE', 'FOR UPDATE', 'lifecycle.assert_not_tombstoned', 'exactly one']) expect(contract, needle).toContain(needle);
+    expect(read('README.md')).toMatch(/domain-packages\.md/);
+    expect(read('README.md')).toMatch(/request_revisions|request revision/i);
+  });
+});

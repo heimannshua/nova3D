@@ -146,6 +146,12 @@ describe('through the REST API', () => {
     complete_step_up: {p_user_id: victim.user.id, p_session_id: victim.sessionId, p_secret_hash: codeHash(), p_verifier_hash: randomBytes(32).toString('base64url')},
     confirm_registration: {p_user_id: victim.user.id, p_command_id: victim.commandId, p_code_hash: victim.codeHash},
     consume_preauthorization: {p_user_id: victim.user.id},
+    // Story 2.1: confirming a request creates a Project and its first revision for an Account; reading one returns its latest revision.
+    create_project_request: {
+      p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_title: 'Created by another Account', p_mode: 'evidence_text', p_subject_id: 'middot-altar-ramp',
+      p_scope: 'Scope', p_outcome: 'Outcome', p_description: 'Description', p_personalization_wording: null, p_personalization_text: null, p_personalization_style: null,
+      p_personalization_applied: false, p_personalization_reason: null,
+    },
     disable_account: {p_actor: 'seed', p_account_id: victim.accountId},
     enable_account: {p_actor: 'seed', p_account_id: victim.accountId},
     finish_job_run: {p_receipt_id: randomUUID(), p_outcome: 'ran', p_result: {}},
@@ -170,6 +176,7 @@ describe('through the REST API', () => {
     purge_dormant_identities: {p_limit: 1},
     raise_alarm: {p_condition: 'isolation-test', p_subject: null, p_detail: {}},
     raise_authorization_epoch: {p_account_id: victim.accountId, p_actor: 'seed'},
+    read_project_request: {p_account_id: victim.accountId, p_epoch: 1, p_project_id: randomUUID()},
     record_account_refusal: {p_user_id: victim.user.id, p_action: 'account.denied', p_account_id: victim.accountId},
     record_alarm_notice: {p_alarm_id: randomUUID(), p_outcome: 'sent'},
     record_heartbeat: {p_kid: 'isolation-test', p_jti: 'AAAAAAAAAAAAAAAAAAAAAA'},
@@ -252,7 +259,7 @@ describe('through the REST API', () => {
       for (const profile of ['public', 'api', 'lifecycle']) {
         const response = await rest(token, '', {profile, headers: {accept: 'application/openapi+json'}});
         const text = await response.text();
-        for (const name of ['account_preferences', 'session_grants', 'audit_events', 'invitations', 'workspaces', 'projects', 'project_commands']) expect(text, `${profile} publishes ${name}`).not.toContain(`"/${name}"`);
+        for (const name of ['account_preferences', 'session_grants', 'audit_events', 'invitations', 'workspaces', 'projects', 'project_commands', 'request_revisions']) expect(text, `${profile} publishes ${name}`).not.toContain(`"/${name}"`);
       }
     }
   });
@@ -765,6 +772,7 @@ describe('every table of identity, projects, lifecycle and artifacts is closed t
         'lifecycle.tombstones',
         'projects.project_commands',
         'projects.projects',
+        'projects.request_revisions',
         'projects.workspaces',
         'artifacts.attachment_transforms',
         'artifacts.manifests',

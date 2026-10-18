@@ -331,6 +331,7 @@ export function accountsWorld() {
     await db.query(`delete from identity.session_grants where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.registration_commands where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.invitations where redeemed_account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from projects.request_revisions where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from projects.project_commands where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from projects.projects where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from projects.workspaces where account_id in ${accounts}`, [user.id]);
@@ -383,6 +384,44 @@ export function accountsWorld() {
         [user.id],
       )
     ).rows as {command_id: string; project_id: string; command: string; expected_revision: number; title: string; revision: number}[];
+  /**
+   * The request revisions the user's Account holds (Story 2.1), oldest first, each with the stage, revision and title of its Project: what
+   * Confirm stored, exactly. Nothing in a revision is an approval, a permission or a payment, so there is no such column to read.
+   */
+  const requestsOf = async (user: TestUser) =>
+    (
+      await db.query(
+        `select r.id, r.project_id, r.seq, r.command_id, r.mode, r.subject_id, r.scope, r.outcome, r.description, r.personalization_wording, r.personalization_text,
+                r.personalization_style, r.personalization_applied, r.personalization_reason, r.digest, r.confirmed_at,
+                p.title as project_title, p.stage as project_stage, p.revision::int as project_revision, p.current_version as project_version
+           from projects.request_revisions r
+           join projects.projects p on p.id = r.project_id
+           join identity.accounts a on a.id = r.account_id
+          where a.user_id = $1 order by r.created_at, r.id`,
+        [user.id],
+      )
+    ).rows as {
+      id: string;
+      project_id: string;
+      seq: number;
+      command_id: string;
+      mode: string;
+      subject_id: string | null;
+      scope: string;
+      outcome: string;
+      description: string;
+      personalization_wording: string | null;
+      personalization_text: string | null;
+      personalization_style: string | null;
+      personalization_applied: boolean;
+      personalization_reason: string | null;
+      digest: string;
+      confirmed_at: Date;
+      project_title: string;
+      project_stage: string;
+      project_revision: number;
+      project_version: number;
+    }[];
   /** Hides a Project the way a deletion will (Story 8.x does it; nothing in the application does yet), as the owner of the table. */
   const hideProject = (projectId: string) => db.query('update projects.projects set deleted_at = now(), revision = revision + 1 where id = $1', [projectId]);
 
@@ -482,7 +521,7 @@ export function accountsWorld() {
     preferencesOf, adoptPreferencesFor,
     auditBy, makeAdministrator, forgeMarker, expireMarker, invitationRow, invitationByLabel, invitationsIssuedBy, unusedGeneralId, takeGeneralCode, releaseGeneralCode, holdFlakyInvitations, releaseFlakyInvitations, issueGeneralCode, activateWithCode,
     workspaceIdOf, liveSession, eraseAccount, holdFlakyAccounts, releaseFlakyAccounts,
-    addProject, addFixtureProjects, projectOf, projectCount, renameReceipts, hideProject,
+    addProject, addFixtureProjects, projectOf, projectCount, renameReceipts, requestsOf, hideProject,
     recoveryTokens, clearRecoveryTokens, insertRecoveryToken, ageRecoveryTokens, markerSources, grantRows, auditFor, untargetedAudit, purgeUserByEmail,
   };
 }

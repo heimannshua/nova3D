@@ -2,22 +2,28 @@
 
 import {useState} from 'react';
 import {useI18n} from '@/lib/i18n/react';
-import {Button} from '../ui/button';
+import {newProjectPath} from '@/lib/project-paths';
+import {LinkButton} from '../ui/button';
 import {Dialog} from '../ui/dialog';
 import {Explanation} from '../ui/explain';
 import {Icon, type IconName} from '../ui/icon';
+import {Notice} from '../ui/states';
 
-type Intake = 'text' | 'image';
+export type Intake = 'text' | 'image';
 
 const options = [
   {value: 'text', icon: 'text', title: 'create.textTitle', copy: 'create.textCopy', tone: 'violet'},
   {value: 'image', icon: 'image', title: 'create.imageTitle', copy: 'create.imageCopy', tone: 'blue'},
 ] as const satisfies readonly {value: Intake; icon: IconName; title: 'create.textTitle' | 'create.imageTitle'; copy: 'create.textCopy' | 'create.imageCopy'; tone: string}[];
 
-/** Where a new project starts. The choice is a radio group, so arrow keys and screen readers work as expected. */
-export function CreateDialog({onClose}: {onClose: () => void}) {
+/**
+ * Where a new project starts (C-01). The choice is a radio group, so arrow keys and screen readers work as expected. Enter text goes on
+ * to the text flow (`/projects/new`, C-02); Upload picture keeps its radio and says picture upload arrives in a later release (Story
+ * 2.2 owns that destination). `initialChoice` opens the dialog with a choice made, as the text flow's "start from a picture" does.
+ */
+export function CreateDialog({onClose, initialChoice = null}: {onClose: () => void; initialChoice?: Intake | null}) {
   const {t} = useI18n();
-  const [choice, setChoice] = useState<Intake | null>(null);
+  const [choice, setChoice] = useState<Intake | null>(initialChoice);
 
   return (
     <Dialog eyebrow={t('create.eyebrow')} title={t('create.title')} description={t('create.body')} closeLabel={t('create.close')} onClose={onClose} className="create-dialog">
@@ -45,9 +51,10 @@ export function CreateDialog({onClose}: {onClose: () => void}) {
                 ? <Explanation simple="create.textNext" technical="create.textTechnical"/>
                 : <Explanation simple="create.imageNext" technical="create.imageTechnical"/>}
             </p>
-            <Button variant="primary" iconAfter="arrow" onClick={onClose}>{t('create.continue')}</Button>
+            {choice === 'text' ? <LinkButton variant="primary" iconAfter="arrow" href={newProjectPath} onClick={onClose}>{t('create.continue')}</LinkButton> : null}
           </div>
         ) : null}
+        {choice === 'image' ? <Notice tone="info">{t('create.imageLater')}</Notice> : null}
       </div>
       <p className="dialog-footnote"><span className="dot" aria-hidden="true"/>{t('create.footnote')}</p>
     </Dialog>

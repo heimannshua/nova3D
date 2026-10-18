@@ -918,3 +918,78 @@
   summary: Smaller gaps, none blocking. (1) One failing part of `api.alarm_observations` (for example the `auth.users` count) stops every condition and the mail retry for that run, since the monitor reads the observations first. (2) A subject-keyed condition that oscillates across its threshold opens a new alarm, and sends a new immediate email, on every crossing; only subject-less alarms are damped per condition. (3) `POST /api/heartbeat` has no rate limit; its token check is the only gate. (4) The alarm email is English only and has no link or remediation text. (5) The heartbeat image installs the whole production dependency tree although its task imports no package, and the base image is pinned by tag, not by digest. (6) The Hebrew strings (including the transliterations ריילווי and קיוסטאש) are machine-drafted and need the human's read. (7) The README Lifecycle row is a single cell of several thousand characters.
   evidence: `lib/alarms.ts` (`runAlarmMonitor`), `api.alarms_due_mail`, `app/api/heartbeat/route.ts`, `workers/heartbeat/Dockerfile`, `lib/i18n/he.ts`, `README.md`; Story 1.13 review.
   mapped_story: Each when a later story touches the area (the first subject-keyed condition for (2), the hosted check for (3) and (5), the human's Hebrew review for (6)).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: Josh has not approved the Middot alias list. The registered subject `middot-altar-ramp` matches the aliases `altar`, `ramp`, `mizbeach`, `kevesh`, `מזבח` and `כבש`, which the story names but which Josh approves with the G-1 corpus; no code gates on the approval, so until it is recorded a missing alias is a missed match (the person is told what is supported and can start from a picture) and a shared alias with a later subject turns a description into a question.
+  evidence: `packages/domains/middot/manifest.ts`, `docs/domain-packages.md` ("The Middot manifest and its aliases"); Story 2.1 (AC-1).
+  mapped_story: G-1 (the corpus run): record the approved list in `docs/domain-packages.md` and here, and change the manifest and `tests/unit/domain-manifest.test.ts` together if it differs.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: There is no limit on the number of Projects an Account can create. Confirming a request is idempotent per command ID, but nothing bounds how many distinct requests one Account confirms, so Projects, revisions and My Projects' list (which shows the 200 most recently updated and counts the rest) grow without a rule.
+  evidence: `api.create_project_request` in `supabase/migrations/20261018120000_request_revisions.sql`; Story 2.1 creates the Project at confirmation and adds no quota.
+  mapped_story: 2.4 (accountable usage limits) decides whether a Project count belongs among the limits; at the latest before production's first real data.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: The 24-character limit on personalized text is a constant of the request intake (`maxPersonalizationText` in `lib/request-intake.ts`), not a property of a surface. It is the first surface's limit and has to move into the surface declaration, with the supported kinds (raised, recessed) and the relief limits, when surfaces exist.
+  evidence: `lib/request-intake.ts` (`classifyPersonalization`), the `personalization_text` check (1 to 24 characters) in `supabase/migrations/20261018120000_request_revisions.sql`; Story 2.1 records a wish as understood and applies nothing to geometry.
+  mapped_story: 4.2 (declared surfaces) moves the limit; 4.4 applies personalization to geometry. A change of the limit needs a migration of the check on existing revisions, which are immutable.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: The subject's English display name is shown in the Hebrew interface. "The outer altar and ramp (Middot 3)" comes from the manifest, is the Project's title and is shown in a `<bdi>` in both languages, because the catalog test forbids Latin words in `he.ts` and the manifest carries one name. A Hebrew reader sees an English title, and Rename is the only way to change it.
+  evidence: `packages/domains/middot/manifest.ts`, `components/projects/request-intake.tsx`, `components/projects/request-section.tsx`; Story 2.1.
+  mapped_story: A later story that gives the manifest localized display names (a `displayName` per language), together with the human's review of the Hebrew name; until then the title is the manifest's.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: The Hebrew copy of this story is machine-drafted and has had no native review: the C-02 and C-06 labels and help, the personalization reasons ("לא יחול", "שקוע (חרוט)"), the stage `הבקשה אושרה` and the Create dialog's new footnote. The Hebrew style words that classify a wish (`חרוט`, `שקוע`, `בולט`, `מוגבה`) are the story's list and equally unreviewed.
+  evidence: `lib/i18n/he.ts` (`request.*`, `stage.request_confirmed.*`, `create.imageLater`, `create.footnote`), `lib/request-intake.ts` (the style words).
+  mapped_story: The human's native Hebrew review of the whole catalog (as for Stories 1.2 to 1.13); the style words with the G-1 corpus.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: A Project's title invariants are still open. The title is the subject's display name, so several Projects of one Account can share a title, two requests for the same subject are two Projects, and nothing says whether a title must be unique, how a rename and a later successor revision relate to the subject, or whether the title follows the subject when it changes.
+  evidence: `api.create_project_request`, `api.rename_project` (a title is 1 to 120 characters, trimmed, no control characters, and nothing more); Story 2.1 follows Story 1.7's contract without changing it.
+  mapped_story: A story that gives a Project more than a title (Epic 3's Project page, 2.12 when pictures are retained); decide before My Projects offers sorting or duplicate warnings.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: Request history and successors are not built. A Project has exactly one request revision (`seq` 1); the screens read the latest, and there is no revision history screen, no way to change a confirmed request, and no successor writer. The database is ready for them (`unique (project_id, seq)`, the immutability triggers, and the rule in `docs/authority-contract.md` that a writer holds the Project row, calls the tombstone guard and raises the Project's revision by exactly one).
+  evidence: `supabase/migrations/20261018120000_request_revisions.sql`, `docs/authority-contract.md` ("Confirming a request"); Story 2.1 (Never: successor revisions or revision history screens).
+  mapped_story: 2.2 and 2.3 (a picture mode change makes a successor), 2.12 (retained pictures pin to a revision), 2.13 (the identified subject); the successor writer is the first of them to land, and adds its own test of the rule.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: The picture offer has no destination. "Start from a picture instead" (no subject matched) and the Create dialog's Upload picture open the dialog with Upload picture selected, which says picture upload arrives in a later release and offers no Continue; the text flow cannot hand its description over to a picture request, and the `image_direct` mode is reachable only as a fixture (through the typed call and the database function).
+  evidence: `components/shell/create-dialog.tsx`, `components/projects/request-intake.tsx` (`openCreatePicture`), `app/projects/new/actions.ts` (the mode is always `evidence_text`).
+  mapped_story: 2.2 owns the destination of Upload picture (staging and ordered views); 2.3 sets the picture mode and makes `image_direct` real, and decides what carries over from a described request.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: The Middot alias list is a blunt instrument, and the review found how blunt. `altar` and `ramp` are whole-word aliases, so "a lighthouse with an altar" or a wheelchair ramp is understood as the Middot altar and ramp, and `כבש` also means "lamb". Plurals (`altars`, `ramps`, `מזבחות`) and transliteration variants (`mizbeah`, `keves`, `mizbeyach`) are not matched, so "two altars" is told "we cannot build that yet" without a hint that the plural is why. The matching is aliases only (the display name is not matched). Josh's approval of the list with the G-1 corpus has to weigh all of this, and a negative corpus of descriptions that must not match would make the approval testable.
+  evidence: `packages/domains/middot/manifest.ts`, `lib/request-intake.ts` (`matchSubjects`), `docs/domain-packages.md`, the e2e description that contains "altar"; found by the Blind Hunter in the Story 2.1 review.
+  mapped_story: The G-1 corpus approval (Josh) before the first hosted use; 2.13 and 3.1 when a second subject or package is registered.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: A request revision records only `subject_id`, not the manifest package ID and version that understood it. When aliases or subjects change, nothing says which manifest version a stored request was matched under, which matters once the G-1 alias approval moves the list. The migration is applied nowhere hosted yet, so two columns (`package_id`, `package_version`) can still be added in place; after the first hosted Confirm the rows are immutable.
+  evidence: `supabase/migrations/20261018120000_request_revisions.sql` (`projects.request_revisions`), `lib/domain-registry.ts` (`RegisteredSubject` carries both), `lib/projects.ts` (`createProjectRequest` sends neither); Story 2.1 review.
+  mapped_story: Before the migration is applied to staging (Josh's hand step in `docs/staging.md`); otherwise 3.1, which pins the sources a request was researched against.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: The shared command-ID lock between Story 1.7's rename and Story 2.1's create is one-directional. `api.create_project_request` refuses a command ID that a rename already used, but `api.rename_project` was left unchanged (changing it is Ask First), so a rename that reuses a creation's command ID succeeds and a later retry of that creation then answers `reused` instead of `replayed`. Command IDs are random UUIDs and the browser never reuses one across the two commands, so this needs a client bug or a collision to happen.
+  evidence: `supabase/migrations/20261012150000_projects.sql` (`rename_project`, `project_commands`), `supabase/migrations/20261018120000_request_revisions.sql` (`create_project_request`), `docs/authority-contract.md`; Story 2.1 review.
+  mapped_story: The next story that edits `api.rename_project` or adds a second Project command (2.2).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: The 15-minute command-ID window makes a deliberate second copy impossible without a word of explanation. To make Confirm safe across two tabs, the client reuses the command ID another attempt of the same request used within 15 minutes (kept in `localStorage` under a hash of the request), so an identical request confirmed again in that window lands on the earlier Project with no message. The key is not per Account; this is harmless (command IDs are per Account in the database, so the next Account on a shared browser simply creates its own Project) but untidy.
+  evidence: `lib/request-view.ts` (`commandIdFor`, `forgetCommandId`), `app/projects/new/actions.ts` (`confirmRequest`), `components/projects/request-intake.tsx`; Story 2.1 review.
+  mapped_story: A UX pass on intake after 2.2 and 2.3 (say "this request was already confirmed" instead of redirecting silently).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: The rollout of a new Project stage is not reversible. `request_confirmed` is a stage the previous build does not know, and `isProjectStage` is strict by design, so rolling the build back after one request is confirmed makes the Account's My Projects list unreadable. The staging note says not to roll back. A reader tolerant of an unknown stage, shipped before the migration that adds the next stage, would remove the hazard; every later stage repeats it.
+  evidence: `lib/project-stage.ts` (`isProjectStage`), `lib/projects.ts` (`rowOf` throws on an unknown stage), `docs/staging.md` (the 2.1 migration row); Story 2.1 review.
+  mapped_story: Before the next story that adds a stage (3.1 research start), or when the first rollback plan is written.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: The successor-revision rules are prose only. Stories 2.2, 2.3, 2.12 and 2.13 append a revision to an existing Project, and the rules (hold the Project row, call the tombstone guard, raise the Project revision by exactly one, `seq` = max + 1) are in `docs/authority-contract.md`; nothing in the table enforces any of them (no check that `seq` follows the maximum, no link to the Project revision, no trigger).
+  evidence: `supabase/migrations/20261018120000_request_revisions.sql`, `docs/authority-contract.md`; Story 2.1 review.
+  mapped_story: 2.2 (the first successor writer): add the enforcement with the function that needs it.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-confirm-natural-language-intent-and-personalization.md`
+  summary: Intake polish that did not fit the story. (1) The review step is a state inside `/projects/new`, so Back or a reload discards the draft and the understanding. (2) Failures render a `Notice role="alert"` and also call `announce(...)` with the same text, and a status paragraph says "Saving…", so screen readers may hear a message twice; it needs a real screen-reader pass. (3) The limits (2,000 and 300 characters) are told on submit; there is no counter. (4) The prefilled outcome is a localized sentence, so the same subject is stored with a different outcome text by interface language, and a default the person never touched is stored as if they had written it. (5) Hebrew "confirm" and "approve" share the root אישור in the confirm control, the section and the Plan Approval stage, which blurs the distinction the product is built on; the native review should pick distinct words.
+  evidence: `components/projects/request-intake.tsx`, `lib/i18n/he.ts` (`request.*`, `stage.request_confirmed`, `stage.awaiting_plan_approval`); Blind Hunter in the Story 2.1 review.
+  mapped_story: The native Hebrew review (Josh), and the intake pass after 2.3.

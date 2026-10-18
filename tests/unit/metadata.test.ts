@@ -14,6 +14,7 @@ import {generateMetadata as layoutMetadata} from '@/app/layout';
 import {generateMetadata as loginMetadata} from '@/app/login/page';
 import {generateMetadata as notFoundMetadata} from '@/app/not-found';
 import {generateMetadata as progressMetadata} from '@/app/progress/page';
+import {generateMetadata as newProjectMetadata} from '@/app/projects/new/page';
 import {generateMetadata as projectsMetadata} from '@/app/projects/page';
 import {generateMetadata as recoverConfirmMetadata} from '@/app/recover/confirm/page';
 import {generateMetadata as recoverMetadata} from '@/app/recover/page';
@@ -29,6 +30,7 @@ beforeEach(() => {
 // Each page names itself in the interface language. The route titles differ, so one page cannot pass for another.
 const pages: [string, () => Promise<{title?: unknown}>, MessageKey][] = [
   ['projects', projectsMetadata, 'meta.projects'],
+  ['new project', newProjectMetadata, 'meta.newProject'],
   ['progress', progressMetadata, 'meta.progress'],
   ['settings', settingsMetadata, 'meta.settings'],
   ['login', loginMetadata, 'meta.login'],
