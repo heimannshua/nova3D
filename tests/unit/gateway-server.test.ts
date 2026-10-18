@@ -894,11 +894,16 @@ describe('an upload that fails leaves no object and releases its lease', () => {
     expect(world.db.manifests.size).toBe(0);
   });
 
-  it('answers a refusal that is found at the first chunk of a large body once the rest has been read and thrown away, so the sender can read it', async () => {
+  it('refuses a large body at its first chunk and reads no more of it than a little: the sender reads the answer or finds the connection cut', async () => {
     const member = world.member();
     const id = randomUUID();
-    const reply = await world.upload(member, id, pngBytes(3 * MiB), {ct: 'image/jpeg'});
-    expect([reply.status, reply.json()]).toEqual([400, {error: 'content_mismatch'}]);
+    const outcome = await world
+      .upload(member, id, pngBytes(3 * MiB), {ct: 'image/jpeg'})
+      .then((reply) => [reply.status, reply.json()])
+      .catch((error: NodeJS.ErrnoException) => error.code);
+    // 3 MiB is far past what a refused upload is read for (smallBody, 64 KiB), so either the answer arrived before the connection was cut or the cut
+    // reached the sender first, as for an unbelieved ticket above: never anything else.
+    expect([[400, {error: 'content_mismatch'}], 'ECONNRESET', 'EPIPE']).toContainEqual(outcome);
     // The chunk that was refused was the first: no later one was authorized, hashed or stored.
     expect(world.chunks).toEqual([{direction: 'upload', index: 0}]);
     expect(world.db.count('progress')).toBe(0);
