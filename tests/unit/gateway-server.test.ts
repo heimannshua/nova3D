@@ -96,6 +96,21 @@ function stream(base: string, path: string, init: Init = {}): Promise<Streamed> 
   });
 }
 
+/**
+ * The outcome of an upload that the gateway refuses part way: the answer, or the code of the error the sender met. The gateway answers a refused
+ * upload and then cuts its connection after a little (smallBody), so a sender still writing a large body sometimes finds the cut before it can read the
+ * answer. It deleted the object and released the lease BEFORE it answered, so what the tests assert about the gateway holds either way.
+ */
+function uploadOutcome(upload: Promise<Reply>): Promise<Reply | string> {
+  return upload.catch((error: NodeJS.ErrnoException) => error.code ?? 'unknown');
+}
+
+/** The refusal was read, or the connection was cut first (never anything else). */
+function expectRefused(outcome: Reply | string, status: number, body: unknown, label?: string) {
+  if (typeof outcome === 'string') expect(['ECONNRESET', 'EPIPE'], label).toContain(outcome);
+  else expect([outcome.status, outcome.json()], label).toEqual([status, body]);
+}
+
 // The world ---------------------------------------------------------------------------------------------------------------------
 
 type StartOptions = {keys?: TestKeySetOptions; resolvers?: Resolvers};
@@ -987,8 +1002,7 @@ describe('an upload that fails leaves no object and releases its lease', () => {
       world.hooks.onChunk = ({index}) => {
         if (index === 2) act(member);
       };
-      const reply = await world.upload(member, id, pngBytes(4 * MiB));
-      expect([reply.status, reply.json()], name).toEqual([403, {error: 'forbidden'}]);
+      expectRefused(await uploadOutcome(world.upload(member, id, pngBytes(4 * MiB))), 403, {error: 'forbidden'}, name);
       expect(world.storage.keys(), name).toEqual([]);
       expect(world.db.leases.get(id)!.state, name).toBe('released');
       // Chunks 0 and 1 were authorized and counted; chunk 2 was asked about and never counted; chunk 3 was never read.
@@ -1005,8 +1019,7 @@ describe('an upload that fails leaves no object and releases its lease', () => {
     world.hooks.onChunk = ({index}) => {
       if (index === 1) expect(world.db.revokeKey(world.keys.signer.kid)).toEqual({leases: 1, transfers: 1});
     };
-    const reply = await world.upload(member, id, pngBytes(3 * MiB));
-    expect([reply.status, reply.json()]).toEqual([403, {error: 'forbidden'}]);
+    expectRefused(await uploadOutcome(world.upload(member, id, pngBytes(3 * MiB))), 403, {error: 'forbidden'});
     expect(world.storage.keys()).toEqual([]);
     expect(world.db.leases.get(id)!.state).toBe('released');
   });
@@ -1017,8 +1030,7 @@ describe('an upload that fails leaves no object and releases its lease', () => {
     world.hooks.onChunk = ({index}) => {
       if (index === 1) world.db.leases.get(id)!.state = 'released';
     };
-    const reply = await world.upload(member, id, pngBytes(3 * MiB));
-    expect([reply.status, reply.json()]).toEqual([409, {error: 'upload_ended'}]);
+    expectRefused(await uploadOutcome(world.upload(member, id, pngBytes(3 * MiB))), 409, {error: 'upload_ended'});
     expect(world.storage.keys()).toEqual([]);
   });
 
@@ -1028,9 +1040,9 @@ describe('an upload that fails leaves no object and releases its lease', () => {
     world.hooks.onChunk = ({index}) => {
       if (index === 1) world.db.down = true;
     };
-    const reply = await world.upload(member, id, pngBytes(3 * MiB));
-    expect([reply.status, reply.json()]).toEqual([503, {error: 'unavailable'}]);
-    expect(reply.headers['retry-after']).toBe('5');
+    const reply = await uploadOutcome(world.upload(member, id, pngBytes(3 * MiB)));
+    expectRefused(reply, 503, {error: 'unavailable'});
+    if (typeof reply !== 'string') expect(reply.headers['retry-after']).toBe('5');
     expect(world.storage.keys()).toEqual([]);
     expect(world.storage.abortedPuts).toBe(1);
     expect(world.db.leases.get(id)!.state).toBe('receiving');
