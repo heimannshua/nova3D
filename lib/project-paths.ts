@@ -3,6 +3,8 @@
 export const projectsPath = '/projects';
 export const projectPath = (projectId: string) => `/projects/${projectId}`;
 export const sourcesPath = (projectId: string) => `/projects/${projectId}/sources`;
+/** The picture screen (Story 2.2: C-03) of a Project whose latest request is an unconfirmed picture request. */
+export const picturesPath = (projectId: string) => `/projects/${projectId}/pictures`;
 
 /**
  * Where a link is sent when its Project ID cannot even be decoded (`/projects/%E0%A4%A`: a percent sign that starts no escape).
@@ -13,9 +15,9 @@ export const sourcesPath = (projectId: string) => `/projects/${projectId}/source
  */
 export const undecodableProjectPath = `${projectsPath}/not-a-project-id`;
 
-/** Whether the path is a Project page (the overview or Sources) whose ID segment is not valid percent-encoding. */
+/** Whether the path is a Project page (the overview, Sources or Pictures) whose ID segment is not valid percent-encoding. */
 export function hasUndecodableProjectId(pathname: string): boolean {
-  const match = /^\/projects\/([^/]+)(?:\/sources)?\/?$/.exec(pathname);
+  const match = /^\/projects\/([^/]+)(?:\/(?:sources|pictures))?\/?$/.exec(pathname);
   if (!match) return false;
   try {
     decodeURIComponent(match[1]);
@@ -27,3 +29,6 @@ export function hasUndecodableProjectId(pathname: string): boolean {
 
 /** Where a person describes a model in words and confirms what was understood (Story 2.1: C-02 and C-06, one narrow page). */
 export const newProjectPath = '/projects/new';
+
+/** Where a person chooses or photographs the views of a new picture request and saves them privately (Story 2.2: C-03). The Project is born at the first save. */
+export const newPicturesPath = '/projects/new/pictures';

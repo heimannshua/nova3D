@@ -2,12 +2,11 @@
 
 import {useState} from 'react';
 import {useI18n} from '@/lib/i18n/react';
-import {newProjectPath} from '@/lib/project-paths';
+import {newPicturesPath, newProjectPath} from '@/lib/project-paths';
 import {LinkButton} from '../ui/button';
 import {Dialog} from '../ui/dialog';
 import {Explanation} from '../ui/explain';
 import {Icon, type IconName} from '../ui/icon';
-import {Notice} from '../ui/states';
 
 export type Intake = 'text' | 'image';
 
@@ -18,8 +17,8 @@ const options = [
 
 /**
  * Where a new project starts (C-01). The choice is a radio group, so arrow keys and screen readers work as expected. Enter text goes on
- * to the text flow (`/projects/new`, C-02); Upload picture keeps its radio and says picture upload arrives in a later release (Story
- * 2.2 owns that destination). `initialChoice` opens the dialog with a choice made, as the text flow's "start from a picture" does.
+ * to the text flow (`/projects/new`, C-02); Upload picture goes on to the picture screen (`/projects/new/pictures`, C-03, Story 2.2).
+ * `initialChoice` opens the dialog with a choice made, as the text flow's "start from a picture" does.
  */
 export function CreateDialog({onClose, initialChoice = null}: {onClose: () => void; initialChoice?: Intake | null}) {
   const {t} = useI18n();
@@ -51,10 +50,9 @@ export function CreateDialog({onClose, initialChoice = null}: {onClose: () => vo
                 ? <Explanation simple="create.textNext" technical="create.textTechnical"/>
                 : <Explanation simple="create.imageNext" technical="create.imageTechnical"/>}
             </p>
-            {choice === 'text' ? <LinkButton variant="primary" iconAfter="arrow" href={newProjectPath} onClick={onClose}>{t('create.continue')}</LinkButton> : null}
+            <LinkButton variant="primary" iconAfter="arrow" href={choice === 'text' ? newProjectPath : newPicturesPath} onClick={onClose}>{t('create.continue')}</LinkButton>
           </div>
         ) : null}
-        {choice === 'image' ? <Notice tone="info">{t('create.imageLater')}</Notice> : null}
       </div>
       <p className="dialog-footnote"><span className="dot" aria-hidden="true"/>{t('create.footnote')}</p>
     </Dialog>

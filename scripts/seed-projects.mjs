@@ -92,6 +92,7 @@ try {
     for (const fixture of projectFixtures) {
       const ids = (await client.query('select id from projects.projects where account_id = $1 and title = $2', [accountId, fixture.title])).rows.map((row) => row.id);
       if (!ids.length) continue;
+      await client.query('delete from projects.request_images where account_id = $1 and project_id = any($2)', [accountId, ids]);
       await client.query('delete from projects.request_revisions where account_id = $1 and project_id = any($2)', [accountId, ids]);
       await client.query('delete from projects.project_commands where account_id = $1 and project_id = any($2)', [accountId, ids]);
       await client.query('delete from projects.projects where account_id = $1 and id = any($2)', [accountId, ids]);

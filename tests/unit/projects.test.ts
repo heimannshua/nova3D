@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 import {AccountsUnavailableError} from '@/lib/accounts';
-import {createProjectRequest, listProjects, maxListed, readProject, readProjectRequest, renameProjectCommand} from '@/lib/projects';
+import {createProjectRequest, listProjects, maxListed, readProject, readProjectRequest, recordPictureSet, releaseStagedPictures, renameProjectCommand} from '@/lib/projects';
 import {resolveProjectTarget} from '@/lib/project-target';
 
 // The typed calls of the Projects functions (lib/projects.ts) and the target resolver (lib/project-target.ts), against a fake fetch:
@@ -220,6 +220,8 @@ const revisionRow = {
   personalization_applied: true,
   personalization_reason: null,
   confirmed_at: '2026-10-18T19:12:12.844515+00:00',
+  confirmed: true,
+  images: [],
 };
 
 describe('createProjectRequest', () => {
@@ -307,7 +309,9 @@ describe('readProjectRequest', () => {
         outcome: 'A model I can print',
         description: 'Build the altar and add "David" engraved',
         personalization: {wording: 'Add "David" engraved', text: 'David', style: 'recessed', applied: true, reason: null},
+        confirmed: true,
         confirmedAt: '2026-10-18T19:12:12.844515+00:00',
+        images: [],
       },
     });
     expect(sent[0]).toMatchObject({name: 'read_project_request', body: {p_account_id: ACCOUNT, p_epoch: 3, p_project_id: PROJECT}});
@@ -360,5 +364,205 @@ describe('readProjectRequest', () => {
 
   it('throws, and does not say there is no request, when the database cannot be reached', async () => {
     await expect(readProjectRequest(operation, PROJECT, {env, fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true});
+  });
+});
+
+// The pictures of a revision (Story 2.2) ---------------------------------------------------------------------------------------
+const UPLOAD_1 = 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa';
+const UPLOAD_2 = 'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb';
+const SHA_1 = 'a'.repeat(64);
+const SHA_2 = 'b'.repeat(64);
+const imageRow = (position: number, upload: string, sha: string, extra: Record<string, unknown> = {}) => ({
+  position,
+  upload_id: upload,
+  sha256: sha,
+  length: 482113,
+  content_type: 'image/jpeg',
+  expires_at: '2026-10-19T12:00:00.123456+00:00',
+  available: true,
+  ...extra,
+});
+const pictureRow = {
+  ...revisionRow,
+  mode: 'evidence_images',
+  subject_id: null,
+  scope: null,
+  intended_outcome: null,
+  description: null,
+  personalization_wording: null,
+  personalization_text: null,
+  personalization_style: null,
+  personalization_applied: false,
+  personalization_reason: null,
+  confirmed_at: null,
+  confirmed: false,
+  images: [imageRow(1, UPLOAD_1, SHA_1), imageRow(2, UPLOAD_2, SHA_2, {content_type: 'image/webp', length: 12, available: false, expires_at: null})],
+};
+
+describe('readProjectRequest, an unconfirmed picture request (Story 2.2)', () => {
+  it('reads a revision that claims nothing but its pictures, in order, with the lease facts the database read', async () => {
+    expect(await readProjectRequest(operation, PROJECT, fake(pictureRow).options)).toEqual({
+      outcome: 'found',
+      request: {
+        id: REQUEST,
+        projectId: PROJECT,
+        seq: 1,
+        mode: 'evidence_images',
+        confirmed: false,
+        subjectId: null,
+        scope: null,
+        outcome: null,
+        description: null,
+        personalization: {wording: null, text: null, style: null, applied: false, reason: null},
+        confirmedAt: null,
+        images: [
+          {position: 1, uploadId: UPLOAD_1, sha256: SHA_1, length: 482113, contentType: 'image/jpeg', expiresAt: '2026-10-19T12:00:00.123456+00:00', available: true},
+          {position: 2, uploadId: UPLOAD_2, sha256: SHA_2, length: 12, contentType: 'image/webp', expiresAt: null, available: false},
+        ],
+      },
+    });
+  });
+
+  it('lower-cases the upload IDs and reads a revision with no pictures as an empty list', async () => {
+    const upper = {...pictureRow, images: [imageRow(1, UPLOAD_1.toUpperCase(), SHA_1)]};
+    const read = await readProjectRequest(operation, PROJECT, fake(upper).options);
+    expect(read).toMatchObject({outcome: 'found', request: {images: [{uploadId: UPLOAD_1}]}});
+    expect(await readProjectRequest(operation, PROJECT, fake({...pictureRow, images: []}).options)).toMatchObject({outcome: 'found', request: {images: []}});
+  });
+
+  it('returns no key, address or download URL for a picture: only the lease facts', async () => {
+    const read = await readProjectRequest(operation, PROJECT, fake(pictureRow).options);
+    expect(JSON.stringify(read)).not.toMatch(/https?:|storage|signed|download|ticket|staging\//i);
+  });
+
+  it.each([
+    ['pictures that are not a list', {images: 'none'}],
+    ['no pictures member', {images: undefined}],
+    ['more than 12 pictures', {images: Array.from({length: 13}, (_, index) => imageRow(index + 1, `aaaaaaaa-1111-4111-8111-${String(index).padStart(12, '0')}`, SHA_1))}],
+    ['a picture out of order', {images: [imageRow(2, UPLOAD_1, SHA_1)]}],
+    ['a picture with no upload ID', {images: [imageRow(1, 'nope', SHA_1)]}],
+    ['a picture with a short digest', {images: [imageRow(1, UPLOAD_1, 'abc')]}],
+    ['a picture of a kind it cannot be', {images: [imageRow(1, UPLOAD_1, SHA_1, {content_type: 'image/heic'})]}],
+    ['a picture of no length', {images: [imageRow(1, UPLOAD_1, SHA_1, {length: 0})]}],
+    ['a picture with no availability', {images: [imageRow(1, UPLOAD_1, SHA_1, {available: 'yes'})]}],
+    ['a picture whose expiry is not text', {images: [imageRow(1, UPLOAD_1, SHA_1, {expires_at: 5})]}],
+    ['no confirmed flag', {confirmed: undefined}],
+    ['an unconfirmed revision with a time', {confirmed_at: '2026-10-18T19:12:12+00:00'}],
+    ['an unconfirmed revision with a scope', {scope: 'A scope'}],
+    ['an unconfirmed revision with a description', {description: 'A description'}],
+    ['an unconfirmed revision with a subject', {subject_id: 'middot-altar-ramp'}],
+    ['an unconfirmed revision with a wish', {personalization_wording: 'Add "David"', personalization_applied: false, personalization_reason: 'no_quoted_text'}],
+    ['an unconfirmed text request', {mode: 'evidence_text'}],
+    ['a confirmed revision with no description', {confirmed: true, description: null}],
+  ])('treats %s as no answer at all', async (_name, change) => {
+    await expect(readProjectRequest(operation, PROJECT, fake({...pictureRow, ...change}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+});
+
+describe('recordPictureSet (Story 2.2)', () => {
+  const SET = [UPLOAD_1, UPLOAD_2];
+  const creating = {commandId: COMMAND, projectId: null, title: 'Picture request', uploadIds: SET};
+
+  it('sends the Account and epoch of the operation, the command, no Project and a title when it creates, and the uploads in order, as the service role', async () => {
+    const {sent, options} = fake({outcome: 'created', project_id: PROJECT, request_id: REQUEST, seq: 1, position: null, released: 0});
+    expect(await recordPictureSet(operation, creating, options)).toEqual({outcome: 'created', projectId: PROJECT, requestId: REQUEST, seq: 1, released: 0});
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({
+      name: 'record_picture_set',
+      body: {p_account_id: ACCOUNT, p_epoch: 3, p_command_id: COMMAND, p_project_id: null, p_title: 'Picture request', p_upload_ids: SET},
+    });
+    expect(Object.keys(sent[0].body).sort()).toEqual(['p_account_id', 'p_command_id', 'p_epoch', 'p_project_id', 'p_title', 'p_upload_ids']);
+    expect(sent[0].headers).toMatchObject({authorization: 'Bearer service-key-for-tests-only', 'content-profile': 'api'});
+  });
+
+  it('names the Project and no title for a successor, lower-cases every ID, and reads the uploads it released', async () => {
+    const {sent, options} = fake({outcome: 'revised', project_id: PROJECT.toUpperCase(), request_id: REQUEST.toUpperCase(), seq: 2, position: null, released: 1});
+    const receipt = await recordPictureSet(operation, {commandId: COMMAND.toUpperCase(), projectId: PROJECT.toUpperCase(), title: null, uploadIds: [UPLOAD_2.toUpperCase(), UPLOAD_1]}, options);
+    expect(receipt).toEqual({outcome: 'revised', projectId: PROJECT, requestId: REQUEST, seq: 2, released: 1});
+    expect(sent[0].body).toMatchObject({p_command_id: COMMAND, p_project_id: PROJECT, p_title: null, p_upload_ids: [UPLOAD_2, UPLOAD_1]});
+  });
+
+  it.each(['created', 'revised', 'replayed', 'unchanged'] as const)('reads %s with the Project, the revision, its number and what was released', async (outcome) => {
+    const receipt = await recordPictureSet(operation, creating, fake({outcome, project_id: PROJECT, request_id: REQUEST, seq: 3, position: null, released: null}).options);
+    expect(receipt).toEqual({outcome, projectId: PROJECT, requestId: REQUEST, seq: 3, released: 0});
+  });
+
+  it.each(['too_large', 'reused', 'unavailable', 'not_editable', 'denied'] as const)('answers %s with nothing else', async (outcome) => {
+    expect(await recordPictureSet(operation, creating, fake({outcome, project_id: null, request_id: null, seq: null, position: null, released: null}).options)).toEqual({outcome});
+  });
+
+  it.each(['unknown_upload', 'not_ready', 'expired_upload', 'duplicate_image'] as const)('answers %s with the position of the upload, which it must have', async (outcome) => {
+    expect(await recordPictureSet(operation, creating, fake({outcome, project_id: null, request_id: null, seq: null, position: 2, released: null}).options)).toEqual({outcome, position: 2});
+    for (const position of [null, 0, 3, -1, 1.5, 'one']) {
+      await expect(recordPictureSet(operation, creating, fake({outcome, position}).options), String(position)).rejects.toBeInstanceOf(AccountsUnavailableError);
+    }
+  });
+
+  it.each([
+    ['an outcome it does not know', {outcome: 'maybe'}],
+    ['a body that is not an object', []],
+    ['a success with no Project', {outcome: 'created', project_id: null, request_id: REQUEST, seq: 1}],
+    ['a success with a Project that is no ID', {outcome: 'created', project_id: 'nope', request_id: REQUEST, seq: 1}],
+    ['a success with no revision', {outcome: 'revised', project_id: PROJECT, request_id: null, seq: 2}],
+    ['a success with no number', {outcome: 'revised', project_id: PROJECT, request_id: REQUEST, seq: null}],
+    ['a success with a number of 0', {outcome: 'created', project_id: PROJECT, request_id: REQUEST, seq: 0}],
+    ['a success with a count that is no number', {outcome: 'revised', project_id: PROJECT, request_id: REQUEST, seq: 2, released: 'one'}],
+  ])('treats %s as no answer at all', async (_name, answer) => {
+    await expect(recordPictureSet(operation, creating, fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('refuses a set that is not 1 to 12 different upload IDs, a command or Project that is no ID, and an operation that is not one, before asking', async () => {
+    const {fetch, options} = fake({});
+    const twelve = Array.from({length: 12}, (_, index) => `aaaaaaaa-1111-4111-8111-${String(index).padStart(12, '0')}`);
+    const bad: Record<string, Parameters<typeof recordPictureSet>[1]> = {
+      'no uploads': {...creating, uploadIds: []},
+      'thirteen uploads': {...creating, uploadIds: [...twelve, UPLOAD_1]},
+      'a repeated upload': {...creating, uploadIds: [UPLOAD_1, UPLOAD_2, UPLOAD_1.toUpperCase()]},
+      'an upload that is no ID': {...creating, uploadIds: [UPLOAD_1, 'nope']},
+      'a command that is no ID': {...creating, commandId: 'nope'},
+      'a Project that is no ID': {...creating, projectId: 'nope', title: null},
+    };
+    for (const [name, input] of Object.entries(bad)) await expect(recordPictureSet(operation, input, options), name).rejects.toBeInstanceOf(TypeError);
+    await expect(recordPictureSet({accountId: 'not-an-id', epoch: 1}, creating, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(recordPictureSet({accountId: ACCOUNT, epoch: 0}, creating, options)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+    // Twelve is the most that is accepted.
+    await recordPictureSet(operation, {...creating, uploadIds: twelve}, fake({outcome: 'created', project_id: PROJECT, request_id: REQUEST, seq: 1}).options);
+  });
+
+  it('throws, and does not say nothing was saved, when the database cannot be reached or answers an error: the set may have been recorded', async () => {
+    await expect(recordPictureSet(operation, creating, {env, fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true});
+    await expect(recordPictureSet(operation, creating, fake({code: '22023'}, 400).options)).rejects.toMatchObject({name: 'AccountsUnavailableError', outcomeUnknown: false});
+    await expect(recordPictureSet(operation, creating, fake({}, 500).options)).rejects.toMatchObject({name: 'AccountsUnavailableError', outcomeUnknown: true});
+  });
+});
+
+describe('releaseStagedPictures (Story 2.2)', () => {
+  it('sends the Account and epoch of the operation and the uploads, and reads how many were released', async () => {
+    const {sent, options} = fake({outcome: 'released', released: 1});
+    expect(await releaseStagedPictures(operation, [UPLOAD_1.toUpperCase(), UPLOAD_2], options)).toEqual({outcome: 'released', released: 1});
+    expect(sent[0]).toMatchObject({name: 'release_staged_pictures', body: {p_account_id: ACCOUNT, p_epoch: 3, p_upload_ids: [UPLOAD_1, UPLOAD_2]}});
+    expect(Object.keys(sent[0].body).sort()).toEqual(['p_account_id', 'p_epoch', 'p_upload_ids']);
+  });
+
+  it('answers denied with nothing else', async () => {
+    expect(await releaseStagedPictures(operation, [UPLOAD_1], fake({outcome: 'denied', released: null}).options)).toEqual({outcome: 'denied'});
+  });
+
+  it.each([
+    ['an outcome it does not know', {outcome: 'maybe'}],
+    ['no count', {outcome: 'released', released: null}],
+    ['a count that is negative', {outcome: 'released', released: -1}],
+    ['more released than asked for', {outcome: 'released', released: 2}],
+  ])('treats %s as no answer at all', async (_name, answer) => {
+    await expect(releaseStagedPictures(operation, [UPLOAD_1], fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('refuses no uploads, more than 12, a repeat and an ID that is none, before asking', async () => {
+    const {fetch, options} = fake({});
+    const thirteen = Array.from({length: 13}, (_, index) => `aaaaaaaa-1111-4111-8111-${String(index).padStart(12, '0')}`);
+    for (const uploadIds of [[], thirteen, [UPLOAD_1, UPLOAD_1], ['nope']]) await expect(releaseStagedPictures(operation, uploadIds, options), JSON.stringify(uploadIds)).rejects.toBeInstanceOf(TypeError);
+    await expect(releaseStagedPictures({accountId: ACCOUNT, epoch: 0}, [UPLOAD_1], options)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

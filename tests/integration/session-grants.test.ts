@@ -1176,6 +1176,7 @@ describe('the preflight', () => {
     'projects.project_commands',
     // Story 2.1: the request revisions (one more read, before the privilege checks).
     'projects.request_revisions',
+    'projects.request_images',
     'lifecycle.tombstones',
     'lifecycle.ledger_outbox',
     'lifecycle.ledger_relay',

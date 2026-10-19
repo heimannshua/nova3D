@@ -184,6 +184,9 @@ const nothing = {
   personalization_applied: null,
   personalization_reason: null,
   confirmed_at: null,
+  // Story 2.2: whether the revision is confirmed, and its pictures.
+  confirmed: null,
+  images: null,
 };
 
 // ---------------------------------------------------------------------------------------------------
@@ -198,8 +201,9 @@ describe('the record: immutable request revisions that Projects own', () => {
         'personalization_style', 'personalization_applied', 'personalization_reason', 'digest', 'confirmed_at', 'created_at',
       ].sort(),
     );
+    // Story 2.2: `scope`, `outcome`, `description` and `confirmed_at` may be null (together, and only together): an unconfirmed picture revision claims none of them.
     expect(columns.filter((column) => column.required).map((column) => column.name)).toEqual(
-      ['id', 'project_id', 'account_id', 'seq', 'command_id', 'mode', 'scope', 'outcome', 'description', 'personalization_applied', 'digest', 'confirmed_at', 'created_at'].sort(),
+      ['id', 'project_id', 'account_id', 'seq', 'command_id', 'mode', 'personalization_applied', 'digest', 'created_at'].sort(),
     );
     for (const column of columns) expect(column.name, column.name).not.toMatch(/approv|permission|payment|paid|cost|price|job|reserv|manifest/);
   });
@@ -240,10 +244,12 @@ describe('the record: immutable request revisions that Projects own', () => {
         expect(result.ok, `seq ${seq}`).toBe(false);
         if (!result.ok) expect(result.code, `seq ${seq}`).toBe('23514');
       }
-      // The same number twice in a Project is refused; a successor is seq + 1.
+      // The same number twice in a Project is refused; a successor is seq + 1. (On purpose changed from the unique key's 23505 to the check of Story 2.2's
+      // trigger, `projects.check_revision_seq`, which makes a revision's number the Project's highest plus one and runs before the key is looked at; the key
+      // is still the second line, tests/integration/picture-sets.test.ts holds both.)
       const twice = (await revise(client, a, {project_id: first.projectId, seq: 1})).result;
       expect(twice.ok).toBe(false);
-      if (!twice.ok) expect(twice.code).toBe('23505');
+      if (!twice.ok) expect(twice.code).toBe('23514');
       expect((await revise(client, a, {project_id: first.projectId, seq: 2})).result.ok).toBe(true);
       // One command ID, one revision, for an Account; another Account may use the same ID.
       const command = randomUUID();
@@ -406,9 +412,14 @@ describe('the record: immutable request revisions that Projects own', () => {
         expect(result.ok, change).toBe(false);
         if (!result.ok) expect(result.code, change).toBe('55000');
       }
+      // On purpose changed with Story 2.2: the table is now referenced by projects.request_images, so truncating it alone is refused by that foreign key
+      // (0A000) before the trigger is reached; truncating the two together passes the key and meets the triggers of both tables.
       const truncate = await attempt(client, null, 'truncate projects.request_revisions');
       expect(truncate.ok).toBe(false);
-      if (!truncate.ok) expect(truncate.code).toBe('55000');
+      if (!truncate.ok) expect(truncate.code).toBe('0A000');
+      const together = await attempt(client, null, 'truncate projects.request_revisions, projects.request_images');
+      expect(together.ok).toBe(false);
+      if (!together.ok) expect(together.code).toBe('55000');
       expect((await revisionsOf(client, a.accountId))[0]).toMatchObject({scope: 'Scope', seq: 1});
       expect((await attempt(client, null, 'delete from projects.request_revisions where id = $1', [id])).ok).toBe(true);
       expect(await revisionsOf(client, a.accountId)).toEqual([]);
@@ -448,14 +459,14 @@ describe('the record: immutable request revisions that Projects own', () => {
     });
   });
 
-  it('widens the Project\'s stage check by exactly one word: request_confirmed is allowed, the old six still are, and any other is refused', async () => {
+  it('widens the Project\'s stage check: request_confirmed is allowed (and, since Story 2.2, request_draft), the old six still are, and any other is refused', async () => {
     const {rows: definition} = await db.query(`select pg_get_constraintdef(oid) as text from pg_constraint where conrelid = 'projects.projects'::regclass and conname = 'projects_stage_check'`);
     for (const stage of projectStages) expect(definition[0].text, stage).toContain(`'${stage}'`);
-    expect([...projectStages]).toHaveLength(7);
+    expect([...projectStages]).toHaveLength(8);
     await inTx(async (client) => {
       const a = await account(client);
       for (const stage of projectStages) expect((await attempt(client, null, `insert into projects.projects (workspace_id, account_id, title, stage) values ($1, $2, 'x', $3)`, [a.workspaceId, a.accountId, stage])).ok, stage).toBe(true);
-      for (const stage of ['draft', 'Request_Confirmed', 'request-confirmed', 'confirmed', '']) {
+      for (const stage of ['draft', 'Request_Confirmed', 'request-confirmed', 'confirmed', 'Request_Draft', 'request-draft', '']) {
         const result = await attempt(client, null, `insert into projects.projects (workspace_id, account_id, title, stage) values ($1, $2, 'x', $3)`, [a.workspaceId, a.accountId, stage]);
         expect(result.ok, stage).toBe(false);
         if (!result.ok) expect(result.code, stage).toBe('23514');
@@ -1049,6 +1060,9 @@ describe('api.read_project_request: the latest revision, or one answer for every
         personalization_applied: true,
         personalization_reason: null,
         confirmed_at: (await revisionsOf(client, a.accountId))[0].confirmed_at,
+        // Story 2.2: a confirmed revision says so and has no pictures.
+        confirmed: true,
+        images: [],
       });
       // A successor (Stories 2.2, 2.3, 2.12, 2.13) is appended with seq + 1 and raises the Project's revision by one; the read answers the latest.
       await client.query('update projects.projects set revision = revision + 1, updated_at = clock_timestamp() where id = $1', [made.project_id]);
@@ -1243,7 +1257,7 @@ describe('the typed calls, over REST as the application makes them (committed da
     });
     if (found.outcome === 'found') {
       const [revision] = await revisionsOf(db, a.accountId);
-      expect(new Date(found.request.confirmedAt).getTime()).toBe(revision.confirmed_at.getTime());
+      expect(new Date(found.request.confirmedAt ?? '').getTime()).toBe(revision.confirmed_at.getTime());
     }
     // A rename may not reuse the command of a creation's receipt for this to matter, but a creation may not reuse a rename's.
     const renameCommand = randomUUID();
@@ -1338,10 +1352,10 @@ describe('the preflight carries the Story 2.1 table and functions', () => {
     for (const needle of ['projects.request_revisions', 'q.personalization_applied', 'q.digest', 'q.confirmed_at', 'Story 2.1 migration', create_, read_, 'Story 1.13 migration', 'Story 1.12 migration', 'projects.project_commands']) {
       expect(definition, needle).toContain(needle);
     }
-    // The service role can execute all thirty-three api functions, these two among them; the bucket check is still the last of all.
+    // The service role can execute all thirty-five api functions, these two among them; the bucket check is still the last of all.
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(33);
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(35);
     expect(executable).toContain(create_);
     expect(executable).toContain(read_);
     expect(definition.indexOf('Story 2.1 migration')).toBeLessThan(check);

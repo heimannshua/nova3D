@@ -6,7 +6,7 @@ import {projectFixtures} from '@/lib/project-fixtures';
 import {projectStages} from '@/lib/project-stage';
 import {createHarness, stack, tag} from '../support/accounts-db';
 
-// The local fixture seed (scripts/seed-projects.mjs) run against the Supabase CLI stack: one Project for each of the stages (six in Story 1.7, seven since Story 2.1 added request_confirmed), nothing
+// The local fixture seed (scripts/seed-projects.mjs) run against the Supabase CLI stack: one Project for each of the stages (six in Story 1.7, seven since Story 2.1 added request_confirmed, eight since Story 2.2 added request_draft), nothing
 // twice, nothing for an Account that is not active, and removal that takes only the fixtures. Its refusals are in tests/unit/seed-projects.test.ts.
 const {db, committed, addUser, rows} = createHarness();
 const script = resolve(import.meta.dirname, '../../scripts/seed-projects.mjs');
@@ -34,7 +34,7 @@ const stored = async (accountId: string) =>
   (await db.query('select title, stage, current_version, revision::int as revision, updated_at from projects.projects where account_id = $1 order by updated_at desc', [accountId])).rows;
 
 describe('the local fixture seed', () => {
-  it('gives an Account one Project for each of the stages (seven), newest first in the order of the fixtures, and prints no ID', async () => {
+  it('gives an Account one Project for each of the stages (eight), newest first in the order of the fixtures, and prints no ID', async () => {
     const a = await account();
     const result = await run(['--email', a.email]);
     expect(result.code, result.stderr).toBe(0);

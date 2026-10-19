@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type {ButtonHTMLAttributes, ComponentProps, ComponentPropsWithRef, ReactNode} from 'react';
+import type {ComponentProps, ComponentPropsWithRef, ReactNode} from 'react';
 import {Icon, type IconName} from './icon';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger';
@@ -11,7 +11,7 @@ export function buttonClass(variant: ButtonVariant = 'secondary', extra?: string
 type Shared = {variant?: ButtonVariant; icon?: IconName; iconAfter?: IconName; children: ReactNode};
 
 /** A native button. The minimum touch target (44 px) and the focus ring come from the .btn styles. */
-export function Button({variant = 'secondary', icon, iconAfter, className, type = 'button', children, ...rest}: Shared & Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'>) {
+export function Button({variant = 'secondary', icon, iconAfter, className, type = 'button', children, ...rest}: Shared & Omit<ComponentPropsWithRef<'button'>, 'children'>) {
   return (
     <button type={type} className={buttonClass(variant, className)} {...rest}>
       {icon ? <Icon name={icon} size={17}/> : null}

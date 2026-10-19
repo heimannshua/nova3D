@@ -18,7 +18,7 @@ import {
   versionWords,
   type RenameState,
 } from '@/lib/project-view';
-import {hasUndecodableProjectId, undecodableProjectPath} from '@/lib/project-paths';
+import {hasUndecodableProjectId, newPicturesPath, picturesPath, undecodableProjectPath} from '@/lib/project-paths';
 import {unexpectedResponseMessage} from '@/lib/session-actions';
 
 const ID = '9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a';
@@ -64,9 +64,16 @@ describe('IDs', () => {
 });
 
 describe('Project links whose ID does not decode', () => {
-  it('knows a percent sign that starts no escape, in the overview or Sources, and nothing else', () => {
-    for (const path of ['/projects/%E0%A4%A', '/projects/%E0%A4%A/sources', '/projects/%zz', '/projects/%/', '/projects/%C3%28']) expect(hasUndecodableProjectId(path), path).toBe(true);
-    for (const path of ['/projects', '/projects/', '/projects/%E0%A4%A4', '/projects/%41', `/projects/${ID}`, `/projects/${ID}/sources`, '/projects/x/y', '/projects/%zz/other', '/settings/%zz', '/', '/projectsx/%zz']) expect(hasUndecodableProjectId(path), path).toBe(false);
+  it('knows a percent sign that starts no escape, in the overview, Sources or Pictures, and nothing else', () => {
+    for (const path of ['/projects/%E0%A4%A', '/projects/%E0%A4%A/sources', '/projects/%zz', '/projects/%/', '/projects/%C3%28', '/projects/%zz/pictures', '/projects/%E0%A4%A/pictures/', '/projects/%C3%28/pictures']) expect(hasUndecodableProjectId(path), path).toBe(true);
+    for (const path of ['/projects', '/projects/', '/projects/%E0%A4%A4', '/projects/%41', `/projects/${ID}`, `/projects/${ID}/sources`, `/projects/${ID}/pictures`, '/projects/x/y', '/projects/%zz/other', '/projects/%zz/pictures/more', '/settings/%zz', '/', '/projectsx/%zz', '/projects/new/pictures', '/projects/new', '/projects/%41/pictures']) expect(hasUndecodableProjectId(path), path).toBe(false);
+  });
+
+  it('keeps the picture screen of a new set out of the rewrite: /projects/new/pictures is a page, not a Project\'s ID', () => {
+    expect(newPicturesPath).toBe('/projects/new/pictures');
+    expect(hasUndecodableProjectId(newPicturesPath)).toBe(false);
+    expect(picturesPath(ID)).toBe(`/projects/${ID}/pictures`);
+    expect(hasUndecodableProjectId(picturesPath('%zz'))).toBe(true);
   });
 
   it('is sent to a segment that is no ID, so it is the one unavailable page', () => {

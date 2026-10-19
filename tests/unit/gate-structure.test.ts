@@ -2529,3 +2529,382 @@ describe('Request revisions (Story 2.1) are created and read through two typed c
     expect(read('README.md')).toMatch(/request_revisions|request revision/i);
   });
 });
+
+describe('Picture sets (Story 2.2) are recorded through two typed calls, by two Server Actions, for the verified Account, and no picture passes through the application', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+    'next.config.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const code = (file: string) => withoutComments(read(file));
+  const actions = 'app/projects/new/pictures/actions.ts';
+  const screen = 'components/projects/picture-intake.tsx';
+  const pictureLibs = ['lib/picture-set.ts', 'lib/picture-upload.ts', 'lib/picture-camera.ts', 'lib/picture-view.ts'];
+  const pictureFiles = [...pictureLibs, screen, 'components/projects/pictures-locked.tsx', actions, 'app/projects/new/pictures/page.tsx', 'app/projects/[projectId]/pictures/page.tsx'];
+  const migrationFile = 'supabase/migrations/20261019120000_picture_sets.sql';
+  const migration = read(migrationFile);
+  const migrationCode = migration.replace(/^\s*--.*$/gm, '');
+  const functionBody = (name: string) => {
+    const start = migrationCode.indexOf(`create function ${name}(`);
+    expect(start, name).toBeGreaterThan(-1);
+    return migrationCode.slice(start, migrationCode.indexOf('$$;', migrationCode.indexOf('$$', start) + 2));
+  };
+
+  it('finds every file of the story', () => {
+    for (const file of [...pictureFiles, migrationFile]) expect(() => read(file), file).not.toThrow();
+  });
+
+  it('records and releases from lib/projects.ts and the one actions file, and reaches the actions from the screen alone', () => {
+    expect(callers('recordPictureSet')).toEqual([actions, 'lib/projects.ts']);
+    expect(callers('releaseStagedPictures')).toEqual([actions, 'lib/projects.ts']);
+    expect(callers('savePictureSet')).toEqual([actions, screen]);
+    expect(callers('discardPictures')).toEqual([actions, screen]);
+    // The Project typed calls did not move.
+    expect(callers('createProjectRequest')).toEqual(['app/projects/new/actions.ts', 'lib/projects.ts']);
+    expect(callers('readProjectRequest')).toEqual(['lib/project-pages.ts', 'lib/projects.ts']);
+  });
+
+  it('keeps the two database functions behind the typed calls, and callApi and callRow with their three users', () => {
+    for (const file of sources.filter((candidate) => candidate !== 'lib/projects.ts' && candidate !== 'lib/accounts.ts')) {
+      expect(code(file), file).not.toMatch(/['"`](?:record_picture_set|release_staged_pictures)['"`]/);
+    }
+    expect(code('lib/projects.ts')).toMatch(/callRow\(\s*'record_picture_set'/);
+    expect(code('lib/projects.ts')).toMatch(/callRow\('release_staged_pictures'/);
+    for (const file of sources.filter((candidate) => /^(?:app\/.*page\.tsx|components\/.*)$/.test(candidate))) {
+      expect(code(file), file).not.toMatch(/\b(?:recordPictureSet|releaseStagedPictures|callApi|callRow)\b/);
+    }
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts']);
+  });
+
+  it('is two Server Actions behind withActiveAccount in a file of their own, with the Account from the verified access and only a command, a Project and uploads from the form', () => {
+    expect(read(actions).trimStart()).toMatch(/^'use server';/);
+    expect([...code(actions).matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)].map((match) => match[1])).toEqual(['savePictureSet', 'discardPictures']);
+    expect([...code(actions).matchAll(/^export\s/gm)]).toHaveLength(2);
+    expect([...code(actions).matchAll(/withActiveAccount<(\w+)>\(/g)].map((match) => match[1])).toEqual(['SaveState', 'void']);
+    expect([...code(actions).matchAll(/operationOf\(access\.account\)/g)]).toHaveLength(2);
+    expect([...code(actions).matchAll(/formData\.(?:get|getAll)\(['"](\w+)['"]\)/g)].map((match) => match[1])).toEqual(['uploadId', 'commandId', 'projectId']);
+    for (const forbidden of [/\baccountId\s*:\s*(?:formData|String\()/, /\bepoch\s*:\s*(?:formData|Number\()/, /\bsearchParams\b/, /\bheaders\(\)/, /\brequest\.url\b/, /cookies\(/, /formData\.get\(['"](?:mode|title|accountId|epoch|approved|permission|payment)/, /\.arrayBuffer\(|\.stream\(|\.blob\(|\.text\(\)/]) {
+      expect(code(actions)).not.toMatch(forbidden);
+    }
+    // A Server Action is not an API route, and checks no token of its own (Next compares the Origin, the proxy refuses a foreign one).
+    expect(code(actions)).not.toMatch(/verifyCsrf|requireMutationAccess|csrfHeaderName/);
+    expect(files('app', (name) => /^route\.(ts|js)$/.test(name)).filter((file) => /project|picture/i.test(file))).toEqual([]);
+  });
+
+  it('adds no route: the application\'s routes are the ones it had', () => {
+    expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).sort()).toEqual([
+      'app/api/health/route.ts',
+      'app/api/heartbeat/route.ts',
+      'app/api/jobs/route.ts',
+      'app/api/kit/mutation/route.ts',
+      'app/api/status/route.ts',
+      'app/api/transfers/tickets/route.ts',
+      'app/auth/callback/route.ts',
+    ]);
+  });
+
+  it('takes the title of a new Project from the catalog and the command, Project and uploads from the form, and decides nothing the form says', () => {
+    const body = code(actions);
+    // The catalog's phrase with the UTC date of the save, and no direction control around it (Story 2.2 review: drafts are told apart in My Projects).
+    expect(body).toMatch(/\(await getI18n\(\)\)\.t\('picture\.projectTitle', \{date: new Date\(\)\.toISOString\(\)\.slice\(0, 10\)\}, \{isolate: false\}\)/);
+    expect(body).toMatch(/const title = projectId \? null :/);
+    const saving = body.slice(body.indexOf('export async function savePictureSet'), body.indexOf('export async function discardPictures'));
+    expect(saving.indexOf('recordPictureSet(operationOf')).toBeGreaterThan(saving.indexOf('uploadIdsOf(formData)'));
+    // Every outcome of the typed call has a branch, and an unknown one is never a redirect to a Project.
+    for (const outcome of ['created', 'revised', 'replayed', 'unchanged', 'unknown_upload', 'not_ready', 'expired_upload', 'duplicate_image', 'too_large', 'reused', 'not_editable', 'unavailable']) expect(saving, outcome).toContain(`case '${outcome}':`);
+    expect(saving).toMatch(/case 'unavailable':[\s\S]*?return \{outcome: 'gone'\};/);
+    expect(saving.slice(saving.indexOf("case 'unavailable':"), saving.indexOf('default:'))).not.toMatch(/redirect\(/);
+    expect(saving).toMatch(/default:[\s\S]*?return redirect\(homePath\);/);
+    expect(code('lib/projects.ts')).toMatch(/const pictureSetOutcomes = \['created', 'revised', 'replayed', 'unchanged', 'unknown_upload', 'not_ready', 'expired_upload', 'duplicate_image', 'too_large', 'reused', 'unavailable', 'not_editable', 'denied'\] as const;/);
+  });
+
+  it('prints only the name and message of an error in the actions and the screen\'s modules: never an ID', () => {
+    for (const file of pictureFiles) {
+      for (const line of code(file).split('\n').filter((candidate) => /console\.(?:log|info|warn|error|debug)\(|\blog\(/.test(candidate))) {
+        expect(line, file).toMatch(/describe\(error\)/);
+        expect(line, file).not.toMatch(/title|projectId|accountId|formData|email|uploadId|uploadIds|commandId/);
+      }
+    }
+  });
+
+  it('keeps the screen and its libraries free of every server-only module, of Node, and of the environment', () => {
+    for (const file of [...pictureLibs, screen, 'components/projects/pictures-locked.tsx', 'components/projects/request-section.tsx']) {
+      const source = code(file);
+      expect(source, file).not.toMatch(/from '@\/lib\/(?:accounts|access|auth|authority|projects|project-pages|project-target|lifecycle)'|from '\.\/(?:accounts|access|auth|authority|projects)(?:\.ts)?'|node:|next\/headers|next\/cache|\brequire\(/);
+      expect(source, file).not.toMatch(/process\.env|\benv\.[A-Z]|FILE_GATEWAY_URL|SERVICE_KEYS_|SERVICE_SIGNING_KEY|SUPABASE|SECRET|INSTANCE_ID|APP_ORIGIN/);
+    }
+    for (const file of pictureFiles) expect(code(file), file).not.toMatch(/process\.env/);
+  });
+
+  it('has the pure set import nothing at run time, and the other libraries import only what is browser-safe', () => {
+    const imports = (file: string) => code(file).match(/^import\b.*$/gm) ?? [];
+    expect(imports('lib/picture-set.ts')).toEqual([]);
+    expect(imports('lib/picture-camera.ts')).toEqual([]);
+    expect(imports('lib/picture-upload.ts')).toEqual(["import {csrfFetch} from './csrf-client';", "import type {PictureType, UploadProblem} from './picture-set';"]);
+    for (const line of imports('lib/picture-view.ts')) expect(line).toMatch(/from '@\/lib\/(?:administration|i18n|picture-set|request-view)';$/);
+  });
+
+  it('sends a picture from the browser to the gateway by one module: the ticket by csrfFetch, the file by XMLHttpRequest, to the address in the ticket', () => {
+    expect(callers('csrfFetch')).toEqual(['lib/csrf-client.ts', 'lib/picture-upload.ts']);
+    expect(callers('XMLHttpRequest')).toEqual(['lib/picture-upload.ts']);
+    expect(callers('v1/uploads')).toEqual(['lib/picture-upload.ts']);
+    expect(callers('fetchTicket')).toEqual(['lib/picture-upload.ts']);
+    for (const file of pictureFiles) {
+      // No fetch of any kind in the screen, the actions or the libraries (the ticket goes through csrfFetch and the file through XMLHttpRequest), and no way to read a staged picture back.
+      expect(code(file), file).not.toMatch(/(?<![\w.])fetch\(|\.sendBeacon\(|new WebSocket\(|new EventSource\(/);
+      expect(code(file), file).not.toMatch(/<a\b[^>]*\bdownload\b|\bdownload=|createSignedUrl|createSignedUploadUrl|getSignedUrl|presign|\.storage\.from\(|@aws-sdk|\/v1\/files\b|\/d\/|direction: 'download'|\/h\/\$/i);
+    }
+    // The gateway is the ticket's and nobody's else: the address is never read from the environment, a constant or a request.
+    expect(code('lib/picture-upload.ts')).toMatch(/uploadUrl\(input\.gateway, input\.id\)/);
+    expect(code('lib/picture-upload.ts')).not.toMatch(/https?:\/\//);
+  });
+
+  it('names the CSRF header and cookie nowhere in the picture files, and lets the browser echo the token only through csrfFetch', () => {
+    for (const file of pictureFiles) expect(code(file), file).not.toMatch(/x-csrf-token|nova3d-csrf|csrfHeaderName|csrfCookieName|document\.cookie/i);
+  });
+
+  it('shows no picture of the server: a preview is the object URL of the file the person chose, made and revoked by the screen', () => {
+    const body = code(screen);
+    expect([...body.matchAll(/URL\.createObjectURL\(/g)]).toHaveLength(1);
+    expect(body).toMatch(/URL\.revokeObjectURL\(/);
+    expect([...body.matchAll(/<img\b/g)]).toHaveLength(1);
+    expect(body).toMatch(/<img src=\{item\.previewUrl\} alt=/);
+    for (const file of ['components/projects/request-section.tsx', 'components/projects/project-overview.tsx', 'components/projects/pictures-locked.tsx', 'app/projects/[projectId]/pictures/page.tsx', 'app/projects/new/pictures/page.tsx']) {
+      expect(code(file), file).not.toMatch(/<img\b|<video|<canvas|\bsrc=/);
+    }
+    // ... and nothing sets a drag-and-drop handler: order is changed with buttons.
+    expect(body).not.toMatch(/draggable|onDrag|onDrop|dataTransfer/);
+  });
+
+  it('asks for the camera in one place, when Take photo is pressed, and records nothing about it', () => {
+    expect(callers('getUserMedia')).toEqual(['lib/picture-camera.ts']);
+    expect(callers('openCamera')).toEqual([screen, 'lib/picture-camera.ts']);
+    const body = code(screen);
+    // openCamera is called in the handler of the button, and in no effect.
+    expect([...body.matchAll(/openCamera\(/g)]).toHaveLength(1);
+    expect(body.slice(body.indexOf('const takePhoto')).indexOf('openCamera(')).toBeGreaterThan(-1);
+    expect(body).toMatch(/onClick=\{takePhoto\}/);
+    expect(code('lib/picture-camera.ts')).not.toMatch(/localStorage|sessionStorage|indexedDB|permissions\.query|console\./);
+  });
+
+  it('shows a preview the way the review asked: the whole picture in a fixed frame, decoded without blocking and loaded when near (review patch B10)', () => {
+    expect(code(screen)).toMatch(/<img src=\{item\.previewUrl\} alt=\{.+?\} decoding="async" loading="lazy"\/>/);
+    const css = read('app/globals.css');
+    expect(css).toMatch(/\.picture-thumb img \{[^}]*object-fit: contain;/);
+    expect(css).not.toMatch(/\.picture-thumb img \{[^}]*object-fit: cover/);
+    expect(css).toMatch(/\.picture-thumb \{[^}]*inline-size: [\d.]+rem; block-size: [\d.]+rem;/);
+    // The reason a saved picture has no preview is text on the screen, not a title attribute.
+    expect(code(screen)).toMatch(/<p className="picture-nopreview project-muted">\{t\('picture\.item\.noPreview'\)\}<\/p>/);
+    expect(code(screen)).not.toMatch(/\btitle=\{t\('picture\.item\.noPreview'\)\}/);
+  });
+
+  it('starts no queued upload or hashing once the screen has gone, and gives back what it staged and never saved when it goes (review patches B1, B11)', () => {
+    const body = code(screen);
+    expect(body).toMatch(/const send = async \(key: string\) => \{\s*if \(!mounted\.current\) return;/);
+    expect(body).toMatch(/hashQueue\.current\.run\(async \(\) => \{\s*if \(!mounted\.current\) return;/);
+    // On unmount and on pagehide the uploads that are ready, unsaved and not in the Save that was sent are released; the tab asks before it closes with unsaved pictures.
+    expect(body).toMatch(/window\.addEventListener\('beforeunload', ask\)/);
+    expect(body).toMatch(/window\.addEventListener\('pagehide', leave\)/);
+    expect(body).toMatch(/window\.removeEventListener\('beforeunload', ask\)/);
+    expect(body).toMatch(/window\.removeEventListener\('pagehide', leave\)/);
+    expect(body).toMatch(/return \(\) => \{[^]*?leave\(\);\s*mounted\.current = false;/);
+    expect(body).toMatch(/unsavedUploadIds\(\[\.\.\.setRef\.current, \.\.\.held\.current\.values\(\)\], submitted\.current\)/);
+    expect(code('lib/picture-set.ts')).toMatch(/export function unsavedUploadIds\(items: readonly PictureItem\[\], submitted: readonly string\[\]\): string\[\]/);
+    expect(body).toMatch(/if \(saving\.current\) return;\s*const unsaved/);
+    // What the release takes at most is 12 at a time, and it is asked through the silent wrapper.
+    expect(body).toMatch(/attemptDiscard\(discardPictures, uploadIds\.slice\(from, from \+ maxPictures\)\)/);
+    // The word on the comment of `discardable` says what it does: best effort.
+    expect(read('lib/picture-set.ts')).toMatch(/best effort[^]*?lapses on its own, 24 hours after its last activity/);
+  });
+
+  it('freezes the set while a Save is out, and reads an answer against the uploads that were submitted, by one pure rule (review patches B2, B3)', () => {
+    const body = code(screen);
+    expect(body).toMatch(/const locked = initial\.locked \?\? savePending;/);
+    expect(body).toMatch(/formData\.getAll\('uploadId'\)/);
+    expect(body).toMatch(/settleSave\(result, sent, setRef\.current\)/);
+    expect(body).not.toMatch(/setRef\.current\[result\.position/);
+    for (const guard of ['addChosen', 'remove', 'move', 'replace']) expect(body, guard).toMatch(new RegExp(`const ${guard} = [^]*?saving\\.current`));
+    expect(code('lib/picture-view.ts')).toMatch(/export function settleSave\(answer: SaveAnswer, submitted: readonly string\[\], set: PictureSet\)/);
+    // A reused or vanished command is forgotten by the screen's wrapper, from the pure rule's word.
+    expect(body).toMatch(/if \(settled\.forgetCommand\) \{[^}]*forgetCommandId\([^}]*lastSent\.current = null;/);
+  });
+
+  it('keeps a replaced picture aside until its replacement is settled, and rehashes a file the gateway found changed (review patches B4, B5)', () => {
+    const body = code(screen);
+    expect(body).toMatch(/settleHash\(setRef\.current, key, outcome, original\)/);
+    expect(body).toMatch(/held\.current\.set\(result\.added\.key, result\.replaced\)/);
+    expect(body).toMatch(/if \(original\) letGo\(original\);/);
+    expect(body).toMatch(/commit\(retryItem\(setRef\.current, key\)\)/);
+    expect(code('lib/picture-set.ts')).toMatch(/\.\.\.\(item\.problem === 'changed' \? \{sha256: null\} : \{\}\)/);
+  });
+
+  it('hardens the camera: one frame at a time, a dropped frame when the camera was closed meanwhile, tracks watched, and a throw is no picture (review patch B6)', () => {
+    const body = code(screen);
+    expect(body).toMatch(/if \(!video \|\| capturing\.current\) return;/);
+    expect(body).toMatch(/const run = cameraRun\.current;[^]*?await captureFrame\(video\);[^]*?run !== cameraRun\.current\) return;/);
+    expect(body).toMatch(/watchTracks\(result\.stream,/);
+    expect(body).toMatch(/if \(result\.ok\) stopStream\(result\.stream\);/);
+    const camera = code('lib/picture-camera.ts');
+    expect(camera).toMatch(/try \{[^]*?canvas\.toBlob[^]*?\} catch \{\s*return null;/);
+    expect(camera).toMatch(/width: \{ideal: 1920\}, height: \{ideal: 1080\}/);
+    expect(camera).not.toMatch(/\bexact\b/);
+  });
+
+  it('cleans a file\'s name before a message says it, writes sizes with the limit in mind, and names a move for a screen reader in one phrase (review patches B8, B9, C5)', () => {
+    const body = code(screen);
+    expect([...body.matchAll(/displayName\(file\.name\)/g)].length).toBeGreaterThanOrEqual(1);
+    expect(code('lib/picture-set.ts')).toMatch(/name: displayName\(file\.name\)/);
+    expect(code('lib/picture-set.ts')).toMatch(/const name = item\.file \? displayName\(item\.file\.name\) : null/);
+    expect(body).toMatch(/formatBytes\(counted\.bytes, maxSetBytes\)/);
+    expect(body).toMatch(/moving\('picture\.item\.earlier', 'picture\.item\.earlierNamed'\)/);
+    expect(body).toMatch(/moving\('picture\.item\.later', 'picture\.item\.laterNamed'\)/);
+    expect(body).toMatch(/<span aria-hidden="true">\{t\(key\)\}<\/span>\s*<span className="visually-hidden">\{t\(spoken, \{position\}\)\}<\/span>/);
+    // The formats are three placeholders: the screen never writes the names into a message as one string.
+    expect(body).not.toMatch(/acceptedFormats|formats:/);
+    expect(body).toMatch(/\.\.\.formatParams/);
+  });
+
+  it('changes no header policy and no setting: no Content-Security-Policy or Permissions-Policy in the application', () => {
+    for (const file of sources) expect(code(file), file).not.toMatch(/content-security-policy|permissions-policy|feature-policy|Permissions-Policy/i);
+    expect(read('vercel.json')).not.toMatch(/content-security-policy|permissions-policy|headers/i);
+  });
+
+  it('adds no dependency', () => {
+    const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>; devDependencies: Record<string, string>};
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+    expect(Object.keys(manifest.devDependencies).sort()).toEqual(['@axe-core/playwright', '@playwright/test', '@tailwindcss/postcss', '@types/node', '@types/pg', '@types/react', '@types/react-dom', 'bmad-method', 'eslint', 'eslint-config-next', 'tailwindcss', 'typescript', 'vite', 'vitest', 'yaml']);
+  });
+
+  it('still reads the signing variables and the gateway\'s address in the four files that read them, and the picture code reads none', () => {
+    const readers = sources.filter((file) => /SERVICE_SIGNING_KEY_|SERVICE_KEYS_|FILE_GATEWAY_URL|signingKeyVariable|keySetVariable/.test(code(file))).sort();
+    expect(readers).toEqual(['lib/environment.ts', 'lib/gateway-client.ts', 'lib/heartbeat.ts', 'lib/service-signing.ts']);
+  });
+
+  it('keeps the word the Spine reserves for Story 1.8 out of the application code outside the three modules that name it', () => {
+    expect(sources.filter((file) => /tombstone/i.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/authority.ts', 'lib/lifecycle.ts']);
+  });
+
+  it('adds one closed table, three helpers, two functions, two types, and widens two checks, in a migration that creates no role, secret or policy', () => {
+    expect([...migrationCode.matchAll(/^create table (\S+) \(/gm)].map((match) => match[1])).toEqual(['projects.request_images']);
+    expect([...migrationCode.matchAll(/create (?:or replace )?function ([\w.]+)\(/g)].map((match) => match[1])).toEqual([
+      'projects.check_revision_seq',
+      'projects.refuse_image_change',
+      'projects.picture_set_digest',
+      'api.record_picture_set',
+      'api.release_staged_pictures',
+      'api.read_project_request',
+      'api.rename_project',
+      'api.preflight',
+    ]);
+    expect([...migrationCode.matchAll(/^create type (\S+) as/gm)].map((match) => match[1])).toEqual(['api.picture_set_recording', 'api.picture_release', 'api.project_request_view']);
+    expect(migrationCode).toMatch(/revoke all on projects\.request_images from public, anon, authenticated, service_role;/);
+    expect(migrationCode).toMatch(/alter table projects\.request_images enable row level security;/);
+    expect(migrationCode).not.toMatch(/create policy|create role|alter role|password|create extension|create schema/i);
+    // The grants are the two new functions and the read function that was dropped with its type: nothing to anyone else.
+    const grants = [...migrationCode.matchAll(/^grant .*$/gm)].map((match) => match[0]);
+    expect(grants).toEqual([
+      'grant execute on function api.record_picture_set(uuid, bigint, uuid, uuid, text, uuid[]) to service_role;',
+      'grant execute on function api.release_staged_pictures(uuid, bigint, uuid[]) to service_role;',
+      'grant execute on function api.read_project_request(uuid, bigint, uuid) to service_role;',
+    ]);
+    // Projects and their revisions change only where the story says: the stage check, the four nullable columns, three checks, a key and a trigger.
+    expect([...migrationCode.matchAll(/^alter table projects\.projects (?:drop|add) constraint (\w+)/gm)].map((match) => match[1])).toEqual(['projects_stage_check', 'projects_stage_check']);
+    expect(migrationCode).toMatch(/stage in \('request_draft', 'request_confirmed', 'researching', 'awaiting_plan_approval', 'generating', 'awaiting_model_approval', 'validation_failed', 'export_ready'\)/);
+    expect([...migrationCode.matchAll(/^alter table projects\.request_revisions alter column (\w+) drop not null;/gm)].map((match) => match[1])).toEqual(['confirmed_at', 'description', 'scope', 'outcome']);
+    expect([...migrationCode.matchAll(/^alter table projects\.request_revisions add constraint (\w+)/gm)].map((match) => match[1])).toEqual([
+      'request_revisions_confirmed_shape',
+      'request_revisions_text_confirmed',
+      'request_revisions_unconfirmed_shape',
+      'request_revisions_id_project_key',
+    ]);
+    expect(migrationCode).toMatch(/create trigger request_revisions_seq before insert on projects\.request_revisions/);
+    expect(migrationCode).not.toMatch(/alter table projects\.projects (?:add|drop) column/);
+  });
+
+  it('names the pictures\' columns as the story says, and avoids the names the Spine keeps for other stories', () => {
+    const table = migrationCode.slice(migrationCode.indexOf('create table projects.request_images ('), migrationCode.indexOf(');', migrationCode.indexOf('create table projects.request_images (')));
+    const columns = [...table.matchAll(/^  (\w+) (?:uuid|integer|text|bigint)\b/gm)].map((match) => match[1]);
+    expect(columns).toEqual(['revision_id', 'project_id', 'account_id', 'position', 'upload_id', 'sha256', 'length', 'content_type']);
+    expect(table).toMatch(/primary key \(revision_id, position\)/);
+    expect(table).toMatch(/unique \(revision_id, upload_id\)/);
+    expect(table.match(/on delete restrict/g)).toHaveLength(2);
+    for (const name of ['record_picture_set', 'release_staged_pictures', 'picture_set_digest', 'check_revision_seq', 'refuse_image_change']) {
+      const body = migrationCode.slice(migrationCode.indexOf(name), migrationCode.indexOf('$$;', migrationCode.indexOf(name)));
+      expect(body, name).not.toMatch(/\b(?:manifest|retained|pin|ordinal\w*)\b|\bdigest\b.*\bimage|status_handle/i);
+    }
+    expect(table).not.toMatch(/\bdigest\b|manifest|retained|\bpin\b|ordinal/i);
+  });
+
+  it('begins the writer with the authority check, after its argument checks and before any table is read, under the lock rename and create take', () => {
+    const body = functionBody('api.record_picture_set');
+    const check = body.indexOf('identity.assert_operation_authority(p_account_id, p_epoch)');
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(body.search(/from projects\.|from artifacts\.|update projects\.|insert into projects\./));
+    expect(body).toMatch(/exception when sqlstate 'N3010' then[\s\S]*?outcome := 'denied'/);
+    expect(body).toMatch(/security definer\s+set search_path = ''/);
+    expect(body.indexOf("errcode = '22023'")).toBeLessThan(check);
+    expect(body).toContain("pg_advisory_xact_lock(hashtextextended('project_command:' || p_account_id::text || ':' || p_command_id::text, 0))");
+    expect(check).toBeLessThan(body.indexOf('pg_advisory_xact_lock'));
+    // The order of the story: a rename's command, then the revision as the receipt, then the Project row, then the leases, then the size, then "unchanged", then the write.
+    const order = ['from projects.project_commands', "outcome := 'replayed'", 'for update', "outcome := 'not_editable'", "outcome := 'unknown_upload'", "outcome := 'not_ready'", "outcome := 'expired_upload'", "outcome := 'too_large'", "outcome := 'unchanged'", "'request_draft'"];
+    const positions = order.map((needle) => body.indexOf(needle));
+    for (const [index, position] of positions.entries()) expect(position, order[index]).toBeGreaterThan(-1);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
+  it('holds the Project row, refuses a tombstone, raises the Project by exactly one, renews within the bound, and releases what left the set', () => {
+    const body = functionBody('api.record_picture_set');
+    expect(body).toMatch(/where p\.id = p_project_id and p\.account_id = p_account_id and p\.deleted_at is null\s+for update/);
+    expect(body).toContain("lifecycle.is_tombstoned('project', p_project_id)");
+    expect(body).toMatch(/update projects\.projects p set revision = p\.revision \+ 1, updated_at = v_now where p\.id = p_project_id/);
+    expect(body).toMatch(/set expires_at = least\(clock_timestamp\(\) \+ interval '24 hours', l\.created_at \+ interval '7 days'\)/);
+    expect(body).toMatch(/set state = 'released'/);
+    expect(body).toContain('62914560');
+    expect(body).toContain("'evidence_images'");
+    // The lengths, digests and types are the leases', never the caller's: the function has no parameter for any of them.
+    expect(body.slice(0, body.indexOf(')\nreturns'))).not.toMatch(/p_(?:sha|length|content|digest|size)/);
+    // The release is bounded by what no other Project's latest revision still uses.
+    expect(body).toMatch(/orv\.seq = \(select max\(x\.seq\) from projects\.request_revisions x where x\.project_id = orv\.project_id\)/);
+  });
+
+  it('releases only the Account\'s own picture uploads that no revision uses, and writes nothing else', () => {
+    const body = functionBody('api.release_staged_pictures');
+    expect(body).toMatch(/l\.account_id = p_account_id and l\.kind = 'picture' and l\.state in \('receiving', 'complete'\)/);
+    expect(body).toMatch(/not exists \(select 1 from projects\.request_images i where i\.upload_id = l\.id\)/);
+    expect(body).toMatch(/set state = 'released'/);
+    expect(body).not.toMatch(/insert into|delete from|expires_at/);
+    expect(body.indexOf('identity.assert_operation_authority')).toBeLessThan(body.indexOf('update artifacts.staging_leases'));
+  });
+
+  it('closes the command-ID lock in both directions: rename refuses a command a revision used, after it has locked the Project row', () => {
+    const rename = migrationCode.slice(migrationCode.indexOf('create or replace function api.rename_project('), migrationCode.indexOf('$$;', migrationCode.indexOf('create or replace function api.rename_project(')));
+    expect(rename).toMatch(/exists \(select 1 from projects\.request_revisions r where r\.account_id = p_account_id and r\.command_id = p_command_id\) then\s+v_result\.outcome := 'reused';/);
+    expect(rename.indexOf('for update')).toBeLessThan(rename.indexOf('from projects.request_revisions'));
+    expect(rename.indexOf('from projects.request_revisions')).toBeLessThan(rename.indexOf('from projects.project_commands c'));
+    // The create function of Story 2.1 is not edited.
+    expect(read('supabase/migrations/20261018120000_request_revisions.sql')).toContain("v_result.outcome := 'reused';");
+  });
+
+  it('answers the pictures of the latest revision without a key, an address or a download', () => {
+    const read_ = migrationCode.slice(migrationCode.indexOf('create function api.read_project_request('), migrationCode.indexOf('$$;', migrationCode.indexOf('create function api.read_project_request(')));
+    expect(read_).toContain("'available', coalesce(l.state = 'complete' and l.expires_at > clock_timestamp(), false)");
+    expect(read_).not.toMatch(/storage|bucket|\burls?\b|ticket|handle|signed|download/i);
+    const view = migrationCode.slice(migrationCode.indexOf('create type api.project_request_view as ('), migrationCode.indexOf(');', migrationCode.indexOf('create type api.project_request_view as (')));
+    const columns = [...view.matchAll(/^  (\w+) \w+/gm)].map((match) => match[1]);
+    expect(columns.slice(-2)).toEqual(['confirmed', 'images']);
+    for (const column of columns) expect(column).not.toMatch(/manifest|job|cost|price|payment|url|key|ticket|handle/i);
+  });
+
+  it('writes the story down: the writer, the lease bound, the release rules, the origin the gateway allows, and the README', () => {
+    const contract = read('docs/authority-contract.md');
+    for (const needle of ['Saving pictures', 'api.record_picture_set', 'api.release_staged_pictures', 'projects.request_images', 'request_draft', 'check_revision_seq', '24 hours', '7 days', 'evidence_images', 'FOR UPDATE', 'exactly one', 'released']) expect(contract, needle).toContain(needle);
+    const guide = read('docs/staging.md');
+    for (const needle of ['20261019120000_picture_sets.sql', 'request_draft', 'APP_ORIGIN', 'localhost']) expect(guide, needle).toContain(needle);
+    expect(guide).toMatch(/gateway's `APP_ORIGIN` must equal the application's own origin/);
+    const readme = read('README.md');
+    for (const needle of ['Story 2.2', 'picture_sets', 'request_images', 'recordPictureSet', 'savePictureSet', 'discardPictures', 'request_draft', 'picture-intake']) expect(readme, needle).toContain(needle);
+  });
+});

@@ -993,3 +993,68 @@
   summary: Intake polish that did not fit the story. (1) The review step is a state inside `/projects/new`, so Back or a reload discards the draft and the understanding. (2) Failures render a `Notice role="alert"` and also call `announce(...)` with the same text, and a status paragraph says "Saving…", so screen readers may hear a message twice; it needs a real screen-reader pass. (3) The limits (2,000 and 300 characters) are told on submit; there is no counter. (4) The prefilled outcome is a localized sentence, so the same subject is stored with a different outcome text by interface language, and a default the person never touched is stored as if they had written it. (5) Hebrew "confirm" and "approve" share the root אישור in the confirm control, the section and the Plan Approval stage, which blurs the distinction the product is built on; the native review should pick distinct words.
   evidence: `components/projects/request-intake.tsx`, `lib/i18n/he.ts` (`request.*`, `stage.request_confirmed`, `stage.awaiting_plan_approval`); Blind Hunter in the Story 2.1 review.
   mapped_story: The native Hebrew review (Josh), and the intake pass after 2.3.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-stage-ordered-multi-view-images-privately.md`
+  summary: Closed by this story, from Story 2.1's list: the command-ID lock between a rename and a revision is two-directional now (`api.rename_project` answers `reused` for a command ID a request revision used), and a revision's `seq` is enforced to be the Project's highest plus one by a trigger (`projects.check_revision_seq`). Still prose only: that the writer holds the Project row and raises the Project's revision by exactly one (`api.record_picture_set` does; the table cannot make another writer do it), and that a revision's pictures are one set (the 60 MiB total is enforced by the function from the leases, not by a constraint).
+  evidence: `supabase/migrations/20261019120000_picture_sets.sql`, `docs/authority-contract.md` ("Saving pictures"); Story 2.2.
+  mapped_story: 2.3, 2.12 and 2.13 (each appends revisions; the first to need a second writer should move the shared steps into one SQL helper).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-stage-ordered-multi-view-images-privately.md`
+  summary: Previews do not survive a reload. A preview is the local object URL of the file the person chose, so after the page is loaded again (or on another device) a saved set shows as ordered rows with no thumbnails. Showing a saved picture again needs a read path for a staged or retained picture that is authorized per request and never a reusable URL: the staging object is a lease, not a store, and the application is forbidden to fetch or link it.
+  evidence: `components/projects/picture-intake.tsx` (`previewUrl`), `components/projects/request-section.tsx` (the Pictures part), `lib/picture-set.ts` (`savedSet`).
+  mapped_story: 2.3 (the quality checks need to show the pictures) and 2.12 (retained pictures and the retained-picture resolver).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-stage-ordered-multi-view-images-privately.md`
+  summary: Staged pictures keep their metadata. A JPEG a person chooses carries whatever EXIF (including location) the camera wrote, and it is staged and hashed as it is; only a frame captured with Take photo (drawn on a canvas) has none. Nothing strips or transforms a picture in this story (the gateway's registered transform is `none`), and a staged copy lasts at most 7 days.
+  evidence: `lib/picture-upload.ts`, `workers/files/src/server.ts` (`attach`, transform `none`), `lib/picture-camera.ts`.
+  mapped_story: 2.12 (retained copies lose location tags; provider-bound copies carry no metadata).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-stage-ordered-multi-view-images-privately.md`
+  summary: The gateway has no rate limit and no cap on open leases. A signed-in Account can open many uploads (each needs a ticket, a new upload ID and a lease) and fill its 250 MiB staging quota with pictures it never saves, which blocks its own further uploads until they lapse (24 hours) and costs Storage until the hourly cleanup removes them. `api.release_staged_pictures` frees what the screen knows about; nothing frees what a client chose not to.
+  evidence: `workers/files/src/server.ts` (`upload`), `workers/files/src/database.ts` (quota), `lib/transfer-tickets.ts`.
+  mapped_story: A gateway hardening story (rate limits per Account, a cap on open leases); the quota behaviour is Story 1.12's contract.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-stage-ordered-multi-view-images-privately.md`
+  summary: Orphaned uploads that were never saved. A picture uploaded and then abandoned (the tab is closed, the connection drops after the upload completed, the screen is left without Save) is not released by anything but its own lease expiry (24 hours) and the hourly cleanup. The screen releases a picture the person replaces or removes (`discardPictures`), not one it leaves behind, because a request fired as a page unloads is not reliable and a development double-mount would release live pictures.
+  evidence: `components/projects/picture-intake.tsx`, `app/projects/new/pictures/actions.ts` (`discardPictures`).
+  mapped_story: A cleanup pass that releases `complete` picture leases that no revision uses, older than a few hours (an hourly task of Story 1.9's scheduler), or the gateway hardening story above.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-stage-ordered-multi-view-images-privately.md`
+  summary: HEIC and HEIF pictures are not accepted (`type`). A phone that holds HEIC converts to JPEG when a file input asks only for JPEG, PNG and WebP (the picture screen does), but a file picked another way, or an export that keeps HEIC, is refused with a message naming the three accepted formats. No image library is added and nothing is decoded or converted on the server.
+  evidence: `lib/picture-set.ts` (`fileProblem`), `lib/i18n/en.ts` (`picture.problem.type`).
+  mapped_story: Not planned; a decision for Josh if HEIC from iPhones turns out to be common (it would need a converter in the browser or at the gateway).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-stage-ordered-multi-view-images-privately.md`
+  summary: Order is changed only with Move earlier and Move later. There is no drag and drop, on purpose (it would be the only way to order for some people, and the buttons are complete for keyboard and touch), but dragging is faster for a set of 12 on a desktop.
+  evidence: `components/projects/picture-intake.tsx`.
+  mapped_story: A UX pass on intake after 2.3, as an addition to the buttons and never instead of them.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-stage-ordered-multi-view-images-privately.md`
+  summary: The picture revision's mode is provisional. It is recorded as `evidence_images` with no subject, scope, outcome or description, and no screen presents it as a choice, so a Project in `request_draft` has a mode nobody chose. The explicit choice (and `image_direct`) is recorded by Story 2.3 as a successor revision; until then the Project page does not name the mode for an unconfirmed picture request.
+  evidence: `supabase/migrations/20261019120000_picture_sets.sql` (`record_picture_set`), `components/projects/request-section.tsx` (`PicturesPart`).
+  mapped_story: 2.3.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-stage-ordered-multi-view-images-privately.md`
+  summary: The 7-day bound on lease renewal is a limit nobody can extend. A picture set saved and then left for a week has its uploads lapse (a save renews each lease to 24 hours from now, never past 7 days from the lease's creation), and the Project page warns of an expired picture and offers Change pictures to replace it. A person who needs more time has to upload again. The bound is a deliberate cap on how long staging can be held without retention; it moves to 2.12 once pictures are retained.
+  evidence: `supabase/migrations/20261019120000_picture_sets.sql` (the renewal in `record_picture_set`), `docs/authority-contract.md` ("Saving pictures").
+  mapped_story: 2.12 (retained pictures remove the need to renew staging).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-stage-ordered-multi-view-images-privately.md`
+  summary: The Project's title for a picture request is a generic phrase in the person's language at the moment of the first save ("Picture request"), because no subject is known yet. It can be renamed with Story 1.7's Rename. Two Projects made from pictures have the same title until then.
+  evidence: `app/projects/new/pictures/actions.ts`, `lib/i18n/en.ts` (`picture.projectTitle`).
+  mapped_story: 2.13 (identifying the pictured subject can title the Project).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-stage-ordered-multi-view-images-privately.md`
+  summary: A successor picture save carries no expected revision, so a stale window overwrites a newer set. `api.record_picture_set` and `savePictureSet` take no expected `seq` (Rename carries an expected revision and refuses a stale one), so a second window that loaded revision 1 can append revision 3 over another window's revision 2 and, in the same transaction, release any upload only revision 2 carried; the two-connection tests assert that both concurrent successors answer `revised`, which pins last-writer-wins. Adding the guard changes the function's frozen signature (`p_expected_seq`, a `stale` outcome), so it is for the human to say.
+  evidence: `supabase/migrations/20261019120000_picture_sets.sql` (`record_picture_set`), `app/projects/new/pictures/actions.ts`, `tests/integration/picture-sets.test.ts` (the two-connection cases), `docs/authority-contract.md`; Blind Hunter and Edge Case Hunter in the Story 2.2 review.
+  mapped_story: Next change to the picture-set command (2.3 persists the picture mode as the next successor and will need the same guard); sooner if the human asks.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-stage-ordered-multi-view-images-privately.md`
+  summary: A draft picture Project is a dead end that expires. A `request_draft` Project has no destination, no way to delete or discard it before Epic 8, and its pictures lapse within 24 hours of the last save and never later than 7 days after upload; after that it is an unusable row in My Projects whose stage sentence still says the pictures are saved. The staged-quota message ("Remove a picture you do not need") cannot free pictures saved in other draft Projects.
+  evidence: `lib/project-stage.ts` (`request_draft`), `lib/i18n/en.ts` (`stage.request_draft.next`, `picture.upload.quota`), `supabase/migrations/20261019120000_picture_sets.sql` (the lease bound); Blind Hunter in the Story 2.2 review.
+  mapped_story: 2.3 (the quality review gives the draft a next step and 2.12 retains the pictures); 8.1 (deleting a Project frees its staged pictures).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-stage-ordered-multi-view-images-privately.md`
+  summary: Smaller picture-screen gaps, none blocking. (1) The camera closes after every capture (the spec says to stop the tracks on capture), so each extra view reopens `getUserMedia` and may prompt again on some phones. (2) Previews are the full-size object URLs in a thumbnail, up to 12 at 12 MiB each, with no downscaling, which can strain memory on small phones. (3) Reorder moves one place per press: no "move to first or last", about five buttons per row. (4) A second batch of files replaces the problem list, so a duplicate message not yet read can disappear. (5) Only Chromium's fake camera is exercised; no real iOS Safari or Android coverage. (6) A CSP for this screen would need `connect-src` for the gateway, `img-src blob:` and `media-src`, and a structure test now forbids any such header. (7) `ProjectRequestRow` makes the text fields nullable instead of being a union of a confirmed text request and an unconfirmed picture request, so consumers need fallbacks. (8) The database does not tie `request_draft` to an unconfirmed picture revision, and `request_images_upload` is a non-unique index, so the same uploads can seed several Projects; `record_picture_set` and `release_staged_pictures` apply two different rules to "is this upload still used".
+  evidence: `components/projects/picture-intake.tsx`, `lib/picture-camera.ts`, `lib/projects.ts`, `supabase/migrations/20261019120000_picture_sets.sql`; Blind Hunter and Verification Gap in the Story 2.2 review.
+  mapped_story: 2.3 and 7.9 (device capture and the quality module), the first hosted browser test, and a later pass on the picture screen.

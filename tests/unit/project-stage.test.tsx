@@ -10,10 +10,11 @@ import {AnnouncerProvider} from '@/components/ui/announcer';
 
 // Story 1.7 (AC-2): the stages. Every Project stage has a word, a shape of its own and a sentence that names the next thing to do; a
 // stage whose page does not exist yet has no destination, and its next action is text and not a link. Story 2.1 added the first stage,
-// `request_confirmed` (the person confirmed what they asked for, and nothing has started or been charged): seven in all.
-describe('the seven stages', () => {
-  it('are the seven the database allows, in the order a Project moves through them', () => {
-    expect([...projectStages]).toEqual(['request_confirmed', 'researching', 'awaiting_plan_approval', 'generating', 'awaiting_model_approval', 'validation_failed', 'export_ready']);
+// `request_confirmed` (the person confirmed what they asked for, and nothing has started or been charged): seven in all. Story 2.2 added one
+// before it, `request_draft` (the pictures are saved privately and nothing is confirmed yet): eight in all.
+describe('the eight stages', () => {
+  it('are the eight the database allows, in the order a Project moves through them', () => {
+    expect([...projectStages]).toEqual(['request_draft', 'request_confirmed', 'researching', 'awaiting_plan_approval', 'generating', 'awaiting_model_approval', 'validation_failed', 'export_ready']);
     expect(Object.keys(stageDefinitions)).toEqual([...projectStages]);
   });
 
@@ -58,16 +59,16 @@ describe('the seven stages', () => {
     expect(nextActionDestination('researching', 'abc', registered)).toBeNull();
   });
 
-  it('recognises exactly the six words', () => {
+  it('recognises exactly the eight words', () => {
     for (const stage of projectStages) expect(isProjectStage(stage)).toBe(true);
     for (const other of ['', 'draft', 'Researching', 'export-ready', null, undefined, 3, {}]) expect(isProjectStage(other), String(other)).toBe(false);
   });
 });
 
 describe('the fixtures', () => {
-  it('hold one Project for each of the seven stages, and no more', () => {
-    // The new stage's fixture comes last, so the sample cards and the seeded lists of Story 1.7 keep their order.
-    expect(projectFixtures.map((fixture) => fixture.stage)).toEqual([...projectStages.slice(1), 'request_confirmed']);
+  it('hold one Project for each of the eight stages, and no more', () => {
+    // The new stages' fixtures come last (Story 2.1's, then Story 2.2's), so the sample cards and the seeded lists of Story 1.7 keep their order.
+    expect(projectFixtures.map((fixture) => fixture.stage)).toEqual([...projectStages.slice(2), 'request_confirmed', 'request_draft']);
     expect([...projectFixtures.map((fixture) => fixture.stage)].sort()).toEqual([...projectStages].sort());
     expect(new Set(projectFixtures.map((fixture) => fixture.key)).size).toBe(projectFixtures.length);
     expect(new Set(projectFixtures.map((fixture) => fixture.title)).size).toBe(projectFixtures.length);

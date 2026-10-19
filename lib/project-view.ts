@@ -5,6 +5,7 @@
 // and not lib/accounts.ts or lib/projects.ts (whose shapes this file repeats instead).
 import {attemptAdministeredAction, formatCreatedAt, isoOf} from '@/lib/administration';
 import type {MessageKey, Translator} from '@/lib/i18n';
+import type {SavedPicture} from '@/lib/picture-set';
 import type {ProjectStage} from '@/lib/project-stage';
 import type {DeclineReason, PersonalizationStyle, RequestMode} from '@/lib/request-intake';
 import {reloadHere} from '@/lib/session-actions';
@@ -26,9 +27,14 @@ export type ProjectRow = {
 };
 
 /**
- * The request a Project was confirmed from (Story 2.1), as its page shows it: the latest request revision. Everything a person may
- * read about it, and no approval, permission or payment (a revision has none). The wish is `applied` (text and style set), or declined
- * (a wording and the `reason` it was not applied), or there is none (no wording).
+ * The request a Project holds (Story 2.1, Story 2.2), as its page shows it: the latest request revision. Everything a person may read about it, and no
+ * approval, permission or payment (a revision has none). The wish is `applied` (text and style set), or declined (a wording and the `reason` it was not
+ * applied), or there is none (no wording).
+ *
+ * A request is `confirmed` (a text request always is; it has a subject, a scope, an outcome, a description and the time) or it is a picture request saved
+ * on the picture screen (Story 2.2), which claims none of those until a later story records the choice of how the pictures are used and the person's
+ * confirmation: then `subjectId`, `scope`, `outcome`, `description` and `confirmedAt` are null, `mode` is the provisional `evidence_images`, and `images`
+ * holds the pictures in the person's order (a revision made from text has none).
  */
 export type ProjectRequestRow = {
   id: string;
@@ -36,11 +42,12 @@ export type ProjectRequestRow = {
   /** 1 for the first revision. */
   seq: number;
   mode: RequestMode;
+  confirmed: boolean;
   /** The subject's ID in its domain package; the page shows the subject's display name for it. */
   subjectId: string | null;
-  scope: string;
-  outcome: string;
-  description: string;
+  scope: string | null;
+  outcome: string | null;
+  description: string | null;
   personalization: {
     wording: string | null;
     text: string | null;
@@ -48,12 +55,13 @@ export type ProjectRequestRow = {
     applied: boolean;
     reason: DeclineReason | null;
   };
-  confirmedAt: string;
+  confirmedAt: string | null;
+  images: SavedPicture[];
 };
 
 // Where things are ---------------------------------------------------------------------------------------------------
 
-export {projectsPath, projectPath, sourcesPath, newProjectPath} from '@/lib/project-paths';
+export {projectsPath, projectPath, sourcesPath, newProjectPath, newPicturesPath, picturesPath} from '@/lib/project-paths';
 
 const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

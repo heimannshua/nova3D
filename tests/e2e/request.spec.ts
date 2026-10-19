@@ -115,7 +115,7 @@ test.describe('C-01: the Create dialog starts the text flow (UX-DR31)', () => {
     await expect(heading(page)).toHaveText(t('en', 'request.title'));
   });
 
-  test('Upload picture keeps its radio and says picture upload arrives in a later release; it has no Continue and goes nowhere', async ({page, context, baseURL}) => {
+  test('Upload picture keeps its radio, and its Continue leads to the picture screen (Story 2.2), with no message that picture upload arrives later', async ({page, context, baseURL}) => {
     await member(context, baseURL!);
     await page.goto('/');
     await hydrated(page, 'main button, header button');
@@ -123,10 +123,11 @@ test.describe('C-01: the Create dialog starts the text flow (UX-DR31)', () => {
     const dialog = createDialog(page);
     await dialog.getByRole('radio', {name: new RegExp(t('en', 'create.imageTitle'))}).check();
     await expect(dialog.getByText(t('en', 'create.imageSelected'))).toBeVisible();
-    await expect(dialog.getByText(t('en', 'create.imageLater'))).toBeVisible();
-    await expect(dialog.getByRole('link', {name: t('en', 'create.continue')})).toHaveCount(0);
-    await expect(dialog.getByRole('button', {name: t('en', 'create.continue')})).toHaveCount(0);
+    expect(await textOf(dialog)).not.toMatch(/later release|arrives/i);
     await expect(page).toHaveURL(`${baseURL}/`);
+    await dialog.getByRole('link', {name: t('en', 'create.continue')}).click();
+    await expect(page).toHaveURL(`${baseURL}/projects/new/pictures`, crossing);
+    await expect(heading(page)).toHaveText(t('en', 'picture.title.new'));
   });
 
   test('no longer says that creating is unavailable', async ({page, context, baseURL}) => {
@@ -139,14 +140,15 @@ test.describe('C-01: the Create dialog starts the text flow (UX-DR31)', () => {
     expect(await textOf(footnote)).not.toMatch(/later release|arrives|unavailable/i);
   });
 
-  test('is the same in Hebrew: the Continue link and the later-release message', async ({page, context, baseURL}) => {
+  test('is the same in Hebrew: the Continue link of each choice', async ({page, context, baseURL}) => {
     await member(context, baseURL!, {locale: 'he'});
     await page.goto('/');
     await hydrated(page, 'main button, header button');
     await createButton(page, 'he').click();
     const dialog = createDialog(page, 'he');
     await dialog.getByRole('radio', {name: new RegExp(t('he', 'create.imageTitle'))}).check();
-    await expect(dialog.getByText(t('he', 'create.imageLater'))).toBeVisible();
+    await expect(dialog.getByText(t('he', 'create.imageSelected'))).toBeVisible();
+    await expect(dialog.getByRole('link', {name: t('he', 'create.continue')})).toHaveAttribute('href', '/projects/new/pictures');
     await dialog.getByRole('radio', {name: new RegExp(t('he', 'create.textTitle'))}).check();
     await dialog.getByRole('link', {name: t('he', 'create.continue')}).click();
     await expect(page).toHaveURL(`${baseURL}${newPath}`, crossing);
@@ -481,7 +483,7 @@ test.describe('C-06: nothing fits (AC-1)', () => {
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole('radio', {name: new RegExp(t('en', 'create.imageTitle'))})).toBeChecked();
     await expect(dialog.getByText(t('en', 'create.imageSelected'))).toBeVisible();
-    await expect(dialog.getByText(t('en', 'create.imageLater'))).toBeVisible();
+    await expect(dialog.getByRole('link', {name: t('en', 'create.continue')})).toHaveAttribute('href', '/projects/new/pictures');
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     expect(await world.projectCount(user)).toBe(0);
@@ -740,7 +742,7 @@ test.describe('what Confirm answered belongs to the review it was answered on (D
 // ---------------------------------------------------------------------------------------------------
 test.describe('the no-match screen (D5)', () => {
   for (const locale of ['en', 'he'] as const) {
-    test(`makes changing the description the main button and the picture offer the second, with the later-release note after them, in ${locale}`, async ({page, context, baseURL}) => {
+    test(`makes changing the description the main button and the picture offer the second, with no later-release note after them, in ${locale}`, async ({page, context, baseURL}) => {
       const user = await member(context, baseURL!, {locale});
       await reachReview(page, locale === 'he' ? 'מגדלור' : 'a lighthouse', '', locale, 'request.noMatch.title');
       const main = page.getByRole('main');
@@ -748,11 +750,11 @@ test.describe('the no-match screen (D5)', () => {
       const picture = main.getByRole('button', {name: t(locale, 'request.noMatch.picture'), exact: true});
       await expect(change).toHaveClass(/btn-primary/);
       await expect(picture).toHaveClass(/btn-secondary/);
-      // In the order they are read and tabbed, and the note comes right after both.
+      // In the order they are read and tabbed.
       await expect(main.locator('.request-actions button')).toHaveText([t(locale, 'request.noMatch.edit'), t(locale, 'request.noMatch.picture')]);
-      const note = main.getByText(t(locale, 'request.noMatch.pictureLater'), {exact: true});
-      await expect(note).toBeVisible();
-      expect(await main.locator('.request-actions').evaluate((actions) => actions.nextElementSibling?.textContent ?? '')).toBe(t(locale, 'request.noMatch.pictureLater'));
+      // Story 2.2 made the picture offer real: nothing follows the two buttons, and nothing says picture requests arrive later.
+      expect(await main.locator('.request-actions').evaluate((actions) => actions.nextElementSibling === null)).toBe(true);
+      expect(await textOf(main)).not.toMatch(/later release|בגרסה מאוחרת/);
       // The offer is still there and still opens C-01 with Upload picture chosen.
       await picture.click();
       await expect(createDialog(page, locale).getByRole('radio', {name: new RegExp(t(locale, 'create.imageTitle'))})).toBeChecked();

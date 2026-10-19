@@ -44,7 +44,7 @@ const callsRequireAdministrator = (text: string) => /^[^/\n]*\bawait\s+requireAd
 
 describe('page guards', () => {
   it('finds the pages', () => {
-    expect(files).toEqual(expect.arrayContaining(['app/page.tsx', 'app/projects/page.tsx', 'app/projects/new/page.tsx', 'app/projects/[projectId]/page.tsx', 'app/projects/[projectId]/sources/page.tsx', 'app/progress/page.tsx', 'app/settings/page.tsx', registration, ...Object.keys(exempt)]));
+    expect(files).toEqual(expect.arrayContaining(['app/page.tsx', 'app/projects/page.tsx', 'app/projects/new/page.tsx', 'app/projects/new/pictures/page.tsx', 'app/projects/[projectId]/page.tsx', 'app/projects/[projectId]/sources/page.tsx', 'app/projects/[projectId]/pictures/page.tsx', 'app/progress/page.tsx', 'app/settings/page.tsx', registration, ...Object.keys(exempt)]));
   });
 
   it('only exempts pages that exist', () => {
@@ -70,7 +70,8 @@ describe('page guards', () => {
   });
 
   it('asks for the Account before it reads a Project, on every page that shows one', () => {
-    for (const file of ['app/projects/[projectId]/page.tsx', 'app/projects/[projectId]/sources/page.tsx']) {
+    // (Story 2.2 added the picture screen of a Project; the screen of a new set reads no Project, so it only asks for the Account.)
+    for (const file of ['app/projects/[projectId]/page.tsx', 'app/projects/[projectId]/sources/page.tsx', 'app/projects/[projectId]/pictures/page.tsx']) {
       const code = source(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
       const page = code.slice(code.indexOf('export default async function'));
       expect(page.indexOf('await requireActiveAccount()'), file).toBeGreaterThan(-1);

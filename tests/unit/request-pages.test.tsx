@@ -382,14 +382,14 @@ describe.each(locales)('C-06, no match, in %s (AC-1)', (locale) => {
     expect(words).toContain(t(locale, 'request.noMatch.hint'));
   });
 
-  it('makes changing the description the main button, offers picture mode beside it as the other, and says picture requests arrive later', () => {
+  it('makes changing the description the main button, offers picture mode beside it as the other, and no longer says picture requests arrive later', () => {
     // On purpose changed from the picture offer being the primary button: a person whose words matched nothing most likely wants to change
-    // them; the offer stays (and says it arrives in a later release).
+    // them; the offer stays. Story 2.2 made it real, so the note that it arrives in a later release is gone.
     expect(markup).toMatch(new RegExp(`<button type="button" class="btn btn-primary"[^>]*><span>${t(locale, 'request.noMatch.edit')}</span>`));
     expect(markup).toMatch(new RegExp(`<button type="button" class="btn btn-secondary"[^>]*>(?:<svg[\\s\\S]*?</svg>)?<span>${t(locale, 'request.noMatch.picture')}</span>`));
     expect(markup.indexOf(t(locale, 'request.noMatch.edit'))).toBeLessThan(markup.indexOf(t(locale, 'request.noMatch.picture')));
-    expect(words).toContain(t(locale, 'request.noMatch.pictureLater'));
-    expect(markup.indexOf(t(locale, 'request.noMatch.pictureLater'))).toBeGreaterThan(markup.indexOf(t(locale, 'request.noMatch.picture')));
+    expect(words).not.toMatch(/later release|בגרסה מאוחרת/);
+    expect(markup).not.toContain('project-muted request-note');
   });
 
   it('has no confirm and no hidden field', () => {
@@ -409,13 +409,13 @@ describe.each(locales)('C-01, the Create dialog, in %s (UX-DR31)', (locale) => {
     expect(radio(markup, 'intake', 'text')).toContain('checked');
   });
 
-  it('keeps Upload picture as a radio that says picture upload arrives in a later release, with no Continue', () => {
+  it('sends Upload picture on to the picture screen with Continue, a link to /projects/new/pictures, and no longer says picture upload arrives later (Story 2.2)', () => {
     const markup = dialog('image');
     expect(radio(markup, 'intake', 'image')).toContain('checked');
     expect(text(markup)).toContain(t(locale, 'create.imageSelected'));
-    expect(text(markup)).toContain(t(locale, 'create.imageLater'));
-    expect(markup).not.toContain(t(locale, 'create.continue'));
+    expect(markup).toMatch(new RegExp(`<a class="btn btn-primary"[^>]*href="/projects/new/pictures"[^>]*><span>${t(locale, 'create.continue')}</span>`));
     expect(markup).not.toContain('href="/projects/new"');
+    expect(text(markup)).not.toMatch(/later release|בגרסה מאוחרת/);
   });
 
   it('opens with no choice made, no Continue and two radios', () => {
@@ -442,7 +442,9 @@ const requestRow = (patch: Partial<ProjectRequestRow> = {}): ProjectRequestRow =
   outcome: 'A model I can print',
   description,
   personalization: storedPersonalization(classifyPersonalization('Add "David" engraved on the base', 'evidence_text')),
+  confirmed: true,
   confirmedAt: '2026-10-18T19:12:12.844515+00:00',
+  images: [],
   ...patch,
 });
 const section = (locale: Locale, data: RequestSectionData) => render(locale, <RequestSection data={data}/>);

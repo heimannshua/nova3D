@@ -181,8 +181,11 @@ describe('through the REST API', () => {
     record_alarm_notice: {p_alarm_id: randomUUID(), p_outcome: 'sent'},
     record_heartbeat: {p_kid: 'isolation-test', p_jti: 'AAAAAAAAAAAAAAAAAAAAAA'},
     record_invitation_refusal: {p_user_id: victim.user.id, p_action: 'invitation.denied', p_invitation_id: null},
+    // Story 2.2: saving the ordered pictures of a request for an Account (a Project is born at the first save), and releasing uploads that were never saved.
+    record_picture_set: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_project_id: null, p_title: 'Created by another Account', p_upload_ids: [randomUUID()]},
     record_tombstone: {p_kind: 'account', p_target_id: victim.accountId},
     resolve_alarm: {p_condition: 'isolation-test', p_subject: null},
+    release_staged_pictures: {p_account_id: victim.accountId, p_epoch: 1, p_upload_ids: [randomUUID()]},
     rename_project: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_project_id: randomUUID(), p_expected_revision: 1, p_title: 'Renamed by another Account'},
     redeem_recovery: {p_token_hash: codeHash(), p_administrator_email: victim.user.email, p_user_id: victim.user.id, p_session_id: victim.sessionId},
     register_with_code: {p_user_id: victim.user.id, p_command_id: victim.commandId, p_code_hash: victim.codeHash, p_origin_hash: originHash()},
@@ -259,7 +262,7 @@ describe('through the REST API', () => {
       for (const profile of ['public', 'api', 'lifecycle']) {
         const response = await rest(token, '', {profile, headers: {accept: 'application/openapi+json'}});
         const text = await response.text();
-        for (const name of ['account_preferences', 'session_grants', 'audit_events', 'invitations', 'workspaces', 'projects', 'project_commands', 'request_revisions']) expect(text, `${profile} publishes ${name}`).not.toContain(`"/${name}"`);
+        for (const name of ['account_preferences', 'session_grants', 'audit_events', 'invitations', 'workspaces', 'projects', 'project_commands', 'request_revisions', 'request_images']) expect(text, `${profile} publishes ${name}`).not.toContain(`"/${name}"`);
       }
     }
   });
@@ -772,6 +775,7 @@ describe('every table of identity, projects, lifecycle and artifacts is closed t
         'lifecycle.tombstones',
         'projects.project_commands',
         'projects.projects',
+        'projects.request_images',
         'projects.request_revisions',
         'projects.workspaces',
         'artifacts.attachment_transforms',

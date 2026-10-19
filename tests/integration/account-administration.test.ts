@@ -943,6 +943,7 @@ describe('the preflight probes the Story 1.5 functions and the privilege to end 
         'projects.projects',
         'projects.project_commands',
         'projects.request_revisions',
+        'projects.request_images',
         'lifecycle.tombstones',
         'lifecycle.ledger_outbox',
         'lifecycle.ledger_relay',

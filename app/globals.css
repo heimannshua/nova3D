@@ -716,6 +716,42 @@ main { flex: 1; min-inline-size: 0; }
 .request-note { max-inline-size: 42rem; }
 .request-section .project-facts { margin-block-start: var(--space-3); }
 .request-section .request-note { margin-block-start: var(--space-3); }
+/* The picture screen (Story 2.2: C-03): choose or photograph several views of one subject, put them in order, keep them privately. A picture is a card with its preview beside its words and buttons, so it reads on a phone and at large text without a table to scroll. */
+.picture-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-block-start: var(--space-4); }
+.picture-choose { position: relative; cursor: pointer; }
+.picture-choose:has(input:focus-visible) { outline: 0.1875rem solid var(--focus); outline-offset: 0.125rem; }
+.picture-choose-disabled { background: var(--surface-sunken); color: var(--text-subtle); cursor: not-allowed; }
+.picture-camera { display: grid; gap: var(--space-3); margin-block-start: var(--space-4); padding: var(--pad); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-card); }
+.picture-camera .notice { margin-block-start: 0; }
+.picture-video { inline-size: 100%; max-block-size: 24rem; border-radius: var(--radius-md); background: var(--surface-sunken); object-fit: contain; }
+.picture-problems { display: grid; gap: var(--space-1); margin: var(--space-2) 0 0; padding-inline-start: var(--space-5); font-weight: 400; }
+.picture-set .state { margin-block-start: var(--space-3); }
+.picture-list { display: grid; gap: var(--space-3); margin: var(--space-3) 0 0; padding: 0; list-style: none; }
+.picture-item { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: var(--space-3) var(--space-4); padding: var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-card); }
+.picture-media { display: grid; align-content: start; gap: var(--space-1); min-inline-size: 0; }
+.picture-nopreview { font-size: var(--text-xs); overflow-wrap: anywhere; }
+/* A fixed frame, and the whole picture in it: what is being put in order is the picture, not a crop of it. */
+.picture-thumb { inline-size: 7rem; block-size: 5.25rem; border-radius: var(--radius-sm); background: var(--surface-sunken); overflow: hidden; }
+.picture-thumb img { display: block; inline-size: 100%; block-size: 100%; object-fit: contain; }
+.picture-thumb-empty { display: grid; place-items: center; inline-size: 100%; block-size: 100%; color: var(--text-muted); }
+.picture-body { display: grid; gap: var(--space-2); align-content: start; min-inline-size: 0; }
+.picture-details { color: var(--text-muted); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.picture-status { display: grid; gap: var(--space-1); }
+.picture-status progress { inline-size: 100%; max-inline-size: 18rem; block-size: 0.75rem; accent-color: var(--action); }
+.picture-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.picture-note .notice { margin-block-start: 0; }
+.picture-totals { margin-block-start: var(--space-3); }
+.picture-save { margin-block-start: var(--space-5); }
+@media (max-width: 30rem) {
+  .picture-item { grid-template-columns: minmax(0, 1fr); }
+  .picture-thumb { inline-size: min(100%, 9rem); block-size: 6.75rem; }
+}
+/* The pictures of a saved request on the Project page: ordered rows, no preview (nothing of a staged picture is ever fetched or shown by the server). */
+.picture-section-title { margin-block-start: var(--space-4); font-size: var(--text-base); }
+.picture-saved { display: grid; gap: var(--space-3); margin: var(--space-3) 0 0; padding: 0; list-style: none; }
+.picture-saved-item { display: grid; gap: var(--space-1); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-card); overflow-wrap: anywhere; }
+.picture-saved-item .notice { margin-block-start: var(--space-1); }
+.picture-section-actions { margin-block-start: var(--space-3); }
 .rename-form { margin-block-start: var(--space-3); }
 .rename-form .dialog-actions { margin-block-start: var(--space-2); }
 

@@ -2,7 +2,8 @@
 title: 'Story 2.2: Stage ordered multi-view images privately'
 type: 'feature'
 created: '2026-10-19'
-status: 'in-progress'
+status: 'done'
+baseline_commit: '796d11e27afd9b9c4cab75878ebe8a1f788e40c9'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
@@ -69,14 +70,14 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/20261019120000_picture_sets.sql` -- the unconfirmed state, `request_images`, the `seq` trigger, `request_draft`, `record_picture_set`, `release_staged_pictures`, the extended read, the rename collision check, closure, preflight -- AC-2, AC-3, AC-4
-- [ ] `lib/picture-set.ts`, `lib/picture-upload.ts` -- the pure set and the browser hash, ticket and upload -- AC-2, AC-3
-- [ ] `lib/projects.ts`, `lib/project-stage.ts`, `lib/project-fixtures.ts`, `lib/project-paths.ts`, `lib/i18n/en.ts`, `lib/i18n/he.ts` -- typed calls, the stage, the rewrite, all copy in both languages -- AC-1, AC-2
-- [ ] `app/projects/new/pictures/page.tsx`, `app/projects/[projectId]/pictures/page.tsx`, `app/projects/new/pictures/actions.ts`, `components/projects/picture-intake.tsx` (and what it needs), `app/globals.css` -- C-03 -- AC-1, AC-2, AC-3
-- [ ] `components/shell/create-dialog.tsx`, `components/projects/request-intake.tsx`, `components/projects/request-section.tsx`, `lib/project-pages.ts`, `app/projects/[projectId]/page.tsx` -- the Create entry, the no-match note, the Pictures part of the Project page -- AC-2
-- [ ] `docs/authority-contract.md`, `docs/staging.md`, `README.md` -- the writer, the lease bound, the gateway origin -- housekeeping
-- [ ] `tests/` -- every matrix row: unit (the set operations and every problem, hashing and upload with injected fakes incl. each gateway answer and a cut connection), integration (record, successor, replayed, reused, rename collision, foreign, not ready, expired, too large, unchanged, renewal and its bound, release, authority, isolation, immutability, `seq` trigger, closure, preflight), component (every C-03 state), browser on desktop and phone in both languages with the real gateway (choose, preview, reorder, replace, remove, bad files, 12 MiB + 1, camera granted with a fake device and denied, save, reload, edit, a foreign upload ID, no download URL, axe, overflow, 200% text, keyboard); update the pins above -- all ACs
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- previews after a reload (2.3), retained pictures and EXIF (2.12), gateway rate limits and open-lease cap, orphaned uploads that were never saved, HEIC, drag and drop, the provisional mode, the 7-day bound -- housekeeping
+- [x] `supabase/migrations/20261019120000_picture_sets.sql` -- the unconfirmed state, `request_images`, the `seq` trigger, `request_draft`, `record_picture_set`, `release_staged_pictures`, the extended read, the rename collision check, closure, preflight -- AC-2, AC-3, AC-4
+- [x] `lib/picture-set.ts`, `lib/picture-upload.ts` -- the pure set and the browser hash, ticket and upload -- AC-2, AC-3
+- [x] `lib/projects.ts`, `lib/project-stage.ts`, `lib/project-fixtures.ts`, `lib/project-paths.ts`, `lib/i18n/en.ts`, `lib/i18n/he.ts` -- typed calls, the stage, the rewrite, all copy in both languages -- AC-1, AC-2
+- [x] `app/projects/new/pictures/page.tsx`, `app/projects/[projectId]/pictures/page.tsx`, `app/projects/new/pictures/actions.ts`, `components/projects/picture-intake.tsx` (and what it needs), `app/globals.css` -- C-03 -- AC-1, AC-2, AC-3
+- [x] `components/shell/create-dialog.tsx`, `components/projects/request-intake.tsx`, `components/projects/request-section.tsx`, `lib/project-pages.ts`, `app/projects/[projectId]/page.tsx` -- the Create entry, the no-match note, the Pictures part of the Project page -- AC-2
+- [x] `docs/authority-contract.md`, `docs/staging.md`, `README.md` -- the writer, the lease bound, the gateway origin -- housekeeping
+- [x] `tests/` -- every matrix row: unit (the set operations and every problem, hashing and upload with injected fakes incl. each gateway answer and a cut connection), integration (record, successor, replayed, reused, rename collision, foreign, not ready, expired, too large, unchanged, renewal and its bound, release, authority, isolation, immutability, `seq` trigger, closure, preflight), component (every C-03 state), browser on desktop and phone in both languages with the real gateway (choose, preview, reorder, replace, remove, bad files, 12 MiB + 1, camera granted with a fake device and denied, save, reload, edit, a foreign upload ID, no download URL, axe, overflow, 200% text, keyboard); update the pins above -- all ACs
+- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- previews after a reload (2.3), retained pictures and EXIF (2.12), gateway rate limits and open-lease cap, orphaned uploads that were never saved, HEIC, drag and drop, the provisional mode, the 7-day bound -- housekeeping
 
 **Acceptance Criteria:**
 - Given a phone with no camera permission, when Take photo is selected, then permission is requested then, and denial leaves existing-file intake usable.
@@ -108,3 +109,99 @@ api.record_picture_set(account, epoch, command, null, 'Picture request', '{<uuid
 
 **Manual checks (if no CLI):**
 - With the stack and gateway up, sign in as a member, open Create, choose Upload picture, add three images, move one earlier, replace one, remove one, Save: the Project opens in "Request in progress" with the pictures in order. Change pictures, reorder, save: a successor. In a browser with the camera blocked, Take photo shows the denied state and Choose files still works.
+
+## Suggested Review Order
+
+**The one command that records the ordered set (start here)**
+
+- Authority, lock, replay, then every upload read from its lease: ownership, readiness, expiry, size, duplicates.
+  [`picture_sets.sql:183`](../../supabase/migrations/20261019120000_picture_sets.sql#L183)
+
+- A picture revision may be unconfirmed; the checks tie that state to the picture mode.
+  [`picture_sets.sql:65`](../../supabase/migrations/20261019120000_picture_sets.sql#L65)
+  [`picture_sets.sql:72`](../../supabase/migrations/20261019120000_picture_sets.sql#L72)
+
+- The ordered images, never updated; the seq trigger makes a revision follow the one before.
+  [`picture_sets.sql:109`](../../supabase/migrations/20261019120000_picture_sets.sql#L109)
+  [`picture_sets.sql:86`](../../supabase/migrations/20261019120000_picture_sets.sql#L86)
+
+- Replaced and removed uploads are released at once, so the quota is freed.
+  [`picture_sets.sql:403`](../../supabase/migrations/20261019120000_picture_sets.sql#L403)
+
+- The read now returns the images and whether each is still available; rename refuses a revision's command ID.
+  [`picture_sets.sql:469`](../../supabase/migrations/20261019120000_picture_sets.sql#L469)
+  [`picture_sets.sql:552`](../../supabase/migrations/20261019120000_picture_sets.sql#L552)
+
+**The browser: hash, ticket, upload**
+
+- The gateway needs the exact SHA-256 first, so the file is hashed in the browser.
+  [`picture-upload.ts:61`](../../lib/picture-upload.ts#L61)
+
+- Ticket, then a PUT by XHR for progress; every gateway answer becomes a named problem.
+  [`picture-upload.ts:101`](../../lib/picture-upload.ts#L101)
+  [`picture-upload.ts:154`](../../lib/picture-upload.ts#L154)
+
+- A queue runs uploads one at a time; a refused upload may be cut before its answer is read.
+  [`picture-upload.ts:238`](../../lib/picture-upload.ts#L238)
+
+- The camera is asked for only when Take photo is pressed; denial leaves files usable.
+  [`picture-camera.ts:36`](../../lib/picture-camera.ts#L36)
+  [`picture-camera.ts:75`](../../lib/picture-camera.ts#L75)
+
+**The ordered set and the screen**
+
+- The pure set: add, replace, remove, move, totals and every file problem.
+  [`picture-set.ts:211`](../../lib/picture-set.ts#L211)
+  [`picture-set.ts:294`](../../lib/picture-set.ts#L294)
+
+- How a Save answer changes the screen, one pure function for every outcome.
+  [`picture-view.ts:145`](../../lib/picture-view.ts#L145)
+
+- C-03 itself: previews, per-item controls, progress, camera, Save.
+  [`picture-intake.tsx:107`](../../components/projects/picture-intake.tsx#L107)
+
+- The Server Actions: save the set, or discard what was never saved.
+  [`actions.ts:57`](../../app/projects/new/pictures/actions.ts#L57)
+  [`actions.ts:104`](../../app/projects/new/pictures/actions.ts#L104)
+
+- The typed calls, every outcome checked.
+  [`projects.ts:343`](../../lib/projects.ts#L343)
+  [`projects.ts:380`](../../lib/projects.ts#L380)
+
+**Where it shows**
+
+- Two pages for the same screen: a new set, and the set of a Project.
+  [`page.tsx:13`](../../app/projects/new/pictures/page.tsx#L13)
+  [`page.tsx:23`](../../app/projects/[projectId]/pictures/page.tsx#L23)
+
+- The Create dialog now leads on to pictures; the Project page shows them in order.
+  [`create-dialog.tsx:20`](../../components/shell/create-dialog.tsx#L20)
+  [`request-section.tsx:31`](../../components/projects/request-section.tsx#L31)
+
+- A new stage tells the truth: pictures saved, nothing started.
+  [`project-stage.ts:19`](../../lib/project-stage.ts#L19)
+
+**Docs**
+
+- The writer, the lease bound and the release rules.
+  [`authority-contract.md:132`](../../docs/authority-contract.md#L132)
+
+- The migration row, the gateway-origin requirement and why not to roll back.
+  [`staging.md:77`](../../docs/staging.md#L77)
+
+**Tests (peripheral)**
+
+- The command against the real database: first save, successor, replay, foreign, duplicate, renewal, release.
+  [`picture-sets.test.ts:247`](../../tests/integration/picture-sets.test.ts#L247)
+
+- A tombstone must wait behind a save (mutation-checked).
+  [`picture-sets.test.ts:596`](../../tests/integration/picture-sets.test.ts#L596)
+
+- The set, upload, camera and save-answer logic with injected fakes.
+  [`picture-set.test.ts:1`](../../tests/unit/picture-set.test.ts#L1)
+  [`picture-upload.test.ts:1`](../../tests/unit/picture-upload.test.ts#L1)
+  [`picture-view.test.ts:1`](../../tests/unit/picture-view.test.ts#L1)
+
+- The whole flow in a real browser against the real gateway, phone and desktop, camera granted and denied.
+  [`pictures.spec.ts:158`](../../tests/e2e/pictures.spec.ts#L158)
+  [`pictures.spec.ts:752`](../../tests/e2e/pictures.spec.ts#L752)

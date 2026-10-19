@@ -408,8 +408,8 @@ describe('the shell around them', () => {
     expect(sources).toMatch(new RegExp(`<a class="back-link" aria-label="Back" href="/projects/${first.id}">`));
   });
 
-  it('has a word and a next-action sentence for each of the seven stages in both languages, each different from the other six', () => {
-    expect(projectStages).toHaveLength(7);
+  it('has a word and a next-action sentence for each of the eight stages in both languages, each different from the other seven', () => {
+    expect(projectStages).toHaveLength(8);
     for (const locale of locales) {
       const words = projectStages.map((stage) => translate(locale, stageDefinition(stage).label));
       const sentences = projectStages.map((stage) => translate(locale, stageDefinition(stage).nextAction));
@@ -417,8 +417,8 @@ describe('the shell around them', () => {
         expect(catalogs[locale][stageDefinition(stage).label], `${locale}:${stage}`).toBeTruthy();
         expect(catalogs[locale][stageDefinition(stage).nextAction], `${locale}:${stage}`).toBeTruthy();
       }
-      expect(new Set(words).size, locale).toBe(7);
-      expect(new Set(sentences).size, locale).toBe(7);
+      expect(new Set(words).size, locale).toBe(8);
+      expect(new Set(sentences).size, locale).toBe(8);
     }
   });
 });

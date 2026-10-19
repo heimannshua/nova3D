@@ -14,6 +14,7 @@
 import {callRow, oneOf, requireUuid, unexpected, type AccountsOptions, type Row} from '@/lib/accounts';
 import type {Operation} from '@/lib/authority';
 import {isProjectStage} from '@/lib/project-stage';
+import {isPictureType, maxPictures, type SavedPicture} from '@/lib/picture-set';
 import {projectIdOf, type ProjectRequestRow, type ProjectRow} from '@/lib/project-view';
 import {declineReasons, requestModes, type ConfirmedRequest, type DeclineReason, type PersonalizationStyle, type RequestMode} from '@/lib/request-intake';
 
@@ -204,8 +205,8 @@ export async function createProjectRequest(
 }
 
 /**
- * `found`: the latest request revision of the Project. `none`: the Project has no revision (one that was made before requests were
- * recorded, or by a seed). `unavailable`: the Project is another Account's, deleted, tombstoned, unknown or not an ID, and the four
+ * `found`: the latest request revision of the Project (confirmed, or an unconfirmed picture request with its pictures). `none`: the Project has no
+ * revision (one that was made before requests were recorded, or by a seed). `unavailable`: the Project is another Account's, deleted, tombstoned, unknown or not an ID, and the four
  * cannot be told apart. `denied`: the Account has no authority for this request.
  */
 export type ProjectRequestRead = {outcome: 'found'; request: ProjectRequestRow} | {outcome: 'none'} | {outcome: 'unavailable'} | {outcome: 'denied'};
@@ -214,6 +215,26 @@ const oneOfModes = (value: unknown): RequestMode => oneOf(value, requestModes);
 const styleOf = (value: unknown): PersonalizationStyle | null => (value === 'raised' || value === 'recessed' ? value : null);
 const reasonOf = (value: unknown): DeclineReason | null => (typeof value === 'string' && (declineReasons as readonly string[]).includes(value) ? (value as DeclineReason) : null);
 
+/** The pictures of a revision as the database returned them, checked: positions 1, 2, 3... in order, each with a SHA-256, a length and a type a picture can have. */
+function picturesOf(value: unknown): SavedPicture[] {
+  if (!Array.isArray(value) || value.length > maxPictures) throw unexpected();
+  return value.map((entry, index): SavedPicture => {
+    const picture = (typeof entry === 'object' && entry !== null && !Array.isArray(entry) ? entry : {}) as Row;
+    const uploadId = text(picture.upload_id);
+    const sha256 = text(picture.sha256);
+    const contentType = picture.content_type;
+    const length = wholeNumber(picture.length);
+    const expiresAt = picture.expires_at === null ? null : text(picture.expires_at);
+    if (
+      picture.position !== index + 1 || !uploadId || !projectIdOf(uploadId) || !sha256 || !/^[0-9a-f]{64}$/.test(sha256) ||
+      !isPictureType(contentType) || length === null || length < 1 || (picture.expires_at !== null && !expiresAt) || typeof picture.available !== 'boolean'
+    ) {
+      throw unexpected();
+    }
+    return {position: index + 1, uploadId: uploadId.toLowerCase(), sha256, length, contentType, expiresAt, available: picture.available};
+  });
+}
+
 /** A request revision as the database returned it, checked: one that contradicts itself is no answer. */
 function requestOf(row: Row): ProjectRequestRow {
   const requestId = text(row.request_id);
@@ -221,38 +242,47 @@ function requestOf(row: Row): ProjectRequestRow {
   const seq = wholeNumber(row.seq);
   const mode = oneOfModes(row.mode);
   const subjectId = row.subject_id === null ? null : text(row.subject_id);
-  const scope = text(row.scope);
-  const outcome = text(row.intended_outcome);
-  const description = text(row.description);
+  const scope = row.scope === null ? null : text(row.scope);
+  const outcome = row.intended_outcome === null ? null : text(row.intended_outcome);
+  const description = row.description === null ? null : text(row.description);
   const wording = row.personalization_wording === null ? null : text(row.personalization_wording);
   const wishText = row.personalization_text === null ? null : text(row.personalization_text);
   const style = row.personalization_style === null ? null : styleOf(row.personalization_style);
   const reason = row.personalization_reason === null ? null : reasonOf(row.personalization_reason);
-  const confirmedAt = text(row.confirmed_at);
+  const confirmedAt = row.confirmed_at === null ? null : text(row.confirmed_at);
+  const images = picturesOf(row.images);
   if (
-    !requestId || !projectIdOf(requestId) || !projectId || !projectIdOf(projectId) || seq === null || seq < 1 ||
-    (row.subject_id !== null && subjectId === null) || !scope || !outcome || !description || !confirmedAt ||
+    !requestId || !projectId || !projectIdOf(requestId) || !projectIdOf(projectId) || seq === null || seq < 1 || typeof row.confirmed !== 'boolean' ||
+    (row.subject_id !== null && subjectId === null) ||
+    (row.scope !== null && !scope) || (row.intended_outcome !== null && !outcome) || (row.description !== null && !description) || (row.confirmed_at !== null && !confirmedAt) ||
     (row.personalization_wording !== null && !wording) || (row.personalization_text !== null && !wishText) ||
     (row.personalization_style !== null && style === null) || (row.personalization_reason !== null && reason === null) ||
     typeof row.personalization_applied !== 'boolean'
   ) {
     throw unexpected();
   }
+  const confirmed = row.confirmed;
+  // A revision is confirmed with everything it confirmed, or claims none of it: the record's own rule (request_revisions_confirmed_shape).
+  if (confirmed ? !confirmedAt || !description || !scope || !outcome : confirmedAt !== null || description !== null || scope !== null || outcome !== null) throw unexpected();
   const applied = row.personalization_applied;
   // The record's own rules: an applied wish has its wording, text and style, a wish that was not applied has no text or style, and a reason
   // belongs to a wording that was not applied.
   if (applied ? !wording || !wishText || !style || reason !== null : wishText !== null || style !== null || (reason !== null) !== (wording !== null)) throw unexpected();
+  // An unconfirmed revision says nothing about a subject or a wish, and a text request is always confirmed.
+  if (!confirmed && (subjectId !== null || wording !== null || applied || mode === 'evidence_text')) throw unexpected();
   return {
     id: requestId.toLowerCase(),
     projectId: projectId.toLowerCase(),
     seq,
     mode,
+    confirmed,
     subjectId,
     scope,
     outcome,
     description,
     personalization: {wording, text: wishText, style, applied, reason},
     confirmedAt,
+    images,
   };
 }
 
@@ -271,4 +301,87 @@ export async function readProjectRequest(operation: Operation, projectId: unknow
   // The revision of another Project than the one asked for is not an answer.
   if (request.projectId !== id) throw unexpected();
   return {outcome, request};
+}
+
+// Picture sets (Story 2.2) ---------------------------------------------------------------------------------------------------
+
+/**
+ * What api.record_picture_set answers.
+ *  - `created`: the Project was born with its first picture revision; `revised`: a successor was recorded; `replayed`: the same command sent again, the
+ *    original receipt (nothing written now); `unchanged`: the same pictures in the same order as the latest revision (no revision is written and nothing
+ *    is released, but the included uploads' leases are renewed within the usual bound). All four carry the Project and the revision. `released` counts the
+ *    uploads a successor released.
+ *  - `unknown_upload`, `not_ready`, `expired_upload`, `duplicate_image`: the upload at `position` (1 is the first) is not the Account's own picture, is
+ *    not complete, has expired, or holds the same SHA-256 (read from its lease) as an earlier picture of the set. Nothing was written.
+ *  - `too_large`: the lengths read from the leases add up to more than 60 MiB. `reused`: the command ID was used before for something else (another
+ *    set, or a rename). `unavailable`: the Project is another Account's, deleted, tombstoned or unknown (one answer), or a replay whose Project has
+ *    since gone. `not_editable`: the Project's request is not an unconfirmed picture request. `denied`: the Account has no authority for this request.
+ */
+export type PictureSetReceipt =
+  | {outcome: 'created' | 'revised' | 'replayed' | 'unchanged'; projectId: string; requestId: string; seq: number; released: number}
+  | {outcome: 'unknown_upload' | 'not_ready' | 'expired_upload' | 'duplicate_image'; position: number}
+  | {outcome: 'too_large' | 'reused' | 'unavailable' | 'not_editable' | 'denied'};
+
+const pictureSetOutcomes = ['created', 'revised', 'replayed', 'unchanged', 'unknown_upload', 'not_ready', 'expired_upload', 'duplicate_image', 'too_large', 'reused', 'unavailable', 'not_editable', 'denied'] as const;
+
+/** Upload IDs for a call: 1 to 12 UUIDs, none repeated, in the order the person gave. */
+function requireUploadIds(uploadIds: readonly string[]): string[] {
+  if (uploadIds.length < 1 || uploadIds.length > maxPictures) throw new TypeError(`uploadIds must hold 1 to ${maxPictures} IDs`);
+  const ids = uploadIds.map((id) => requireUuid('uploadId', id));
+  if (new Set(ids).size !== ids.length) throw new TypeError('uploadIds must not repeat an ID');
+  return ids;
+}
+
+/**
+ * Records the ordered pictures as an unconfirmed request revision: ONE database transaction creates the Project (`projectId` null, with its `title`, in
+ * the stage `request_draft`) and revision 1, or appends a successor to an existing unconfirmed picture Project (no `title`). The database reads each
+ * upload's SHA-256, length and type from its lease, so nothing the browser said about a file is used; it enforces the limits, renews the leases within a
+ * bound and releases the uploads that left the set. The command ID makes a retry safe: sent again with the same set it answers the original receipt. If
+ * this throws an AccountsUnavailableError with `outcomeUnknown`, the set may or may not have been recorded: the caller tells the person to check My
+ * Projects, and may send the same command again. Nothing here confirms, researches or charges.
+ */
+export async function recordPictureSet(
+  operation: Operation,
+  input: {commandId: string; projectId: string | null; title: string | null; uploadIds: readonly string[]},
+  options: AccountsOptions = {},
+): Promise<PictureSetReceipt> {
+  const row = await callRow(
+    'record_picture_set',
+    {
+      ...requireOperation(operation),
+      p_command_id: requireUuid('commandId', input.commandId),
+      p_project_id: input.projectId === null ? null : requireUuid('projectId', input.projectId),
+      p_title: input.title,
+      p_upload_ids: requireUploadIds(input.uploadIds),
+    },
+    options,
+  );
+  const outcome = oneOf(row.outcome, pictureSetOutcomes);
+  if (outcome === 'too_large' || outcome === 'reused' || outcome === 'unavailable' || outcome === 'not_editable' || outcome === 'denied') return {outcome};
+  if (outcome === 'unknown_upload' || outcome === 'not_ready' || outcome === 'expired_upload' || outcome === 'duplicate_image') {
+    const position = wholeNumber(row.position);
+    // An answer about an upload that does not say which one is not an answer.
+    if (position === null || position < 1 || position > input.uploadIds.length) throw unexpected();
+    return {outcome, position};
+  }
+  const projectId = text(row.project_id);
+  const requestId = text(row.request_id);
+  const seq = wholeNumber(row.seq);
+  const released = row.released === null || row.released === undefined ? 0 : wholeNumber(row.released);
+  if (!projectId || !projectIdOf(projectId) || !requestId || !projectIdOf(requestId) || seq === null || seq < 1 || released === null) throw unexpected();
+  return {outcome, projectId: projectId.toLowerCase(), requestId: requestId.toLowerCase(), seq, released};
+}
+
+/**
+ * Releases the Account's own picture uploads that no request revision uses (a picture replaced or removed before it was saved), at once: they stop
+ * counting toward the Account's staging quota. Answers how many were released; `denied` when the Account has no authority for this request. Anything else
+ * in the list (another Account's upload, an unknown one, one a revision uses) is left alone and not counted.
+ */
+export async function releaseStagedPictures(operation: Operation, uploadIds: readonly string[], options: AccountsOptions = {}): Promise<{outcome: 'released'; released: number} | {outcome: 'denied'}> {
+  const row = await callRow('release_staged_pictures', {...requireOperation(operation), p_upload_ids: requireUploadIds(uploadIds)}, options);
+  const outcome = oneOf(row.outcome, ['released', 'denied'] as const);
+  if (outcome === 'denied') return {outcome};
+  const released = wholeNumber(row.released);
+  if (released === null || released > uploadIds.length) throw unexpected();
+  return {outcome, released};
 }

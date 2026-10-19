@@ -348,7 +348,6 @@ export function RequestIntake({initial = {}}: {initial?: InitialIntake} = {}) {
             <Button variant="primary" onClick={edit}>{t('request.noMatch.edit')}</Button>
             <Button variant="secondary" icon="image" onClick={openCreatePicture}>{t('request.noMatch.picture')}</Button>
           </div>
-          <p className="project-muted request-note">{t('request.noMatch.pictureLater')}</p>
         </div>
       ) : (
         <div className="request-review">
