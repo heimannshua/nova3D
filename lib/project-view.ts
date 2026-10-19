@@ -6,6 +6,7 @@
 import {attemptAdministeredAction, formatCreatedAt, isoOf} from '@/lib/administration';
 import type {MessageKey, Translator} from '@/lib/i18n';
 import type {SavedPicture} from '@/lib/picture-set';
+import type {ViewLabel} from '@/lib/picture-quality';
 import type {ProjectStage} from '@/lib/project-stage';
 import type {DeclineReason, PersonalizationStyle, RequestMode} from '@/lib/request-intake';
 import {reloadHere} from '@/lib/session-actions';
@@ -27,14 +28,29 @@ export type ProjectRow = {
 };
 
 /**
- * The request a Project holds (Story 2.1, Story 2.2), as its page shows it: the latest request revision. Everything a person may read about it, and no
+ * A picture of a saved request revision (Story 2.2) and, once it was reviewed (Story 2.3), the label the person gave it and the three numbers the browser measured
+ * (claims, stored as sent). All four are null for a picture set that was never reviewed.
+ */
+export type RequestPicture = SavedPicture & {
+  label: ViewLabel | null;
+  shortEdgePx: number | null;
+  blurVariance: number | null;
+  clippedFraction: number | null;
+};
+
+/**
+ * The request a Project holds (Story 2.1, Story 2.2, Story 2.3), as its page shows it: the latest request revision. Everything a person may read about it, and no
  * approval, permission or payment (a revision has none). The wish is `applied` (text and style set), or declined (a wording and the `reason` it was not
  * applied), or there is none (no wording).
  *
- * A request is `confirmed` (a text request always is; it has a subject, a scope, an outcome, a description and the time) or it is a picture request saved
- * on the picture screen (Story 2.2), which claims none of those until a later story records the choice of how the pictures are used and the person's
- * confirmation: then `subjectId`, `scope`, `outcome`, `description` and `confirmedAt` are null, `mode` is the provisional `evidence_images`, and `images`
- * holds the pictures in the person's order (a revision made from text has none).
+ * A request is `confirmed` or not. A confirmed one has a scope, an outcome and the time. A confirmed text request (and a confirmed evidence-backed one) also has a
+ * subject and a description; a confirmed direct picture request (`image_direct`, Story 2.3) has a scope and an outcome but NO subject and no description (it is
+ * made from pictures alone). An unconfirmed one is a picture request saved on the picture screen (Story 2.2) or reviewed with the research-assisted choice
+ * (Story 2.3), which claims none of those until Story 2.13 identifies the subject: then `subjectId`, `scope`, `outcome`, `description` and `confirmedAt` are
+ * null, and `images` holds the pictures in the person's order (a revision made from text has none).
+ *
+ * `obstructionConfirmed` says the person confirmed, in the review, that nothing blocks the subject; `acknowledged` says they accepted, with Generate anyway, that
+ * direct conversion with incomplete inputs may invent or distort geometry. Both have the time (`...At`). Neither is an approval of anything.
  */
 export type ProjectRequestRow = {
   id: string;
@@ -56,12 +72,16 @@ export type ProjectRequestRow = {
     reason: DeclineReason | null;
   };
   confirmedAt: string | null;
-  images: SavedPicture[];
+  images: RequestPicture[];
+  obstructionConfirmed: boolean;
+  obstructionConfirmedAt: string | null;
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
 };
 
 // Where things are ---------------------------------------------------------------------------------------------------
 
-export {projectsPath, projectPath, sourcesPath, newProjectPath, newPicturesPath, picturesPath} from '@/lib/project-paths';
+export {projectsPath, projectPath, sourcesPath, newProjectPath, newPicturesPath, picturesPath, reviewPath} from '@/lib/project-paths';
 
 const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

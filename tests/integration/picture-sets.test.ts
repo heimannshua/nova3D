@@ -1337,8 +1337,12 @@ describe('the record: projects.request_images', () => {
     const { rows: columns } = await db.query(
       `select column_name as name, is_nullable = 'NO' as required from information_schema.columns where table_schema = 'projects' and table_name = 'request_images' order by column_name`,
     );
-    expect(columns.map((column) => column.name)).toEqual(['revision_id', 'project_id', 'account_id', 'position', 'upload_id', 'sha256', 'length', 'content_type'].sort());
-    expect(columns.every((column) => column.required)).toBe(true);
+    // On purpose changed (Story 2.3): four nullable columns are added (the person's label and the browser's three measurements: all four or none), and no other.
+    const required = ['revision_id', 'project_id', 'account_id', 'position', 'upload_id', 'sha256', 'length', 'content_type'];
+    const added = ['view_label', 'short_edge_px', 'blur_variance', 'clipped_fraction'];
+    expect(columns.map((column) => column.name)).toEqual([...required, ...added].sort());
+    expect(columns.filter((column) => column.required).map((column) => column.name)).toEqual(required.sort());
+    expect(columns.filter((column) => !column.required).map((column) => column.name)).toEqual(added.sort());
     for (const column of columns) expect(column.name, column.name).not.toMatch(/manifest|root|retain|pin|ordinal|digest|approv|permission|payment|cost|job/);
   });
 
@@ -1549,6 +1553,9 @@ describe('closure: the new functions are reached by the service role only', () =
 
 // ---------------------------------------------------------------------------------------------------
 describe('api.read_project_request: confirmed, and the pictures', () => {
+  // On purpose changed (Story 2.3): a picture of a set that was never reviewed has the four review members, all null.
+  const unreviewed = {label: null, short_edge_px: null, blur_variance: null, clipped_fraction: null};
+
   it('has the columns the story lists, in this order, and none that names a manifest, job, cost, price or payment', async () => {
     const { rows: columns } = await db.query(
       `select a.attname as name from pg_type t join pg_attribute a on a.attrelid = t.typrelid where t.oid = 'api.project_request_view'::regtype and a.attnum > 0 and not a.attisdropped order by a.attnum`,
@@ -1556,6 +1563,8 @@ describe('api.read_project_request: confirmed, and the pictures', () => {
     expect(columns.map((column) => column.name)).toEqual([
       'outcome', 'request_id', 'project_id', 'seq', 'mode', 'subject_id', 'scope', 'intended_outcome', 'description', 'personalization_wording', 'personalization_text',
       'personalization_style', 'personalization_applied', 'personalization_reason', 'confirmed_at', 'confirmed', 'images',
+      // On purpose changed (Story 2.3): the review of the revision comes last.
+      'obstruction_confirmed', 'obstruction_confirmed_at', 'acknowledged', 'acknowledged_at',
     ]);
     for (const column of columns) expect(column.name, column.name).not.toMatch(/manifest|job|cost|price|payment/);
   });
@@ -1584,11 +1593,15 @@ describe('api.read_project_request: confirmed, and the pictures', () => {
         personalization_reason: null,
         confirmed_at: null,
         confirmed: false,
+        obstruction_confirmed: false,
+        obstruction_confirmed_at: null,
+        acknowledged: false,
+        acknowledged_at: null,
       });
       expect(found.images).toEqual([
-        {position: 1, upload_id: set[2].id, sha256: set[2].sha, length: 333, content_type: 'image/png', expires_at: expect.any(String), available: true},
-        {position: 2, upload_id: set[0].id, sha256: set[0].sha, length: 111, content_type: 'image/jpeg', expires_at: expect.any(String), available: true},
-        {position: 3, upload_id: set[1].id, sha256: set[1].sha, length: 222, content_type: 'image/webp', expires_at: expect.any(String), available: true},
+        {position: 1, upload_id: set[2].id, sha256: set[2].sha, length: 333, content_type: 'image/png', expires_at: expect.any(String), available: true, ...unreviewed},
+        {position: 2, upload_id: set[0].id, sha256: set[0].sha, length: 111, content_type: 'image/jpeg', expires_at: expect.any(String), available: true, ...unreviewed},
+        {position: 3, upload_id: set[1].id, sha256: set[1].sha, length: 222, content_type: 'image/webp', expires_at: expect.any(String), available: true, ...unreviewed},
       ]);
       expect(new Date(found.images[1].expires_at).getTime()).toBe(expiry.expires_at.getTime());
     });
@@ -1642,12 +1655,12 @@ describe('api.read_project_request: confirmed, and the pictures', () => {
     });
   });
 
-  it('holds no key of Storage, no address and no download URL in what it answers: a picture is seven values', async () => {
+  it('holds no key of Storage, no address and no download URL in what it answers: a picture is eleven values (seven, and the label and three measurements of a review)', async () => {
     await inTx(async (client) => {
       const a = await account(client);
       const { projectId } = await pictureProject(client, a, await leases(client, a, 2));
       const found = await read(client, a, projectId);
-      for (const image of found.images) expect(Object.keys(image).sort()).toEqual(['available', 'content_type', 'expires_at', 'length', 'position', 'sha256', 'upload_id']);
+      for (const image of found.images) expect(Object.keys(image).sort()).toEqual(['available', 'blur_variance', 'clipped_fraction', 'content_type', 'expires_at', 'label', 'length', 'position', 'sha256', 'short_edge_px', 'upload_id']);
       const text = JSON.stringify(found);
       expect(text).not.toMatch(/staging\/|objects\/|https?:|\/storage\/|signed|token|ticket|private-files/i);
     });
@@ -1669,10 +1682,10 @@ describe('the preflight carries the Story 2.2 table and functions', () => {
       'projects.request_revisions', 'Story 2.1 migration', 'Story 1.13 migration', 'Story 1.12 migration', 'Story 1.9 migration', 'Story 1.8 migration', 'Story 1.7 migration', 'Story 1.6 migration', 'Story 1.5 migration',
       'artifacts.staging_leases', 'lifecycle.alarms', 'auth.mfa_amr_claims', 'private-files',
     ]) expect(definition, needle).toContain(needle);
-    // The service role must be able to execute all thirty-five api functions, the two new ones among them; the bucket check is still the last of all.
+    // The service role must be able to execute all thirty-six api functions (Story 2.3 adds the thirty-sixth), the two of this story among them; the bucket check is still the last of all.
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(35);
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(36);
     expect(executable).toContain(functions[0]);
     expect(executable).toContain(functions[1]);
     expect(definition.indexOf('Story 2.2 migration')).toBeLessThan(check);
@@ -1876,7 +1889,7 @@ describe('the typed calls, over REST as the application makes them (committed da
       personalization: {wording: null, text: null, style: null, applied: false, reason: null},
     });
     expect(found.request.images).toEqual(
-      set.map((entry, index) => ({position: index + 1, uploadId: entry.id, sha256: entry.sha, length: 5000, contentType: 'image/jpeg', expiresAt: expect.any(String), available: true})),
+      set.map((entry, index) => ({position: index + 1, uploadId: entry.id, sha256: entry.sha, length: 5000, contentType: 'image/jpeg', expiresAt: expect.any(String), available: true, label: null, shortEdgePx: null, blurVariance: null, clippedFraction: null})),
     );
     // A picture whose lease has lapsed is read as not available.
     await db.query(`update artifacts.staging_leases set expires_at = clock_timestamp() - interval '1 minute' where id = $1`, [set[1].id]);
@@ -1926,11 +1939,11 @@ describe('the typed calls, over REST as the application makes them (committed da
     const operation = {accountId: randomUUID(), epoch: 1};
     const sent = {commandId: randomUUID(), projectId: null, title: TITLE, uploadIds: [randomUUID(), randomUUID()]};
     const uploadId = randomUUID();
-    const picture = {position: 1, upload_id: uploadId, sha256: 'a'.repeat(64), length: 10, content_type: 'image/png', expires_at: '2026-10-19T12:00:00+00:00', available: true};
+    const picture = {position: 1, upload_id: uploadId, sha256: 'a'.repeat(64), length: 10, content_type: 'image/png', expires_at: '2026-10-19T12:00:00+00:00', available: true, label: null, short_edge_px: null, blur_variance: null, clipped_fraction: null};
     const found = {
       outcome: 'found', request_id: randomUUID(), project_id: randomUUID(), seq: 1, mode: 'evidence_images', subject_id: null, scope: null, intended_outcome: null, description: null,
       personalization_wording: null, personalization_text: null, personalization_style: null, personalization_applied: false, personalization_reason: null, confirmed_at: null, confirmed: false,
-      images: [picture],
+      images: [picture], obstruction_confirmed: false, obstruction_confirmed_at: null, acknowledged: false, acknowledged_at: null,
     };
 
     it.each([

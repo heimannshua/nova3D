@@ -29,16 +29,32 @@ function chunk(type: string, data: Buffer) {
   return Buffer.concat([head, data, crc]);
 }
 
-/** A real PNG of one colour (so the browser can show it), `size` pixels square. */
-export function png(rgb: readonly [number, number, number], size = 24): Buffer {
+export type Rgb = readonly [number, number, number];
+
+/** A real PNG whose pixel at (x, y) is `at(x, y)` (so the browser can decode it and a test can say what it measures): `width` by `height` pixels, no new dependency. */
+export function pngOf(width: number, height: number, at: (x: number, y: number) => Rgb): Buffer {
   const header = Buffer.alloc(13);
-  header.writeUInt32BE(size, 0);
-  header.writeUInt32BE(size, 4);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
   header[8] = 8; // bit depth
   header[9] = 2; // truecolour
-  const row = Buffer.concat([Buffer.from([0]), Buffer.from(Array.from({length: size}, () => rgb).flat())]);
-  const pixels = Buffer.concat(Array.from({length: size}, () => row));
+  const pixels = Buffer.alloc(height * (1 + width * 3));
+  for (let y = 0; y < height; y += 1) {
+    const row = y * (1 + width * 3);
+    pixels[row] = 0; // no filter
+    for (let x = 0; x < width; x += 1) {
+      const [red, green, blue] = at(x, y);
+      pixels[row + 1 + x * 3] = red;
+      pixels[row + 2 + x * 3] = green;
+      pixels[row + 3 + x * 3] = blue;
+    }
+  }
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', header), chunk('IDAT', deflateSync(pixels)), chunk('IEND', Buffer.alloc(0))]);
+}
+
+/** A real PNG of one colour (so the browser can show it), `size` pixels square. */
+export function png(rgb: readonly [number, number, number], size = 24): Buffer {
+  return pngOf(size, size, () => rgb);
 }
 
 /** A real PNG padded (with a private ancillary chunk, which a decoder skips) to exactly `length` bytes. */
@@ -80,3 +96,32 @@ export const palette: readonly (readonly [number, number, number])[] = [
 
 /** `count` distinct PNGs named `view-1.png`, `view-2.png`... */
 export const views = (count: number, prefix = 'view'): PictureFile[] => Array.from({length: count}, (_, index) => pictureFile(`${prefix}-${index + 1}.png`, palette[index % palette.length]));
+
+// Pictures with a known quality (Story 2.3): real PNGs of the sizes and contents the review measures. Their numbers are worked out from the content, not from a
+// file: a checkerboard of two mid-tones has sharp edges every few pixels and no clipping, a ramp has no edge at all, and a picture that is mostly white is clipped.
+
+/** Two mid-tones, so a sharp picture is never clipped (luminance 45 and 215). */
+const dark: Rgb = [45, 45, 45];
+const light: Rgb = [215, 215, 215];
+
+/** A sharp, evenly lit picture: a checkerboard of squares of `square` pixels, in mid-tones. A different `shift` is a different file (the pattern moves). */
+export function sharpPng(width = 1200, height = 900, square = 24, shift = 0): Buffer {
+  return pngOf(width, height, (x, y) => (Math.floor((x + shift) / square) + Math.floor(y / square)) % 2 === 0 ? dark : light);
+}
+
+/** A smooth picture with no edge at all: a ramp from dark to light across its width (a different `from` is a different file). */
+export function blurryPng(width = 1200, height = 900, from = 60): Buffer {
+  return pngOf(width, height, (x) => {
+    const value = from + Math.floor((x / width) * 120);
+    return [value, value, value];
+  });
+}
+
+/** An over-exposed picture: the top `share` of it is pure white, the rest a sharp checkerboard. A different `square` is a different file. */
+export function blownOutPng(width = 1200, height = 900, share = 0.5, square = 24): Buffer {
+  return pngOf(width, height, (x, y) => (y < height * share ? [255, 255, 255] : (Math.floor(x / square) + Math.floor(y / square)) % 2 === 0 ? dark : light));
+}
+
+/** A set of `count` sharp pictures that are all different files. */
+export const sharpViews = (count: number, prefix = 'view'): PictureFile[] =>
+  Array.from({length: count}, (_, index) => ({name: `${prefix}-${index + 1}.png`, mimeType: 'image/png', buffer: sharpPng(1200, 900, 20 + index * 2, index * 3)}));

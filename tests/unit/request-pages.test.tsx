@@ -445,6 +445,10 @@ const requestRow = (patch: Partial<ProjectRequestRow> = {}): ProjectRequestRow =
   confirmed: true,
   confirmedAt: '2026-10-18T19:12:12.844515+00:00',
   images: [],
+  obstructionConfirmed: false,
+  obstructionConfirmedAt: null,
+  acknowledged: false,
+  acknowledgedAt: null,
   ...patch,
 });
 const section = (locale: Locale, data: RequestSectionData) => render(locale, <RequestSection data={data}/>);
@@ -509,6 +513,12 @@ describe('the stage request_confirmed on the Project page', () => {
 
   it('says in English that nothing has started and nothing was charged', () => {
     expect(translate('en', 'stage.request_confirmed.next')).toMatch(/Nothing has started and nothing was charged/);
+  });
+
+  it.each(locales)('is neutral about what comes next, in %s: a direct request is confirmed too, and it has no research to wait for', (locale) => {
+    // On purpose changed (review patch D1): the sentence used to name the research as the next step, which is untrue for a confirmed direct request.
+    expect(translate('en', 'stage.request_confirmed.next')).toBe('Your request is confirmed. The next steps arrive in a later release. Nothing has started and nothing was charged.');
+    expect(t(locale, 'stage.request_confirmed.next')).not.toMatch(/research|מחקר/i);
   });
 });
 

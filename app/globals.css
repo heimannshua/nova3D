@@ -752,6 +752,38 @@ main { flex: 1; min-inline-size: 0; }
 .picture-saved-item { display: grid; gap: var(--space-1); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-card); overflow-wrap: anywhere; }
 .picture-saved-item .notice { margin-block-start: var(--space-1); }
 .picture-section-actions { margin-block-start: var(--space-3); }
+/* The review of the pictures (Story 2.3: C-04, C-05 and the picture variant of C-06): three steps in one narrow page. A picture is the same card as on the picture screen, with its measurements as short lines under its preview, so it reads on a phone and at large text without a table to scroll. */
+.review-step { margin-block-end: var(--space-1); color: var(--text-muted); font-size: var(--text-sm); font-weight: 700; }
+.review-step-body { display: grid; gap: var(--space-4); margin-block-start: var(--space-3); }
+.review-step-body .lede, .review-step-body .auth-hint { margin-block-start: 0; }
+.review-list { margin-block-start: 0; }
+.review-results { display: grid; gap: var(--space-2); margin: 0; }
+.review-results > div { display: grid; gap: var(--space-1); min-inline-size: 0; }
+.review-results dt { color: var(--text-muted); font-size: var(--text-xs); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.review-results dd { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-inline-size: 0; margin: 0; overflow-wrap: anywhere; }
+.review-detail { font-size: var(--text-sm); }
+.review-remedy { flex-basis: 100%; font-size: var(--text-sm); color: var(--text-strong); }
+.review-label { max-inline-size: none; }
+.review-select { padding-block: var(--space-2); }
+.review-coverage, .review-obstruction { display: grid; gap: var(--space-2); margin-block-start: 0; padding: var(--pad); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-card); }
+.review-coverage p, .review-obstruction p { margin: 0; }
+.review-add { display: grid; gap: var(--space-2); }
+.review-checkbox { display: flex; align-items: flex-start; gap: var(--space-3); min-block-size: var(--target); padding: var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-card); cursor: pointer; }
+.review-checkbox input { flex: none; inline-size: 1.25rem; block-size: 1.25rem; margin: 0.125rem 0 0; accent-color: var(--action); }
+.review-checkbox:has(input:checked) { border-color: var(--action); background: var(--action-soft); color: var(--action-soft-text); box-shadow: inset 0 0 0 1px var(--action); }
+.review-checkbox:has(input:focus-visible) { outline: 0.1875rem solid var(--focus); outline-offset: 0.125rem; }
+.review-checkbox span { min-inline-size: 0; overflow-wrap: anywhere; }
+.review-paths { margin-block-start: 0; }
+.review-legend { margin-block-end: var(--space-2); color: var(--text-strong); font-weight: 700; }
+.review-paths .choice { align-items: flex-start; }
+.review-path { display: grid; gap: var(--space-2); min-inline-size: 0; overflow-wrap: anywhere; }
+.review-path-title { font-size: var(--text-lg); }
+.review-confirm .request-facts { margin-block-start: 0; }
+.review-ack { display: grid; gap: var(--space-3); padding: var(--pad); border: 2px solid var(--status-warning-fg); border-radius: var(--radius-lg); background: var(--surface-card); }
+.review-ack .notice { margin-block-start: 0; }
+.review-ack p { margin: 0; }
+.review-ack-facts { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: var(--space-5); }
+.review-nav { margin-block-start: var(--space-2); }
 .rename-form { margin-block-start: var(--space-3); }
 .rename-form .dialog-actions { margin-block-start: var(--space-2); }
 

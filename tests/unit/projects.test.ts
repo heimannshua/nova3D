@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 import {AccountsUnavailableError} from '@/lib/accounts';
-import {createProjectRequest, listProjects, maxListed, readProject, readProjectRequest, recordPictureSet, releaseStagedPictures, renameProjectCommand} from '@/lib/projects';
+import {createProjectRequest, listProjects, maxListed, readProject, readProjectRequest, recordPictureReview, recordPictureSet, releaseStagedPictures, renameProjectCommand} from '@/lib/projects';
 import {resolveProjectTarget} from '@/lib/project-target';
 
 // The typed calls of the Projects functions (lib/projects.ts) and the target resolver (lib/project-target.ts), against a fake fetch:
@@ -222,6 +222,10 @@ const revisionRow = {
   confirmed_at: '2026-10-18T19:12:12.844515+00:00',
   confirmed: true,
   images: [],
+  obstruction_confirmed: false,
+  obstruction_confirmed_at: null,
+  acknowledged: false,
+  acknowledged_at: null,
 };
 
 describe('createProjectRequest', () => {
@@ -312,6 +316,10 @@ describe('readProjectRequest', () => {
         confirmed: true,
         confirmedAt: '2026-10-18T19:12:12.844515+00:00',
         images: [],
+        obstructionConfirmed: false,
+        obstructionConfirmedAt: null,
+        acknowledged: false,
+        acknowledgedAt: null,
       },
     });
     expect(sent[0]).toMatchObject({name: 'read_project_request', body: {p_account_id: ACCOUNT, p_epoch: 3, p_project_id: PROJECT}});
@@ -380,6 +388,10 @@ const imageRow = (position: number, upload: string, sha: string, extra: Record<s
   content_type: 'image/jpeg',
   expires_at: '2026-10-19T12:00:00.123456+00:00',
   available: true,
+  label: null,
+  short_edge_px: null,
+  blur_variance: null,
+  clipped_fraction: null,
   ...extra,
 });
 const pictureRow = {
@@ -416,9 +428,13 @@ describe('readProjectRequest, an unconfirmed picture request (Story 2.2)', () =>
         personalization: {wording: null, text: null, style: null, applied: false, reason: null},
         confirmedAt: null,
         images: [
-          {position: 1, uploadId: UPLOAD_1, sha256: SHA_1, length: 482113, contentType: 'image/jpeg', expiresAt: '2026-10-19T12:00:00.123456+00:00', available: true},
-          {position: 2, uploadId: UPLOAD_2, sha256: SHA_2, length: 12, contentType: 'image/webp', expiresAt: null, available: false},
+          {position: 1, uploadId: UPLOAD_1, sha256: SHA_1, length: 482113, contentType: 'image/jpeg', expiresAt: '2026-10-19T12:00:00.123456+00:00', available: true, label: null, shortEdgePx: null, blurVariance: null, clippedFraction: null},
+          {position: 2, uploadId: UPLOAD_2, sha256: SHA_2, length: 12, contentType: 'image/webp', expiresAt: null, available: false, label: null, shortEdgePx: null, blurVariance: null, clippedFraction: null},
         ],
+        obstructionConfirmed: false,
+        obstructionConfirmedAt: null,
+        acknowledged: false,
+        acknowledgedAt: null,
       },
     });
   });
@@ -564,5 +580,221 @@ describe('releaseStagedPictures (Story 2.2)', () => {
     for (const uploadIds of [[], thirteen, [UPLOAD_1, UPLOAD_1], ['nope']]) await expect(releaseStagedPictures(operation, uploadIds, options), JSON.stringify(uploadIds)).rejects.toBeInstanceOf(TypeError);
     await expect(releaseStagedPictures({accountId: ACCOUNT, epoch: 0}, [UPLOAD_1], options)).rejects.toBeInstanceOf(TypeError);
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+// The review of the pictures (Story 2.3) ----------------------------------------------------------------------------------------------------
+
+const REVIEWED_AT = '2026-10-20T08:00:00.5+00:00';
+const measuredImage = (position: number, upload: string, sha: string, label: string, extra: Record<string, unknown> = {}) =>
+  imageRow(position, upload, sha, {label, short_edge_px: 1200, blur_variance: 412.375, clipped_fraction: 0.0213, ...extra});
+const directRow = {
+  ...pictureRow,
+  seq: 2,
+  mode: 'image_direct',
+  scope: 'The subject in my pictures',
+  intended_outcome: 'A model from my pictures',
+  confirmed_at: REVIEWED_AT,
+  confirmed: true,
+  images: [measuredImage(1, UPLOAD_1, SHA_1, 'front'), measuredImage(2, UPLOAD_2, SHA_2, 'detail', {short_edge_px: 700})],
+  obstruction_confirmed: true,
+  obstruction_confirmed_at: REVIEWED_AT,
+  acknowledged: true,
+  acknowledged_at: REVIEWED_AT,
+};
+
+describe('readProjectRequest, a reviewed picture request (Story 2.3)', () => {
+  it('reads each picture\'s label and measurements, the confirmation that nothing blocks the subject and the acknowledgment, for a confirmed direct request with no subject and no description', async () => {
+    const read = await readProjectRequest(operation, PROJECT, fake(directRow).options);
+    expect(read).toEqual({
+      outcome: 'found',
+      request: {
+        id: REQUEST,
+        projectId: PROJECT,
+        seq: 2,
+        mode: 'image_direct',
+        confirmed: true,
+        subjectId: null,
+        scope: 'The subject in my pictures',
+        outcome: 'A model from my pictures',
+        description: null,
+        personalization: {wording: null, text: null, style: null, applied: false, reason: null},
+        confirmedAt: REVIEWED_AT,
+        images: [
+          {position: 1, uploadId: UPLOAD_1, sha256: SHA_1, length: 482113, contentType: 'image/jpeg', expiresAt: '2026-10-19T12:00:00.123456+00:00', available: true, label: 'front', shortEdgePx: 1200, blurVariance: 412.375, clippedFraction: 0.0213},
+          {position: 2, uploadId: UPLOAD_2, sha256: SHA_2, length: 482113, contentType: 'image/jpeg', expiresAt: '2026-10-19T12:00:00.123456+00:00', available: true, label: 'detail', shortEdgePx: 700, blurVariance: 412.375, clippedFraction: 0.0213},
+        ],
+        obstructionConfirmed: true,
+        obstructionConfirmedAt: REVIEWED_AT,
+        acknowledged: true,
+        acknowledgedAt: REVIEWED_AT,
+      },
+    });
+  });
+
+  it('reads a research-assisted choice as an unconfirmed picture request that records the obstruction confirmation and no scope', async () => {
+    const research = {...pictureRow, seq: 3, images: [measuredImage(1, UPLOAD_1, SHA_1, 'back')], obstruction_confirmed: true, obstruction_confirmed_at: REVIEWED_AT, acknowledged: false, acknowledged_at: null};
+    expect(await readProjectRequest(operation, PROJECT, fake(research).options)).toMatchObject({
+      outcome: 'found',
+      request: {mode: 'evidence_images', confirmed: false, scope: null, obstructionConfirmed: true, acknowledged: false, images: [{label: 'back', shortEdgePx: 1200}]},
+    });
+  });
+
+  it('still requires a description of a confirmed request that is not direct', async () => {
+    await expect(readProjectRequest(operation, PROJECT, fake({...directRow, mode: 'evidence_images', acknowledged: false, acknowledged_at: null}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+    await expect(readProjectRequest(operation, PROJECT, fake({...revisionRow, description: null}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it.each([
+    ['a label with no measurements', {images: [imageRow(1, UPLOAD_1, SHA_1, {label: 'front'})]}],
+    ['measurements with no label', {images: [imageRow(1, UPLOAD_1, SHA_1, {short_edge_px: 800, blur_variance: 100, clipped_fraction: 0.1})]}],
+    ['a label that is not one of the seven', {images: [measuredImage(1, UPLOAD_1, SHA_1, 'side')]}],
+    ['a short edge of 0', {images: [measuredImage(1, UPLOAD_1, SHA_1, 'front', {short_edge_px: 0})]}],
+    ['a short edge that is not whole', {images: [measuredImage(1, UPLOAD_1, SHA_1, 'front', {short_edge_px: 800.5})]}],
+    ['a negative blur', {images: [measuredImage(1, UPLOAD_1, SHA_1, 'front', {blur_variance: -1})]}],
+    ['a blur above what the kernel can give', {images: [measuredImage(1, UPLOAD_1, SHA_1, 'front', {blur_variance: 1040400.001})]}],
+    ['a clipped share above 1', {images: [measuredImage(1, UPLOAD_1, SHA_1, 'front', {clipped_fraction: 1.0001})]}],
+    ['a clipped share that is text', {images: [measuredImage(1, UPLOAD_1, SHA_1, 'front', {clipped_fraction: '0.1'})]}],
+    ['an obstruction flag that disagrees with its time', {obstruction_confirmed: false, obstruction_confirmed_at: REVIEWED_AT}],
+    ['an acknowledgment flag that disagrees with its time', {acknowledged: true, acknowledged_at: null}],
+    ['no obstruction flag', {obstruction_confirmed: undefined}],
+    ['an acknowledgment on a request that is not direct', {mode: 'evidence_images', confirmed: false, confirmed_at: null, scope: null, intended_outcome: null}],
+    ['an acknowledgment with no obstruction confirmation', {obstruction_confirmed: false, obstruction_confirmed_at: null}],
+    ['an obstruction confirmation on a text request', {mode: 'evidence_text', images: [], acknowledged: false, acknowledged_at: null, description: 'A description', subject_id: 'middot-altar-ramp'}],
+  ])('treats %s as no answer at all', async (_name, change) => {
+    await expect(readProjectRequest(operation, PROJECT, fake({...directRow, ...change}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+});
+
+describe('recordPictureReview (Story 2.3)', () => {
+  const images = [
+    {uploadId: UPLOAD_1, label: 'front' as const, shortEdgePx: 1200, blurVariance: 412.375, clippedFraction: 0.0213},
+    {uploadId: UPLOAD_2, label: 'detail' as const, shortEdgePx: 700, blurVariance: 99.5, clippedFraction: 0.4},
+  ];
+  const direct = {commandId: COMMAND, projectId: PROJECT, expectedSeq: 2, mode: 'image_direct' as const, scope: 'The subject in my pictures', outcome: 'A model from my pictures', images, obstructionConfirmed: true, acknowledge: true};
+  const research = {...direct, mode: 'evidence_images' as const, scope: null, outcome: null, acknowledge: false};
+
+  it('sends the Account and epoch of the operation, the command, the revision reviewed, the mode, the confirmed scope and outcome, the pictures in order with their labels and measurements, and the two flags, as the service role', async () => {
+    const {sent, options} = fake({outcome: 'created', project_id: PROJECT, request_id: REQUEST, seq: 3, position: null});
+    expect(await recordPictureReview(operation, direct, options)).toEqual({outcome: 'created', projectId: PROJECT, requestId: REQUEST, seq: 3});
+    expect(sent).toHaveLength(1);
+    expect(sent[0].name).toBe('record_picture_review');
+    expect(sent[0].body).toEqual({
+      p_account_id: ACCOUNT,
+      p_epoch: 3,
+      p_command_id: COMMAND,
+      p_project_id: PROJECT,
+      p_expected_seq: 2,
+      p_mode: 'image_direct',
+      p_scope: 'The subject in my pictures',
+      p_outcome: 'A model from my pictures',
+      p_images: [
+        {upload_id: UPLOAD_1, label: 'front', short_edge_px: 1200, blur_variance: 412.375, clipped_fraction: 0.0213},
+        {upload_id: UPLOAD_2, label: 'detail', short_edge_px: 700, blur_variance: 99.5, clipped_fraction: 0.4},
+      ],
+      p_obstruction_confirmed: true,
+      p_acknowledge: true,
+    });
+    expect(sent[0].headers).toMatchObject({authorization: 'Bearer service-key-for-tests-only', 'content-profile': 'api'});
+  });
+
+  it('sends no scope and no outcome for research-assisted, and sends nothing that is a verdict, an approval, a permission or a payment', async () => {
+    const {sent, options} = fake({outcome: 'created', project_id: PROJECT, request_id: REQUEST, seq: 3});
+    await recordPictureReview(operation, research, options);
+    expect(sent[0].body).toMatchObject({p_mode: 'evidence_images', p_scope: null, p_outcome: null, p_acknowledge: false});
+    expect(JSON.stringify(sent[0].body)).not.toMatch(/ok|pass|fail|verdict|approv|permission|payment|cost|price/i);
+    expect(Object.keys(sent[0].body).sort()).toEqual(['p_account_id', 'p_acknowledge', 'p_command_id', 'p_epoch', 'p_expected_seq', 'p_images', 'p_mode', 'p_obstruction_confirmed', 'p_outcome', 'p_project_id', 'p_scope']);
+    for (const image of sent[0].body.p_images as Record<string, unknown>[]) expect(Object.keys(image).sort()).toEqual(['blur_variance', 'clipped_fraction', 'label', 'short_edge_px', 'upload_id']);
+  });
+
+  it('lower-cases every ID and reads the revision it made', async () => {
+    const {sent, options} = fake({outcome: 'replayed', project_id: PROJECT.toUpperCase(), request_id: REQUEST.toUpperCase(), seq: 3});
+    expect(await recordPictureReview(operation, {...direct, commandId: COMMAND.toUpperCase(), projectId: PROJECT.toUpperCase(), images: [{...images[0], uploadId: UPLOAD_1.toUpperCase()}]}, options)).toEqual({outcome: 'replayed', projectId: PROJECT, requestId: REQUEST, seq: 3});
+    expect(sent[0].body).toMatchObject({p_command_id: COMMAND, p_project_id: PROJECT});
+    expect((sent[0].body.p_images as {upload_id: string}[])[0].upload_id).toBe(UPLOAD_1);
+  });
+
+  it('answers unchanged (the same review pressed again after an answer was lost: nothing was recorded) with the Project and the revision that already hold it, and treats one with no revision as no answer', async () => {
+    const {sent, options} = fake({outcome: 'unchanged', project_id: PROJECT.toUpperCase(), request_id: REQUEST.toUpperCase(), seq: 3});
+    expect(await recordPictureReview(operation, direct, options)).toEqual({outcome: 'unchanged', projectId: PROJECT, requestId: REQUEST, seq: 3});
+    expect(sent).toHaveLength(1);
+    for (const answer of [{outcome: 'unchanged', project_id: null, request_id: REQUEST, seq: 3}, {outcome: 'unchanged', project_id: PROJECT, request_id: null, seq: 3}, {outcome: 'unchanged', project_id: PROJECT, request_id: REQUEST, seq: 1}]) {
+      await expect(recordPictureReview(operation, direct, fake(answer).options), JSON.stringify(answer)).rejects.toBeInstanceOf(AccountsUnavailableError);
+    }
+  });
+
+  it.each(['reused', 'unavailable', 'not_editable', 'obstruction_not_confirmed', 'acknowledgment_required', 'denied'] as const)('answers %s with nothing else', async (outcome) => {
+    expect(await recordPictureReview(operation, direct, fake({outcome, project_id: null, request_id: null, seq: null, position: null}).options)).toEqual({outcome});
+  });
+
+  it('answers stale with the latest revision\'s number when the database says it, and with none when it does not', async () => {
+    expect(await recordPictureReview(operation, direct, fake({outcome: 'stale', seq: 4}).options)).toEqual({outcome: 'stale', seq: 4});
+    expect(await recordPictureReview(operation, direct, fake({outcome: 'stale', seq: null}).options)).toEqual({outcome: 'stale', seq: null});
+    await expect(recordPictureReview(operation, direct, fake({outcome: 'stale', seq: 0}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it.each(['unknown_upload', 'not_ready', 'expired_upload'] as const)('answers %s with the position of the upload, which it must have', async (outcome) => {
+    expect(await recordPictureReview(operation, direct, fake({outcome, position: 2}).options)).toEqual({outcome, position: 2});
+    for (const position of [null, 0, 3, -1, 1.5, 'one']) {
+      await expect(recordPictureReview(operation, direct, fake({outcome, position}).options), String(position)).rejects.toBeInstanceOf(AccountsUnavailableError);
+    }
+  });
+
+  it.each([
+    ['an outcome it does not know', {outcome: 'maybe'}],
+    ['a body that is not an object', []],
+    ['a success with no Project', {outcome: 'created', project_id: null, request_id: REQUEST, seq: 3}],
+    ['a success with no revision', {outcome: 'created', project_id: PROJECT, request_id: null, seq: 3}],
+    ['a success with no number', {outcome: 'created', project_id: PROJECT, request_id: REQUEST, seq: null}],
+    ['a success that is the first revision (a review is always a successor)', {outcome: 'created', project_id: PROJECT, request_id: REQUEST, seq: 1}],
+  ])('treats %s as no answer at all', async (_name, answer) => {
+    await expect(recordPictureReview(operation, direct, fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('refuses a call that is not shaped like one before asking: pictures, labels, numbers, IDs, the revision and the operation', async () => {
+    const {fetch, options} = fake({});
+    const twelve = Array.from({length: 12}, (_, index) => ({...images[0], uploadId: `aaaaaaaa-1111-4111-8111-${String(index).padStart(12, '0')}`}));
+    const bad: Record<string, Parameters<typeof recordPictureReview>[1]> = {
+      'no pictures': {...direct, images: []},
+      'thirteen pictures': {...direct, images: [...twelve, {...images[0], uploadId: UPLOAD_1}]},
+      'a repeated picture': {...direct, images: [images[0], {...images[1], uploadId: UPLOAD_1.toUpperCase()}]},
+      'a picture that is no ID': {...direct, images: [{...images[0], uploadId: 'nope'}]},
+      'a label that is not one of the seven': {...direct, images: [{...images[0], label: 'side' as never}]},
+      'a short edge of 0': {...direct, images: [{...images[0], shortEdgePx: 0}]},
+      'a short edge that is not whole': {...direct, images: [{...images[0], shortEdgePx: 800.5}]},
+      'a negative blur': {...direct, images: [{...images[0], blurVariance: -0.001}]},
+      'a blur that is not a number': {...direct, images: [{...images[0], blurVariance: Number.NaN}]},
+      'a blur above what the kernel can give': {...direct, images: [{...images[0], blurVariance: 1040401}]},
+      'a clipped share above 1': {...direct, images: [{...images[0], clippedFraction: 1.01}]},
+      'a clipped share below 0': {...direct, images: [{...images[0], clippedFraction: -0.01}]},
+      // On purpose added (review patch D3): the database keeps 3 and 4 decimals, and a number with more is refused before the call rather than rounded there.
+      'a blur with more than 3 decimals': {...direct, images: [{...images[0], blurVariance: 412.3751}]},
+      'a clipped share with more than 4 decimals': {...direct, images: [{...images[0], clippedFraction: 0.02134}]},
+      'a scope for research-assisted reconstruction': {...research, scope: 'The subject'},
+      'an outcome for research-assisted reconstruction': {...research, outcome: 'A model'},
+      'no scope for direct conversion': {...direct, scope: null},
+      'no outcome for direct conversion': {...direct, outcome: null},
+      'a mode that is neither picture mode': {...direct, mode: 'evidence_text' as never},
+      'a command that is no ID': {...direct, commandId: 'nope'},
+      'a Project that is no ID': {...direct, projectId: 'nope'},
+      'a revision of 0': {...direct, expectedSeq: 0},
+      'a revision that is not whole': {...direct, expectedSeq: 1.5},
+    };
+    for (const [name, input] of Object.entries(bad)) await expect(recordPictureReview(operation, input, options), name).rejects.toBeInstanceOf(TypeError);
+    await expect(recordPictureReview({accountId: 'not-an-id', epoch: 1}, direct, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(recordPictureReview({accountId: ACCOUNT, epoch: 0}, direct, options)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+    // Twelve is the most that is accepted.
+    await recordPictureReview(operation, {...direct, images: twelve}, fake({outcome: 'created', project_id: PROJECT, request_id: REQUEST, seq: 3}).options);
+    // The most precision that is kept is accepted: 3 decimals of blur, 4 of the clipped share, and the ends of both ranges.
+    for (const kept of [{blurVariance: 0.001, clippedFraction: 0.0001}, {blurVariance: 1040400, clippedFraction: 1}, {blurVariance: 0, clippedFraction: 0}, {blurVariance: 99.999, clippedFraction: 0.3501}]) {
+      await recordPictureReview(operation, {...direct, images: [{...images[0], ...kept}]}, fake({outcome: 'created', project_id: PROJECT, request_id: REQUEST, seq: 3}).options);
+    }
+  });
+
+  it('throws, and does not say nothing was recorded, when the database cannot be reached or answers an error: the review may have been recorded', async () => {
+    await expect(recordPictureReview(operation, direct, {env, fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true});
+    await expect(recordPictureReview(operation, direct, fake({code: '22023'}, 400).options)).rejects.toMatchObject({name: 'AccountsUnavailableError', outcomeUnknown: false});
+    await expect(recordPictureReview(operation, direct, fake({}, 500).options)).rejects.toMatchObject({name: 'AccountsUnavailableError', outcomeUnknown: true});
   });
 });

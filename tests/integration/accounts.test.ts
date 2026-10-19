@@ -44,6 +44,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
       'step_up_nonces',
     ],
     // Story 2.1 adds request_revisions: the immutable request revisions, closed like the others. Story 2.2 adds request_images, the ordered pictures of a revision.
+    // (Story 2.3 adds columns to both, and no table.)
     projects: ['project_commands', 'projects', 'request_images', 'request_revisions', 'workspaces'],
     // Story 1.12: the Artifacts schema (the file gateway's records). Not exposed by the Data API; only the gateway role and the owner reach it, so these
     // are checked here as closed to anon, authenticated and service_role like the others (tests/integration/file-gateway-db.test.ts holds the rest).
@@ -91,6 +92,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'record_alarm_notice',
     'record_heartbeat',
     'record_invitation_refusal',
+    'record_picture_review',
     'record_picture_set',
     'record_tombstone',
     'redeem_recovery',

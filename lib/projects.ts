@@ -14,8 +14,9 @@
 import {callRow, oneOf, requireUuid, unexpected, type AccountsOptions, type Row} from '@/lib/accounts';
 import type {Operation} from '@/lib/authority';
 import {isProjectStage} from '@/lib/project-stage';
-import {isPictureType, maxPictures, type SavedPicture} from '@/lib/picture-set';
-import {projectIdOf, type ProjectRequestRow, type ProjectRow} from '@/lib/project-view';
+import {isPictureType, maxPictures} from '@/lib/picture-set';
+import {isViewLabel, type ViewLabel} from '@/lib/picture-quality';
+import {projectIdOf, type ProjectRequestRow, type ProjectRow, type RequestPicture} from '@/lib/project-view';
 import {declineReasons, requestModes, type ConfirmedRequest, type DeclineReason, type PersonalizationStyle, type RequestMode} from '@/lib/request-intake';
 
 export type {ProjectRequestRow, ProjectRow};
@@ -215,10 +216,27 @@ const oneOfModes = (value: unknown): RequestMode => oneOf(value, requestModes);
 const styleOf = (value: unknown): PersonalizationStyle | null => (value === 'raised' || value === 'recessed' ? value : null);
 const reasonOf = (value: unknown): DeclineReason | null => (typeof value === 'string' && (declineReasons as readonly string[]).includes(value) ? (value as DeclineReason) : null);
 
-/** The pictures of a revision as the database returned them, checked: positions 1, 2, 3... in order, each with a SHA-256, a length and a type a picture can have. */
-function picturesOf(value: unknown): SavedPicture[] {
+/**
+ * The label and measurements of a picture as the database returned them, checked: all four are present (a picture of a revision that was reviewed) or all four are
+ * null (a set that was never reviewed). They are claims of the browser, stored as sent; here only their shape and range are checked.
+ */
+function reviewOf(picture: Row): Pick<RequestPicture, 'label' | 'shortEdgePx' | 'blurVariance' | 'clippedFraction'> {
+  const {label, short_edge_px: shortEdge, blur_variance: blur, clipped_fraction: clipped} = picture;
+  if (label === null && shortEdge === null && blur === null && clipped === null) return {label: null, shortEdgePx: null, blurVariance: null, clippedFraction: null};
+  if (
+    !isViewLabel(label) || typeof shortEdge !== 'number' || !Number.isSafeInteger(shortEdge) || shortEdge < 1 ||
+    typeof blur !== 'number' || !Number.isFinite(blur) || blur < 0 || blur > 1040400 ||
+    typeof clipped !== 'number' || !Number.isFinite(clipped) || clipped < 0 || clipped > 1
+  ) {
+    throw unexpected();
+  }
+  return {label, shortEdgePx: shortEdge, blurVariance: blur, clippedFraction: clipped};
+}
+
+/** The pictures of a revision as the database returned them, checked: positions 1, 2, 3... in order, each with a SHA-256, a length and a type a picture can have, and its label and measurements or none. */
+function picturesOf(value: unknown): RequestPicture[] {
   if (!Array.isArray(value) || value.length > maxPictures) throw unexpected();
-  return value.map((entry, index): SavedPicture => {
+  return value.map((entry, index): RequestPicture => {
     const picture = (typeof entry === 'object' && entry !== null && !Array.isArray(entry) ? entry : {}) as Row;
     const uploadId = text(picture.upload_id);
     const sha256 = text(picture.sha256);
@@ -231,7 +249,7 @@ function picturesOf(value: unknown): SavedPicture[] {
     ) {
       throw unexpected();
     }
-    return {position: index + 1, uploadId: uploadId.toLowerCase(), sha256, length, contentType, expiresAt, available: picture.available};
+    return {position: index + 1, uploadId: uploadId.toLowerCase(), sha256, length, contentType, expiresAt, available: picture.available, ...reviewOf(picture)};
   });
 }
 
@@ -251,8 +269,13 @@ function requestOf(row: Row): ProjectRequestRow {
   const reason = row.personalization_reason === null ? null : reasonOf(row.personalization_reason);
   const confirmedAt = row.confirmed_at === null ? null : text(row.confirmed_at);
   const images = picturesOf(row.images);
+  const obstructionConfirmedAt = row.obstruction_confirmed_at === null ? null : text(row.obstruction_confirmed_at);
+  const acknowledgedAt = row.acknowledged_at === null ? null : text(row.acknowledged_at);
   if (
     !requestId || !projectId || !projectIdOf(requestId) || !projectIdOf(projectId) || seq === null || seq < 1 || typeof row.confirmed !== 'boolean' ||
+    typeof row.obstruction_confirmed !== 'boolean' || typeof row.acknowledged !== 'boolean' ||
+    (row.obstruction_confirmed_at !== null && !obstructionConfirmedAt) || (row.acknowledged_at !== null && !acknowledgedAt) ||
+    row.obstruction_confirmed !== (obstructionConfirmedAt !== null) || row.acknowledged !== (acknowledgedAt !== null) ||
     (row.subject_id !== null && subjectId === null) ||
     (row.scope !== null && !scope) || (row.intended_outcome !== null && !outcome) || (row.description !== null && !description) || (row.confirmed_at !== null && !confirmedAt) ||
     (row.personalization_wording !== null && !wording) || (row.personalization_text !== null && !wishText) ||
@@ -262,8 +285,11 @@ function requestOf(row: Row): ProjectRequestRow {
     throw unexpected();
   }
   const confirmed = row.confirmed;
-  // A revision is confirmed with everything it confirmed, or claims none of it: the record's own rule (request_revisions_confirmed_shape).
-  if (confirmed ? !confirmedAt || !description || !scope || !outcome : confirmedAt !== null || description !== null || scope !== null || outcome !== null) throw unexpected();
+  // A revision is confirmed with everything it confirmed, or claims none of it: the record's own rule (request_revisions_confirmed_shape). A confirmed revision
+  // has a time, a scope and an outcome; its description is required unless the revision is direct image-derived conversion, which has no subject to describe.
+  if (confirmed ? !confirmedAt || !scope || !outcome || (!description && mode !== 'image_direct') : confirmedAt !== null || description !== null || scope !== null || outcome !== null) throw unexpected();
+  // The review (Story 2.3) belongs to a picture request, and an acknowledgment to a confirmed direct one that also had its obstruction question answered.
+  if ((obstructionConfirmedAt !== null && mode === 'evidence_text') || (acknowledgedAt !== null && (mode !== 'image_direct' || !confirmed || obstructionConfirmedAt === null))) throw unexpected();
   const applied = row.personalization_applied;
   // The record's own rules: an applied wish has its wording, text and style, a wish that was not applied has no text or style, and a reason
   // belongs to a wording that was not applied.
@@ -283,6 +309,10 @@ function requestOf(row: Row): ProjectRequestRow {
     personalization: {wording, text: wishText, style, applied, reason},
     confirmedAt,
     images,
+    obstructionConfirmed: obstructionConfirmedAt !== null,
+    obstructionConfirmedAt,
+    acknowledged: acknowledgedAt !== null,
+    acknowledgedAt,
   };
 }
 
@@ -384,4 +414,119 @@ export async function releaseStagedPictures(operation: Operation, uploadIds: rea
   const released = wholeNumber(row.released);
   if (released === null || released > uploadIds.length) throw unexpected();
   return {outcome, released};
+}
+
+// Picture reviews (Story 2.3) ---------------------------------------------------------------------------------------------------
+
+/** The modes a picture review can record: `evidence_images` (research-assisted reconstruction) or `image_direct` (direct image-derived conversion). */
+export type ReviewMode = 'evidence_images' | 'image_direct';
+
+/** One picture of a review, in the person's order: its upload, the label the person gave it, and the three numbers the browser measured (claims, stored as sent). */
+export type ReviewedImage = {uploadId: string; label: ViewLabel; shortEdgePx: number; blurVariance: number; clippedFraction: number};
+
+/**
+ * What api.record_picture_review answers.
+ *  - `created`: the successor revision was recorded; `replayed`: the same command sent again, the original receipt (nothing written now); `unchanged`: the latest
+ *    revision already holds exactly this review (a lost answer, then Confirm pressed again under a new command): nothing was recorded, the leases were renewed. All
+ *    three carry the Project, the revision and its `seq`.
+ *  - `stale`: the Project's latest revision is not the one that was reviewed (another window saved a newer set or review, or the pictures changed); nothing was
+ *    written. `seq` is the latest revision's when the database says (null when the Project has no revision).
+ *  - `unknown_upload`, `not_ready`, `expired_upload`: the upload at `position` (1 is the first) is not the Account's own picture, is not complete, or has expired.
+ *  - `obstruction_not_confirmed`: the person did not confirm that nothing blocks the subject. `acknowledgment_required`: direct conversion with incomplete inputs
+ *    (the database decides from the labels and measurements) without the Generate anyway acknowledgment. Nothing was written for any of these.
+ *  - `reused`: the command ID was used before for something else. `unavailable`: the Project is another Account's, deleted, tombstoned or unknown (one answer), or a
+ *    replay whose Project has since gone. `not_editable`: the Project's request is a text request. `denied`: the Account has no authority for this request.
+ */
+export type PictureReviewReceipt =
+  | {outcome: 'created' | 'replayed' | 'unchanged'; projectId: string; requestId: string; seq: number}
+  | {outcome: 'stale'; seq: number | null}
+  | {outcome: 'unknown_upload' | 'not_ready' | 'expired_upload'; position: number}
+  | {outcome: 'reused' | 'unavailable' | 'not_editable' | 'obstruction_not_confirmed' | 'acknowledgment_required' | 'denied'};
+
+const pictureReviewOutcomes = [
+  'created', 'replayed', 'unchanged', 'stale', 'unknown_upload', 'not_ready', 'expired_upload', 'obstruction_not_confirmed', 'acknowledgment_required', 'reused', 'unavailable', 'not_editable', 'denied',
+] as const;
+
+/** The images of a call as the database takes them: 1 to 12, none repeated, each with a label from the seven and measurements in range. A call that is not shaped like this is a bug. */
+function requireReviewedImages(images: readonly ReviewedImage[]) {
+  if (images.length < 1 || images.length > maxPictures) throw new TypeError(`images must hold 1 to ${maxPictures} pictures`);
+  const ids = new Set<string>();
+  return images.map((image) => {
+    const uploadId = requireUuid('uploadId', image.uploadId);
+    if (ids.has(uploadId)) throw new TypeError('images must not repeat an upload');
+    ids.add(uploadId);
+    if (!isViewLabel(image.label)) throw new TypeError('label must be one of the seven views');
+    if (!Number.isSafeInteger(image.shortEdgePx) || image.shortEdgePx < 1) throw new TypeError('shortEdgePx must be a positive integer');
+    if (!Number.isFinite(image.blurVariance) || image.blurVariance < 0 || image.blurVariance > 1040400) throw new TypeError('blurVariance must be from 0 to 1,040,400');
+    if (Number(image.blurVariance.toFixed(3)) !== image.blurVariance) throw new TypeError('blurVariance has at most 3 decimals');
+    if (!Number.isFinite(image.clippedFraction) || image.clippedFraction < 0 || image.clippedFraction > 1) throw new TypeError('clippedFraction must be from 0 to 1');
+    if (Number(image.clippedFraction.toFixed(4)) !== image.clippedFraction) throw new TypeError('clippedFraction has at most 4 decimals');
+    return {upload_id: uploadId, label: image.label, short_edge_px: image.shortEdgePx, blur_variance: image.blurVariance, clipped_fraction: image.clippedFraction};
+  });
+}
+
+/**
+ * Records the review of a Project's pictures: ONE database transaction raises the Project's revision by one and appends a successor request revision (`expectedSeq` + 1)
+ * holding the mode, the person's labels and the browser's measurements of each picture in order (the database stores them as sent and trusts none of them), that the
+ * person confirmed nothing blocks the subject, and, for `image_direct`, the confirmed scope and outcome (and, when the database finds the inputs incomplete, the
+ * Generate anyway acknowledgment pinned to the ordered pictures and the scope). Research-assisted (`evidence_images`) records the choice and nothing else: no scope.
+ * The command ID makes a retry safe. If this throws an AccountsUnavailableError with `outcomeUnknown`, the review may or may not have been recorded: the caller
+ * tells the person to check the Project, and may send the same command again. Nothing here converts, researches, retains or charges.
+ */
+export async function recordPictureReview(
+  operation: Operation,
+  input: {
+    commandId: string;
+    projectId: string;
+    expectedSeq: number;
+    mode: ReviewMode;
+    scope: string | null;
+    outcome: string | null;
+    images: readonly ReviewedImage[];
+    obstructionConfirmed: boolean;
+    acknowledge: boolean;
+  },
+  options: AccountsOptions = {},
+): Promise<PictureReviewReceipt> {
+  if (!Number.isSafeInteger(input.expectedSeq) || input.expectedSeq < 1) throw new TypeError('expectedSeq must be a positive integer');
+  // A scope and an outcome belong to direct conversion exactly: research-assisted reconstruction confirms none until the subject is identified.
+  if (input.mode !== 'evidence_images' && input.mode !== 'image_direct') throw new TypeError('mode must be evidence_images or image_direct');
+  if (input.mode === 'evidence_images' && (input.scope !== null || input.outcome !== null)) throw new TypeError('research-assisted reconstruction has no scope or outcome');
+  if (input.mode === 'image_direct' && (input.scope === null || input.outcome === null)) throw new TypeError('direct conversion needs a scope and an outcome');
+  const row = await callRow(
+    'record_picture_review',
+    {
+      ...requireOperation(operation),
+      p_command_id: requireUuid('commandId', input.commandId),
+      p_project_id: requireUuid('projectId', input.projectId),
+      p_expected_seq: input.expectedSeq,
+      p_mode: input.mode,
+      p_scope: input.scope,
+      p_outcome: input.outcome,
+      p_images: requireReviewedImages(input.images),
+      p_obstruction_confirmed: input.obstructionConfirmed,
+      p_acknowledge: input.acknowledge,
+    },
+    options,
+  );
+  const outcome = oneOf(row.outcome, pictureReviewOutcomes);
+  if (outcome === 'reused' || outcome === 'unavailable' || outcome === 'not_editable' || outcome === 'obstruction_not_confirmed' || outcome === 'acknowledgment_required' || outcome === 'denied') {
+    return {outcome};
+  }
+  if (outcome === 'stale') {
+    const seq = row.seq === null || row.seq === undefined ? null : wholeNumber(row.seq);
+    if (row.seq !== null && row.seq !== undefined && (seq === null || seq < 1)) throw unexpected();
+    return {outcome, seq};
+  }
+  if (outcome === 'unknown_upload' || outcome === 'not_ready' || outcome === 'expired_upload') {
+    const position = wholeNumber(row.position);
+    // An answer about an upload that does not say which one is not an answer.
+    if (position === null || position < 1 || position > input.images.length) throw unexpected();
+    return {outcome, position};
+  }
+  const projectId = text(row.project_id);
+  const requestId = text(row.request_id);
+  const seq = wholeNumber(row.seq);
+  if (!projectId || !projectIdOf(projectId) || !requestId || !projectIdOf(requestId) || seq === null || seq < 2) throw unexpected();
+  return {outcome, projectId: projectId.toLowerCase(), requestId: requestId.toLowerCase(), seq};
 }

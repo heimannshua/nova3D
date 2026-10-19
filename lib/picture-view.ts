@@ -156,3 +156,75 @@ export function settleSave(answer: SaveAnswer, submitted: readonly string[], set
     failed,
   };
 }
+
+// The review (Story 2.3) ---------------------------------------------------------------------------------------------------------
+
+/** A problem with the scope or the outcome of a direct request, by field and kind (the same words as Story 2.1's: lib/request-view.ts `problemKey` gives the message). */
+export type ReviewProblem = {field: 'scope' | 'outcome'; problem: 'empty' | 'too_long' | 'control'};
+
+/**
+ * What `recordPictureReview` answers when it did not redirect (it redirects to the Project on `created` and `replayed`, and Home when the Account has no authority).
+ *  - `invalid`: the scope or the outcome is wrong (named in `problems`), or the form is not shaped like the screen's (no problem to point at); nothing was recorded.
+ *  - `stale`: the Project's pictures or review changed since this page was loaded (another window saved a newer set or review); nothing was recorded. Load the page again.
+ *  - `unknown_upload`, `not_ready`, `expired_upload`: the picture at `position` (1 is the first) is not one of the Account's uploads, did not finish uploading, or has
+ *    expired; nothing was recorded.
+ *  - `obstruction_not_confirmed`: the person did not confirm that nothing blocks the subject. `acknowledgment_required`: direct conversion with incomplete inputs without
+ *    the Generate anyway acknowledgment (the database decided from the labels and measurements). Nothing was recorded for either.
+ *  - `reused`: the command ID was used before for something else (the next Confirm is a new command). `gone`: the Project is not (or is no longer) available.
+ *    `not_editable`: the Project's request is a text request, which has no pictures to review.
+ *  - `unavailable`: the service did not answer. `unknown` is true when the review may have been recorded anyway: the person is told to check the Project first (a retry
+ *    carries the same command ID, so it records at most one revision).
+ */
+export type ReviewState =
+  | {outcome: 'idle'}
+  | {outcome: 'invalid'; problems: ReviewProblem[]}
+  | {outcome: 'unknown_upload' | 'not_ready' | 'expired_upload'; position: number}
+  | {outcome: 'stale' | 'reused' | 'gone' | 'not_editable' | 'obstruction_not_confirmed' | 'acknowledgment_required'}
+  | {outcome: 'unavailable'; unknown: boolean};
+
+export const reviewIdle: ReviewState = {outcome: 'idle'};
+
+export type ReviewAction = (previous: ReviewState, formData: FormData) => Promise<ReviewState>;
+
+/** Calls the review action and reads what comes back: a call that did not answer is `unavailable`, and the review may have been recorded. */
+export function attemptReview(action: ReviewAction, previous: ReviewState, formData: FormData): Promise<ReviewState> {
+  return attemptAdministeredAction(action, previous, formData, {outcome: 'unavailable', unknown: true});
+}
+
+/** The message of an answer to Confirm that did not go through, or null when it needs none (nothing yet, or field problems the fields themselves show). */
+export function reviewKey(state: ReviewState): MessageKey | null {
+  switch (state.outcome) {
+    case 'invalid':
+      return state.problems.length ? null : 'review.confirm.invalid';
+    case 'stale':
+      return 'review.confirm.stale';
+    case 'unknown_upload':
+      return 'review.confirm.unknownUpload';
+    case 'not_ready':
+      return 'review.confirm.notReady';
+    case 'expired_upload':
+      return 'review.confirm.expiredUpload';
+    case 'obstruction_not_confirmed':
+      return 'review.confirm.obstruction';
+    case 'acknowledgment_required':
+      return 'review.confirm.acknowledgment';
+    case 'reused':
+      return 'review.confirm.reused';
+    case 'gone':
+      return 'review.confirm.gone';
+    case 'not_editable':
+      return 'review.confirm.notEditable';
+    case 'unavailable':
+      return state.unknown ? 'review.confirm.unknown' : 'review.confirm.unavailable';
+    default:
+      return null;
+  }
+}
+
+/**
+ * What a Confirm's answer means for the screen: `reused` and `gone` forget the command ID (the next Confirm is a new command); every other answer keeps it, because a
+ * retry of the very same Confirm must carry the same command. `failed` says the answer is a failure to show, announce and move focus to.
+ */
+export function settleReview(state: ReviewState): {forgetCommand: boolean; failed: boolean} {
+  return {forgetCommand: state.outcome === 'reused' || state.outcome === 'gone', failed: state.outcome !== 'idle'};
+}

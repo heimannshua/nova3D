@@ -1,7 +1,9 @@
 // Story 1.7. The stages a Project can be in, and what each one says: a word (never colour alone: every stage also has its
 // own shape), a sentence that names the next thing the person has to do, and where that is done. Story 1.7 had six; Story 2.1 adds the
 // first, `request_confirmed`: the person has confirmed what they asked for, and nothing has started or been charged. Story 2.2 adds one before it,
-// `request_draft`: pictures are saved privately and the request is not confirmed yet (choosing how to use them and confirming arrive later).
+// `request_draft`: pictures are saved privately and the request is not confirmed yet. Story 2.3 gives it its destination, the review of the pictures (their quality and
+// coverage, how they are used and the confirmation), and also sets the stage: a confirmed direct picture request is `request_confirmed`, and a picture set whose
+// review chose research-assisted reconstruction (or was never reviewed) is `request_draft`.
 //
 // The stages are set by the stories that own them (the request is Story 2.1, research is Epic 3, generation Epic 4, approval and export
 // later ones); this story only reads and shows them. A stage's `destination` is where its next required action is done. It is null until the
@@ -9,11 +11,12 @@
 // null destination is rendered as words and never as a link: a link to a page that does not exist is a dead end, and a dead
 // end is a lie about what the person can do.
 //
-// Like the other modules a worker or a script may load, this one has only erasable TypeScript syntax and no runtime imports
-// (scripts/seed-projects.mjs reads it through Node type stripping); the types it names are imported with `import type`.
+// Like the other modules a worker or a script may load, this one has only erasable TypeScript syntax and no runtime imports but the one dependency-free paths
+// module (scripts/seed-projects.mjs reads it through Node type stripping); the types it names are imported with `import type`.
 import type {IconName} from '../components/ui/icon.tsx';
 import type {StatusTone} from '../components/ui/status-badge.tsx';
 import type {MessageKey} from './i18n/index.ts';
+import {reviewPath} from './project-paths.ts';
 
 export const projectStages = [
   'request_draft',
@@ -48,8 +51,8 @@ export type StageDefinition = {
 };
 
 export const stageDefinitions: Record<ProjectStage, StageDefinition> = {
-  // The pictures are saved and the request is not confirmed. Choosing how to use them (Story 2.3) and confirming arrive later and own the next step, so there is no destination.
-  request_draft: {label: 'stage.request_draft.label', nextAction: 'stage.request_draft.next', tone: 'info', icon: 'image', visual: 'blue', destination: null},
+  // The pictures are saved and the request is not confirmed. The next step is to review them (Story 2.3: their quality and coverage, how to use them, the confirmation).
+  request_draft: {label: 'stage.request_draft.label', nextAction: 'stage.request_draft.next', tone: 'info', icon: 'image', visual: 'blue', destination: reviewPath},
   // Nothing owns the next step yet (research arrives with Epic 3, and asks for its own permission), so there is no destination.
   request_confirmed: {label: 'stage.request_confirmed.label', nextAction: 'stage.request_confirmed.next', tone: 'neutral', icon: 'text', visual: 'violet', destination: null},
   researching: {label: 'stage.researching.label', nextAction: 'stage.researching.next', tone: 'running', icon: 'search', visual: 'amber', destination: null},

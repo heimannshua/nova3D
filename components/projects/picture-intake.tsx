@@ -5,6 +5,7 @@ import {discardPictures, savePictureSet} from '@/app/projects/new/pictures/actio
 import {useI18n} from '@/lib/i18n/react';
 import type {MessageKey} from '@/lib/i18n';
 import {captureFrame, cameraSupported, openCamera, stopStream, watchTracks, type CameraStream} from '@/lib/picture-camera';
+import {holdFiles, releaseUnlessSaved} from '@/lib/picture-fetch';
 import {
   acceptAttribute,
   addFiles,
@@ -102,19 +103,23 @@ function useFileProblemText() {
  * thing to fix, and each change of order and each result is announced through the page's live region.
  *
  * `projectId` is null for a new set (the Project is born at the first Save) and the Project's ID when its saved set is being changed; `revision` is the
- * number of the saved revision, so a Save of the same pictures from an earlier state is a different command.
+ * number of the saved revision, so a Save of the same pictures from an earlier state is a different command. `reviewed` is whether that revision was reviewed (the
+ * review is not carried over to a successor: the screen says that saving changes starts it again).
  */
 export function PictureIntake({
   projectId = null,
   title,
   revision = null,
   saved = [],
+  reviewed = false,
   initial = {},
 }: {
   projectId?: string | null;
   title?: string;
   revision?: number | null;
   saved?: SavedPicture[];
+  /** Whether the saved revision was reviewed (its pictures carry labels): saving changes then starts the review again, and the screen says so. */
+  reviewed?: boolean;
   initial?: InitialPictures;
 }) {
   const {t, locale} = useI18n();
@@ -554,6 +559,8 @@ export function PictureIntake({
   const [saveState, saveForm, savePending] = useActionState(async (previous: SaveState, formData: FormData) => {
     try {
       const result = await attemptSave(savePictureSet, previous, formData);
+      // A Save that succeeds goes to the Project and never gets here: an answer that comes back is not a save, so the Files held for the review are let go of.
+      releaseUnlessSaved(result.outcome);
       // The answer is read against the uploads that were SUBMITTED (the form's own snapshot), not the live list (lib/picture-view.ts `settleSave`): a command ID
       // the database says was used for something else cannot be used again, and the picture an answer is about is marked.
       const sent = formData.getAll('uploadId').filter((value): value is string => typeof value === 'string');
@@ -602,6 +609,8 @@ export function PictureIntake({
     if (field instanceof HTMLInputElement) field.value = chosen;
     lastSent.current = {key, id: chosen};
     submitted.current = idsNow;
+    // The review that follows measures these very Files, in this page's memory, and asks the gateway for nothing (after a reload it reads them back instead).
+    holdFiles(setRef.current.flatMap((item) => (item.state === 'ready' && item.uploadId && item.file ? [{uploadId: item.uploadId, file: item.file}] : [])));
     saving.current = true;
     say('picture.announce.saving');
   };
@@ -627,6 +636,11 @@ export function PictureIntake({
       <p className="lede">{t('picture.lede')}</p>
       <p id={ids.help} className="auth-hint">{t('picture.limits', sizeLimits)}</p>
       <p className="auth-hint">{t('picture.privacy')}</p>
+      {projectId && reviewed ? (
+        <div className="invite-notice">
+          <Notice tone="info" role="note">{t('picture.reviewedNote')}</Notice>
+        </div>
+      ) : null}
 
       {!secure ? (
         <div className="invite-notice">

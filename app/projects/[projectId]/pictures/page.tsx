@@ -17,9 +17,12 @@ export async function generateMetadata({params}: {params: Promise<{projectId: st
   return {title: t('meta.projectUnavailable')};
 }
 
-// The pictures of a Project whose latest request is an unconfirmed set of pictures (Story 2.2: C-03), to change: add, replace, reorder, remove, and save a
-// successor. It checks the Project exactly as the overview does, so a link to the pictures of a Project that is not available is the same unavailable page.
-// A Project whose request is anything else (a confirmed request, a text request, no request) is told that its pictures cannot be changed here.
+// The pictures of a Project whose latest request is an unconfirmed picture request (Story 2.2: C-03), to change: add, replace, reorder, remove, and save a successor
+// (an unreviewed one: a revision that was reviewed is superseded, its labels and measurements are not carried over, and the screen says so). The only unconfirmed
+// picture request is a research-assisted one (`evidence_images`): a review that chooses direct conversion records a CONFIRMED `image_direct` revision, and an
+// unconfirmed `image_direct` revision cannot exist. It checks the Project exactly as the overview does, so a link to the pictures of a Project that is not available
+// is the same unavailable page. A Project whose request is anything else (a confirmed request, a text request, no request) is told that its pictures cannot be
+// changed here.
 export default async function ProjectPicturesPage({params}: {params: Promise<{projectId: string}>}) {
   const access = await requireActiveAccount();
   const {projectId} = await params;
@@ -43,6 +46,8 @@ export default async function ProjectPicturesPage({params}: {params: Promise<{pr
       </div>
     );
   }
-  if (request.state !== 'found' || request.request.mode !== 'evidence_images' || request.request.confirmed) return <PicturesLocked project={loaded.project}/>;
-  return <PictureIntake projectId={loaded.project.id} title={loaded.project.title} revision={request.request.seq} saved={request.request.images}/>;
+  if (request.state !== 'found' || request.request.mode === 'evidence_text' || request.request.confirmed) return <PicturesLocked project={loaded.project}/>;
+  // A revision whose pictures carry labels was reviewed; saving a successor starts the review again.
+  const reviewed = request.request.images.some((image) => image.label !== null);
+  return <PictureIntake projectId={loaded.project.id} title={loaded.project.title} revision={request.request.seq} saved={request.request.images} reviewed={reviewed}/>;
 }

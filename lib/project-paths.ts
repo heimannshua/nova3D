@@ -5,6 +5,8 @@ export const projectPath = (projectId: string) => `/projects/${projectId}`;
 export const sourcesPath = (projectId: string) => `/projects/${projectId}/sources`;
 /** The picture screen (Story 2.2: C-03) of a Project whose latest request is an unconfirmed picture request. */
 export const picturesPath = (projectId: string) => `/projects/${projectId}/pictures`;
+/** The review of a Project's pictures (Story 2.3: C-04, C-05 and the picture variant of C-06): their quality and coverage, how they are used, and the confirmation. */
+export const reviewPath = (projectId: string) => `/projects/${projectId}/pictures/review`;
 
 /**
  * Where a link is sent when its Project ID cannot even be decoded (`/projects/%E0%A4%A`: a percent sign that starts no escape).
@@ -15,9 +17,9 @@ export const picturesPath = (projectId: string) => `/projects/${projectId}/pictu
  */
 export const undecodableProjectPath = `${projectsPath}/not-a-project-id`;
 
-/** Whether the path is a Project page (the overview, Sources or Pictures) whose ID segment is not valid percent-encoding. */
+/** Whether the path is a Project page (the overview, Sources, Pictures or the review of the pictures) whose ID segment is not valid percent-encoding. */
 export function hasUndecodableProjectId(pathname: string): boolean {
-  const match = /^\/projects\/([^/]+)(?:\/(?:sources|pictures))?\/?$/.exec(pathname);
+  const match = /^\/projects\/([^/]+)(?:\/(?:sources|pictures(?:\/review)?))?\/?$/.exec(pathname);
   if (!match) return false;
   try {
     decodeURIComponent(match[1]);

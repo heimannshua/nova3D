@@ -2306,7 +2306,8 @@ describe('Request revisions (Story 2.1) are created and read through two typed c
   });
 
   it('keeps understanding free, pure and the same on the server and in the browser: no run-time import, no process, no I/O, no network, no model', () => {
-    const pure = ['lib/request-intake.ts', 'lib/domain-registry.ts', 'packages/contracts/domain-manifest.ts', 'packages/domains/middot/manifest.ts'];
+    // Story 2.3 adds lib/picture-quality.ts on purpose: the shared quality rule is pure, client-safe and reused by Story 7.9.
+    const pure = ['lib/request-intake.ts', 'lib/domain-registry.ts', 'packages/contracts/domain-manifest.ts', 'packages/domains/middot/manifest.ts', 'lib/picture-quality.ts'];
     for (const file of pure) {
       const text = code(file);
       expect(text, file).not.toMatch(/\bprocess\b|\bfetch\(|XMLHttpRequest|node:|require\(|await import\(|\bDate\.now\(|Math\.random|crypto\./);
@@ -2648,7 +2649,8 @@ describe('Picture sets (Story 2.2) are recorded through two typed calls, by two 
   });
 
   it('sends a picture from the browser to the gateway by one module: the ticket by csrfFetch, the file by XMLHttpRequest, to the address in the ticket', () => {
-    expect(callers('csrfFetch')).toEqual(['lib/csrf-client.ts', 'lib/picture-upload.ts']);
+    // On purpose changed (Story 2.3): the review reads a saved picture back with a download ticket, asked for by csrfFetch in lib/picture-fetch.ts, the one new module.
+    expect(callers('csrfFetch')).toEqual(['lib/csrf-client.ts', 'lib/picture-fetch.ts', 'lib/picture-upload.ts']);
     expect(callers('XMLHttpRequest')).toEqual(['lib/picture-upload.ts']);
     expect(callers('v1/uploads')).toEqual(['lib/picture-upload.ts']);
     expect(callers('fetchTicket')).toEqual(['lib/picture-upload.ts']);
@@ -2906,5 +2908,416 @@ describe('Picture sets (Story 2.2) are recorded through two typed calls, by two 
     expect(guide).toMatch(/gateway's `APP_ORIGIN` must equal the application's own origin/);
     const readme = read('README.md');
     for (const needle of ['Story 2.2', 'picture_sets', 'request_images', 'recordPictureSet', 'savePictureSet', 'discardPictures', 'request_draft', 'picture-intake']) expect(readme, needle).toContain(needle);
+  });
+});
+
+describe('Picture review (Story 2.3) is recorded through one typed call, by one Server Action, for the verified Account; the browser measures, and the pixels go nowhere', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+    'next.config.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const code = (file: string) => withoutComments(read(file));
+  const actions = 'app/projects/[projectId]/pictures/review/actions.ts';
+  const screen = 'components/projects/picture-review.tsx';
+  const page = 'app/projects/[projectId]/pictures/review/page.tsx';
+  const qualityLibs = ['lib/picture-quality.ts', 'lib/picture-decode.ts', 'lib/picture-fetch.ts', 'lib/picture-review.ts'];
+  const reviewFiles = [...qualityLibs, screen, actions, page];
+  const migrationFile = 'supabase/migrations/20261020120000_picture_review.sql';
+  const migration = read(migrationFile);
+  const migrationCode = migration.replace(/^\s*--.*$/gm, '');
+  const functionBody = (name: string) => {
+    const start = migrationCode.indexOf(`create function ${name}(`);
+    expect(start, name).toBeGreaterThan(-1);
+    return migrationCode.slice(start, migrationCode.indexOf('$$;', migrationCode.indexOf('$$', start) + 2));
+  };
+
+  it('finds every file of the story', () => {
+    for (const file of [...reviewFiles, migrationFile, 'docs/picture-quality.md', 'tests/support/pixels.ts']) expect(() => read(file), file).not.toThrow();
+  });
+
+  it('records from lib/projects.ts and the one actions file, and reaches the action from the screen alone', () => {
+    expect(callers('recordPictureReview')).toEqual([actions, screen, 'lib/projects.ts'].sort());
+    expect(code('lib/projects.ts')).toMatch(/callRow\(\s*'record_picture_review'/);
+    for (const file of sources.filter((candidate) => candidate !== 'lib/projects.ts' && candidate !== 'lib/accounts.ts')) {
+      expect(code(file), file).not.toMatch(/['"`]record_picture_review['"`]/);
+    }
+    for (const file of sources.filter((candidate) => /^(?:app\/.*page\.tsx|components\/.*)$/.test(candidate))) {
+      expect(code(file), file).not.toMatch(/\b(?:callApi|callRow)\b/);
+    }
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts']);
+    // The Project typed calls did not move.
+    expect(callers('recordPictureSet')).toEqual(['app/projects/new/pictures/actions.ts', 'lib/projects.ts']);
+    expect(callers('readProjectRequest')).toEqual(['lib/project-pages.ts', 'lib/projects.ts']);
+  });
+
+  it('is one Server Action behind withActiveAccount in a file of its own, with the Account from the verified access and only a command, a Project, the revision, the choice and the review from the form', () => {
+    expect(read(actions).trimStart()).toMatch(/^'use server';/);
+    expect([...code(actions).matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)].map((match) => match[1])).toEqual(['recordPictureReview']);
+    expect([...code(actions).matchAll(/^export\s/gm)]).toHaveLength(1);
+    expect([...code(actions).matchAll(/withActiveAccount<(\w+)>\(/g)].map((match) => match[1])).toEqual(['ReviewState']);
+    expect([...code(actions).matchAll(/operationOf\(access\.account\)/g)]).toHaveLength(1);
+    expect([...code(actions).matchAll(/formData\.(?:get|getAll)\(['"](\w+)['"]\)/g)].map((match) => match[1])).toEqual([
+      'uploadId', 'label', 'shortEdge', 'blur', 'clipped', 'commandId', 'projectId', 'expectedSeq', 'mode', 'scope', 'outcome', 'obstruction', 'acknowledge',
+    ]);
+    for (const forbidden of [/\baccountId\s*:\s*(?:formData|String\()/, /\bepoch\s*:\s*(?:formData|Number\()/, /\bsearchParams\b/, /\bheaders\(\)/, /\brequest\.url\b/, /cookies\(/, /formData\.get\(['"](?:title|accountId|epoch|approved|permission|payment|ok|pass|passed|fail|failed|verdict|incomplete|complete|digest|sha256|length|contentType|stage|subject)/, /\.arrayBuffer\(|\.stream\(|\.blob\(|\.text\(\)/]) {
+      expect(code(actions)).not.toMatch(forbidden);
+    }
+    // A Server Action is not an API route, and checks no token of its own.
+    expect(code(actions)).not.toMatch(/verifyCsrf|requireMutationAccess|csrfHeaderName/);
+    expect(files('app', (name) => /^route\.(ts|js)$/.test(name)).filter((file) => /project|picture|review/i.test(file))).toEqual([]);
+  });
+
+  it('recomputes nothing the database recomputes: the action holds no rule of the quality module and trusts no verdict', () => {
+    const body = code(actions);
+    expect(body).not.toMatch(/\b(?:assess|incomplete|coverage|analyze|incompleteFacts|itemsIncomplete|thresholds)\b/);
+    // The only import from the quality family is the label check and the form reader.
+    expect(body.match(/^import .*$/gm)?.filter((line) => /picture-(?:quality|review)/.test(line))).toEqual([
+      "import {measurementsFromFields} from '@/lib/picture-review';",
+      "import {isViewLabel} from '@/lib/picture-quality';",
+    ]);
+  });
+
+  it('has a branch for every outcome of the typed call, and an unknown one is never a redirect to a Project', () => {
+    const body = code(actions);
+    for (const outcome of ['created', 'replayed', 'unchanged', 'stale', 'unknown_upload', 'not_ready', 'expired_upload', 'obstruction_not_confirmed', 'acknowledgment_required', 'reused', 'not_editable', 'unavailable']) expect(body, outcome).toContain(`case '${outcome}':`);
+    expect(body).toMatch(/case 'unavailable':[\s\S]*?return \{outcome: 'gone'\};/);
+    expect(body.slice(body.indexOf("case 'unavailable':"), body.indexOf('default:'))).not.toMatch(/redirect\(/);
+    expect(body).toMatch(/default:[\s\S]*?return redirect\(homePath\);/);
+    // On purpose changed (review patch A2): an identical re-confirmation is `unchanged`, and it goes to the Project like a created or replayed review.
+    expect(body).toMatch(/case 'created':\s*case 'replayed':\s*case 'unchanged':[^]*?return redirect\(projectPath\(receipt\.projectId\)\);/);
+    expect(code('lib/projects.ts')).toMatch(/const pictureReviewOutcomes = \[\s*'created', 'replayed', 'unchanged', 'stale', 'unknown_upload', 'not_ready', 'expired_upload', 'obstruction_not_confirmed', 'acknowledgment_required', 'reused', 'unavailable', 'not_editable', 'denied',\s*\] as const;/);
+    // The outcome is read after the call and the redirect is outside the try that decides whether the call may have happened.
+    const tryAt = body.indexOf('try {');
+    const catchAt = body.indexOf('} catch (error) {');
+    for (const match of body.matchAll(/redirect\(/g)) expect(match.index < tryAt || match.index > catchAt, `redirect at ${match.index}`).toBe(true);
+  });
+
+  it('prints only the name and message of an error in the action and the screen\'s modules: never an ID', () => {
+    for (const file of reviewFiles) {
+      for (const line of code(file).split('\n').filter((candidate) => /console\.(?:log|info|warn|error|debug)\(|\blog\(/.test(candidate))) {
+        expect(line, file).toMatch(/describe\(error\)/);
+        expect(line, file).not.toMatch(/title|projectId|accountId|formData|email|uploadId|uploadIds|commandId/);
+      }
+    }
+    for (const file of ['lib/picture-quality.ts', 'lib/picture-decode.ts', 'lib/picture-fetch.ts', 'lib/picture-review.ts', screen]) expect(code(file), file).not.toMatch(/console\./);
+  });
+
+  it('keeps the screen and its libraries free of every server-only module, of Node, and of the environment', () => {
+    for (const file of [...qualityLibs, screen]) {
+      const source = code(file);
+      expect(source, file).not.toMatch(/from '@\/lib\/(?:accounts|access|auth|authority|projects|project-pages|project-target|lifecycle)'|from '\.\/(?:accounts|access|auth|authority|projects)(?:\.ts)?'|node:|next\/headers|next\/cache|\brequire\(/);
+      expect(source, file).not.toMatch(/process\.env|\benv\.[A-Z]|FILE_GATEWAY_URL|SERVICE_KEYS_|SERVICE_SIGNING_KEY|SUPABASE|SECRET|INSTANCE_ID|APP_ORIGIN/);
+    }
+    for (const file of reviewFiles) expect(code(file), file).not.toMatch(/process\.env/);
+  });
+
+  it('keeps the quality rule pure and the other modules to what is browser-safe', () => {
+    const imports = (file: string) => code(file).match(/^import\b.*$/gm) ?? [];
+    expect(imports('lib/picture-quality.ts')).toEqual([]);
+    expect(imports('lib/picture-decode.ts')).toEqual(["import {analyze, copySize, imageDimensions, overPixelCap, type Measurements, type Pixels} from './picture-quality.ts';"]);
+    // On purpose changed (review patch B4): the download address is made from the ticket's own gateway, so `uploadUrl` is no longer imported.
+    expect(imports('lib/picture-fetch.ts')).toEqual([
+      "import {csrfFetch} from './csrf-client.ts';",
+      "import {maxPictureBytes, maxPictures} from './picture-set.ts';",
+      "import {sha256Hex, type UploadDeps} from './picture-upload.ts';",
+    ]);
+    for (const line of imports('lib/picture-review.ts')) expect(line).toMatch(/^import (?:type )?\{[^}]*\} from '\.\/(?:i18n\/index|picture-fetch|picture-quality|picture-set)\.ts';$/);
+    // lib/picture-view.ts still imports what it did: the review adds no import to it.
+    for (const line of imports('lib/picture-view.ts')) expect(line).toMatch(/from '@\/lib\/(?:administration|i18n|picture-set|request-view)';$/);
+    // lib/picture-set.ts and lib/picture-camera.ts are untouched in what they import.
+    expect(imports('lib/picture-set.ts')).toEqual([]);
+    expect(imports('lib/picture-camera.ts')).toEqual([]);
+  });
+
+  it('reads a staged picture back in ONE module, in the browser: a download ticket by csrfFetch, the file by fetch with the ticket in a header, to the gateway the ticket names', () => {
+    // On purpose changed (Story 2.3): the first story that downloads staged bytes allows it in lib/picture-fetch.ts alone. The Story 2.2 files keep their ban.
+    const family = sources.filter((file) => /^(?:lib\/picture-|components\/projects\/|app\/projects\/)/.test(file));
+    expect(family.filter((file) => /direction: 'download'/.test(code(file)))).toEqual(['lib/picture-fetch.ts']);
+    expect(family.filter((file) => /\/v1\/files\b/.test(code(file)))).toEqual(['lib/picture-fetch.ts']);
+    expect(family.filter((file) => /\bfetchDownloadTicket\b/.test(code(file)))).toEqual(['lib/picture-fetch.ts']);
+    expect(family.filter((file) => /(?<![\w.])fetch\(/.test(code(file)))).toEqual(['lib/picture-fetch.ts']);
+    expect(callers('csrfFetch')).toEqual(['lib/csrf-client.ts', 'lib/picture-fetch.ts', 'lib/picture-upload.ts']);
+    // On purpose changed (review patch C2): the screen asks for a picture by `loadPicture`, which holds the held-File check and the read-back together.
+    expect(callers('fetchStagedPicture')).toEqual(['lib/picture-fetch.ts']);
+    expect(callers('loadPicture')).toEqual([screen, 'lib/picture-fetch.ts']);
+    const body = code('lib/picture-fetch.ts');
+    // The ticket is in a header, never in the address; nothing else is sent; the gateway is the ticket's and nobody else's.
+    expect(body).toMatch(/headers: \{authorization: `Ticket \$\{ticket\.ticket\}`\}/);
+    expect(body).toMatch(/credentials: 'omit'/);
+    expect(body).toMatch(/referrerPolicy: 'no-referrer'/);
+    expect(body).toMatch(/downloadUrl\(ticket\.gateway, picture\.uploadId\)/);
+    expect(body).toContain('return `${base.origin}/v1/files/staging/${id}`;');
+    expect(body).not.toMatch(/uploadUrl|https?:\/\//);
+    expect(body).toMatch(/JSON\.stringify\(\{direction: 'download', kind: 'staging', id\}\)/);
+    // The bytes live in memory only: no address made of them, no storage, no link, no log.
+    expect(body).not.toMatch(/createObjectURL|localStorage|sessionStorage|indexedDB|document\.|<a\b|\bdownload=|console\.|caches\b|navigator\.storage/);
+    // The hash must equal the saved SHA-256, or the picture is not used.
+    expect(body).toMatch(/sha256 === picture\.sha256 \? \{ok: true, blob: read\.blob\} : \{ok: false, problem: 'changed'\}/);
+    // The body is read through a reader that stops at the saved length (and a length announced by the gateway that is not it is not read at all).
+    expect(body).toMatch(/declared !== null && Number\(declared\) !== length/);
+    expect(body).toMatch(/if \(total > length\) \{\s*await reader\.cancel\(\)/);
+    expect(body).not.toMatch(/\.arrayBuffer\(|\.blob\(\)|response\.text\(/);
+    // Each request has 30 seconds, and a request that is not finished by then is the retryable network problem.
+    expect(body).toContain('export const fetchTimeoutMs = 30_000;');
+    expect(body).toMatch(/answered === expired \? \{ok: false, problem: 'network'\} : answered/);
+    expect(body).toMatch(/if \(status === 404 \|\| status === 410\) return 'lapsed';/);
+    expect(body).toMatch(/if \(status === 408 \|\| status === 425 \|\| status === 429 \|\| status >= 500\) return 'network';/);
+    // The Story 2.2 read function of the request still says nothing of a download.
+    expect(code('lib/projects.ts').slice(code('lib/projects.ts').indexOf('function picturesOf'), code('lib/projects.ts').indexOf('function requestOf'))).not.toMatch(/download|ticket|url/i);
+  });
+
+  it('hands the Files of the picture screen to the review in memory only, for the last Save, and lets go of them when the review is left', () => {
+    expect(callers('holdFiles')).toEqual(['components/projects/picture-intake.tsx', 'lib/picture-fetch.ts']);
+    // On purpose changed (review patches B6 and C2): the screen no longer reads the held File itself (`loadPicture` does), and the picture screen lets the Files go when
+    // an answer to Save comes back that is not a save.
+    expect(callers('heldFile')).toEqual(['lib/picture-fetch.ts']);
+    expect(callers('releaseFiles')).toEqual([screen, 'lib/picture-fetch.ts']);
+    expect(callers('releaseUnlessSaved')).toEqual(['components/projects/picture-intake.tsx', 'lib/picture-fetch.ts']);
+    expect(code('components/projects/picture-intake.tsx')).toMatch(/const result = await attemptSave\(savePictureSet, previous, formData\);\s*(?:\/\/[^\n]*\n\s*)*releaseUnlessSaved\(result\.outcome\);/);
+    expect(code('lib/picture-fetch.ts')).toContain("const savedOutcomes = new Set(['created', 'revised', 'replayed', 'unchanged']);");
+    // The Files are let go of by themselves after 15 minutes, by a timer started when they are held.
+    expect(code('lib/picture-fetch.ts')).toContain('export const heldForMs = 15 * 60_000;');
+    expect(code('lib/picture-fetch.ts')).toContain('heldTimer = setTimeout(releaseFiles, heldForMs);');
+    // The hand-over is made when Save is pressed, from the ready items that still have their File; a File is never stored, only held in a module-level map.
+    expect(code('components/projects/picture-intake.tsx')).toMatch(/holdFiles\(setRef\.current\.flatMap\(\(item\) => \(item\.state === 'ready' && item\.uploadId && item\.file \? \[\{uploadId: item\.uploadId, file: item\.file\}\] : \[\]\)\)\);/);
+    expect(code('lib/picture-fetch.ts')).toMatch(/const held = new Map<string, File>\(\);/);
+    // The held File is checked against the saved SHA-256 before it is used, and otherwise the picture is read back: in loadPicture, once, behind a unit test.
+    expect(code('lib/picture-fetch.ts')).toMatch(/if \(\(await sha256Hex\(file, deps\)\) === picture\.sha256\) return \{ok: true, blob: file, from: 'held'\};/);
+    expect(code(screen)).toMatch(/await loadPicture\(\{uploadId: item\.uploadId, sha256: item\.sha256, length: item\.length\}, \{signal\}\);/);
+    expect(code(screen)).not.toMatch(/\bsha256Hex\b|\bheldFile\b|\bfetchStagedPicture\b/);
+  });
+
+  it('shows a picture only as a small JPEG the browser drew from its own copy, as an object URL made once and revoked by the screen', () => {
+    const body = code(screen);
+    expect([...body.matchAll(/URL\.createObjectURL\(/g)]).toHaveLength(1);
+    expect(body).toMatch(/URL\.createObjectURL\(decoded\.thumbnail\)/);
+    expect(body).toMatch(/URL\.revokeObjectURL\(/);
+    expect([...body.matchAll(/<img\b/g)]).toHaveLength(1);
+    expect(body).toMatch(/<img src=\{item\.thumbnailUrl\} alt=\{t\('review\.picture\.preview', \{position\}\)\} decoding="async"\/>/);
+    expect(body).not.toMatch(/<video|<canvas|\bdownload=|<a\b[^>]*\bhref=\{item|\.src =/);
+    // The bytes are only a local of the function that measures ONE picture (nothing keeps them for the next), and the Files handed over go when the screen does.
+    expect(body).toMatch(/const decoded = await decodePicture\(loaded\.blob\);/);
+    expect(body).not.toMatch(/useState<Blob|useRef<Blob|useRef<File|useState<File|new Blob|\bBlob\[\]/);
+    expect(body).toMatch(/releaseFiles\(\);/);
+    // Nothing in the review, the decoder or the fetch keeps a picture or a measurement: no storage of any kind.
+    for (const file of ['lib/picture-decode.ts', 'lib/picture-review.ts', 'lib/picture-fetch.ts', screen]) expect(code(file), file).not.toMatch(/localStorage|sessionStorage|indexedDB|navigator\.storage|document\.cookie/);
+    // The decoder reaches no network and no server.
+    expect(code('lib/picture-decode.ts')).not.toMatch(/\bfetch\b|XMLHttpRequest|sendBeacon|WebSocket|csrfFetch|createObjectURL/);
+  });
+
+  it('measures in the browser: the server decodes nothing, resizes nothing and holds no image library', () => {
+    for (const file of sources.filter((candidate) => /^(?:app\/|lib\/(?:accounts|projects|project-pages|authority|lifecycle|request-intake|picture-set|picture-upload|picture-view))/.test(candidate))) {
+      expect(code(file), file).not.toMatch(/createImageBitmap|OffscreenCanvas|getImageData|\bsharp\b|jimp|pngjs|jpeg-js|canvas\b.*\bnode/i);
+    }
+    expect(callers('createImageBitmap')).toEqual(['lib/picture-decode.ts']);
+    expect(callers('getImageData')).toEqual(['lib/picture-decode.ts']);
+    expect(callers('analyze')).toEqual(['lib/picture-decode.ts', 'lib/picture-quality.ts']);
+    const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>; devDependencies: Record<string, string>};
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+  });
+
+  it('asks for the camera nowhere in the review, and reads no environment variable, adds no route, header or secret', () => {
+    expect(callers('getUserMedia')).toEqual(['lib/picture-camera.ts']);
+    expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).sort()).toEqual([
+      'app/api/health/route.ts',
+      'app/api/heartbeat/route.ts',
+      'app/api/jobs/route.ts',
+      'app/api/kit/mutation/route.ts',
+      'app/api/status/route.ts',
+      'app/api/transfers/tickets/route.ts',
+      'app/auth/callback/route.ts',
+    ]);
+    for (const file of sources) expect(code(file), file).not.toMatch(/content-security-policy|permissions-policy|feature-policy/i);
+    expect(read('vercel.json')).not.toMatch(/content-security-policy|permissions-policy|headers/i);
+  });
+
+  it('decides the stage of a review in the database, not in the application: no stage is named by the action or the screen', () => {
+    for (const file of [actions, screen, 'lib/picture-review.ts']) expect(code(file), file).not.toMatch(/request_confirmed|request_draft/);
+  });
+
+  it('adds columns and checks and one writer, in a migration that creates no table, role, secret or policy', () => {
+    expect([...migrationCode.matchAll(/^create table (\S+) \(/gm)].map((match) => match[1])).toEqual([]);
+    expect([...migrationCode.matchAll(/create (?:or replace )?function ([\w.]+)\(/g)].map((match) => match[1])).toEqual([
+      'projects.picture_review_images_valid',
+      'projects.picture_review_incomplete',
+      'projects.picture_review_digest',
+      'projects.picture_review_command_digest',
+      'api.record_picture_set',
+      'api.record_picture_review',
+      'api.read_project_request',
+      'api.preflight',
+    ]);
+    expect([...migrationCode.matchAll(/^create type (\S+) as/gm)].map((match) => match[1])).toEqual(['api.picture_review_recording', 'api.project_request_view']);
+    expect([...migrationCode.matchAll(/^alter table projects\.request_images add column (\w+)/gm)].map((match) => match[1])).toEqual(['view_label', 'short_edge_px', 'blur_variance', 'clipped_fraction']);
+    expect([...migrationCode.matchAll(/^alter table projects\.request_revisions add column (\w+)/gm)].map((match) => match[1])).toEqual(['obstruction_confirmed_at', 'incomplete_acknowledged_at', 'incomplete_acknowledged_digest']);
+    expect([...migrationCode.matchAll(/^alter table projects\.request_(?:images|revisions) add constraint (\w+)/gm)].map((match) => match[1])).toEqual([
+      'request_images_review_shape',
+      'request_revisions_confirmed_shape',
+      'request_revisions_obstruction_shape',
+      'request_revisions_acknowledgment_shape',
+    ]);
+    expect(migrationCode).toMatch(/alter table projects\.request_revisions drop constraint request_revisions_confirmed_shape;/);
+    expect(migrationCode).not.toMatch(/create policy|create role|alter role|password|create extension|create schema|create table|alter table projects\.projects/i);
+    // The grants are the new writer and the read function that was dropped with its type: nothing to anyone else.
+    expect([...migrationCode.matchAll(/^grant .*$/gm)].map((match) => match[0])).toEqual([
+      'grant execute on function api.record_picture_review(uuid, bigint, uuid, uuid, integer, text, text, text, jsonb, boolean, boolean) to service_role;',
+      'grant execute on function api.read_project_request(uuid, bigint, uuid) to service_role;',
+    ]);
+    // The new columns avoid the words the Spine keeps for other stories (and any approval, permission, payment, cost or Job).
+    for (const column of ['view_label', 'short_edge_px', 'blur_variance', 'clipped_fraction']) expect(column).not.toMatch(/manifest|root|retain|pin|ordinal|digest|approv|permission|payment|cost|job/);
+    for (const column of ['obstruction_confirmed_at', 'incomplete_acknowledged_at', 'incomplete_acknowledged_digest']) expect(column).not.toMatch(/approv|permission|payment|paid|cost|price|job|reserv|manifest/);
+    // No pass or fail, approval or payment member in the revision or the view of it.
+    const view = migrationCode.slice(migrationCode.indexOf('create type api.project_request_view as ('), migrationCode.indexOf(');', migrationCode.indexOf('create type api.project_request_view as (')));
+    for (const column of [...view.matchAll(/^  (\w+) \w+/gm)].map((match) => match[1])) expect(column).not.toMatch(/manifest|job|cost|price|payment|url|key|ticket|handle|approv|permission|pass|fail|verdict/);
+  });
+
+  it('replaces the confirmed shape so a confirmed direct revision needs no description and every other confirmed one still does', () => {
+    const shape = migrationCode.slice(migrationCode.indexOf('add constraint request_revisions_confirmed_shape'), migrationCode.indexOf(');', migrationCode.indexOf('add constraint request_revisions_confirmed_shape')));
+    expect(shape).toMatch(/\(confirmed_at is null\) = \(scope is null\) and \(confirmed_at is null\) = \(outcome is null\)/);
+    expect(shape).toMatch(/\(confirmed_at is not null or description is null\)/);
+    expect(shape).toMatch(/\(confirmed_at is null or description is not null or mode = 'image_direct'\)/);
+    // Earlier migrations are not edited.
+    expect(read('supabase/migrations/20261019120000_picture_sets.sql')).toContain('request_revisions_confirmed_shape');
+    expect(migrationCode).toMatch(/incomplete_acknowledged_at is null or \(mode = 'image_direct' and confirmed_at is not null and obstruction_confirmed_at is not null\)/);
+  });
+
+  it('begins the writer with the authority check, after its argument checks and before any table is read, under the lock rename, create and the picture-set writer take', () => {
+    const body = functionBody('api.record_picture_review');
+    const check = body.indexOf('identity.assert_operation_authority(p_account_id, p_epoch)');
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(body.search(/from projects\.|from artifacts\.|update projects\.|insert into projects\./));
+    expect(body).toMatch(/exception when sqlstate 'N3010' then[\s\S]*?outcome := 'denied'/);
+    expect(body).toMatch(/security definer\s+set search_path = ''/);
+    expect(body.indexOf("errcode = '22023'")).toBeLessThan(check);
+    expect(body).toContain("pg_advisory_xact_lock(hashtextextended('project_command:' || p_account_id::text || ':' || p_command_id::text, 0))");
+    expect(check).toBeLessThan(body.indexOf('pg_advisory_xact_lock'));
+    // The order of the story: a rename's command, the revision as the receipt, the Project row, the latest revision, the leases, the obstruction, the acknowledgment, the write.
+    // (On purpose changed, review patch A2: an identical re-confirmation is answered `unchanged` after the acknowledgment and before anything is written.)
+    const order = [
+      'from projects.project_commands', "outcome := 'replayed'", 'for update', "outcome := 'not_editable'", "outcome := 'unknown_upload'", "outcome := 'not_ready'", "outcome := 'expired_upload'",
+      "outcome := 'obstruction_not_confirmed'", "outcome := 'acknowledgment_required'", "outcome := 'unchanged'", 'update projects.projects p', 'insert into projects.request_revisions', 'insert into projects.request_images', "outcome := 'created'",
+    ];
+    const positions = order.map((needle) => body.indexOf(needle));
+    for (const [index, position] of positions.entries()) expect(position, order[index]).toBeGreaterThan(-1);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    // `stale` is answered twice, both after the Project row is held and before a lease is read: there is no revision, or it is not the one reviewed.
+    const stale = [...body.matchAll(/outcome := 'stale'/g)].map((match) => match.index);
+    expect(stale).toHaveLength(2);
+    for (const position of stale) {
+      expect(position).toBeGreaterThan(body.indexOf('for update'));
+      expect(position).toBeLessThan(body.indexOf("outcome := 'unknown_upload'"));
+    }
+  });
+
+  it('holds the Project row, refuses a tombstone, raises the Project by exactly one, sets the stage, renews within the bound, and recomputes the rule from the claims', () => {
+    const body = functionBody('api.record_picture_review');
+    expect(body).toMatch(/where p\.id = p_project_id and p\.account_id = p_account_id and p\.deleted_at is null\s+for update/);
+    expect(body).toContain("lifecycle.is_tombstoned('project', p_project_id)");
+    expect(body).toMatch(/set revision = p\.revision \+ 1, updated_at = v_now, stage = case when v_direct then 'request_confirmed' else 'request_draft' end/);
+    expect(body).toMatch(/set expires_at = least\(clock_timestamp\(\) \+ interval '24 hours', l\.created_at \+ interval '7 days'\)/);
+    expect(body).toContain('projects.picture_review_incomplete(p_images)');
+    expect(body).toContain('v_latest.seq + 1');
+    expect(body).toMatch(/v_latest\.seq <> p_expected_seq or v_current <> v_upload_ids/);
+    // A review never moves a Project backwards: only a Project still at the request stage is reviewed, and the stage update is guarded the same way (review patch A1).
+    expect(body).toMatch(/select p\.stage into v_stage\s+from projects\.projects p\s+where p\.id = p_project_id and p\.account_id = p_account_id and p\.deleted_at is null\s+for update/);
+    expect(body).toMatch(/v_latest\.mode = 'evidence_text' or v_stage not in \('request_draft', 'request_confirmed'\) then\s+v_result\.outcome := 'not_editable'/);
+    expect(body).toMatch(/where p\.id = p_project_id and p\.stage in \('request_draft', 'request_confirmed'\);/);
+    // An identical re-confirmation (same mode, scope, outcome, obstruction confirmation, pictures with labels and measurements, and acknowledgment state) writes nothing (review patch A2).
+    const same = body.slice(body.indexOf('v_same :='), body.indexOf("v_result.outcome := 'unchanged'"));
+    for (const needle of ['v_latest.mode = p_mode', 'v_latest.scope is not distinct from p_scope', 'v_latest.outcome is not distinct from p_outcome', '(v_latest.confirmed_at is not null) = v_direct', 'v_latest.obstruction_confirmed_at is not null', '(v_latest.incomplete_acknowledged_at is not null) = v_incomplete', 'i.upload_id = (e.value ->> \'upload_id\')::uuid', 'i.view_label is not distinct from (e.value ->> \'label\')', 'i.short_edge_px = ', 'i.blur_variance = ', 'i.clipped_fraction = ']) expect(same, needle).toContain(needle);
+    expect(same).not.toMatch(/insert into|update projects\./);
+    // A direct revision has no subject and no description; a research-assisted one is unconfirmed; the lengths, digests and types are the leases'.
+    expect(body).toMatch(/p_project_id, p_account_id, v_latest\.seq \+ 1, p_command_id, p_mode, null, p_scope, p_outcome, null,/);
+    expect(body).toContain('case when v_direct then v_now end');
+    expect(body.slice(0, body.indexOf(')\nreturns'))).not.toMatch(/p_(?:sha|length|content|digest|size|stage|approved|incomplete|passed|ok)/);
+    // The acknowledgment is recorded only when the database found the inputs incomplete.
+    expect(body).toMatch(/case when v_incomplete then v_now end,\s+case when v_incomplete then projects\.picture_review_digest\(p_account_id, p_scope, p_outcome, v_upload_ids, v_labels\) end/);
+    // Nothing is released or retained here: the pictures stay the revision's.
+    expect(body).not.toMatch(/state = 'released'|delete from|attached|manifest/);
+  });
+
+  it('applies one rule in the database, the same as the module: three distinct angles among front to bottom, 800 px, blur 100, clipped 0.35', () => {
+    const body = functionBody('projects.picture_review_incomplete');
+    expect(body).toContain("in ('front', 'back', 'left', 'right', 'top', 'bottom')");
+    expect(body).toContain(') < 3');
+    expect(body).toContain("(i.value ->> 'short_edge_px')::integer < 800");
+    expect(body).toContain("(i.value ->> 'blur_variance')::numeric < 100");
+    expect(body).toContain("(i.value ->> 'clipped_fraction')::numeric > 0.35");
+    expect(body).not.toContain("'detail'");
+    expect(code('lib/picture-quality.ts')).toContain('minShortEdgePx: 800, minBlurVariance: 100, maxClippedFraction: 0.35');
+    expect(code('lib/picture-quality.ts')).toContain('minDistinctViews = 3');
+  });
+
+  it('changes record_picture_set in one place only: a latest revision that is an unconfirmed picture revision of either mode', () => {
+    const before = read('supabase/migrations/20261019120000_picture_sets.sql').replace(/^\s*--.*$/gm, '');
+    const body = (source: string) => source.slice(source.indexOf('function api.record_picture_set('), source.indexOf('$$;', source.indexOf('$$', source.indexOf('function api.record_picture_set(')) + 2));
+    const lines = (source: string) => source.split('\n').map((line) => line.trimEnd()).filter((line) => line.trim() !== '');
+    const oldLines = lines(body(before));
+    const newLines = lines(body(migrationCode));
+    // Same function, same lines, but for the single check Story 2.3 changes (the header `create function` becomes `create or replace function`).
+    expect(oldLines.filter((line) => !newLines.includes(line))).toEqual(["    if not found or v_latest.mode <> 'evidence_images' or v_latest.confirmed_at is not null then"]);
+    expect(newLines.filter((line) => !oldLines.includes(line))).toEqual(["    if not found or v_latest.mode not in ('evidence_images', 'image_direct') or v_latest.confirmed_at is not null then"]);
+    expect(newLines).toHaveLength(oldLines.length);
+    const newBody = body(migrationCode);
+    expect(newBody).toContain("v_latest.mode not in ('evidence_images', 'image_direct') or v_latest.confirmed_at is not null");
+  });
+
+  it('answers the label and measurements of each picture and the review of the revision, without a key, an address or a download', () => {
+    const read_ = migrationCode.slice(migrationCode.indexOf('create function api.read_project_request('), migrationCode.indexOf('$$;', migrationCode.indexOf('create function api.read_project_request(')));
+    expect(read_).toContain("'label', i.view_label,");
+    expect(read_).toContain("'short_edge_px', i.short_edge_px,");
+    expect(read_).toContain("'blur_variance', i.blur_variance,");
+    expect(read_).toContain("'clipped_fraction', i.clipped_fraction");
+    expect(read_).toContain('v_result.obstruction_confirmed := v_revision.obstruction_confirmed_at is not null;');
+    expect(read_).toContain('v_result.acknowledged := v_revision.incomplete_acknowledged_at is not null;');
+    expect(read_).not.toMatch(/storage|bucket|\burls?\b|ticket|handle|signed|download|digest/i);
+  });
+
+  it('re-creates the preflight with every earlier probe, a Story 2.3 block, and thirty-six functions', () => {
+    const body = migrationCode.slice(migrationCode.indexOf('create or replace function api.preflight()'), migrationCode.indexOf('$$;', migrationCode.indexOf('$$', migrationCode.indexOf('create or replace function api.preflight()')) + 2));
+    const before = read('supabase/migrations/20261019120000_picture_sets.sql').replace(/^\s*--.*$/gm, '');
+    const oldBody = before.slice(before.indexOf('create or replace function api.preflight()'), before.indexOf('$$;', before.indexOf('$$', before.indexOf('create or replace function api.preflight()')) + 2));
+    for (const probe of oldBody.match(/perform [^;]+;/g) ?? []) {
+      // The two probes of the tables this story widens grow; every other probe is carried unchanged.
+      if (/from projects\.request_(?:revisions|images)\b/.test(probe)) continue;
+      expect(body, probe).toContain(probe);
+    }
+    expect(body).toContain('q.obstruction_confirmed_at, q.incomplete_acknowledged_at, q.incomplete_acknowledged_digest from projects.request_revisions q limit 1');
+    expect(body).toContain('y.view_label, y.short_edge_px, y.blur_variance, y.clipped_fraction from projects.request_images y limit 1');
+    expect(body).toContain('the Story 2.3 migration is not applied');
+    expect(body).toContain("'api.record_picture_review(uuid,bigint,uuid,uuid,integer,text,text,text,jsonb,boolean,boolean)'");
+    const privileges = body.slice(body.lastIndexOf('from unnest(array[', body.indexOf('has_function_privilege')), body.indexOf('has_function_privilege'));
+    expect([...privileges.matchAll(/'api\.[a-z_]+\(/g)]).toHaveLength(36);
+    // The bucket check stays last.
+    expect(body.indexOf("b.id = 'private-files'")).toBeGreaterThan(body.indexOf('has_table_privilege'));
+    expect(body.indexOf('v_result.ok := true')).toBeGreaterThan(body.indexOf("b.id = 'private-files'"));
+  });
+
+  it('writes the story down: the writer, the acknowledgment that is not an approval, the definitions for Josh to approve, the rollout and the README', () => {
+    const contract = read('docs/authority-contract.md');
+    for (const needle of ['Reviewing pictures', 'api.record_picture_review', 'stale', 'acknowledgment is not an approval', 'projects.picture_review_incomplete', 'unreviewed successor', 'Research-assisted', 'FOR UPDATE', 'exactly one', 'staged SHA-256']) expect(contract, needle).toContain(needle);
+    const quality = read('docs/picture-quality.md');
+    for (const needle of ['512 px', '299', 'Laplacian', 'population variance', '800 px', 'at most 0.35', 'detail', 'Josh', 'Story 7.9', 'server never decodes', 'single-use download ticket', 'Known limits', '100 megapixels']) expect(quality, needle).toContain(needle);
+    const guide = read('docs/staging.md');
+    for (const needle of ['20261020120000_picture_review.sql', 'api.record_picture_review', 'Do not roll the build back once a direct revision exists']) expect(guide, needle).toContain(needle);
+    const readme = read('README.md');
+    for (const needle of ['Story 2.3', 'picture_review', 'recordPictureReview', 'picture-review', 'docs/picture-quality.md', 'picture-quality', 'Generate anyway', '("Reviewing pictures")']) expect(readme, needle).toContain(needle);
+    // The Projects row says the gateway's APP_ORIGIN once, with the picture-set writer's pointer ("Saving pictures"), and points the review writer to "Reviewing pictures".
+    const cell = readme.split('\n').find((line) => line.startsWith('| Projects |')) ?? '';
+    expect(cell.match(/APP_ORIGIN/g)).toHaveLength(1);
+    expect(cell.indexOf('("Saving pictures")')).toBeLessThan(cell.indexOf('Story 2.3 ('));
+    expect(cell.indexOf('("Reviewing pictures")')).toBeGreaterThan(cell.indexOf('Story 2.3 ('));
+    expect(contract).toContain('`unchanged`');
+    expect(contract).toContain('never moves a Project backwards');
+  });
+
+  it('gives the stage request_draft its destination, the review, and rewrites the review path when its ID cannot be decoded', () => {
+    expect(code('lib/project-stage.ts')).toMatch(/request_draft: \{[^}]*destination: reviewPath\}/);
+    expect(code('lib/project-paths.ts')).toContain('export const reviewPath = (projectId: string) => `/projects/${projectId}/pictures/review`;');
+    expect(code('lib/project-paths.ts')).toContain('(?:\\/(?:sources|pictures(?:\\/review)?))?');
   });
 });

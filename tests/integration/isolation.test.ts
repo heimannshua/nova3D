@@ -183,6 +183,20 @@ describe('through the REST API', () => {
     record_invitation_refusal: {p_user_id: victim.user.id, p_action: 'invitation.denied', p_invitation_id: null},
     // Story 2.2: saving the ordered pictures of a request for an Account (a Project is born at the first save), and releasing uploads that were never saved.
     record_picture_set: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_project_id: null, p_title: 'Created by another Account', p_upload_ids: [randomUUID()]},
+    // Story 2.3: the review of the pictures of a Project of another Account (the images argument is jsonb: one picture, one upload that is nobody's).
+    record_picture_review: {
+      p_account_id: victim.accountId,
+      p_epoch: 1,
+      p_command_id: randomUUID(),
+      p_project_id: randomUUID(),
+      p_expected_seq: 1,
+      p_mode: 'evidence_images',
+      p_scope: null,
+      p_outcome: null,
+      p_images: [{upload_id: randomUUID(), label: 'front', short_edge_px: 900, blur_variance: 120, clipped_fraction: 0}],
+      p_obstruction_confirmed: true,
+      p_acknowledge: false,
+    },
     record_tombstone: {p_kind: 'account', p_target_id: victim.accountId},
     resolve_alarm: {p_condition: 'isolation-test', p_subject: null},
     release_staged_pictures: {p_account_id: victim.accountId, p_epoch: 1, p_upload_ids: [randomUUID()]},

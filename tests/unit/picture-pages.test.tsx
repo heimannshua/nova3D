@@ -45,7 +45,7 @@ import {fileProblems, formatParams, maxPictureBytes, maxPictures, maxSetBytes, p
 import {fileProblemKeys, setProblemKeys, uploadProblemKeys, type SaveState} from '@/lib/picture-view';
 import {fixtureRows} from '@/lib/project-fixtures';
 import {stageDefinition} from '@/lib/project-stage';
-import type {ProjectRequestRow} from '@/lib/project-view';
+import type {ProjectRequestRow, RequestPicture} from '@/lib/project-view';
 import {formatBytes} from '@/lib/picture-set';
 
 type Props = ComponentProps<typeof PictureIntake>;
@@ -89,7 +89,7 @@ const made = (patch: Partial<PictureItem> = {}): PictureItem => ({
 /** A set whose items are given by their patches, with keys and upload IDs that follow their position. */
 const setOf = (...patches: Partial<PictureItem>[]): PictureSet => patches.map((patch, index) => made({key: `k${index + 1}`, uploadId: upload(index + 1), sha256: sha(String.fromCharCode(97 + index)), ...patch}));
 
-const savedPicture = (position: number, patch: Partial<SavedPicture> = {}): SavedPicture => ({
+const savedPicture = (position: number, patch: Partial<RequestPicture> = {}): RequestPicture => ({
   position,
   uploadId: upload(position),
   sha256: sha(String.fromCharCode(96 + position)),
@@ -97,6 +97,10 @@ const savedPicture = (position: number, patch: Partial<SavedPicture> = {}): Save
   contentType: 'image/jpeg',
   expiresAt: '2026-10-19T12:34:56.789Z',
   available: true,
+  label: null,
+  shortEdgePx: null,
+  blurVariance: null,
+  clippedFraction: null,
   ...patch,
 });
 
@@ -126,6 +130,10 @@ describe('the picture pages', () => {
     personalization: {wording: null, text: null, style: null, applied: false, reason: null},
     confirmedAt: null,
     images: [savedPicture(1), savedPicture(2)],
+    obstructionConfirmed: false,
+    obstructionConfirmedAt: null,
+    acknowledged: false,
+    acknowledgedAt: null,
   };
   const params = Promise.resolve({projectId: PROJECT});
   const found = (request: ProjectRequestRow | null) => {
@@ -159,14 +167,34 @@ describe('the picture pages', () => {
     found(unconfirmed);
     const element = await ProjectPicturesPage({params});
     expect(element.type).toBe(PictureIntake);
-    expect(element.props).toEqual({projectId: PROJECT, title: row.title, revision: 3, saved: unconfirmed.images});
+    // On purpose changed (review patch D2): the page also says whether the saved revision was reviewed (its pictures carry labels); these were only saved.
+    expect(element.props).toEqual({projectId: PROJECT, title: row.title, revision: 3, saved: unconfirmed.images, reviewed: false});
     expect(mocks.readProject).toHaveBeenCalledWith({accountId: ACCOUNT, epoch: 4}, PROJECT, expect.anything());
+  });
+
+  it('says the saved revision was reviewed when its pictures carry labels, so that the screen can say that saving changes starts the review again', async () => {
+    const labelled = [savedPicture(1, {label: 'front', shortEdgePx: 1200, blurVariance: 412.375, clippedFraction: 0.0213}), savedPicture(2, {label: 'left', shortEdgePx: 1200, blurVariance: 412.375, clippedFraction: 0.0213})];
+    found({...unconfirmed, images: labelled, obstructionConfirmed: true, obstructionConfirmedAt: '2026-10-19T09:00:00+00:00'});
+    const element = await ProjectPicturesPage({params});
+    expect(element.type).toBe(PictureIntake);
+    expect(element.props).toEqual({projectId: PROJECT, title: row.title, revision: 3, saved: labelled, reviewed: true});
+    // One labelled picture is enough to be a reviewed revision's; none is not.
+    found({...unconfirmed, images: [savedPicture(1), savedPicture(2, {label: 'back'})]});
+    expect((await ProjectPicturesPage({params})).props.reviewed).toBe(true);
+  });
+
+  it('shows the saved set of an unconfirmed picture request whatever its mode: the pictures stay changeable until the request is confirmed (the only unconfirmed one that exists is the research-assisted one: a direct request is confirmed when it is recorded, but the page does not depend on that)', async () => {
+    for (const mode of ['evidence_images', 'image_direct'] as const) {
+      found({...unconfirmed, mode});
+      const element = await ProjectPicturesPage({params});
+      expect(element.type, mode).toBe(PictureIntake);
+      expect(element.props, mode).toEqual({projectId: PROJECT, title: row.title, revision: 3, saved: unconfirmed.images, reviewed: false});
+    }
   });
 
   it.each([
     ['a text request', {...unconfirmed, mode: 'evidence_text' as const, confirmed: true, subjectId: 'middot-altar-ramp', scope: 's', outcome: 'o', description: 'd', confirmedAt: '2026-10-18T19:12:12+00:00', images: []}],
     ['a confirmed picture request', {...unconfirmed, confirmed: true, scope: 's', outcome: 'o', description: 'd', confirmedAt: '2026-10-18T19:12:12+00:00'}],
-    ['an unconfirmed request of another mode', {...unconfirmed, mode: 'image_direct' as const}],
     ['no request at all', null],
   ])('says the pictures cannot be changed here for %s, and offers the way back', async (_name, request) => {
     found(request);
@@ -322,6 +350,22 @@ describe.each(locales)('C-03, the picture screen of a Project, in %s', (locale) 
   it('shows no problem for a set that is all there', () => {
     expect(markup).not.toContain('notice-danger');
     expect(markup).not.toContain('notice-warning');
+  });
+
+  it('says that saving changes starts the review again only when the saved revision was reviewed (review patch D2)', () => {
+    const note = t(locale, 'picture.reviewedNote');
+    expect(words).not.toContain(note);
+    const reviewed = screen(locale, {projectId: PROJECT, title: 'Statue', revision: 2, saved, reviewed: true});
+    expect(text(reviewed)).toContain(note);
+    // It is a note (not an alert), and it is shown once, in the same place in both languages.
+    expect(reviewed.split(note.replace(/&/g, '&amp;')).length - 1).toBe(1);
+    expect(reviewed).toMatch(/<div class="invite-notice"><div[^>]*class="notice notice-info"[^>]*role="note"/);
+    // A new set has no earlier review to start again.
+    expect(text(screen(locale, {reviewed: true}))).not.toContain(note);
+  });
+
+  it('says in plain words that the labels are not kept and the pictures are reviewed again', () => {
+    expect(translate('en', 'picture.reviewedNote')).toBe('These pictures were reviewed. If you save changes, the review starts again: your labels are not kept, and you review the pictures again.');
   });
 });
 
@@ -680,6 +724,10 @@ const savedRequest: ProjectRequestRow = {
   personalization: {wording: null, text: null, style: null, applied: false, reason: null},
   confirmedAt: null,
   images: [savedPicture(1)],
+  obstructionConfirmed: false,
+  obstructionConfirmedAt: null,
+  acknowledged: false,
+  acknowledgedAt: null,
 };
 
 describe.each(locales)('C-03, the words of the screen about privacy and how long pictures stay, in %s (review patches C1, C2)', (locale) => {
@@ -860,6 +908,10 @@ describe.each(locales)('the Pictures part of the Request section, in %s', (local
     personalization: {wording: null, text: null, style: null, applied: false, reason: null},
     confirmedAt: null,
     images: [savedPicture(1), savedPicture(2, {contentType: 'image/png', length: 5 * 1024 * 1024}), savedPicture(3, {contentType: 'image/webp', available: false, expiresAt: null})],
+    obstructionConfirmed: false,
+    obstructionConfirmedAt: null,
+    acknowledged: false,
+    acknowledgedAt: null,
     ...patch,
   });
   const section = (data: RequestSectionData) => render(locale, <RequestSection data={data}/>);
@@ -900,13 +952,21 @@ describe.each(locales)('the Pictures part of the Request section, in %s', (local
 
   it('offers Change pictures, a link to the Project\'s picture screen, while the request is an unconfirmed set of pictures', () => {
     expect(markup).toMatch(new RegExp(`<a class="btn btn-secondary" href="/projects/${PROJECT}/pictures">(?:<svg[\\s\\S]*?</svg>)?<span>${t(locale, 'picture.section.change')}</span></a>`));
-    expect([...markup.matchAll(/<a\b[^>]*href="([^"]*)"/g)].map((match) => match[1])).toEqual([`/projects/${PROJECT}/pictures`]);
+    // On purpose changed (Story 2.3): the part also offers Review pictures, a link to the review of the pictures.
+    expect([...markup.matchAll(/<a\b[^>]*href="([^"]*)"/g)].map((match) => match[1])).toEqual([`/projects/${PROJECT}/pictures/review`, `/projects/${PROJECT}/pictures`]);
   });
 
-  it('offers no Change pictures for an unconfirmed request of another mode', () => {
+  it('offers Change pictures for an unconfirmed request of either picture mode, and none for a confirmed one', () => {
+    // On purpose changed (Story 2.3): an unconfirmed picture revision of either mode can be changed; a confirmed one cannot (review it again to unlock it).
     const other = section({state: 'found', request: request({mode: 'image_direct'}), subjectName: null});
-    expect(other).not.toMatch(/<a\b/);
+    expect([...other.matchAll(/<a\b[^>]*href="([^"]*)"/g)].map((match) => match[1])).toEqual([`/projects/${PROJECT}/pictures/review`, `/projects/${PROJECT}/pictures`]);
     expect(text(other)).toContain(t(locale, 'picture.section.notConfirmed'));
+    const confirmedDirect = section({
+      state: 'found',
+      request: request({mode: 'image_direct', confirmed: true, scope: 'The subject', outcome: 'A model', confirmedAt: '2026-10-20T08:00:00+00:00', obstructionConfirmed: true, obstructionConfirmedAt: '2026-10-20T08:00:00+00:00'}),
+      subjectName: null,
+    });
+    expect([...confirmedDirect.matchAll(/<a\b[^>]*href="([^"]*)"/g)].map((match) => match[1])).toEqual([`/projects/${PROJECT}/pictures/review`]);
   });
 
   it('says what is saved and that nothing has started or was charged, and claims nothing that was not confirmed', () => {
@@ -955,6 +1015,10 @@ describe.each(locales)('the stage request_draft on the Project page, in %s', (lo
     personalization: {wording: null, text: null, style: null, applied: false, reason: null},
     confirmedAt: null,
     images: [savedPicture(1)],
+    obstructionConfirmed: false,
+    obstructionConfirmedAt: null,
+    acknowledged: false,
+    acknowledgedAt: null,
   };
   const markup = render(locale, <ProjectOverview project={row} request={{state: 'found', request: unconfirmed, subjectName: null}}/>);
 
@@ -966,7 +1030,8 @@ describe.each(locales)('the stage request_draft on the Project page, in %s', (lo
     expect(markup).toContain(`tone-${definition.tone}"><svg`);
     expect(definition.icon).toBe('image');
     expect(markup).toContain(renderToStaticMarkup(<Icon name="image" size={14}/>));
-    expect(definition.destination).toBeNull();
+    // On purpose changed (Story 2.3): the stage has its destination, the review of the pictures.
+    expect(definition.destination?.(row.id)).toBe(`/projects/${row.id}/pictures/review`);
     // The label is its own, and different from the confirmed stage's.
     expect(t(locale, definition.label)).not.toBe(t(locale, stageDefinition('request_confirmed').label));
   });
@@ -981,20 +1046,28 @@ describe.each(locales)('the stage request_draft on the Project page, in %s', (lo
     expect(next).toMatch(/each save renews that/);
     expect(next).toMatch(/never longer than 7 days after they were uploaded/);
     expect(next).toMatch(/Project page shows when they lapse, in UTC/);
-    expect(next).toMatch(/later release/);
+    // On purpose changed (review patch D1): the sentence has to be true both before and after the review was recorded, so it says to review the pictures AND, for
+    // someone who already did, that identifying the subject and confirming the request arrive in a later release. (Before this patch it said "Review them next ... say
+    // which view each one shows" and no "later release", which was untrue once a review was recorded.)
+    expect(next).toMatch(/Review your pictures\. If you already did, identifying the subject and confirming the request arrive in a later release\./);
+    expect(next).not.toMatch(/Review them next/);
     expect(next).toMatch(/Nothing has started and nothing was charged/);
     expect(next).not.toMatch(/saved privately/);
   });
 
-  it('has no destination for the next action: words, never a link to a page that does not exist', () => {
-    expect(markup).not.toContain(t(locale, 'project.nextLink'));
-    expect(text(markup)).toContain(t(locale, 'project.nextNoPage'));
+  it('has a destination for the next action, the review of the pictures: a link to a page that exists', () => {
+    // On purpose changed (Story 2.3).
+    expect(markup).toContain(t(locale, 'project.nextLink'));
+    expect(text(markup)).not.toContain(t(locale, 'project.nextNoPage'));
+    expect(markup).toMatch(new RegExp(`<a class="btn btn-primary" href="/projects/${row.id}/pictures/review">(?:<svg[\\s\\S]*?</svg>)?<span>${t(locale, 'project.nextLink')}</span>`));
   });
 
-  it('puts the Request section between the facts and the next action, and links only Sources and Change pictures', () => {
+  it('puts the Request section between the facts and the next action, and links Review pictures twice (the section and the next action), Change pictures and Sources', () => {
     expect(markup.indexOf('project-facts')).toBeLessThan(markup.indexOf('request-section'));
     expect(markup.indexOf('request-section')).toBeLessThan(markup.indexOf('next-action'));
-    expect([...markup.matchAll(/<a\b[^>]*href="([^"]*)"/g)].map((match) => match[1]).sort()).toEqual([`/projects/${row.id}/pictures`, `/projects/${row.id}/sources`].sort());
+    expect([...markup.matchAll(/<a\b[^>]*href="([^"]*)"/g)].map((match) => match[1]).sort()).toEqual(
+      [`/projects/${row.id}/pictures`, `/projects/${row.id}/pictures/review`, `/projects/${row.id}/pictures/review`, `/projects/${row.id}/sources`].sort(),
+    );
   });
 });
 

@@ -46,11 +46,15 @@ describe('the eight stages', () => {
     }
   });
 
-  it('has no destination yet: until the story that owns a page registers one, the next action is words and no link', () => {
+  it('has a destination only for request_draft, the review of the pictures (Story 2.3): until the story that owns a page registers one, the next action is words and no link', () => {
     for (const stage of projectStages) {
+      if (stage === 'request_draft') continue;
       expect(stageDefinition(stage).destination, stage).toBeNull();
       expect(nextActionDestination(stage, 'any-id'), stage).toBeNull();
     }
+    // Story 2.3 gives the stage its destination on purpose: the review of the pictures, built from the Project's ID.
+    expect(stageDefinition('request_draft').destination).toBeTypeOf('function');
+    expect(nextActionDestination('request_draft', 'abc')).toBe('/projects/abc/pictures/review');
   });
 
   it('gives a link only to a stage that has registered a destination, built from the Project\'s ID', () => {
@@ -114,12 +118,19 @@ describe('the overview shows every stage (AC-2)', () => {
     }
   });
 
-  it('renders a null destination as text, never as a link: the only links on the page are Sources and the shell\'s own', () => {
+  it('renders a null destination as text, never as a link: the only links on the page are Sources and the shell\'s own (request_draft links to its review)', () => {
     for (const row of fixtureRows()) {
       const markup = render('en', row);
+      const links = [...markup.matchAll(/<a\b[^>]*href="([^"]*)"/g)].map((match) => match[1]);
+      if (row.stage === 'request_draft') {
+        // Story 2.3: the stage's next action is a link to the review of the pictures.
+        expect(markup).not.toContain(translate('en', 'project.nextNoPage'));
+        expect(markup).toContain(translate('en', 'project.nextLink'));
+        expect(links).toEqual([`/projects/${row.id}/pictures/review`, `/projects/${row.id}/sources`]);
+        continue;
+      }
       expect(markup).toContain(translate('en', 'project.nextNoPage'));
       expect(markup).not.toContain(translate('en', 'project.nextLink'));
-      const links = [...markup.matchAll(/<a\b[^>]*href="([^"]*)"/g)].map((match) => match[1]);
       expect(links).toEqual([`/projects/${row.id}/sources`]);
     }
   });

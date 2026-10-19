@@ -187,6 +187,11 @@ const nothing = {
   // Story 2.2: whether the revision is confirmed, and its pictures.
   confirmed: null,
   images: null,
+  // Story 2.3: whether the person confirmed nothing blocks the subject and whether they acknowledged incomplete inputs, with the times.
+  obstruction_confirmed: null,
+  obstruction_confirmed_at: null,
+  acknowledged: null,
+  acknowledged_at: null,
 };
 
 // ---------------------------------------------------------------------------------------------------
@@ -199,6 +204,8 @@ describe('the record: immutable request revisions that Projects own', () => {
       [
         'id', 'project_id', 'account_id', 'seq', 'command_id', 'mode', 'subject_id', 'scope', 'outcome', 'description', 'personalization_wording', 'personalization_text',
         'personalization_style', 'personalization_applied', 'personalization_reason', 'digest', 'confirmed_at', 'created_at',
+        // Story 2.3: whether the person confirmed nothing blocks the subject, and the Generate anyway acknowledgment (when, and the digest it is pinned to).
+        'obstruction_confirmed_at', 'incomplete_acknowledged_at', 'incomplete_acknowledged_digest',
       ].sort(),
     );
     // Story 2.2: `scope`, `outcome`, `description` and `confirmed_at` may be null (together, and only together): an unconfirmed picture revision claims none of them.
@@ -1060,9 +1067,13 @@ describe('api.read_project_request: the latest revision, or one answer for every
         personalization_applied: true,
         personalization_reason: null,
         confirmed_at: (await revisionsOf(client, a.accountId))[0].confirmed_at,
-        // Story 2.2: a confirmed revision says so and has no pictures.
+        // Story 2.2: a confirmed revision says so and has no pictures. Story 2.3: and was not reviewed.
         confirmed: true,
         images: [],
+        obstruction_confirmed: false,
+        obstruction_confirmed_at: null,
+        acknowledged: false,
+        acknowledged_at: null,
       });
       // A successor (Stories 2.2, 2.3, 2.12, 2.13) is appended with seq + 1 and raises the Project's revision by one; the read answers the latest.
       await client.query('update projects.projects set revision = revision + 1, updated_at = clock_timestamp() where id = $1', [made.project_id]);
@@ -1352,10 +1363,10 @@ describe('the preflight carries the Story 2.1 table and functions', () => {
     for (const needle of ['projects.request_revisions', 'q.personalization_applied', 'q.digest', 'q.confirmed_at', 'Story 2.1 migration', create_, read_, 'Story 1.13 migration', 'Story 1.12 migration', 'projects.project_commands']) {
       expect(definition, needle).toContain(needle);
     }
-    // The service role can execute all thirty-five api functions, these two among them; the bucket check is still the last of all.
+    // The service role can execute all thirty-six api functions (Story 2.3 added the last), these two among them; the bucket check is still the last of all.
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(35);
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(36);
     expect(executable).toContain(create_);
     expect(executable).toContain(read_);
     expect(definition.indexOf('Story 2.1 migration')).toBeLessThan(check);

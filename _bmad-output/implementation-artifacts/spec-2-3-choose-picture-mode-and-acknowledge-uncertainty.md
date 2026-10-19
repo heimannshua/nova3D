@@ -2,7 +2,8 @@
 title: 'Story 2.3: Choose picture mode and acknowledge uncertainty'
 type: 'feature'
 created: '2026-10-19'
-status: 'in-progress'
+status: 'done'
+baseline_commit: '6da6283f83e8c62080b3e8c84b314e54e3696fb0'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
@@ -68,14 +69,14 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `lib/picture-quality.ts`, `lib/picture-decode.ts`, `lib/picture-fetch.ts`, `docs/picture-quality.md` -- the pure measurements and rules, the browser decoder, the download-by-ticket fetch with hash check -- AC-1, AC-2
-- [ ] `supabase/migrations/20261020120000_picture_review.sql` -- the columns and checks, the relaxed confirmed shape, the picture editability, `record_picture_review`, the extended read, preflight -- AC-2, AC-3
-- [ ] `lib/projects.ts`, `lib/project-stage.ts`, `lib/project-paths.ts`, `lib/picture-view.ts`, `lib/i18n/en.ts`, `lib/i18n/he.ts` -- typed calls, the `request_draft` destination, the new child path, all copy in both languages -- AC-1, AC-2, AC-3
-- [ ] `app/projects/[projectId]/pictures/review/page.tsx`, `app/projects/[projectId]/pictures/review/actions.ts`, `components/projects/picture-review.tsx` (and what it needs), `app/globals.css` -- C-04, C-05 and the picture C-06 -- AC-1, AC-2, AC-3
-- [ ] `app/projects/[projectId]/pictures/page.tsx`, `components/projects/request-section.tsx`, `components/projects/pictures-locked.tsx`, `lib/project-pages.ts` -- editability across modes, the review on the Project page -- AC-2, AC-3
-- [ ] `docs/authority-contract.md`, `docs/staging.md`, `README.md` -- the review writer, the acknowledgment is not an approval, rollout -- housekeeping
-- [ ] `tests/` -- every matrix row: unit (the module on synthetic pixel buffers incl. every threshold edge and `detail`, coverage and recommendations, the decoder port with fakes, the fetch with hash check, the view and action logic), integration (record, successor, stale, replay, reused, rename collision, foreign, lapsed, obstruction, acknowledgment required and recorded, digest recomputes, SQL and module agree on a table of threshold cases, mode change back, authority, isolation, immutability, checks, closure, preflight), component (every C-04, C-05, C-06 state), browser on desktop and phone in both languages with the real gateway (real generated PNGs: sharp, small, blurry, over-exposed; review right after saving and after a reload; both modes; Generate anyway; obstruction; mode change; axe, overflow, 200% text, keyboard); update the pins above -- all ACs
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- Josh's approval of the quality definitions and of `detail` not counting, browser-resampling parity with Story 7.9, evidence_images scope confirmation (2.13), the unreviewed successor on a picture change, thumbnails memory, previews in other screens, the Project title -- housekeeping
+- [x] `lib/picture-quality.ts`, `lib/picture-decode.ts`, `lib/picture-fetch.ts`, `docs/picture-quality.md` -- the pure measurements and rules, the browser decoder, the download-by-ticket fetch with hash check -- AC-1, AC-2
+- [x] `supabase/migrations/20261020120000_picture_review.sql` -- the columns and checks, the relaxed confirmed shape, the picture editability, `record_picture_review`, the extended read, preflight -- AC-2, AC-3
+- [x] `lib/projects.ts`, `lib/project-stage.ts`, `lib/project-paths.ts`, `lib/picture-view.ts`, `lib/i18n/en.ts`, `lib/i18n/he.ts` -- typed calls, the `request_draft` destination, the new child path, all copy in both languages -- AC-1, AC-2, AC-3
+- [x] `app/projects/[projectId]/pictures/review/page.tsx`, `app/projects/[projectId]/pictures/review/actions.ts`, `components/projects/picture-review.tsx` (and what it needs), `app/globals.css` -- C-04, C-05 and the picture C-06 -- AC-1, AC-2, AC-3
+- [x] `app/projects/[projectId]/pictures/page.tsx`, `components/projects/request-section.tsx`, `components/projects/pictures-locked.tsx`, `lib/project-pages.ts` -- editability across modes, the review on the Project page -- AC-2, AC-3
+- [x] `docs/authority-contract.md`, `docs/staging.md`, `README.md` -- the review writer, the acknowledgment is not an approval, rollout -- housekeeping
+- [x] `tests/` -- every matrix row: unit (the module on synthetic pixel buffers incl. every threshold edge and `detail`, coverage and recommendations, the decoder port with fakes, the fetch with hash check, the view and action logic), integration (record, successor, stale, replay, reused, rename collision, foreign, lapsed, obstruction, acknowledgment required and recorded, digest recomputes, SQL and module agree on a table of threshold cases, mode change back, authority, isolation, immutability, checks, closure, preflight), component (every C-04, C-05, C-06 state), browser on desktop and phone in both languages with the real gateway (real generated PNGs: sharp, small, blurry, over-exposed; review right after saving and after a reload; both modes; Generate anyway; obstruction; mode change; axe, overflow, 200% text, keyboard); update the pins above -- all ACs
+- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- Josh's approval of the quality definitions and of `detail` not counting, browser-resampling parity with Story 7.9, evidence_images scope confirmation (2.13), the unreviewed successor on a picture change, thumbnails memory, previews in other screens, the Project title -- housekeeping
 
 **Acceptance Criteria:**
 - Given unclear or incomplete views, when quality review runs, then measured blur, resolution or exposure problems, unconfirmed obstruction and missing labelled views are explained with useful remedies, and the same actions work on phone and desktop.
@@ -107,3 +108,103 @@ direct: Generate anyway required -> acknowledged_digest = sha256(len(scope) len(
 
 **Manual checks (if no CLI):**
 - With the stack and gateway up, save three pictures of one subject (one blurry, one very small), open the Project, Review pictures: label them, see the measurements and remedies, confirm nothing blocks the subject, choose direct conversion, edit scope and outcome, tick the Generate anyway acknowledgment, Confirm: the Project is "Request confirmed". Reload the review page and see the thumbnails come back. Review again and choose research-assisted: the Project returns to the draft stage.
+
+## Suggested Review Order
+
+**The one command that records the review (start here)**
+
+- Stale check, obstruction, completeness recomputed from labels and measurements, then one successor.
+  [`picture_review.sql:434`](../../supabase/migrations/20261020120000_picture_review.sql#L434)
+
+- The rule the database applies to the browser's claims, held equal to the TypeScript module.
+  [`picture_review.sql:147`](../../supabase/migrations/20261020120000_picture_review.sql#L147)
+  [`picture_review.sql:99`](../../supabase/migrations/20261020120000_picture_review.sql#L99)
+
+- The acknowledgment is a time and a digest pinned to the ordered pictures and the scope.
+  [`picture_review.sql:163`](../../supabase/migrations/20261020120000_picture_review.sql#L163)
+  [`picture_review.sql:89`](../../supabase/migrations/20261020120000_picture_review.sql#L89)
+
+- A confirmed direct revision has no description; the confirmed shape is relaxed for it alone.
+  [`picture_review.sql:81`](../../supabase/migrations/20261020120000_picture_review.sql#L81)
+
+- The read returns labels, measurements and the acknowledgment; the picture writer accepts either picture mode.
+  [`picture_review.sql:699`](../../supabase/migrations/20261020120000_picture_review.sql#L699)
+  [`picture_review.sql:214`](../../supabase/migrations/20261020120000_picture_review.sql#L214)
+
+**The shared quality module (Story 7.9 reuses it)**
+
+- Thresholds, labels and the three-view rule, with `detail` not counting.
+  [`picture-quality.ts:36`](../../lib/picture-quality.ts#L36)
+  [`picture-quality.ts:239`](../../lib/picture-quality.ts#L239)
+
+- The exact part: alpha over white, integer luma, 4-neighbour Laplacian, population variance, clipped share.
+  [`picture-quality.ts:98`](../../lib/picture-quality.ts#L98)
+
+- Header dimensions refuse an image over 100 megapixels before any decode.
+  [`picture-quality.ts:164`](../../lib/picture-quality.ts#L164)
+
+- What 'incomplete' means, and the digest input the acknowledgment is pinned to.
+  [`picture-quality.ts:248`](../../lib/picture-quality.ts#L248)
+  [`picture-quality.ts:275`](../../lib/picture-quality.ts#L275)
+
+- The platform decoder: orientation applied, a 512 px copy, a small thumbnail, a 30 second limit.
+  [`picture-decode.ts:175`](../../lib/picture-decode.ts#L175)
+
+- Pixels after a reload: a single-use download ticket, a capped read, the SHA-256 must match.
+  [`picture-fetch.ts:200`](../../lib/picture-fetch.ts#L200)
+  [`picture-fetch.ts:305`](../../lib/picture-fetch.ts#L305)
+
+- The definitions and the choices for Josh to approve.
+  [`picture-quality.md:7`](../../docs/picture-quality.md#L7)
+  [`picture-quality.md:67`](../../docs/picture-quality.md#L67)
+
+**The three steps and the action**
+
+- C-04, C-05 and the picture C-06 in one client component.
+  [`picture-review.tsx:141`](../../components/projects/picture-review.tsx#L141)
+
+- What the first step needs before Next, and what the warning says.
+  [`picture-review.ts:115`](../../lib/picture-review.ts#L115)
+  [`picture-review.ts:157`](../../lib/picture-review.ts#L157)
+
+- The Server Action recomputes nothing the database recomputes and trusts no pass flag.
+  [`actions.ts:65`](../../app/projects/[projectId]/pictures/review/actions.ts#L65)
+  [`projects.ts:476`](../../lib/projects.ts#L476)
+
+- The review page, a new child of the pictures path.
+  [`page.tsx:24`](../../app/projects/[projectId]/pictures/review/page.tsx#L24)
+  [`project-paths.ts:9`](../../lib/project-paths.ts#L9)
+
+**Where it shows**
+
+- `request_draft` now leads to the review; the sentences say nothing has started.
+  [`project-stage.ts:55`](../../lib/project-stage.ts#L55)
+
+- The Project page shows the review, with what the browser reported.
+  [`request-section.tsx:34`](../../components/projects/request-section.tsx#L34)
+
+**Docs**
+
+- The review writer, the stage rule, and why the acknowledgment is not an approval.
+  [`authority-contract.md:146`](../../docs/authority-contract.md#L146)
+
+- The migration row and why not to roll back once a direct revision exists.
+  [`staging.md:78`](../../docs/staging.md#L78)
+
+**Tests (peripheral)**
+
+- The command against the real database, mutation-checked for the acknowledgment and the stage guard.
+  [`picture-review.test.ts:262`](../../tests/integration/picture-review.test.ts#L262)
+  [`picture-review.test.ts:696`](../../tests/integration/picture-review.test.ts#L696)
+
+- The database and the module agree on every threshold case.
+  [`picture-review.test.ts:1124`](../../tests/integration/picture-review.test.ts#L1124)
+
+- The module on synthetic pixels, the decoder and the fetch with fakes.
+  [`picture-quality.test.ts:1`](../../tests/unit/picture-quality.test.ts#L1)
+  [`picture-decode.test.ts:1`](../../tests/unit/picture-decode.test.ts#L1)
+  [`picture-fetch.test.ts:1`](../../tests/unit/picture-fetch.test.ts#L1)
+
+- The review in a real browser with generated PNGs, phone and desktop, both languages.
+  [`picture-review.spec.ts:191`](../../tests/e2e/picture-review.spec.ts#L191)
+  [`picture-review.spec.ts:566`](../../tests/e2e/picture-review.spec.ts#L566)

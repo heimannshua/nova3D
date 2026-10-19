@@ -338,19 +338,26 @@ test.describe('a Project\'s overview and its Sources entry (UX-DR29, AC-2)', () 
       const facts = page.locator('.project-facts');
       await expect(facts).toContainText(fixture.currentVersion > 0 ? t('en', 'project.version', {version: fixture.currentVersion}) : t('en', 'project.versionNone'));
       await expect(facts.locator('time')).toHaveAttribute('datetime', /^\d{4}-\d{2}-\d{2}T/);
-      // The next required action is stated; with no page to do it in yet, it is words, not a link.
+      // The next required action is stated; with no page to do it in yet, it is words, not a link. (On purpose changed in Story 2.3: request_draft has its destination,
+      // the review of the pictures, so it is one link to it and no "arrives in a later release".)
       const next = page.getByRole('region', {name: t('en', 'project.nextTitle')});
       await expect(next).toContainText(t('en', stageDefinition(stage).nextAction));
-      await expect(next.getByRole('link')).toHaveCount(0);
-      await expect(next).toContainText(t('en', 'project.nextNoPage'));
+      if (stage === 'request_draft') {
+        await expect(next.getByRole('link')).toHaveCount(1);
+        await expect(next.getByRole('link')).toHaveAttribute('href', `/projects/${ids[index]}/pictures/review`);
+        await expect(next).not.toContainText(t('en', 'project.nextNoPage'));
+      } else {
+        await expect(next.getByRole('link')).toHaveCount(0);
+        await expect(next).toContainText(t('en', 'project.nextNoPage'));
+      }
       // The Model entry and the Sources entry.
       await expect(page.getByRole('heading', {level: 2, name: t('en', 'project.model.title')})).toBeVisible();
       await expect(page.getByRole('main')).toContainText(fixture.currentVersion > 0 ? t('en', 'project.model.current', {version: fixture.currentVersion}) : t('en', 'project.model.none'));
       await expect(page.getByRole('link', {name: t('en', 'project.sources.title')})).toHaveAttribute('href', `/projects/${ids[index]}/sources`);
       await expect(renameButton(page)).toBeVisible();
-      // Only Sources and the shell lead anywhere: there is no dead link in the page.
+      // Only Sources and the shell lead anywhere: there is no dead link in the page. (On purpose changed in Story 2.3: request_draft also leads to the review of its pictures.)
       const hrefs = await page.getByRole('main').locator('a').evaluateAll((links) => links.map((link) => link.getAttribute('href')));
-      expect(hrefs).toEqual([`/projects/${ids[index]}/sources`]);
+      expect(hrefs).toEqual(stage === 'request_draft' ? [`/projects/${ids[index]}/pictures/review`, `/projects/${ids[index]}/sources`] : [`/projects/${ids[index]}/sources`]);
     });
   }
 
