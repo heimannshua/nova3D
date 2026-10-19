@@ -83,6 +83,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'list_expired_staging',
     'list_invitations',
     'list_projects',
+    'list_usage',
     'lookup_status',
     'preflight',
     'purge_dormant_identities',
@@ -97,6 +98,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'record_picture_review',
     'record_picture_set',
     'record_tombstone',
+    'record_usage_refusal',
     'redeem_recovery',
     'register_with_code',
     'release_staged_pictures',
@@ -107,6 +109,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'revoke_service_key',
     'seed_preauthorization',
     'set_preference',
+    'set_usage_limit',
     'start_step_up',
     'use_marker',
     'verify_csrf',
@@ -161,13 +164,13 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     expect(publicGrants).toEqual([]);
   });
 
-  it('lets only service_role execute an api function (the Auth hook belongs to supabase_auth_admin) and nothing in identity, projects or lifecycle', async () => {
+  it('lets only service_role execute an api function (the Auth hook belongs to supabase_auth_admin) and nothing in identity, projects, lifecycle or usage', async () => {
     const {rows: functions} = await db.query(
       `select n.nspname as schema, p.proname as name, p.prosecdef as definer, p.proconfig as config, p.proacl is null as default_acl,
               coalesce((select array_agg(case when a.grantee = 0 then 'public' else a.grantee::regrole::text end order by 1)
                           from aclexplode(p.proacl) a where a.privilege_type = 'EXECUTE' and a.grantee <> p.proowner), '{}') as grantees
          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-        where n.nspname in ('api', 'identity', 'projects', 'lifecycle') order by 1, 2`,
+        where n.nspname in ('api', 'identity', 'projects', 'lifecycle', 'usage') order by 1, 2`,
     );
     expect(functions.filter((f) => f.schema === 'api').map((f) => f.name)).toEqual(apiFunctions);
     for (const f of functions) {

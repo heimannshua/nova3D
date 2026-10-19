@@ -900,7 +900,8 @@ describe('the preflight carries every earlier probe and the new ones', () => {
     // The seven new `api` functions are among those the service role must be able to execute (thirty-one in all when this story added them, thirty-three since Story 2.1 added two, thirty-five since Story 2.2 added two more, thirty-six since Story 2.3 added one, thirty-eight since Story 2.12 added two).
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(38);
+    // On purpose changed (Story 2.4): forty-one since it added the three functions of the usage limits.
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(41);
     // The bucket check stays last.
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));
   });

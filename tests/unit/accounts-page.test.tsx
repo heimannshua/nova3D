@@ -138,17 +138,19 @@ describe.each(locales)('the Administration index in %s', (locale) => {
       </I18nProvider>,
     );
 
-  it('links to Invitation codes, to Accounts and (Story 1.13) to Operations, each in a section of its own, and to nothing else', () => {
+  it('links to Invitation codes, to Accounts, (Story 1.13) to Operations and (Story 2.4) to Usage and limits, each in a section of its own, and to nothing else', () => {
     const markup = render('needed');
     expect(markup.match(/<h1\b/g)).toHaveLength(1);
     const headings = [...markup.matchAll(/<h2\b[^>]*>(.*?)<\/h2>/g)].map((match) => text(match[1]).trim());
-    expect(headings).toEqual([t(locale, 'admin.invitations.title'), t(locale, 'admin.accounts.title'), t(locale, 'admin.operations.title')]);
+    expect(headings).toEqual([t(locale, 'admin.invitations.title'), t(locale, 'admin.accounts.title'), t(locale, 'admin.operations.title'), t(locale, 'admin.usage.title')]);
     const links = [...markup.matchAll(/<a [^>]*href="([^"]+)"[^>]*>/g)].map((match) => match[1]);
-    expect(links).toEqual(['/admin/invitations', '/admin/accounts', '/admin/operations']);
+    expect(links).toEqual(['/admin/invitations', '/admin/accounts', '/admin/operations', '/admin/usage']);
     expect(text(markup)).toContain(t(locale, 'admin.invitations.open'));
     expect(text(markup)).toContain(t(locale, 'admin.accounts.open'));
     expect(text(markup)).toContain(t(locale, 'admin.operations.open'));
     expect(text(markup)).toContain(t(locale, 'admin.operations.help'));
+    expect(text(markup)).toContain(t(locale, 'admin.usage.open'));
+    expect(text(markup)).toContain(t(locale, 'admin.usage.help'));
   });
 
   it('says the person has just confirmed it is them, which is where the step-up returns, and says nothing otherwise', () => {

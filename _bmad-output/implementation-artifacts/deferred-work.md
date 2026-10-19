@@ -1190,3 +1190,45 @@
   summary: `projects.request_images` has no index on `upload_id`, and the retained-picture resolver's view is read by upload ID before every transfer chunk (at most 1 MiB), so each read scans the table; the primary key and the unique constraint both lead with `revision_id`.
   evidence: `supabase/migrations/20261021120000_retained_pictures.sql` (`artifacts.retained_pictures`), `supabase/migrations/20261020120000_picture_review.sql` and earlier (the table's constraints).
   mapped_story: Any story that adds readers of the retained pictures at volume (2.13, 4.1).
+
+## Story 2.4 (set accountable usage limits)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-set-accountable-usage-limits.md`
+  summary: Settled and reserved are a stand-in until Story 2.6. `usage.period_figures` reads the owner-written table `usage.fixture_figures`, which is empty (so every figure is zero) in every real environment and written by no application code and no `api` function; the tests insert the rows that show `nearly` and `reached`. Until Story 2.6 builds the ledgers, no real Account can be near or at its limit, and "new paid work is blocked" is a statement on the screen and a value of `usage.available_microdollars`, not a gate that anything calls yet.
+  evidence: `supabase/migrations/20261022120000_usage_limits.sql` (`usage.period_figures`, `usage.fixture_figures`, `usage.available_microdollars`), `docs/authority-contract.md` ("Usage periods"), `tests/integration/usage-limits.test.ts`.
+  mapped_story: 2.6 (replaces the body of `usage.period_figures`, drops `usage.fixture_figures`, reserves under the advisory lock `nova3d:usage:<account>`, and registers the cancellation that releases reservations in `lib/authority.ts`); 2.14 (credit joins `usage.available_microdollars`).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-set-accountable-usage-limits.md`
+  summary: The $10,000 ceiling and the whole-cent granularity of a limit are choices of this story (an Ask first to change them), enforced by the table (`limit_microdollars between 0 and 10000000000 and limit_microdollars % 10000 = 0`), the function and the form. A limit above $10,000 or finer than a cent needs a migration that replaces the check and the three places that repeat it (`lib/usage-view.ts`, the function, the form hint). The figures a period carries are bounded at 1e15 microdollars ($1 billion) only so they always fit a JavaScript safe integer.
+  evidence: `supabase/migrations/20261022120000_usage_limits.sql` (`usage.periods` checks), `lib/usage-view.ts` (`maxLimitMicrodollars`, `parseDollars`).
+  mapped_story: Josh's approval of the ceiling (an Ask first); revisit when a real month of spending shows what the Administrator needs.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-set-accountable-usage-limits.md`
+  summary: Rollover is lazy: a new UTC month is entered the first time anything reads or writes Usage (`api.list_usage`, `api.set_usage_limit`, `usage.available_microdollars`), and there is no scheduler task. An Account nobody reads in a month gets its `month` period at its next read, which is correct (a skipped month is one period), but the Administrator's page is the only reader until Story 2.6, so the first look in a new month is what writes the period (a read that writes, under the advisory lock, once for each Account).
+  evidence: `supabase/migrations/20261022120000_usage_limits.sql` (`usage.ensure_period`, `api.list_usage`).
+  mapped_story: 2.6 (every reservation calls it first, so the month turns when work is first asked for); a scheduled sweep only if a report of the past months ever needs the periods to exist before anyone looks.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-set-accountable-usage-limits.md`
+  summary: There is no usage history view. A period is immutable and every change appends one, so the whole history of an Account's limits, carries and resets is in `usage.periods` (with the actor and the time), but the page shows only the current period; the audit event records that a change happened and who made it, never the old or new limit (its five columns are pinned). The Administrator cannot see last month's usage on the screen.
+  evidence: `supabase/migrations/20261022120000_usage_limits.sql` (`usage.periods`), `components/admin/usage-list.tsx`.
+  mapped_story: 2.14 to 2.16 (the owner's Credit and payments page and the Administrator's payment requests and grants may want a history) or a later reporting story; Epic 8 purges periods with their Account.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-set-accountable-usage-limits.md`
+  summary: A disabled Account's limit cannot be changed (`disabled`; its usage stays readable), and a limit below what is used is accepted (the Account is then over its limit and shown as `reached`, with the amount over). Both are the story's choices, and allowing a change for a disabled Account, or refusing a limit below what is used, is an Ask first. The Administrator who wants to give a disabled Account room before it comes back must re-enable it first.
+  evidence: `supabase/migrations/20261022120000_usage_limits.sql` (`api.set_usage_limit`, step 6), `components/admin/usage-list.tsx` (the disabled note).
+  mapped_story: Josh's decision when the first Account is re-enabled with a limit that should differ; 2.14 (credit may make "at its limit" mean something else).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-set-accountable-usage-limits.md`
+  summary: Defensive and shared behavior worth a second look. (1) `usage.ensure_period` also creates the `initial` period of an Account that has none (one that did not come through `identity.activate_account`, such as a row inserted by hand), so that `api.list_usage` can always show a current period; it is the only path that does. (2) `administered()` now hands its callback the verified access, so a change made for the Administrator's own Account (a usage limit) names the Account and epoch from the session; the invitation and Accounts actions ignore it. (3) The page and the command read the typed amounts as dollars with at most two decimals, accept a leading `$` and thousands commas, and refuse anything else in the person's language before sending; a screen reader hears the same sentence the meter shows. (4) `api.list_usage` rolls the month for up to 200 Accounts in one call, each under its own advisory lock only when it needs one.
+  evidence: `supabase/migrations/20261022120000_usage_limits.sql`, `lib/administered.ts`, `lib/usage-view.ts`.
+  mapped_story: 2.6 (the same lock and the same rollover); none otherwise.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-set-accountable-usage-limits.md`
+  summary: The new Hebrew (the Usage and limits page, the Administration index section and the changed wording of the step-up reason and the Administration lede) is machine-drafted and has had no native review. It holds no Latin word (no currency code and no time-zone code: "זמן עולמי" stands for UTC). Amounts are always shown as left-to-right tokens.
+  evidence: `lib/i18n/he.ts` (`usage.*`, `admin.usage.*`, `meta.usage`).
+  mapped_story: The native review of the Hebrew catalog (open since Story 1.4d).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-set-accountable-usage-limits.md`
+  summary: Two or more Accounts whose Auth user no longer vouches for an address all show the same stand-in name, so their card headings, field labels, button names and result notices on the Usage and limits page cannot be told apart by name alone.
+  evidence: `usageNameOf` in `components/admin/usage-list.tsx:104` falls back to one catalog string (`usage.row.noAddress`); the Accounts page uses the same stand-in. Raised by the Blind Hunter and the Edge Case Hunter reviews; rare (Auth user removed), so left for a change to both pages together.
+  mapped_story: none (a shared naming rule for Accounts without an address, across the Accounts and Usage pages).

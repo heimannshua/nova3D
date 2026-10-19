@@ -331,6 +331,8 @@ export function accountsWorld() {
     await db.query(`delete from identity.session_grants where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.registration_commands where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.invitations where redeemed_account_id in ${accounts}`, [user.id]);
+    // The usage periods (Story 2.4) restrict the Account too; their fixture figures go with them.
+    await db.query(`delete from usage.periods where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from projects.request_images where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from projects.request_revisions where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from projects.project_commands where account_id in ${accounts}`, [user.id]);

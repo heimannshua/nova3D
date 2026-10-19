@@ -1,6 +1,6 @@
 import {refresh} from 'next/cache';
 import {redirect} from 'next/navigation';
-import {gatingTimeoutMs, homePath} from '@/lib/access';
+import {gatingTimeoutMs, homePath, type ActiveAccess} from '@/lib/access';
 import {checkMarker, type MarkerOutcome} from '@/lib/accounts';
 import {withActiveAccount} from '@/lib/auth';
 import type {Confirmation} from '@/lib/administration';
@@ -19,7 +19,8 @@ import {withinBudget, type Budget} from '@/lib/deadline';
 //      not inside the database function that makes the change, because the seed command shares the invitation functions and has
 //      no session, and the `administration` marker is reusable for its five minutes, so a check followed by the call loses
 //      nothing.
-//   3. `run`, with the actor `user:<Auth user ID>` taken from the verified session, never from the request.
+//   3. `run`, with the actor `user:<Auth user ID>` taken from the verified session, never from the request, and the verified access it
+//      all came from (a change that is made FOR the Administrator's Account, such as a usage limit, names the Account and epoch from it).
 //
 // Nothing here knows what the change is, or what a refusal is recorded as: the action passes that in. A failure to record a
 // refusal is the action's to log, and never turns the refusal into a permission.
@@ -43,7 +44,7 @@ export type AdministeredSteps<S> = {
 /** The role check, then the marker check, then `run` (see the top of this file). */
 export async function administered<S>(
   steps: AdministeredSteps<S>,
-  run: (context: {actor: string; budget: Budget}) => Promise<S>,
+  run: (context: {actor: string; budget: Budget; access: ActiveAccess}) => Promise<S>,
 ): Promise<S> {
   return withActiveAccount<S>({unavailable: steps.unavailable}, async ({access, budget}) => {
     const {user, account} = access;
@@ -75,7 +76,7 @@ export async function administered<S>(
       return steps.refused(stepUp);
     }
 
-    return run({actor: `user:${user.id}`, budget});
+    return run({actor: `user:${user.id}`, budget, access});
   });
 }
 

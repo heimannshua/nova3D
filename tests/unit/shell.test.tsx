@@ -220,6 +220,7 @@ describe('global shell (G-01, UX-DR24)', () => {
     expect(parentRoute('/admin')).toBe('/settings');
     expect(parentRoute('/admin/invitations')).toBe('/admin');
     expect(parentRoute('/admin/accounts')).toBe('/admin');
+    expect(parentRoute('/admin/usage')).toBe('/admin');
     expect(parentRoute('/administration')).toBe('/');
   });
 

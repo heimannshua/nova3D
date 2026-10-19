@@ -1155,7 +1155,7 @@ describe('the preflight carries every earlier probe and the new ones', () => {
     await admin.connect().catch((error: Error) => {
       throw new Error(`The superuser connection this case needs (supabase_admin on the local stack) failed: ${error.message}`);
     });
-    const tables = ['identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images', 'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts', 'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures', 'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims'];
+    const tables = ['identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images', 'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts', 'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures', 'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'usage.fixture_figures', 'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims'];
     const preflightAsServiceRole = async () => {
       await admin.query('savepoint probe');
       try {
@@ -1175,7 +1175,7 @@ describe('the preflight carries every earlier probe and the new ones', () => {
       // Story 1.12: the preflight also reads the Artifacts tables and views, and (last of all) the private bucket through row-level security, which only
       // a role that bypasses it sees whole; the probe role is made with that attribute (the stack's superuser may) and may read storage.buckets.
       await admin.query('alter role preflight_probe bypassrls');
-      await admin.query('grant usage on schema api, identity, projects, lifecycle, auth, artifacts, storage to preflight_probe');
+      await admin.query('grant usage on schema api, identity, projects, lifecycle, auth, artifacts, usage, storage to preflight_probe');
       await admin.query('grant select on storage.buckets to preflight_probe');
       await admin.query('grant create on schema api to preflight_probe');
       for (const table of tables) await admin.query(`grant select on ${table} to preflight_probe`);

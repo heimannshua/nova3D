@@ -107,6 +107,8 @@ export async function removeAccountData(client: Client, data: CommittedData) {
       [data.users, data.hashes, data.invitationIds, data.users.map((id) => `user:${id}`)],
     );
     await client.query(`delete from identity.preauthorizations where account_id in ${accounts} or email = any($2)`, [data.users, data.emails]);
+    // The usage periods of an Account (Story 2.4) reference it with ON DELETE RESTRICT (their fixture figures go with them), so they go before the Account does.
+    await client.query(`delete from usage.periods where account_id in ${accounts}`, [data.users]);
     // A Project (Story 1.7) references its Workspace, and a command's receipt and a request revision (Story 2.1) reference their Project (all
     // restrict), and the pictures of a revision (Story 2.2) reference their revision: pictures, revisions and receipts, then Projects, then the Workspace.
     await client.query(`delete from projects.request_images where account_id in ${accounts}`, [data.users]);

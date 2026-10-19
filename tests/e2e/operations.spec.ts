@@ -107,7 +107,7 @@ test.describe('who may open the page', () => {
     await administrator(context, baseURL!);
     await page.goto('/admin');
     await expect(page.getByRole('heading', {level: 1, name: t('en', 'admin.title')})).toBeVisible();
-    await expect(page.getByRole('heading', {level: 2})).toHaveText([t('en', 'admin.invitations.title'), t('en', 'admin.accounts.title'), t('en', 'admin.operations.title')]);
+    await expect(page.getByRole('heading', {level: 2})).toHaveText([t('en', 'admin.invitations.title'), t('en', 'admin.accounts.title'), t('en', 'admin.operations.title'), t('en', 'admin.usage.title')]);
     await page.getByRole('link', {name: t('en', 'admin.operations.open')}).click();
     await expect(page).toHaveURL(`${baseURL}${path}`, crossing);
     await expect(page.getByRole('heading', {level: 1, name: t('en', 'operations.title')})).toBeVisible();

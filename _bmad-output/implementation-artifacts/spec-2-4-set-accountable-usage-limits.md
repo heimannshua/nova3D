@@ -2,8 +2,8 @@
 title: 'Story 2.4: Set accountable usage limits'
 type: 'feature'
 created: '2026-10-19'
-status: 'in-progress'
-baseline_commit: '661412318070aa143f3e5dd481db9930ff715bba'
+status: 'done'
+baseline_commit: 'c7dcf656340d09155768e61e0f1e7759214e5574'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
@@ -67,13 +67,13 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/20261022120000_usage_limits.sql`, `docs/staging.md` -- the schema, periods, defaults and backfill, `activate_account`, rollover, figures stand-in, the three `api` functions, preflight, migration row -- AC-1 to AC-4
-- [ ] `lib/usage.ts`, `lib/usage-view.ts` -- typed calls, money parse and format, state and reconcile, action wrapper -- AC-1 to AC-4
-- [ ] `app/admin/usage/page.tsx`, `app/admin/usage/actions.ts`, `components/admin/usage-content.tsx`, `components/admin/usage-list.tsx`, `components/admin/admin-content.tsx`, `app/globals.css` -- the screen, meter, forms, step-up refusal -- AC-2 to AC-4
-- [ ] `lib/i18n/en.ts`, `lib/i18n/he.ts` -- all copy in both languages -- AC-3, AC-4
-- [ ] `README.md`, `docs/authority-contract.md` -- the Usage module row, the period and carry rules, the stand-in, rollout -- housekeeping
-- [ ] `tests/` -- every matrix row: unit (money, thresholds at the edges, reconcile, carry arithmetic, the action order), integration (defaults and backfill, change, reset, rollover, stale, replay, reuse, invalid, unchanged, disabled, unknown, authority, isolation, immutability, closure, preflight), component (every state in both locales), browser on desktop and phone in both languages with the real database (no marker, step-up, change, reset, nearly, reached, axe, overflow, 200% text, keyboard); update the pins above -- all ACs
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- the fixture stand-in until 2.6, the $10,000 ceiling, no scheduler rollover, no usage history view, limits for disabled Accounts -- housekeeping
+- [x] `supabase/migrations/20261022120000_usage_limits.sql`, `docs/staging.md` -- the schema, periods, defaults and backfill, `activate_account`, rollover, figures stand-in, the three `api` functions, preflight, migration row -- AC-1 to AC-4
+- [x] `lib/usage.ts`, `lib/usage-view.ts` -- typed calls, money parse and format, state and reconcile, action wrapper -- AC-1 to AC-4
+- [x] `app/admin/usage/page.tsx`, `app/admin/usage/actions.ts`, `components/admin/usage-content.tsx`, `components/admin/usage-list.tsx`, `components/admin/admin-content.tsx`, `app/globals.css` -- the screen, meter, forms, step-up refusal -- AC-2 to AC-4
+- [x] `lib/i18n/en.ts`, `lib/i18n/he.ts` -- all copy in both languages -- AC-3, AC-4
+- [x] `README.md`, `docs/authority-contract.md` -- the Usage module row, the period and carry rules, the stand-in, rollout -- housekeeping
+- [x] `tests/` -- every matrix row: unit (money, thresholds at the edges, reconcile, carry arithmetic, the action order), integration (defaults and backfill, change, reset, rollover, stale, replay, reuse, invalid, unchanged, disabled, unknown, authority, isolation, immutability, closure, preflight), component (every state in both locales), browser on desktop and phone in both languages with the real database (no marker, step-up, change, reset, nearly, reached, axe, overflow, 200% text, keyboard); update the pins above -- all ACs
+- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- the fixture stand-in until 2.6, the $10,000 ceiling, no scheduler rollover, no usage history view, limits for disabled Accounts -- housekeeping
 
 **Acceptance Criteria:**
 - Given a new Account, when its allowance period is created, then an invitee has $25 and the Administrator $50 for the UTC month, stored as integer microdollars, and existing Accounts have the same.
@@ -102,3 +102,96 @@ A limit change must not lose what was already counted, and a reset must not lose
 
 **Manual checks (if no CLI):**
 - Sign in as the Administrator, open Administration, Usage and limits: each Account shows its month, limit, settled, reserved and available. Change a limit without confirming: the step-up is offered; after confirming, the change is accepted and the page shows the new limit.
+
+
+## Suggested Review Order
+
+**The data model and the lazy rollover**
+
+- Entry point: the closed `usage` schema and the immutable `usage.periods` table, one row per monthly period.
+  [`20261022120000_usage_limits.sql:60`](../../supabase/migrations/20261022120000_usage_limits.sql#L60)
+
+- Constraints and the no-update, no-truncate trigger make a period a record that is never edited.
+  [`20261022120000_usage_limits.sql:113`](../../supabase/migrations/20261022120000_usage_limits.sql#L113)
+
+- The stand-in for Story 2.6's ledgers: owner-written, empty in every real environment.
+  [`20261022120000_usage_limits.sql:154`](../../supabase/migrations/20261022120000_usage_limits.sql#L154)
+
+- `ensure_period`: one `month` period per new UTC month, under the Account's advisory lock.
+  [`20261022120000_usage_limits.sql:288`](../../supabase/migrations/20261022120000_usage_limits.sql#L288)
+
+- Activation now creates the `initial` period in the same transaction ($25 member, $50 Administrator).
+  [`20261022120000_usage_limits.sql:357`](../../supabase/migrations/20261022120000_usage_limits.sql#L357)
+
+**The command: change and reset**
+
+- `api.set_usage_limit`: every outcome, in a fixed order, with the period and its audit event in one transaction.
+  [`20261022120000_usage_limits.sql:392`](../../supabase/migrations/20261022120000_usage_limits.sql#L392)
+
+- `api.list_usage` rolls the month over, then reads each Account's current period.
+  [`20261022120000_usage_limits.sql:543`](../../supabase/migrations/20261022120000_usage_limits.sql#L543)
+
+- `api.record_usage_refusal`: who, what and which Account, at most once an hour, no content.
+  [`20261022120000_usage_limits.sql:613`](../../supabase/migrations/20261022120000_usage_limits.sql#L613)
+
+- Preflight carries the two tables and seven functions, so a missing migration fails the build.
+  [`20261022120000_usage_limits.sql:660`](../../supabase/migrations/20261022120000_usage_limits.sql#L660)
+
+**Authority: role, then fresh marker, then change**
+
+- The Server Action order: Administrator, fresh step-up marker, then the database call.
+  [`actions.ts:86`](../../app/admin/usage/actions.ts#L86)
+
+- The page 404s for anyone but an active Administrator and for a `denied` list.
+  [`page.tsx:37`](../../app/admin/usage/page.tsx#L37)
+
+- Typed database calls, with composite outcomes read into closed unions.
+  [`usage.ts:124`](../../lib/usage.ts#L124)
+
+**Money, state and the screen**
+
+- Whole-cent parsing with a length guard before any BigInt, up to the $10,000 ceiling.
+  [`usage-view.ts:74`](../../lib/usage-view.ts#L74)
+
+- `classify`: under, nearly (used × 5 ≥ limit × 4) and reached, by integer arithmetic only.
+  [`usage-view.ts:158`](../../lib/usage-view.ts#L158)
+
+- `figuresOf`: settled, reserved, available and over always reconcile with the limit.
+  [`usage-view.ts:189`](../../lib/usage-view.ts#L189)
+
+- The command ID is keyed on account, period and amount, so a retry is the same command.
+  [`usage-list.tsx:163`](../../components/admin/usage-list.tsx#L163)
+
+- Change-limit form and the Reset dialog, each naming the Account it changes.
+  [`usage-list.tsx:176`](../../components/admin/usage-list.tsx#L176)
+
+- The fourth section of the Administration index links to the new screen.
+  [`admin-content.tsx:17`](../../components/admin/admin-content.tsx#L17)
+
+**Docs and rollout**
+
+- The period, carry and stand-in rules, and the Usage module row.
+  [`authority-contract.md:180`](../../docs/authority-contract.md#L180)
+
+- The migration's rollout row: apply before the app, nothing else depends on it yet.
+  [`staging.md:80`](../../docs/staging.md#L80)
+
+**Tests**
+
+- Database: access, immutability, defaults, change and reset, rollover, outcome order, audit, locks.
+  [`usage-limits.test.ts:153`](../../tests/integration/usage-limits.test.ts#L153)
+
+- Money, thresholds and reconciliation at their edges.
+  [`usage-view.test.ts:35`](../../tests/unit/usage-view.test.ts#L35)
+
+- The action order: role, marker, change, and what is recorded as a refusal.
+  [`usage-actions.test.ts:132`](../../tests/unit/usage-actions.test.ts#L132)
+
+- The page's 404 and "could not be loaded" branches.
+  [`usage-admin-page.test.tsx:1`](../../tests/unit/usage-admin-page.test.tsx#L1)
+
+- Browser flows on desktop and phone, in both languages, against the real database.
+  [`usage.spec.ts:265`](../../tests/e2e/usage.spec.ts#L265)
+
+- Pins changed on purpose: the closed-schema and function-count assertions.
+  [`gate-structure.test.ts:3635`](../../tests/unit/gate-structure.test.ts#L3635)

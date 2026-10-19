@@ -177,6 +177,42 @@ Story 2.12 (retain confirmed pictures as immutable Project artifacts) keeps the 
 
 The code is `workers/files/src/strip.ts`, `workers/files/src/server.ts` (the attach), `workers/files/src/resolvers.ts`, `lib/retention.ts`, `lib/gateway-client.ts` and `supabase/migrations/20261021120000_retained_pictures.sql`; the behavior is pinned by `tests/unit/strip.test.ts`, `tests/unit/gateway-server.test.ts`, `tests/unit/retention.test.ts`, `tests/integration/retained-pictures.test.ts`, `tests/integration/picture-review.test.ts`, `tests/integration/file-gateway.test.ts` and `tests/e2e/picture-retention.spec.ts`.
 
+## Usage periods: the monthly allowance and its limits
+
+Story 2.4 (set accountable usage limits) records what an Account may spend each month, and lets the fresh-authenticated Administrator see and change it. Reservations, settlements, rates, credit and payments are Stories 2.5 to 2.17; this story creates the **allowance period** they reserve against. Money is integer USD **microdollars** (`bigint` in SQL, a safe integer in TypeScript), never a float; dollars appear on screen only through `formatDollars` (`lib/usage-view.ts`: `$25.00`, no `Intl`).
+
+### A period is an immutable row
+
+`usage.periods` (the closed `usage` schema, like `identity`, `projects` and `artifacts`: row-level security on, no policy, every privilege revoked, not exposed by the Data API) holds one row for each period of an Account: `seq` from 1, `month_start` (the UTC first of the month, `date_trunc('month', clock_timestamp() at time zone 'UTC')`, never the session's time zone), the limit (0 to 10,000,000,000 microdollars, that is $10,000, in whole cents: a multiple of 10,000), what is **carried** in (`carried_settled_microdollars`, `carried_reserved_microdollars`), the `cause` (`initial`, `month`, `change`, `reset`), the limit before (`previous_limit_microdollars`, null for `initial`), the actor (`user:<id>` or `system`), the Administrator's `command_id`, a `digest` and the time. A row is **immutable**: update and truncate are refused by trigger (`55000`), delete is left for the Epic 8 purge, the Account's key restricts, and `(account_id, seq)` and `(account_id, command_id)` are unique. The **current** period is the highest `seq`. A limit is never edited: the row IS the record of the actor, the time and the old and new limits, and `identity.audit_events` (whose five columns are pinned) carries only that a change happened (`usage.limit_changed`, `usage.limit_reset`, actor and `account:<id>`).
+
+A new Account gets its `initial` period in the transaction that creates it (`identity.activate_account`, which both registration paths call): $25 for an invitee and $50 for the Administrator (`usage.default_limit`). The migration backfilled the Accounts that existed.
+
+### Rollover is lazy
+
+`usage.ensure_period(account)` is internal (callable by no API role). When the latest period is of an earlier UTC month it appends a `month` period under the advisory lock **`nova3d:usage:<account>`**: the same limit, settled carry 0, and the reserved carry kept (the previous carry plus the previous period's reserved figure). A second call in the same month appends nothing. Every Usage `api` function calls it first, and nothing is scheduled. **Story 2.6 takes the same advisory lock** to reserve against the current period, and calls `usage.available_microdollars(account)` (the allowance headroom: the limit less settled plus reserved, never below 0; credit joins in Story 2.14).
+
+### Figures: one stand-in until Story 2.6
+
+The settled and reserved figures of a period come only from `usage.period_figures(period_id)`. Until Story 2.6 builds the ledgers it reads the owner-written table **`usage.fixture_figures`** (`period_id`, settled, reserved), which is **empty, so every figure is zero, in every real environment**, and is written by no application code and no `api` function (the tests insert `nearly` and `reached` rows as the table owner). Story 2.6 replaces the body of `usage.period_figures` and drops the table; nothing else reads it. Shown settled = carried settled + the figure; shown reserved = carried reserved + the figure; used = settled + reserved; available = max(limit - used, 0); when used exceeds the limit the amount over is shown too, so the amounts always reconcile (settled + reserved + available = limit, or limit + over = used). The **state** is by integer arithmetic only: `under` (used x 5 < limit x 4), `nearly` (used x 5 >= limit x 4 and used < limit), `reached` (used >= limit; a limit of 0 included). `reached` means **new paid work is blocked**; running work finishes, and disabling an Account still cancels it (Account disable and its cancellers are untouched).
+
+### Changing a limit and resetting the count
+
+`api.set_usage_limit(actor, admin account, epoch, target account, command ID, kind, limit, expected seq)` appends a **successor** period that carries the liabilities. In this order, and nothing is appended before all of it passes: the arguments (`22023`); `identity.assert_operation_authority` for the Administrator (`denied`); the caller is an Administrator (`denied`); the target exists and has no tombstone (`not_found`); the advisory lock; the target is not disabled (`disabled`); `usage.ensure_period`; the receipt by (target, command ID): the same digest is `replayed` (the same period), another is `reused`; the latest `seq` is not the expected one (`stale`, carrying the current `seq`); the limit is out of range, not whole cents, missing for a `change` or given for a `reset` (`invalid_limit`); a `change` to the current limit is `unchanged` (no period, no audit event); otherwise it appends `seq + 1` and audits in the same transaction. The **carry**:
+
+- `change` keeps counting everything so far: carried settled = the previous carry + its settled figure, carried reserved likewise;
+- `reset` restarts the count but keeps the liabilities: carried settled 0, carried reserved as for a change, and the limit stays;
+- both keep what is already reserved reserved, so work that is reserved keeps its reservation.
+
+With 25M of limit, 10M settled and 2M reserved: a change to 40M makes `seq` 2 carry 10M and 2M (available 28M); a reset makes it carry 0 and 2M (available 23M). Lowering a limit below what is used is accepted: the Account is at its limit, with the amount over shown, and nothing already reserved or settled is touched. A disabled Account's limit is not changed (re-enable it first).
+
+### The gate, the refusals and the read
+
+The fresh `administration` marker is checked in TypeScript by `administered()` (`lib/administered.ts`), the only gate, and a refusal changes nothing; `administered` now also hands the change the verified access, so the Administrator's Account and epoch (`operationOf`) come from the session and never from the form. Refusals are recorded, once an hour per actor and Account, by `api.record_usage_refusal` (`usage.limit_refused` for an Administrator without a valid marker, `usage.denied` for an Account that is not one). `api.list_usage(admin account, epoch)` answers `denied` unless an active Administrator, rolls the month over for each Account, and returns at most 200 Accounts in the order of `api.list_accounts` with their address, role, status and current period (month, limit, shown settled, shown reserved, cause), and nothing else. The page is `/admin/usage`; `lib/usage.ts` is the only caller of the three functions; the step-up still returns to `/admin`.
+
+### Rollout
+
+The migration (`supabase/migrations/20261022120000_usage_limits.sql`) is additive and goes first; the previous build never calls it, and `identity.activate_account` behaves as before apart from the extra period. The code is `lib/usage.ts`, `lib/usage-view.ts`, `app/admin/usage/`, `components/admin/usage-*.tsx`; the behavior is pinned by `tests/unit/usage-view.test.ts`, `tests/unit/usage.test.ts`, `tests/unit/usage-actions.test.ts`, `tests/unit/usage-page.test.tsx`, `tests/unit/usage-admin-page.test.tsx`, `tests/unit/gate-structure.test.ts`, `tests/integration/usage-limits.test.ts` and `tests/e2e/usage.spec.ts`.
+
 ## The tombstone guard
 
 Story 1.8 (define tombstones and the hidden-state contract) makes a deleted Account or Project unreachable for every later feature at once, and remembers a deletion outside the rows a restore could roll back. Deleting is Epic 8's (Stories 8.1 to 8.3); this story provides the record, the one writer, the guard, the merge rule, the status route and the ledger.

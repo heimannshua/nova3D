@@ -593,6 +593,8 @@ describe('the guard rejects a tombstoned target before any other effect, and say
       await tombstone(client, 'account', c.accountId);
       for (const epoch of [1, 2, 3]) expect(await guardOp(client, c, epoch), `epoch ${epoch}`).toEqual({outcome: 'tombstoned', epoch: 2});
       // The row may be gone (a purge); the tombstone still answers.
+      // On purpose changed (Story 2.4): an Account has usage periods, which restrict it, so the purge removes them first.
+      await client.query('delete from usage.periods where account_id = $1', [c.accountId]);
       await client.query('delete from projects.workspaces where account_id = $1', [c.accountId]);
       await client.query('delete from identity.accounts where id = $1', [c.accountId]);
       expect(await guardOp(client, c, 2)).toEqual({outcome: 'tombstoned', epoch: null});
@@ -1431,6 +1433,8 @@ describe('api.lookup_status: what became of a handle, with no sign-in', () => {
       await tombstone(client, 'account', a.accountId);
       // The purge of Epic 8, by hand: everything but the tombstones.
       await client.query('delete from projects.projects where account_id = $1', [a.accountId]);
+      // On purpose changed (Story 2.4): an Account has usage periods, which restrict it, so the purge removes them first.
+      await client.query('delete from usage.periods where account_id = $1', [a.accountId]);
       await client.query('delete from projects.workspaces where account_id = $1', [a.accountId]);
       await client.query('delete from identity.accounts where id = $1', [a.accountId]);
       await client.query('delete from auth.users where id = $1', [a.user.id]);

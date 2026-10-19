@@ -891,6 +891,28 @@ textarea.invite-input { display: block; min-block-size: calc(var(--target) * 2);
 }
 .invite-actions { display: grid; justify-items: start; gap: var(--space-3); }
 .invite-actions .invite-notice { margin-block-start: 0; }
+/* The Usage and limits page (Story 2.4): an Account is a card with its month, its limit, what is settled, reserved and available, a meter and the two controls. The meter's colour follows the state of the limit (the card sets --meter), and settled is solid where reserved is striped, so the two differ by shape and not only by colour. */
+.usage-item { --meter: var(--status-success-fg); }
+.usage-item[data-state="nearly"] { --meter: var(--status-warning-fg); }
+.usage-item[data-state="reached"] { --meter: var(--status-danger-fg); }
+/* The Account's address is in the card's field label, its notices and its dialog as well as its heading: any of them, at 200% text in a 320 px window, wraps inside the card instead of pushing it out. */
+.usage-item { overflow-wrap: anywhere; }
+.usage-role { margin: 0; }
+.usage-meter { display: grid; gap: var(--space-2); }
+.usage-meter-track { display: flex; block-size: 0.75rem; overflow: hidden; border: 1px solid var(--border-strong); border-radius: var(--radius-pill); background: var(--surface-sunken); }
+.usage-meter-settled, .usage-meter-reserved { display: block; flex: none; block-size: 100%; }
+.usage-meter-settled { background: var(--meter); }
+.usage-meter-reserved { background: repeating-linear-gradient(135deg, var(--meter) 0 0.25rem, transparent 0.25rem 0.5rem); }
+.usage-meter-text { margin: 0; color: var(--text-muted); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.usage-controls { display: grid; gap: var(--space-4); }
+.usage-control .invite-form { margin-block-start: 0; }
+.usage-control .invite-notice { margin-block-start: var(--space-3); }
+/* A label beside its value needs room for both: in a narrow window, or with large text (which moves a rem breakpoint), the label sits above its value instead, so a long word in either cannot push the card out of the window. */
+@media (max-width: 30rem) {
+  .usage-meta { display: block; }
+  .usage-meta > div:not(:first-child) dt { margin-block-start: var(--space-2); }
+  .usage-item .status-badge { flex-wrap: wrap; }
+}
 
 /* ---------- Design kit ---------- */
 .kit-section > h2 { margin-block-end: var(--space-3); }
@@ -956,6 +978,9 @@ textarea.invite-input { display: block; min-block-size: calc(var(--target) * 2);
   .nav-item.active, .choice:has(input:checked) { border-color: Highlight; outline: 0.125rem solid Highlight; }
   .progress-track { border-color: CanvasText; }
   .progress-fill { forced-color-adjust: none; background: Highlight; }
+  .usage-meter-track { border-color: CanvasText; }
+  .usage-meter-settled { forced-color-adjust: none; background: Highlight; }
+  .usage-meter-reserved { forced-color-adjust: none; background: repeating-linear-gradient(135deg, Highlight 0 0.25rem, transparent 0.25rem 0.5rem); }
   .dot { forced-color-adjust: none; background: CanvasText; }
   .guidance-step::before { forced-color-adjust: none; background: Highlight; color: HighlightText; }
 }

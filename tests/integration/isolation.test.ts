@@ -201,6 +201,19 @@ describe('through the REST API', () => {
     check_picture_retention: {p_account_id: victim.accountId, p_epoch: 1, p_project_id: randomUUID(), p_expected_seq: 1, p_upload_ids: [randomUUID()]},
     read_retained_pictures: {p_account_id: victim.accountId, p_epoch: 1, p_project_id: randomUUID()},
     record_tombstone: {p_kind: 'account', p_target_id: victim.accountId},
+    // Story 2.4: the Administrator's usage limits. Changing one, reading them all and recording a refused change, with the other Account's IDs.
+    record_usage_refusal: {p_user_id: victim.user.id, p_action: 'usage.denied', p_target_account_id: victim.accountId},
+    list_usage: {p_admin_account_id: victim.accountId, p_epoch: 1},
+    set_usage_limit: {
+      p_actor: `user:${victim.user.id}`,
+      p_admin_account_id: victim.accountId,
+      p_epoch: 1,
+      p_target_account_id: victim.accountId,
+      p_command_id: randomUUID(),
+      p_kind: 'change',
+      p_limit_microdollars: 100_000_000,
+      p_expected_seq: 1,
+    },
     resolve_alarm: {p_condition: 'isolation-test', p_subject: null},
     release_staged_pictures: {p_account_id: victim.accountId, p_epoch: 1, p_upload_ids: [randomUUID()]},
     rename_project: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_project_id: randomUUID(), p_expected_revision: 1, p_title: 'Renamed by another Account'},
@@ -680,14 +693,14 @@ describe('composite ownership foreign keys keep a reference inside one Workspace
 // ---------------------------------------------------------------------------------------------------
 /**
  * Every way a browser role (anon, authenticated, or PUBLIC, which both inherit) can reach anything in `identity`,
- * `projects`, `lifecycle` or (Story 1.12) `artifacts`, read from the database itself. The list of relations is the catalog's, never a list
+ * `projects`, `lifecycle`, (Story 1.12) `artifacts` or (Story 2.4) `usage`, read from the database itself. The list of relations is the catalog's, never a list
  * in this file, so a table added by a later story is checked without anyone adding it here. Each entry says what is
  * open. The `api` schema must hold no table or view at all: it is exposed to the Data API, and its functions are
  * the only thing that belongs there.
  */
 async function openings(client: Client): Promise<string[]> {
   const found: string[] = [];
-  const closed = ['identity', 'projects', 'lifecycle', 'artifacts'];
+  const closed = ['identity', 'projects', 'lifecycle', 'artifacts', 'usage'];
   const browser = ['anon', 'authenticated'];
 
   const {rows: schemas} = await client.query(`select nspname from pg_namespace where nspname = any($1)`, [[...closed, 'api']]);
@@ -765,11 +778,11 @@ async function openings(client: Client): Promise<string[]> {
   return found.sort();
 }
 
-describe('every table of identity, projects, lifecycle and artifacts is closed to anon and authenticated, table by table, and stays so', () => {
+describe('every table of identity, projects, lifecycle, artifacts and usage is closed to anon and authenticated, table by table, and stays so', () => {
   it('finds the tables it is meant to check, so an empty list cannot pass for a closed one', async () => {
     const {rows} = await db.query(
       `select n.nspname || '.' || c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace
-        where n.nspname in ('identity', 'projects', 'lifecycle', 'artifacts') and c.relkind in ('r', 'p') order by 1`,
+        where n.nspname in ('identity', 'projects', 'lifecycle', 'artifacts', 'usage') and c.relkind in ('r', 'p') order by 1`,
     );
     expect(rows.map((row) => row.name)).toEqual(
       expect.arrayContaining([
@@ -801,6 +814,8 @@ describe('every table of identity, projects, lifecycle and artifacts is closed t
         'artifacts.staging_leases',
         'artifacts.ticket_redemptions',
         'artifacts.transfer_handles',
+        'usage.fixture_figures',
+        'usage.periods',
       ]),
     );
   });
@@ -809,8 +824,8 @@ describe('every table of identity, projects, lifecycle and artifacts is closed t
     expect(await openings(db)).toEqual([]);
   });
 
-  it('fails for every kind of opening, in each of the four schemas, so a table added later that is not closed fails this suite', async () => {
-    for (const schema of ['identity', 'projects', 'lifecycle', 'artifacts']) {
+  it('fails for every kind of opening, in each of the five schemas, so a table added later that is not closed fails this suite', async () => {
+    for (const schema of ['identity', 'projects', 'lifecycle', 'artifacts', 'usage']) {
       await inTx(async (client) => {
         const leak = async (name: string, ddl: string[]) => {
           await client.query('savepoint leak');
@@ -882,7 +897,7 @@ describe('every table of identity, projects, lifecycle and artifacts is closed t
     await inTx(async (client) => {
       const {rows} = await client.query(
         `select n.nspname as schema, c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace
-          where n.nspname in ('identity', 'projects', 'lifecycle', 'artifacts') and c.relkind in ('r', 'p') order by 1, 2`,
+          where n.nspname in ('identity', 'projects', 'lifecycle', 'artifacts', 'usage') and c.relkind in ('r', 'p') order by 1, 2`,
       );
       for (const {schema, name} of rows) {
         for (const role of ['anon', 'authenticated']) {

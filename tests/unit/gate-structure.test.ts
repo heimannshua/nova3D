@@ -443,7 +443,7 @@ describe('step-up (Story 1.4b) has one way in, one way to decide and one way to 
     for (const call of calls) expect(call).toMatch(/actionClass: 'administration'/);
     expect(code).not.toMatch(/startedAfter/);
     // The files that use the wrapper never name the marker themselves.
-    for (const file of ['app/admin/invitations/actions.ts', 'app/admin/invitations/page.tsx', 'app/admin/accounts/actions.ts', 'app/admin/accounts/page.tsx', 'app/admin/page.tsx']) {
+    for (const file of ['app/admin/invitations/actions.ts', 'app/admin/invitations/page.tsx', 'app/admin/accounts/actions.ts', 'app/admin/accounts/page.tsx', 'app/admin/page.tsx', 'app/admin/usage/actions.ts', 'app/admin/usage/page.tsx']) {
       expect(withoutComments(read(file)), file).not.toMatch(/\bcheckMarker\b|startedAfter/);
     }
   });
@@ -678,8 +678,9 @@ describe('the administrator wrapper (Story 1.5) is the one place that decides an
     ];
     const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
     const wrapped = sources.filter((file) => /\badministered(?:<\w+>)?\(/.test(withoutComments(read(file)))).sort();
-    expect(wrapped).toEqual(['app/admin/accounts/actions.ts', 'app/admin/invitations/actions.ts', wrapper]);
-    expect(callers('readConfirmation')).toEqual(['app/admin/accounts/page.tsx', 'app/admin/invitations/page.tsx', 'app/admin/page.tsx', wrapper]);
+    // On purpose changed (Story 2.4): the Usage and limits page is the third user of the wrapper and the fourth page that reads the confirmation.
+    expect(wrapped).toEqual(['app/admin/accounts/actions.ts', 'app/admin/invitations/actions.ts', 'app/admin/usage/actions.ts', wrapper]);
+    expect(callers('readConfirmation')).toEqual(['app/admin/accounts/page.tsx', 'app/admin/invitations/page.tsx', 'app/admin/page.tsx', 'app/admin/usage/page.tsx', wrapper]);
   });
 
   it('checks the role, then the marker, then makes the change, inside withActiveAccount and in that order', () => {
@@ -778,8 +779,12 @@ describe('Account administration (Story 1.5) disables in one database call, then
   });
 
   it('shows and reads nothing of a Workspace: no page, action, component or list function names one, and the database function reads none', () => {
-    for (const file of ['app/admin/page.tsx', 'app/admin/accounts/page.tsx', actions, 'components/admin/admin-content.tsx', 'components/admin/accounts-content.tsx', 'components/admin/account-list.tsx', 'components/admin/account-failure-notice.tsx', 'components/use-account-action.ts', 'lib/account-admin.ts', 'lib/authority.ts']) {
+    for (const file of ['app/admin/accounts/page.tsx', actions, 'components/admin/accounts-content.tsx', 'components/admin/account-list.tsx', 'components/admin/account-failure-notice.tsx', 'components/use-account-action.ts', 'lib/account-admin.ts', 'lib/authority.ts']) {
       expect(withoutComments(read(file)), file).not.toMatch(/workspace|projects\.|\bproject(?:s|Name|Id)?\b|\busage\b/i);
+    }
+    // On purpose changed (Story 2.4): the Administration index links to Usage and limits, so these two files now name usage. They still name no Workspace and no Project.
+    for (const file of ['app/admin/page.tsx', 'components/admin/admin-content.tsx']) {
+      expect(withoutComments(read(file)), file).not.toMatch(/workspace|projects\.|\bproject(?:s|Name|Id)?\b/i);
     }
     const migration = withoutComments(read('supabase/migrations/20261012130000_account_administration.sql').replace(/^--.*$/gm, ''));
     const listing = migration.slice(migration.indexOf('create function api.list_accounts'), migration.indexOf('comment on function api.list_accounts'));
@@ -1027,7 +1032,8 @@ describe('Projects (Story 1.7) are read and renamed through the typed calls, for
 
   it('exports the call helpers from lib/accounts.ts for lib/projects.ts and, since Story 1.8, lib/lifecycle.ts alone', () => {
     const users = sources.filter((file) => /\b(?:callApi|callRow)\b/.test(withoutComments(read(file)))).sort();
-    expect(users).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts']);
+    // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
+    expect(users).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
   });
 
   it('is one Server Action behind withActiveAccount, with the Account from the verified access and nothing about it from the form', () => {
@@ -2256,7 +2262,8 @@ describe('Request revisions (Story 2.1) are created and read through two typed c
     expect(code('lib/projects.ts')).toMatch(/callRow\(\s*'create_project_request'/);
     expect(code('lib/projects.ts')).toMatch(/callRow\('read_project_request'/);
     // callApi and callRow still have the same three users.
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts']);
+    // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
   });
 
   it('is two Server Actions behind withActiveAccount in their own file, with the Account from the verified access and nothing about it from the form', () => {
@@ -2578,7 +2585,8 @@ describe('Picture sets (Story 2.2) are recorded through two typed calls, by two 
     for (const file of sources.filter((candidate) => /^(?:app\/.*page\.tsx|components\/.*)$/.test(candidate))) {
       expect(code(file), file).not.toMatch(/\b(?:recordPictureSet|releaseStagedPictures|callApi|callRow)\b/);
     }
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts']);
+    // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
   });
 
   it('is two Server Actions behind withActiveAccount in a file of their own, with the Account from the verified access and only a command, a Project and uploads from the form', () => {
@@ -2949,7 +2957,8 @@ describe('Picture review (Story 2.3) is recorded through one typed call, by one 
     for (const file of sources.filter((candidate) => /^(?:app\/.*page\.tsx|components\/.*)$/.test(candidate))) {
       expect(code(file), file).not.toMatch(/\b(?:callApi|callRow)\b/);
     }
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts']);
+    // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
     // The Project typed calls did not move.
     expect(callers('recordPictureSet')).toEqual(['app/projects/new/pictures/actions.ts', 'lib/projects.ts']);
     expect(callers('readProjectRequest')).toEqual(['lib/project-pages.ts', 'lib/projects.ts']);
@@ -3431,5 +3440,258 @@ describe('Retaining the confirmed pictures (Story 2.12) is one module, before th
     const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>; devDependencies: Record<string, string>};
     expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
     expect(read('next.config.ts')).not.toMatch(/Content-Security-Policy|Permissions-Policy|headers\(/);
+  });
+});
+
+describe('Usage limits (Story 2.4) are changed through one typed module and one gate, in integer microdollars, and nothing writes a figure', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+    'next.config.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const code = (file: string) => withoutComments(read(file));
+  const actions = 'app/admin/usage/actions.ts';
+  const page = 'app/admin/usage/page.tsx';
+  const migrationFile = 'supabase/migrations/20261022120000_usage_limits.sql';
+  const migration = read(migrationFile).replace(/^\s*--.*$/gm, '');
+  const browserPieces = ['lib/usage-view.ts', 'components/use-usage-action.ts', ...files('components/admin', (name) => /^usage-.*\.tsx$/.test(name))];
+
+  it('finds the files it reads', () => {
+    for (const file of [actions, page, 'lib/usage.ts', 'lib/usage-view.ts', 'components/admin/usage-content.tsx', 'components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'components/admin/usage-failure-notice.tsx', migrationFile]) {
+      expect(() => read(file), file).not.toThrow();
+    }
+    expect(browserPieces.sort()).toEqual(['components/admin/usage-content.tsx', 'components/admin/usage-failure-notice.tsx', 'components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'components/use-usage-action.ts', 'lib/usage-view.ts']);
+  });
+
+  it('reaches the three database functions through lib/usage.ts and nothing else names them', () => {
+    for (const file of sources.filter((candidate) => candidate !== 'lib/usage.ts' && candidate !== 'lib/accounts.ts')) {
+      expect(code(file), file).not.toMatch(/['"`](?:set_usage_limit|list_usage|record_usage_refusal)['"`]/);
+    }
+    expect(code('lib/usage.ts')).toMatch(/callRow\(\s*'list_usage'/);
+    expect(code('lib/usage.ts')).toMatch(/callRow\(\s*'set_usage_limit'/);
+    expect(code('lib/usage.ts')).toMatch(/callRow\(\s*'record_usage_refusal'/);
+    expect(callers('setUsageLimit')).toEqual([actions, 'lib/usage.ts']);
+    expect(callers('listUsage')).toEqual([page, 'lib/usage.ts']);
+    expect(callers('recordUsageRefusal')).toEqual([actions, 'lib/usage.ts']);
+    for (const file of sources.filter((candidate) => /^(?:app\/.*page\.tsx|components\/.*)$/.test(candidate))) {
+      expect(code(file), file).not.toMatch(/\b(?:setUsageLimit|recordUsageRefusal|callApi|callRow)\b/);
+    }
+  });
+
+  it('is the third user of the administrator wrapper: two Server Actions behind it, the Account only from the verified access, and the rest of the form only after the role and the marker', () => {
+    expect(read(actions).trimStart()).toMatch(/^'use server';/);
+    const body = code(actions);
+    expect([...body.matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)].map((match) => match[1])).toEqual(['changeUsageLimit', 'resetUsageCount']);
+    expect([...body.matchAll(/^export\s/gm)]).toHaveLength(2);
+    // One wrapper call, in the one function both actions share; the file never names the marker itself (the wrapper is the only gate).
+    expect([...body.matchAll(/\badministered\(/g)]).toHaveLength(1);
+    expect(body).not.toMatch(/\bcheckMarker\b|\bwithActiveAccount\b|startedAfter/);
+    const wrapped = body.slice(body.indexOf('return administered('));
+    // Only the Account is read before the wrapper (the refusal is audited against it); the command, the period and the limit only inside its callback.
+    expect([...body.matchAll(/formData\.get\(['"](\w+)['"]\)/g)].map((match) => match[1])).toEqual(['commandId', 'expectedSeq', 'limit', 'accountId', 'accountId']);
+    expect(wrapped).toContain('commandOf(formData)');
+    expect(wrapped).toContain("parseDollars(formData.get('limit'))");
+    expect(body.slice(0, body.indexOf('return administered(')).replace(/function commandOf[\s\S]*?\n\}\n/, '')).not.toMatch(/commandOf\(formData\)|parseDollars\(/);
+    expect([...body.matchAll(/accountIdOf\(formData\.get\('accountId'\)\)/g)]).toHaveLength(2);
+    // The Administrator's Account and epoch come from the verified access, never from the form.
+    expect(wrapped).toMatch(/operationOf\(access\.account\)/);
+    for (const forbidden of [/\baccountId\s*:\s*(?:formData|String\()/, /\bepoch\s*:\s*(?:formData|Number\()/, /\bsearchParams\b/, /\bheaders\(\)/, /\brequest\.url\b/, /cookies\(/, /formData\.get\(['"](?:actor|userId|epoch|adminAccountId|role)/]) {
+      expect(body).not.toMatch(forbidden);
+    }
+    // A change is never made before both checks: the typed call is inside the wrapper's callback.
+    expect(body.indexOf('setUsageLimit(')).toBeGreaterThan(body.indexOf('return administered('));
+    // The refusals are the Usage ones, recorded through the Usage module (not by widening the Accounts recorder).
+    expect(body).toContain("'usage.denied'");
+    expect(body).toContain("'usage.limit_refused'");
+    expect(body).not.toMatch(/recordAccountRefusal|recordInvitationRefusal|account\.denied/);
+  });
+
+  it('gives the page the same guard and metadata as the other Administration pages, and a 404 when the database says denied', () => {
+    const body = code(page);
+    expect(body).toMatch(/await requireAdministrator\(\)/);
+    expect(body).toMatch(/export async function generateMetadata/);
+    expect(body).toContain("'meta.usage'");
+    expect(body).toContain("'meta.notFound'");
+    expect(body).toMatch(/list\?\.outcome === 'denied'\) return notFound\(\)/);
+    expect(body).toMatch(/readConfirmation\(access\.user\)/);
+    // A read that fails is a page that says so: rows are null, and no number is made up.
+    expect(body).toMatch(/rows=\{list \? list\.rows : null\}/);
+    // The page reads the confirmation to decide whether to offer the step-up beforehand, and returns nowhere of its own.
+    expect(body).not.toMatch(/['"`]\/step-up|returnTo|stepUpReturnPaths/);
+    expect(code('lib/step-up.ts')).toMatch(/administration: '\/admin',/);
+  });
+
+  it('keeps the browser-bound pieces free of the server-only modules, and money out of floats and locales', () => {
+    for (const file of browserPieces) {
+      const text = code(file);
+      expect(text, file).not.toMatch(/from '@\/lib\/(?:accounts|access|auth|authority|administered|usage)'|from '\.\/(?:accounts|authority)(?:\.ts)?'|node:crypto|next\/headers|next\/cache/);
+      expect(text, file).not.toMatch(/\bIntl\b|toLocale|toFixed|parseFloat|Number\.parseFloat|\bMath\.round\b/);
+    }
+    // Dollars are written by one function and read by one: no component or action does the arithmetic of money itself.
+    for (const file of [actions, ...browserPieces.filter((candidate) => candidate.startsWith('components/')), page]) {
+      expect(code(file), file).not.toMatch(/\/ ?1_?000_?000\b|\* ?1_?000_?000\b|\b10_?000\b|\bmicrodollarsPerCent\b/);
+    }
+    expect(callers('formatDollars')).toEqual(['components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'lib/usage-view.ts']);
+    expect(callers('parseDollars')).toEqual([actions, 'components/admin/usage-list.tsx', 'lib/usage-view.ts']);
+  });
+
+  it('computes the state with integer arithmetic only, in the one module', () => {
+    const view = code('lib/usage-view.ts');
+    expect(view).toContain('BigInt(used) * BigInt(5) < BigInt(limit) * BigInt(4)');
+    expect(view).toContain('if (used >= limit) return \'reached\';');
+    expect(callers('classify')).toEqual(['lib/usage-view.ts']);
+    expect(callers('figuresOf')).toEqual(['components/admin/usage-list.tsx', 'lib/usage-view.ts']);
+  });
+
+  it('writes no figure: nothing in the application, a script or an api function names the fixture table, and nothing but the owner\'s tests inserts into it', () => {
+    for (const file of [...sources, ...files('scripts', (name) => /\.(mjs|ts|js)$/.test(name)), ...files('workers', (name) => /\.ts$/.test(name))]) {
+      expect(code(file), file).not.toMatch(/fixture_figures|fixtureFigures/);
+    }
+    const apiFunctions = [...migration.matchAll(/create function api\.\w+[\s\S]*?\n\$\$;/g)].map((match) => match[0]);
+    expect(apiFunctions.length).toBe(3);
+    for (const fn of apiFunctions) expect(fn).not.toMatch(/fixture_figures/);
+    // The figures of a period come from one function, over the table; nothing else in the file reads the table.
+    const readers = [...migration.matchAll(/create function (usage\.\w+)[\s\S]*?\n\$\$;/g)].filter((match) => /fixture_figures/.test(match[0])).map((match) => match[1]);
+    expect(readers).toEqual(['usage.period_figures']);
+    expect(migration).not.toMatch(/insert\s+into\s+usage\.fixture_figures|update\s+usage\.fixture_figures|delete\s+from\s+usage\.fixture_figures/i);
+  });
+
+  it('closes the usage schema like the others, makes a period immutable, and gives it the limits the story names', () => {
+    expect(migration).toMatch(/create schema usage;/);
+    expect(migration).toMatch(/revoke all on schema usage from public, anon, authenticated, service_role;/);
+    expect(migration).toMatch(/alter default privileges for role postgres in schema usage revoke execute on functions from public, anon, authenticated, service_role;/);
+    expect(migration).toMatch(/alter default privileges for role postgres in schema usage revoke all on tables from public, anon, authenticated, service_role;/);
+    expect(migration).toMatch(/alter table usage\.periods enable row level security;/);
+    expect(migration).toMatch(/alter table usage\.fixture_figures enable row level security;/);
+    expect(migration).not.toMatch(/create policy/i);
+    // Update and truncate are refused; delete is left for the Epic 8 purge.
+    expect(migration).toMatch(/create trigger periods_no_update before update on usage\.periods/);
+    expect(migration).toMatch(/create trigger periods_no_truncate before truncate on usage\.periods/);
+    expect(migration).not.toMatch(/before delete on usage\.periods|before update or delete on usage\.periods/);
+    expect(migration).not.toMatch(/(?:update\s+usage\.periods|delete\s+from\s+usage\.periods)/i);
+    // Whole cents from $0 to $10,000, in integer microdollars, and the restricting key.
+    expect(migration).toContain('limit_microdollars between 0 and 10000000000 and limit_microdollars % 10000 = 0');
+    expect(migration).toContain('references identity.accounts (id) on delete restrict');
+    expect(migration).toMatch(/unique \(account_id, seq\)/);
+    expect(migration).toMatch(/unique \(account_id, command_id\)/);
+    expect(migration).toMatch(/cause text not null check \(cause in \('initial', 'month', 'change', 'reset'\)\)/);
+    // The UTC month, never the session's time zone; the lock Story 2.6 reuses; the defaults.
+    expect(migration).toContain("date_trunc('month', clock_timestamp() at time zone 'UTC')::date");
+    expect(migration).toContain("'nova3d:usage:' || p_account_id::text");
+    expect(migration).toContain("'nova3d:usage:' || p_target_account_id::text");
+    expect(migration).toMatch(/return 50000000;/);
+    expect(migration).toMatch(/return 25000000;/);
+    // No money in a float, and no scheduler.
+    expect(migration).not.toMatch(/\b(?:double precision|float|float4|float8|numeric|decimal|money)\b/i);
+    expect(migration).not.toMatch(/pg_cron|cron\.schedule/i);
+  });
+
+  it('re-creates activate_account with the initial period in its transaction, backfills, and rolls the month over under the lock before anything reads or writes', () => {
+    const activate = migration.slice(migration.indexOf('create or replace function identity.activate_account'), migration.indexOf('$$;', migration.indexOf('create or replace function identity.activate_account')));
+    expect(activate).toContain('perform projects.provision_workspace(v_account_id);');
+    expect(activate).toContain('perform usage.create_initial_period(v_account_id, p_role);');
+    expect(migration).toMatch(/select usage\.ensure_period\(a\.id\) from identity\.accounts a order by a\.created_at, a\.id;/);
+    // Every `api` function of the story calls ensure_period before it reads or changes a period.
+    const list = migration.slice(migration.indexOf('create function api.list_usage'), migration.indexOf('comment on function api.list_usage'));
+    expect(list.indexOf('usage.ensure_period(')).toBeGreaterThan(list.indexOf('assert_operation_authority'));
+    expect(list.indexOf('usage.ensure_period(')).toBeLessThan(list.indexOf('jsonb_agg'));
+    const command = migration.slice(migration.indexOf('create function api.set_usage_limit'), migration.indexOf('comment on function api.set_usage_limit'));
+    expect(command.indexOf('usage.ensure_period(')).toBeGreaterThan(command.indexOf('pg_advisory_xact_lock'));
+    expect(command.indexOf('usage.ensure_period(')).toBeLessThan(command.indexOf('usage.append_period('));
+  });
+
+  it('runs the command in the order the story names, and audits in the same transaction', () => {
+    const command = migration.slice(migration.indexOf('create function api.set_usage_limit'), migration.indexOf('comment on function api.set_usage_limit'));
+    const order = [
+      "raise exception 'invalid argument'",
+      'identity.assert_operation_authority(p_admin_account_id, p_epoch)',
+      "v_role is distinct from 'administrator'",
+      "lifecycle.is_tombstoned('account', p_target_account_id)",
+      'pg_advisory_xact_lock(',
+      "v_target.status <> 'active'",
+      'usage.ensure_period(',
+      "v_result.outcome := 'replayed'",
+      "v_result.outcome := 'reused'",
+      "v_result.outcome := 'stale'",
+      "v_result.outcome := 'invalid_limit'",
+      "v_result.outcome := 'unchanged'",
+      'usage.append_period(',
+      'identity.record_audit(p_actor',
+    ].map((needle) => command.indexOf(needle));
+    expect(order.every((index) => index >= 0), order.join(',')).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(command).toContain("'usage.limit_changed'");
+    expect(command).toContain("'usage.limit_reset'");
+    // The audit table's five columns are pinned: nothing here alters it or puts a limit in it.
+    expect(migration).not.toMatch(/alter table identity\.audit_events/i);
+    expect(command).toContain("identity.record_audit(p_actor, case when p_kind = 'change' then 'usage.limit_changed' else 'usage.limit_reset' end, 'account:' || p_target_account_id::text)");
+    // The marker is the application's check: the function never reads one.
+    expect(command).not.toMatch(/fresh_authentications|use_marker/);
+  });
+
+  it('re-creates the preflight with every earlier probe, a Story 2.4 block, and forty-one functions', () => {
+    const body = migration.slice(migration.indexOf('create or replace function api.preflight()'), migration.indexOf('$$;', migration.indexOf('$$', migration.indexOf('create or replace function api.preflight()')) + 2));
+    const before = read('supabase/migrations/20261021120000_retained_pictures.sql').replace(/^\s*--.*$/gm, '');
+    const oldBody = before.slice(before.indexOf('create or replace function api.preflight()'), before.indexOf('$$;', before.indexOf('$$', before.indexOf('create or replace function api.preflight()')) + 2));
+    for (const probe of oldBody.match(/perform [^;]+;/g) ?? []) expect(body, probe).toContain(probe);
+    expect(body).toContain('from usage.periods u limit 1');
+    expect(body).toContain('from usage.fixture_figures x2 limit 1');
+    expect(body).toContain('the Story 2.4 migration is not applied');
+    for (const signature of ['api.set_usage_limit(text,uuid,bigint,uuid,uuid,text,bigint,integer)', 'api.list_usage(uuid,bigint)', 'api.record_usage_refusal(uuid,text,uuid)', 'usage.ensure_period(uuid)', 'usage.period_figures(uuid)', 'usage.available_microdollars(uuid)', 'usage.default_limit(text)']) {
+      expect(body, signature).toContain(`'${signature}'`);
+    }
+    const privileges = body.slice(body.lastIndexOf('from unnest(array[', body.indexOf('has_function_privilege')), body.indexOf('has_function_privilege'));
+    expect([...privileges.matchAll(/'api\.[a-z_]+\(/g)]).toHaveLength(41);
+    // The bucket check stays last.
+    expect(body.indexOf("b.id = 'private-files'")).toBeGreaterThan(body.indexOf('has_table_privilege'));
+    expect(body.indexOf('v_result.ok := true')).toBeGreaterThan(body.indexOf("b.id = 'private-files'"));
+    expect(migration.trimEnd().endsWith("notify pgrst, 'reload schema';")).toBe(true);
+  });
+
+  it('adds no route, no dependency, no variable and no secret, and leaves the Accounts list and Account disable alone', () => {
+    expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).sort()).toEqual([
+      'app/api/health/route.ts',
+      'app/api/heartbeat/route.ts',
+      'app/api/jobs/route.ts',
+      'app/api/kit/mutation/route.ts',
+      'app/api/status/route.ts',
+      'app/api/transfers/tickets/route.ts',
+      'app/auth/callback/route.ts',
+    ]);
+    const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>};
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+    for (const file of ['lib/usage.ts', 'lib/usage-view.ts', actions, page, ...browserPieces]) expect(code(file), file).not.toMatch(/process\.env/);
+    // Usage is not on the Accounts list and Account disable is untouched.
+    expect(code('lib/account-admin.ts')).not.toMatch(/usage/i);
+    expect(code('components/admin/account-list.tsx')).not.toMatch(/usage/i);
+    expect(code('app/admin/accounts/actions.ts')).not.toMatch(/usage/i);
+    expect(migration).not.toMatch(/create or replace function api\.(?:disable_account|enable_account|list_accounts)|alter function api\.(?:disable_account|enable_account|list_accounts)/i);
+  });
+
+  it('prints only the name and message of an error, and records a refusal with the actor, the action and the Account alone', () => {
+    const body = code(actions);
+    const lines = body.split('\n').filter((line) => /console\.(?:log|info|warn|error|debug)\(/.test(line));
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      expect(line).toMatch(/describe\(error\)/);
+      expect(line).not.toMatch(/email|accountId|formData|amount|\$\{/i);
+    }
+    expect(body).toMatch(/recordUsageRefusal\(\{userId, action, accountId\}/);
+    for (const file of ['lib/usage.ts', ...browserPieces]) expect(code(file), file).not.toMatch(/console\./);
+  });
+
+  it('writes the story down: the contract, the stand-in, the deferred work, the staging row and the README', () => {
+    const contract = read('docs/authority-contract.md');
+    for (const needle of ['Usage periods', 'usage.periods', 'usage.ensure_period', 'nova3d:usage:', 'usage.fixture_figures', 'usage.period_figures', 'api.set_usage_limit', 'carried', 'reset', 'Story 2.6', 'immutable']) expect(contract, needle).toContain(needle);
+    const guide = read('docs/staging.md');
+    for (const needle of ['20261022120000_usage_limits.sql', 'api.set_usage_limit', 'usage.fixture_figures', 'forty-one']) expect(guide, needle).toContain(needle);
+    const readme = read('README.md');
+    for (const needle of ['Story 2.4', 'usage_limits', 'lib/usage.ts', 'lib/usage-view.ts', '/admin/usage', '("Usage periods")']) expect(readme, needle).toContain(needle);
+    expect(readme.split('\n').find((line) => line.startsWith('| Usage')) ?? '').not.toContain('nothing yet');
+    const deferred = read('_bmad-output/implementation-artifacts/deferred-work.md');
+    for (const needle of ['Story 2.4', 'usage.fixture_figures', '$10,000', 'scheduler', 'history']) expect(deferred, needle).toContain(needle);
   });
 });

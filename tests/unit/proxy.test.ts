@@ -57,7 +57,7 @@ describe('public paths (Story 1.2)', () => {
   });
 
   it('never makes any other private page public', () => {
-    for (const path of ['/', '/settings', '/projects', '/progress', '/register', '/register/extra', '/kit/extra', '/kitx', '/admin', '/admin/accounts', '/step-up']) {
+    for (const path of ['/', '/settings', '/projects', '/progress', '/register', '/register/extra', '/kit/extra', '/kitx', '/admin', '/admin/accounts', '/admin/usage', '/step-up']) {
       expect(isPublicPath(path, {SYNTHETIC_DATA_ENABLED: 'true'}), path).toBe(false);
     }
   });
