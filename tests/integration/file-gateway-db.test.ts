@@ -123,12 +123,13 @@ async function waitingOnLock(pid: number) {
 const pidOf = async (client: Client) => Number((await client.query('select pg_backend_pid() as pid')).rows[0].pid);
 
 const artifactsTables = ['attachment_transforms', 'manifests', 'service_key_revocations', 'staging_leases', 'ticket_redemptions', 'transfer_handles'];
-const artifactsViews = ['instance', 'session_authority'];
+// Story 2.12 adds a third view: the live-authorization view of the retained-picture resolver.
+const artifactsViews = ['instance', 'retained_pictures', 'session_authority'];
 const browserRoles = ['anon', 'authenticated', 'service_role'];
 
 // ---------------------------------------------------------------------------------------------------
 describe('the Artifacts schema is closed to every role but the owner and the gateway', () => {
-  it('holds exactly the six tables and the two views, and no sequence and no other relation, and is not in public or lifecycle', async () => {
+  it('holds exactly the six tables and the three views, and no sequence and no other relation, and is not in public or lifecycle', async () => {
     const {rows: relations} = await db.query(
       `select c.relname as name, c.relkind as kind from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname = 'artifacts' and c.relkind in ('r', 'p', 'v', 'm', 'f', 'S') order by 1`,
@@ -179,7 +180,7 @@ describe('the Artifacts schema is closed to every role but the owner and the gat
            from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'artifacts' and c.relkind in ('r', 'v', 'S')`,
         [role],
       );
-      expect(relations).toHaveLength(8);
+      expect(relations).toHaveLength(9);
       for (const relation of relations) expect(relation.any, `${role} on artifacts.${relation.name}`).toBe(false);
       const {rows: functions} = await db.query(
         `select p.proname as name, has_function_privilege($1, p.oid, 'execute') as can from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'artifacts'`,
@@ -352,6 +353,8 @@ describe('the gateway role holds exactly its list and nothing else', () => {
     expect(relations.length).toBeGreaterThan(40);
     const granted: Record<string, {privileges: string[]; writable?: string[]}> = {
       'artifacts.instance': {privileges: ['select']},
+      // Story 2.12: the retained-picture resolver reads this view before every chunk of a download (select only; it reads no projects table itself).
+      'artifacts.retained_pictures': {privileges: ['select']},
       'artifacts.session_authority': {privileges: ['select']},
       'artifacts.ticket_redemptions': {privileges: ['select', 'insert'], writable: ['account_id', 'direction', 'expires_at', 'issuer', 'jti', 'kid', 'redeemed_at', 'session_id', 'target_id', 'target_kind', 'typ']},
       'artifacts.transfer_handles': {privileges: ['select', 'insert'], writable: ['account_id', 'created_at', 'direction', 'ended_at', 'epoch', 'expires_at', 'hash', 'jti', 'kid', 'session_id', 'target_id', 'target_kind']},
@@ -390,6 +393,9 @@ describe('the gateway role holds exactly its list and nothing else', () => {
         'select * from identity.accounts',
         'select * from identity.session_grants',
         'select * from projects.projects',
+        // Story 2.12: the view of retained pictures is granted, the tables behind it are not.
+        'select * from projects.request_images',
+        'select * from projects.request_revisions',
         'select * from lifecycle.instance_identity',
         'select * from lifecycle.tombstones',
         'select * from auth.users',
@@ -1355,7 +1361,8 @@ describe('artifacts.publish_attachment: the one writer of a manifest', () => {
   it('answers transform_unknown for a transform that is not registered, and `none` is the one that is', async () => {
     const who = await member();
     await inTx(async (client) => {
-      expect((await client.query('select name from artifacts.attachment_transforms order by 1')).rows).toEqual([{name: 'none'}]);
+      // `none`, and (Story 2.12) the metadata strip of a picture.
+      expect((await client.query('select name from artifacts.attachment_transforms order by 1')).rows).toEqual([{name: 'none'}, {name: 'strip-picture-metadata'}]);
       const lease = await completeLease(client, who);
       for (const transform of ['strip-metadata', 'resize', 'none2']) {
         expect((await publish(client, who, lease, {transform})).outcome, transform).toBe('transform_unknown');
@@ -1748,11 +1755,11 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
       'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'v.revoked_at', 'artifacts.session_authority', 'w.state', 'artifacts.instance', 'n.instance_id',
       'api.revoke_service_key(text,text,text)', 'api.list_expired_staging(integer)', 'artifacts.publish_attachment(uuid,bigint,uuid,text,text,text)', 'Story 1.12 migration', 'private-files', 'storage.buckets',
     ]) expect(definition, needle).toContain(needle);
-    // The two new `api` functions are among those the service role must be able to execute (thirty-one in all since Story 1.13 added seven, thirty-three since Story 2.1 added two, thirty-five since Story 2.2 added two more, thirty-six since Story 2.3 added one).
+    // The two new `api` functions are among those the service role must be able to execute (thirty-one in all since Story 1.13 added seven, thirty-three since Story 2.1 added two, thirty-five since Story 2.2 added two more, thirty-six since Story 2.3 added one, thirty-eight since Story 2.12 added two).
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
     expect(check).toBeGreaterThan(-1);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(36);
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(38);
     for (const signature of ['api.revoke_service_key(text,text,text)', 'api.list_expired_staging(integer)']) {
       expect((await db.query(`select has_function_privilege('service_role', $1, 'execute') as can`, [signature])).rows[0].can).toBe(true);
     }
@@ -1811,13 +1818,13 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
 
   // The functions run as their owner. Hand this one to `anon`, which can use the schemas but read none of their tables, and give it the right to read
   // all but one of the Artifacts relations, inside a transaction that is rolled back, to see that each read is made and named.
-  it.each(['artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance'])(
+  it.each(['artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures'])(
     'fails, naming a permission and not answering ok, when the role it runs as cannot read %s',
     async (blocked) => {
       const everything = [
         'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
         'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
-        'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance',
+        'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
         'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats',
         'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
       ];
@@ -1859,7 +1866,7 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
     const tables = [
       'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
-      'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance',
+      'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
       'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
     ];

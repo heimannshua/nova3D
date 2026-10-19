@@ -6,7 +6,12 @@ import {Unreadable} from '@/components/projects/unreadable';
 import {homePath} from '@/lib/access';
 import {getAccess, requireActiveAccount} from '@/lib/auth';
 import {getI18n} from '@/lib/i18n/server';
-import {loadProject, loadProjectRequest} from '@/lib/project-pages';
+import {loadProject, loadProjectRequest, loadRetainedPictures} from '@/lib/project-pages';
+
+// Retaining the pictures (Story 2.12) is a Server Action of this page, and it reads each staged picture, strips its metadata and stores the result before it answers: up to
+// 12 pictures, 4 at a time, each within 30 seconds. A Server Action runs under the page's limit, so the page names the action's budget (60 seconds, which
+// lib/retention.ts keeps within). Next.js: node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/02-route-segment-config/maxDuration.md.
+export const maxDuration = 60;
 
 // As the overview's title: the same read, and a Project that is not available has the title of the page that says so.
 export async function generateMetadata({params}: {params: Promise<{projectId: string}>}): Promise<Metadata> {
@@ -48,12 +53,25 @@ export default async function ProjectPictureReviewPage({params}: {params: Promis
     return <PicturesLocked project={loaded.project} kind="review"/>;
   }
   const {request} = loadedRequest;
+  // Which of the pictures are kept as retained pictures (Story 2.12): the review reads those from their retained copy and the others from staging. Not knowing is not
+  // guessing: a read that cannot be made is the page that says to try again.
+  const retained = await loadRetainedPictures(access.account.accountId, access.account.epoch, projectId);
+  if (retained.state === 'denied') return redirect(homePath);
+  if (retained.state === 'unavailable') return notFound();
+  if (retained.state === 'unreadable') {
+    return (
+      <div className="page page-narrow">
+        <Unreadable title="project.error.title" body="project.error.body" headingLevel={1}/>
+      </div>
+    );
+  }
   // The key restarts the screen when the Project's pictures or review change (a newer revision), so it never holds the measurements of an older one.
   return (
     <PictureReview
       key={request.seq}
       project={{id: loaded.project.id, title: loaded.project.title}}
       request={{seq: request.seq, mode: request.mode, confirmed: request.confirmed, scope: request.scope, outcome: request.outcome, images: request.images}}
+      kept={retained.state === 'found' ? retained.pictures : []}
     />
   );
 }

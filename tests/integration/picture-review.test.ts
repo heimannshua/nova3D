@@ -25,7 +25,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   if (left.length) {
-    await db.query(`update artifacts.staging_leases set state = 'released' where id = any($1) and state in ('receiving', 'complete')`, [left]).catch(() => undefined);
+    await db.query(`update artifacts.staging_leases set state = 'released' where id = any($1) and state in ('receiving', 'complete', 'attached')`, [left]).catch(() => undefined);
     await db.query(`update artifacts.staging_leases set state = 'deleted' where id = any($1) and state = 'released'`, [left]).catch(() => undefined);
   }
 });
@@ -47,7 +47,9 @@ async function committedAccount(): Promise<Fixture> {
   return made;
 }
 
-type Lease = {id: string; sha: string; length: number; ct: string};
+type Lease = {id: string; sha: string; length: number; ct: string; retained?: Retained};
+/** What the gateway's strip publishes for an upload (Story 2.12): the manifest root and the retained copy's digest and length. */
+type Retained = {root: string; digest: string; length: number};
 async function lease(client: Client, owner: Fixture | string, options: {state?: string; expires?: number; age?: number; kind?: string; length?: number} = {}): Promise<Lease> {
   const state = options.state ?? 'complete';
   const length = options.length ?? 1000;
@@ -70,10 +72,30 @@ const leaseRow = async (client: Client, id: string) => (await client.query('sele
 const dbNow = async (client: Client) => (await client.query('select clock_timestamp() as now')).rows[0].now as Date;
 const asService = async (client: Client, sql: string, params: unknown[]) => (await rows(client, 'service_role', sql, params))[0];
 
-/** A Project and its first (unreviewed) picture revision, made by the picture-set writer. */
-async function pictureProject(client: Client, who: Fixture, set: Lease[]) {
+/**
+ * Retains an upload the way the gateway's attach does (Story 2.12): the manifest of the STRIPPED copy is published by artifacts.publish_attachment under the
+ * transform strip-picture-metadata, whose body holds the retained digest and length, and the lease becomes `attached`. The stripped copy is a made-up one here
+ * (a digest derived from the staged one, 7 bytes shorter): the database never reads the bytes, only the manifest. Answers the receipt's outcome.
+ */
+async function retainUpload(client: Client, accountId: string, entry: Lease, epoch = 1): Promise<string> {
+  const digest = createHash('sha256').update(`retained:${entry.sha}`).digest('hex');
+  const length = Math.max(1, entry.length - 7);
+  const body = `{"activity":"upload:strip-picture-metadata","children":[],"digest":"${digest}","id":"${entry.id}","kind":"picture","length":${length},"scope":"${accountId}","serialization":1}`;
+  const root = createHash('sha256').update(body, 'utf8').digest('hex');
+  const {rows: answered} = await client.query('select * from artifacts.publish_attachment($1, $2, $3, $4, $5, $6)', [accountId, epoch, entry.id, 'strip-picture-metadata', root, body]);
+  if (answered[0].outcome === 'published' || answered[0].outcome === 'exists') entry.retained = {root, digest, length};
+  return answered[0].outcome as string;
+}
+/** Retains every upload of a set that can be (a lapsed, released or foreign one is left as it is, and the writer says so). */
+async function retainAll(client: Client, who: Fixture, set: Lease[]) {
+  for (const entry of set) await retainUpload(client, who.accountId, entry, who.epoch);
+}
+
+/** A Project and its first (unreviewed) picture revision, made by the picture-set writer, with its pictures retained (as the application does before a review). */
+async function pictureProject(client: Client, who: Fixture, set: Lease[], options: {retain?: boolean} = {}) {
   const made = await asService(client, 'select * from api.record_picture_set($1, $2, $3, $4, $5, $6)', [who.accountId, who.epoch, randomUUID(), null, 'Picture request', ids(set)]);
   expect(made.outcome).toBe('created');
+  if (options.retain !== false) await retainAll(client, who, set);
   return {projectId: made.project_id as string, requestId: made.request_id as string};
 }
 
@@ -138,6 +160,9 @@ const imagesOf = async (client: Client, revisionId: string) =>
       [revisionId],
     )
   ).rows;
+/** What a revision pins (Story 2.12), in order: the staged SHA-256 beside the retained root, digest and length. */
+const pinsOf = async (client: Client, revisionId: string) =>
+  (await client.query('select position, sha256, retained_root, retained_sha256, retained_length from projects.request_images where revision_id = $1 order by position', [revisionId])).rows;
 async function snapshot(client: Client, who: Fixture, uploadIds: string[]) {
   return {
     projects: await projectsOf(client, who.accountId),
@@ -418,25 +443,27 @@ describe('api.record_picture_review: direct image-derived conversion confirms th
     });
   });
 
-  it('refuses a confirmed direct review of a picture whose private copy has lapsed, and records nothing: a confirmed request cannot be reviewed again until pictures are retained', async () => {
+  it('reviews a confirmed direct request again after its staged copies have lapsed: the pictures are retained, so the manifest, not the staged copy, is what is read', async () => {
     await inTx(async (client) => {
       const a = await account(client);
       const set = await leases(client, a, 3);
       const { projectId } = await pictureProject(client, a, set);
       const confirmed = await review(client, a, {project: projectId, seq: 1, mode: 'image_direct', images: imagesJson(set, threeViews())});
       expect(confirmed.outcome).toBe('created');
-      // The second picture's copy lapses (24 hours after the last save).
-      await client.query(`update artifacts.staging_leases set expires_at = clock_timestamp() - interval '1 second' where id = $1`, [set[1].id]);
-      const state = await snapshot(client, a, ids(set));
-      // Neither the same review nor a mode change (which would unlock the pictures) can be recorded: the leases are read again first.
-      for (const mode of ['image_direct', 'evidence_images']) {
-        expect(await review(client, a, {project: projectId, seq: 2, mode, images: imagesJson(set, threeViews())}), mode).toEqual({outcome: 'expired_upload', ...nothing, position: 2});
-      }
-      expect(await snapshot(client, a, ids(set))).toEqual(state);
-      expect((await projectsOf(client, a.accountId))[0]).toMatchObject({stage: 'request_confirmed', revision: 2});
-      expect(await revisionsOf(client, a.accountId)).toHaveLength(2);
-      // The picture-set writer cannot change them either: a confirmed request is not editable there.
-      expect(await asService(client, 'select * from api.record_picture_set($1, $2, $3, $4, $5, $6)', [a.accountId, a.epoch, randomUUID(), projectId, null, ids(set)])).toMatchObject({outcome: 'not_editable'});
+      // The staged copies lapse (the writer set them to expire), the hourly cleanup releases the first and deletes the second; the third is simply past its time.
+      await client.query(`update artifacts.staging_leases set expires_at = clock_timestamp() - interval '1 second' where id = $1`, [set[2].id]);
+      await client.query(`update artifacts.staging_leases set state = 'released' where id = $1`, [set[0].id]);
+      await client.query(`update artifacts.staging_leases set state = 'released' where id = $1`, [set[1].id]);
+      await client.query(`update artifacts.staging_leases set state = 'deleted' where id = $1`, [set[1].id]);
+      // The same review is `unchanged` and a change of mode (which unlocks the pictures) is a successor: the leases no longer matter.
+      expect(await review(client, a, {project: projectId, seq: 2, mode: 'image_direct', images: imagesJson(set, threeViews())})).toEqual({outcome: 'unchanged', project_id: projectId, request_id: confirmed.request_id, seq: 2, position: null});
+      const research = await review(client, a, {project: projectId, seq: 2, mode: 'evidence_images', images: imagesJson(set, threeViews())});
+      expect(research).toMatchObject({outcome: 'created', seq: 3});
+      expect((await projectsOf(client, a.accountId))[0]).toMatchObject({stage: 'request_draft', revision: 3});
+      // The pins are carried to the new revision, whatever became of the staged copies.
+      expect((await pinsOf(client, research.request_id as string)).map((pin) => pin.retained_root)).toEqual(set.map((entry) => entry.retained!.root));
+      // The retained pictures are accepted by the picture-set writer though their staged copies are gone (the same order is `unchanged`).
+      expect(await asService(client, 'select * from api.record_picture_set($1, $2, $3, $4, $5, $6)', [a.accountId, a.epoch, randomUUID(), projectId, null, ids(set)])).toMatchObject({outcome: 'unchanged'});
     });
   });
 
@@ -495,32 +522,36 @@ describe('api.record_picture_review: successors, mode changes and the earlier re
     });
   });
 
-  it('copies the ordered pictures with the lease\'s own SHA-256, length and type, not the caller\'s, and renews the leases within the 24 hour and 7 day bound', async () => {
+  it('copies the ordered pictures with the lease\'s own SHA-256, length and type, not the caller\'s, pins the manifests\' root, digest and length, and sets the staged copies to expire now', async () => {
     await inTx(async (client) => {
       const a = await account(client);
       const young = await lease(client, a, {age: 3600, expires: 600});
       const old = await lease(client, a, {age: 7 * 86400 - 3600, expires: 600});
       const set = [young, old];
       const { projectId } = await pictureProject(client, a, set);
-      // (Saving renewed both once already; set them short again so this review's renewal is what is seen.)
-      await client.query(`update artifacts.staging_leases set expires_at = clock_timestamp() + interval '10 minutes' where id = any($1)`, [ids(set)]);
       const before = await dbNow(client);
       const done = await review(client, a, {project: projectId, seq: 1, images: imagesJson(set, [sharp('front'), sharp('left')])});
       expect(done.outcome).toBe('created');
-      const [first, second] = await Promise.all(set.map((entry) => leaseRow(client, entry.id)));
-      expect(first.expires_at.getTime()).toBeGreaterThanOrEqual(before.getTime() + 24 * 3600_000);
-      // The old lease is kept, but never past 7 days from when it was created (an hour from now).
-      expect(second.expires_at.getTime()).toBe(second.created_at.getTime() + 7 * 86400_000);
-      expect(second.expires_at.getTime()).toBeLessThan(before.getTime() + 2 * 3600_000);
       expect((await imagesOf(client, done.request_id as string)).map((image) => [image.sha256, image.length, image.content_type])).toEqual(set.map((entry) => [entry.sha, entry.length, 'image/png']));
+      // The retained facts are the Account's manifests' (never the browser's), beside the staged digest the person confirmed, in order.
+      expect(await pinsOf(client, done.request_id as string)).toEqual(
+        set.map((entry, index) => ({position: index + 1, sha256: entry.sha, retained_root: entry.retained!.root, retained_sha256: entry.retained!.digest, retained_length: entry.retained!.length})),
+      );
+      // The staged copies expire at the commit, not 24 hours later (the retained copy is what lasts): the hourly cleanup deletes them.
+      const after = await dbNow(client);
+      for (const row of await Promise.all(set.map((entry) => leaseRow(client, entry.id)))) {
+        expect(row.state).toBe('attached');
+        expect(row.expires_at.getTime()).toBeGreaterThanOrEqual(before.getTime());
+        expect(row.expires_at.getTime()).toBeLessThanOrEqual(after.getTime());
+      }
     });
   });
 
-  it('releases nothing and retains nothing: the pictures stay the revision\'s, in their lease states', async () => {
+  it('releases nothing: the pictures stay the revision\'s, their leases are attached (and expiring), never released', async () => {
     await inTx(async (client) => {
       const a = await account(client);
       const { set } = await reviewedProject(client, a);
-      for (const entry of set) expect((await leaseRow(client, entry.id)).state).toBe('complete');
+      for (const entry of set) expect((await leaseRow(client, entry.id)).state).toBe('attached');
     });
   });
 });
@@ -744,7 +775,7 @@ describe('api.record_picture_review: a review never moves a Project backwards', 
 describe('api.record_picture_review: the same review confirmed again is not a new revision', () => {
   const expiries = async (client: Client, set: Lease[]) => (await client.query('select id, expires_at from artifacts.staging_leases where id = any($1) order by id', [ids(set)])).rows as {id: string; expires_at: Date}[];
 
-  it('answers `unchanged` with the current ids for a research-assisted review pressed again under a new command after the answer was lost; nothing is written, the leases are renewed', async () => {
+  it('answers `unchanged` with the current ids for a research-assisted review pressed again under a new command after the answer was lost; nothing is written and no staged copy is given a new life', async () => {
     await inTx(async (client) => {
       const a = await account(client);
       const { projectId, set, requestId } = await reviewedProject(client, a);
@@ -752,30 +783,44 @@ describe('api.record_picture_review: the same review confirmed again is not a ne
       const earlier = await expiries(client, set);
       const again = await review(client, a, {project: projectId, seq: 2, images: imagesJson(set, threeViews())});
       expect(again).toEqual({outcome: 'unchanged', project_id: projectId, request_id: requestId, seq: 2, position: null});
-      // No revision, no image and no Project change; the leases (the only thing that moved) were renewed within the bound of Story 2.2.
-      const after = await snapshot(client, a, ids(set));
-      expect({...after, leases: undefined}).toEqual({...before, leases: undefined});
+      // No revision, no image, no lease and no Project change: the pictures are retained and their staged copies are already expiring.
+      expect(await snapshot(client, a, ids(set))).toEqual(before);
       expect(await revisionsOf(client, a.accountId)).toHaveLength(2);
-      const now = await dbNow(client);
       for (const lease of await expiries(client, set)) {
-        const previous = earlier.find((entry) => entry.id === lease.id)!;
-        expect(lease.expires_at.getTime()).toBeGreaterThan(previous.expires_at.getTime());
-        expect(lease.expires_at.getTime()).toBeLessThanOrEqual(now.getTime() + 24 * 3600 * 1000);
-        expect(lease.expires_at.getTime()).toBeGreaterThan(now.getTime() + 23 * 3600 * 1000);
+        expect(lease.expires_at.getTime()).toBe(earlier.find((entry) => entry.id === lease.id)!.expires_at.getTime());
       }
     });
   });
 
-  it('keeps the 7 day bound when it renews: a picture nearly a week old is renewed to its limit and no further', async () => {
+  it('is not `unchanged` when the latest revision does not pin the same roots: the review is recorded again, pinning them', async () => {
+    await inTx(async (client) => {
+      const a = await account(client);
+      const set = await leases(client, a, 3);
+      const { projectId } = await pictureProject(client, a, set);
+      const done = await review(client, a, {project: projectId, seq: 1, images: imagesJson(set, threeViews())});
+      expect(done).toMatchObject({outcome: 'created', seq: 2});
+      // The same review with a picture whose pins were never recorded (made by the owner, as no writer does) is not the review the person confirms now.
+      await client.query(`alter table projects.request_images disable trigger request_images_no_update`);
+      await client.query(`update projects.request_images set retained_root = null, retained_sha256 = null, retained_length = null where revision_id = $1 and position = 2`, [done.request_id]);
+      await client.query(`alter table projects.request_images enable trigger request_images_no_update`);
+      const again = await review(client, a, {project: projectId, seq: 2, images: imagesJson(set, threeViews())});
+      expect(again).toMatchObject({outcome: 'created', seq: 3});
+      expect((await pinsOf(client, again.request_id as string)).map((pin) => pin.retained_root)).toEqual(set.map((entry) => entry.retained!.root));
+    });
+  });
+
+  it('never gives a retained picture\'s staged copy a new life, whatever its age: it expires at the commit and stays expired', async () => {
     await inTx(async (client) => {
       const a = await account(client);
       const set = await leases(client, a, 3, {age: 6.5 * 24 * 3600, expires: 3600});
       const { projectId } = await pictureProject(client, a, set);
       expect((await review(client, a, {project: projectId, seq: 1, images: imagesJson(set, threeViews())})).outcome).toBe('created');
+      const expired = await expiries(client, set);
       expect((await review(client, a, {project: projectId, seq: 2, images: imagesJson(set, threeViews())})).outcome).toBe('unchanged');
-      for (const entry of ids(set)) {
-        const row = await leaseRow(client, entry);
-        expect(row.expires_at.getTime()).toBeLessThanOrEqual(row.created_at.getTime() + 7 * 24 * 3600 * 1000);
+      const now = await dbNow(client);
+      for (const row of await expiries(client, set)) {
+        expect(row.expires_at.getTime()).toBeLessThanOrEqual(now.getTime());
+        expect(row.expires_at.getTime()).toBe(expired.find((entry) => entry.id === row.id)!.expires_at.getTime());
       }
     });
   });
@@ -840,26 +885,28 @@ describe('api.record_picture_review: the same review confirmed again is not a ne
     });
   });
 
-  it('checks the leases and the obstruction question before it compares: a lapsed or released picture, or no confirmation, is never `unchanged`', async () => {
+  it('checks the obstruction question before it compares: without the confirmation a review is never `unchanged`; a retained picture\'s lapsed or released staged copy does not matter', async () => {
     await inTx(async (client) => {
       const a = await account(client);
-      const { projectId, set } = await reviewedProject(client, a);
+      const { projectId, set, requestId } = await reviewedProject(client, a);
       expect(await review(client, a, {project: projectId, seq: 2, obstruction: false, images: imagesJson(set, threeViews())})).toEqual({outcome: 'obstruction_not_confirmed', ...nothing});
       await client.query(`update artifacts.staging_leases set expires_at = clock_timestamp() - interval '1 second' where id = $1`, [set[1].id]);
-      expect(await review(client, a, {project: projectId, seq: 2, images: imagesJson(set, threeViews())})).toEqual({outcome: 'expired_upload', ...nothing, position: 2});
       await client.query(`update artifacts.staging_leases set state = 'released' where id = $1`, [set[0].id]);
-      expect(await review(client, a, {project: projectId, seq: 2, images: imagesJson(set, threeViews())})).toEqual({outcome: 'not_ready', ...nothing, position: 1});
+      expect(await review(client, a, {project: projectId, seq: 2, images: imagesJson(set, threeViews())})).toEqual({outcome: 'unchanged', project_id: projectId, request_id: requestId, seq: 2, position: null});
     });
   });
 });
 
 // ---------------------------------------------------------------------------------------------------
-describe('api.record_picture_review: every upload is read from its lease again', () => {
+describe('api.record_picture_review: every upload is read from its lease and its manifest again', () => {
   it('answers `not_ready` for an upload released since it was saved, with its position, and writes nothing', async () => {
     await inTx(async (client) => {
       const a = await account(client);
       const set = await leases(client, a, 3);
-      const { projectId } = await pictureProject(client, a, set);
+      const { projectId } = await pictureProject(client, a, set, {retain: false});
+      // The first and the third are retained; the second was released (a lease that is not complete) before it could be.
+      await retainUpload(client, a.accountId, set[0]);
+      await retainUpload(client, a.accountId, set[2]);
       await client.query(`update artifacts.staging_leases set state = 'released' where id = $1`, [set[1].id]);
       const state = await snapshot(client, a, ids(set));
       expect(await review(client, a, {project: projectId, seq: 1, images: imagesJson(set, threeViews())})).toEqual({outcome: 'not_ready', ...nothing, position: 2});
@@ -867,11 +914,52 @@ describe('api.record_picture_review: every upload is read from its lease again',
     });
   });
 
+  it('answers `not_retained` for a picture with no manifest, at its position, and writes nothing: the application retains the pictures first, and the database refuses a review of pictures that were not', async () => {
+    await inTx(async (client) => {
+      const a = await account(client);
+      const set = await leases(client, a, 3);
+      const { projectId } = await pictureProject(client, a, set, {retain: false});
+      await retainUpload(client, a.accountId, set[0]);
+      await retainUpload(client, a.accountId, set[2]);
+      const state = await snapshot(client, a, ids(set));
+      for (const mode of ['evidence_images', 'image_direct']) {
+        expect(await review(client, a, {project: projectId, seq: 1, mode, images: imagesJson(set, threeViews())}), mode).toEqual({outcome: 'not_retained', ...nothing, position: 2});
+      }
+      expect(await snapshot(client, a, ids(set))).toEqual(state);
+      expect(await revisionsOf(client, a.accountId)).toHaveLength(1);
+      // Nothing retained at all: the first picture is the one named.
+      const bare = await leases(client, a, 2);
+      const other = await pictureProject(client, a, bare, {retain: false});
+      expect(await review(client, a, {project: other.projectId, seq: 1, images: imagesJson(bare, [sharp('front'), sharp('left')])})).toEqual({outcome: 'not_retained', ...nothing, position: 1});
+      // A manifest of ANOTHER Account's upload is no manifest of this one: the picture is still not retained (and no root of the other is pinned).
+      const stranger = await account(client);
+      const theirs = await lease(client, stranger);
+      expect(await retainUpload(client, stranger.accountId, theirs)).toBe('published');
+      const mine = await lease(client, a);
+      const third = await pictureProject(client, a, [mine], {retain: false});
+      expect(await review(client, a, {project: third.projectId, seq: 1, images: imagesJson([mine], [sharp('front')])})).toEqual({outcome: 'not_retained', ...nothing, position: 1});
+    });
+  });
+
+  it('puts the problem with the staged copy of a picture with no manifest before `not_retained`: the first problem by position wins', async () => {
+    await inTx(async (client) => {
+      const a = await account(client);
+      const set = await leases(client, a, 3);
+      const { projectId } = await pictureProject(client, a, set, {retain: false});
+      await client.query(`update artifacts.staging_leases set expires_at = clock_timestamp() - interval '1 second' where id = $1`, [set[0].id]);
+      expect(await review(client, a, {project: projectId, seq: 1, images: imagesJson(set, threeViews())})).toEqual({outcome: 'expired_upload', ...nothing, position: 1});
+      await client.query(`update artifacts.staging_leases set state = 'released' where id = $1`, [set[0].id]);
+      expect(await review(client, a, {project: projectId, seq: 1, images: imagesJson(set, threeViews())})).toEqual({outcome: 'not_ready', ...nothing, position: 1});
+    });
+  });
+
   it('answers `expired_upload` for an upload that lapsed since it was saved, with its position', async () => {
     await inTx(async (client) => {
       const a = await account(client);
       const set = await leases(client, a, 3);
-      const { projectId } = await pictureProject(client, a, set);
+      const { projectId } = await pictureProject(client, a, set, {retain: false});
+      await retainUpload(client, a.accountId, set[0]);
+      await retainUpload(client, a.accountId, set[1]);
       await client.query(`update artifacts.staging_leases set expires_at = clock_timestamp() - interval '1 second' where id = $1`, [set[2].id]);
       expect(await review(client, a, {project: projectId, seq: 1, images: imagesJson(set, threeViews())})).toEqual({outcome: 'expired_upload', ...nothing, position: 3});
     });
@@ -1420,6 +1508,7 @@ describe('two connections and the typed calls over REST', () => {
     const set = await leases(db, a, 3);
     left.push(...ids(set));
     const made = await db.query('select * from api.record_picture_set($1, $2, $3, $4, $5, $6)', [a.accountId, a.epoch, randomUUID(), null, 'Picture request', ids(set)]);
+    await retainAll(db, a, set);
     const projectId = made.rows[0].project_id as string;
     const other = await connect();
     const command = randomUUID();
@@ -1437,6 +1526,7 @@ describe('two connections and the typed calls over REST', () => {
     const set = await leases(db, a, 3);
     left.push(...ids(set));
     const made = await db.query('select * from api.record_picture_set($1, $2, $3, $4, $5, $6)', [a.accountId, a.epoch, randomUUID(), null, 'Picture request', ids(set)]);
+    await retainAll(db, a, set);
     const projectId = made.rows[0].project_id as string;
     const other = await connect();
     const images = JSON.stringify(imagesJson(set, threeViews()));
@@ -1452,6 +1542,7 @@ describe('two connections and the typed calls over REST', () => {
     const set = await leases(db, a, 1);
     left.push(...ids(set));
     const made = await db.query('select * from api.record_picture_set($1, $2, $3, $4, $5, $6)', [a.accountId, a.epoch, randomUUID(), null, 'Picture request', ids(set)]);
+    await retainAll(db, a, set);
     const projectId = made.rows[0].project_id as string;
     const other = await connect();
     const hiding = other.query('select outcome from api.record_tombstone($1, $2)', ['project', projectId]);
@@ -1472,6 +1563,7 @@ describe('two connections and the typed calls over REST', () => {
     const saved = await recordPictureSet(operation, {commandId: randomUUID(), projectId: null, title: 'Picture request', uploadIds: ids(set)}, options);
     expect(saved.outcome).toBe('created');
     if (saved.outcome !== 'created') return;
+    await retainAll(db, a, set);
     const input = {
       commandId: randomUUID(),
       projectId: saved.projectId,

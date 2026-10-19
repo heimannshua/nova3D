@@ -7,6 +7,7 @@
 //   GET  /d/<ticket>                      a browser-native download: 303 to /h/<handle>/<id>
 //   GET  /h/<handle>/<id>                 the handle's own target, ranges and the browser's own resume, for at most 30 minutes
 //   POST /v1/commands                     an application-signed command (`Authorization: Command <token>`): attach, delete-staging, delete-root
+//                                         (attach with the transform `strip-picture-metadata` retains a picture: Story 2.12)
 //
 // THE RULES (docs/authority-contract.md, "The file gateway"):
 //   * A ticket authorizes OPENING one transfer. Redeeming it inserts its `jti` (a replay fails) and a transfer handle bound to the session grant,
@@ -33,9 +34,10 @@ import {
   type ParsedKeySet,
   type TicketClaims,
 } from '../../../lib/service-signing.ts';
-import type {AttachmentReceipt, GatewayDatabase} from './database.ts';
+import type {AttachmentReceipt, GatewayDatabase, Lease} from './database.ts';
 import {createResolvers, type Direction, type ResolvedTarget, type Resolvers} from './resolvers.ts';
 import {MissingObject, type GatewayStorage, type StoredBody} from './storage.ts';
+import {StripError, stripPictureMetadata} from './strip.ts';
 import {blocks, handleHashOf, leadingBytesMatch, newHandle, parseRange} from './transfer.ts';
 
 export type GatewayDeps = {
@@ -104,7 +106,7 @@ type Refusal = {status: number; error: string};
 type Admission = {kid: string; jti: string; exp: number; claims: TicketClaims};
 type Opened = {ok: true; transfer: Transfer; handle: string} | ({ok: false} & Refusal);
 
-const sha256Hex = (text: string) => createHash('sha256').update(text, 'utf8').digest('hex');
+const sha256Hex = (data: string | Uint8Array) => (typeof data === 'string' ? createHash('sha256').update(data, 'utf8') : createHash('sha256').update(data)).digest('hex');
 
 /** Reads a request body to its end, discarding it, and cuts the connection if it is longer than `limit`. */
 function drain(req: IncomingMessage, limit: number) {
@@ -517,28 +519,20 @@ export function createGatewayServer(deps: GatewayDeps): Server {
 
   const manifestOf = (receipt: AttachmentReceipt, body: {digest: string; length: number; kind: string}) => ({id: receipt.manifestId, root: receipt.root, digest: body.digest, length: body.length, kind: body.kind});
 
+  /** The transform that retains a picture (Story 2.12): its metadata is removed except the EXIF orientation, and the manifest describes the stripped copy. */
+  const stripTransform = 'strip-picture-metadata';
+
+  type Publication = {text: string; root: string; key: string; copied: boolean; body: {digest: string; length: number; kind: string}};
+
   /**
-   * Attaches a complete upload. The manifest body is built first and serialized with RFC 8785, its SHA-256 is the ROOT, and the verified object is
-   * copied to `objects/<account>/<root>`: the body holds the upload's own ID, so every attach has a key of its own (two uploads of the same bytes are
-   * two objects), and `delete-root` with a manifest's root names the very key that holds its object. Then `artifacts.publish_attachment` decides. When it
-   * answers anything but published or exists (denied, not complete, expired, an unknown transform, a root that does not match) the copy this call made is
-   * deleted: it belongs to no manifest and no other upload can name its key (unless another attach of this very upload published meanwhile: its manifest has
-   * the same root and so the same key, and the lease, read again, says `attached`). A repeat of an attach finds the lease `attached`, copies nothing, and
-   * returns the same manifest with its object left alone.
+   * Publishes a manifest and answers. `artifacts.publish_attachment` decides. When it answers published or exists the manifest is the answer. When it answers
+   * anything else (denied, not complete, expired, an unknown transform, a root or body that does not match, the retained quota) the copy this call made is
+   * deleted: it belongs to no manifest and no other upload can name its key (unless another attach of this very upload published meanwhile: its manifest has the
+   * same root and so the same key, and the lease, read again, says `attached`). A repeat of an attach that already published finds the lease `attached`,
+   * copies nothing, and returns the same manifest with its object left alone.
    */
-  async function attach(res: ServerResponse, claims: Extract<CommandClaims, {cmd: 'attach'}>) {
-    const lease = await database.lease(claims.uid, claims.acct);
-    if (!lease) return fail(res, 404, 'not_found');
-    if (lease.state !== 'complete' && lease.state !== 'attached') return fail(res, 409, 'not_complete');
-    // The manifest body, serialized with RFC 8785; its SHA-256 is the root. The upload's own ID is the manifest's, so the same upload attached again
-    // builds the same bytes and finds the same manifest.
-    const body = {id: claims.uid, scope: claims.acct, activity: `upload:${claims.tr}`, kind: lease.kind, digest: lease.sha256, length: lease.length, serialization: 1, children: [] as never[]};
-    const text = canonicalize(body);
-    const root = sha256Hex(text);
-    const key = `objects/${claims.acct}/${root}`;
-    // Only a lease that is still `complete` has a copy to make; an `attached` one made its copy when it was attached.
-    const copied = lease.state === 'complete';
-    if (copied) await storage.copy(`staging/${claims.acct}/${claims.uid}`, key);
+  async function publish(res: ServerResponse, claims: Extract<CommandClaims, {cmd: 'attach'}>, publication: Publication) {
+    const {text, root, key, copied, body} = publication;
     // If the database does not answer, this throws and the copy is NOT deleted: the answer is unknown, the manifest may have been written, and then the
     // copy is its object. A retry copies the same bytes to the same key and finds the manifest or makes it.
     const receipt: AttachmentReceipt = await database.publishAttachment({accountId: claims.acct, epoch: claims.epoch, uploadId: claims.uid, transform: claims.tr, root, body: text});
@@ -566,9 +560,110 @@ export function createGatewayServer(deps: GatewayDeps): Server {
         return fail(res, 409, 'lease_expired');
       case 'transform_unknown':
         return fail(res, 400, 'unknown_transform');
+      case 'quota_exceeded':
+        return fail(res, 413, 'quota_exceeded');
       default:
         return fail(res, 409, 'manifest_conflict');
     }
+  }
+
+  /**
+   * Attaches a complete upload. The manifest body is built first and serialized with RFC 8785, its SHA-256 is the ROOT, and the verified object is
+   * copied to `objects/<account>/<root>`: the body holds the upload's own ID, so every attach has a key of its own (two uploads of the same bytes are
+   * two objects), and `delete-root` with a manifest's root names the very key that holds its object. Then `publish` decides. The transform
+   * `strip-picture-metadata` is `attachStripped`.
+   */
+  async function attach(res: ServerResponse, claims: Extract<CommandClaims, {cmd: 'attach'}>) {
+    const lease = await database.lease(claims.uid, claims.acct);
+    if (!lease) return fail(res, 404, 'not_found');
+    if (lease.state !== 'complete' && lease.state !== 'attached') return fail(res, 409, 'not_complete');
+    if (claims.tr === stripTransform) return attachStripped(res, claims, lease);
+    // The manifest body, serialized with RFC 8785; its SHA-256 is the root. The upload's own ID is the manifest's, so the same upload attached again
+    // builds the same bytes and finds the same manifest.
+    const body = {id: claims.uid, scope: claims.acct, activity: `upload:${claims.tr}`, kind: lease.kind, digest: lease.sha256, length: lease.length, serialization: 1, children: [] as never[]};
+    const text = canonicalize(body);
+    const root = sha256Hex(text);
+    const key = `objects/${claims.acct}/${root}`;
+    // Only a lease that is still `complete` has a copy to make; an `attached` one made its copy when it was attached.
+    const copied = lease.state === 'complete';
+    if (copied) await storage.copy(`staging/${claims.acct}/${claims.uid}`, key);
+    return publish(res, claims, {text, root, key, copied, body});
+  }
+
+  /** The staged object, whole, when it is exactly the `length` the lease says; `missing` when the store has none, `changed` when it is any other length. */
+  async function readStaged(key: string, length: number): Promise<Buffer | 'missing' | 'changed'> {
+    let stored: StoredBody;
+    try {
+      stored = await storage.get(key, null);
+    } catch (error) {
+      if (error instanceof MissingObject) return 'missing';
+      throw error;
+    }
+    if (stored.length !== length) {
+      stored.cancel();
+      return 'changed';
+    }
+    const parts: Buffer[] = [];
+    let total = 0;
+    try {
+      for await (const piece of stored.body) {
+        total += piece.byteLength;
+        // Never more than the lease promised is held: at most 12 MiB, so at most two copies of a picture (this and its stripped result) are in memory at once.
+        if (total > length) {
+          stored.cancel();
+          return 'changed';
+        }
+        parts.push(Buffer.from(piece.buffer, piece.byteOffset, piece.byteLength));
+      }
+    } catch (error) {
+      stored.cancel();
+      throw error;
+    }
+    return total === length ? Buffer.concat(parts, total) : 'changed';
+  }
+
+  /**
+   * The attach that RETAINS a picture (Story 2.12, the transform `strip-picture-metadata`). The staged object is read (at most 12 MiB) and hashed, and it is
+   * refused `bytes_changed` (409) unless its SHA-256 and length are the lease's; it is stripped in memory (workers/files/src/strip.ts: every metadata segment
+   * removed except the EXIF orientation, the pixels untouched), and a picture whose structure cannot be parsed is refused `strip_failed` (400) and is NEVER
+   * published unstripped. The manifest describes the STRIPPED copy: its digest and length are the result's (canonical order unchanged: activity, children,
+   * digest, id, kind, length, scope, serialization), the result is stored at `objects/<account>/<root>`, and `publish` decides. The strip is deterministic, so
+   * the same upload attached again computes the same bytes, the same root, and finds the same manifest (`exists`).
+   */
+  async function attachStripped(res: ServerResponse, claims: Extract<CommandClaims, {cmd: 'attach'}>, lease: Lease) {
+    if (lease.kind !== 'picture' || lease.length > transferLimits.pictureBytes) return fail(res, 400, 'unknown_transform');
+    // A lease whose time has passed is not attachable (the cleanup may be deleting its staging object): refused here without reading it, as the database would.
+    if (lease.state === 'complete' && lease.expiresAt.getTime() <= clock().getTime()) return fail(res, 409, 'lease_expired');
+    const staged = await readStaged(`staging/${claims.acct}/${claims.uid}`, lease.length);
+    // A staged object that is gone has been cleaned up: the copy has lapsed, and the remedy is the same (add the picture again).
+    if (staged === 'missing') return fail(res, 409, 'lease_expired');
+    if (staged === 'changed' || sha256Hex(staged) !== lease.sha256) return fail(res, 409, 'bytes_changed');
+    let stripped: Buffer;
+    try {
+      stripped = stripPictureMetadata(lease.contentType, staged);
+    } catch (error) {
+      if (error instanceof StripError) return fail(res, 400, 'strip_failed');
+      throw error;
+    }
+    // The result is never longer than the lease plus the orientation block it may add (the database holds it to the same bound).
+    if (stripped.length < 1 || stripped.length > lease.length + 4096) return fail(res, 400, 'strip_failed');
+    const body = {id: claims.uid, scope: claims.acct, activity: `upload:${claims.tr}`, kind: lease.kind, digest: sha256Hex(stripped), length: stripped.length, serialization: 1, children: [] as never[]};
+    const text = canonicalize(body);
+    const root = sha256Hex(text);
+    const key = `objects/${claims.acct}/${root}`;
+    // Only a lease that is still `complete` has a copy to store; an `attached` one stored its copy when it was attached.
+    const copied = lease.state === 'complete';
+    if (copied) {
+      const result = stripped;
+      await storage.put(
+        key,
+        (async function* () {
+          yield result;
+        })(),
+        {contentType: lease.contentType},
+      );
+    }
+    return publish(res, claims, {text, root, key, copied, body});
   }
 
   async function command(req: IncomingMessage, res: ServerResponse) {

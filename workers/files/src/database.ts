@@ -67,7 +67,17 @@ export type Lease = {
 
 export type NewLease = {id: string; accountId: string; kid: string; kind: 'picture' | 'file'; length: number; sha256: string; contentType: string; now: Date; expiresAt: Date; quotaBytes: number};
 
-export type AttachmentOutcome = 'published' | 'exists' | 'denied' | 'not_found' | 'not_complete' | 'expired' | 'transform_unknown' | 'root_mismatch' | 'body_mismatch';
+export type AttachmentOutcome =
+  | 'published'
+  | 'exists'
+  | 'denied'
+  | 'not_found'
+  | 'not_complete'
+  | 'expired'
+  | 'transform_unknown'
+  | 'root_mismatch'
+  | 'body_mismatch'
+  | 'quota_exceeded';
 export type AttachmentReceipt = {outcome: AttachmentOutcome; root: string | null; manifestId: string | null};
 
 export type GatewayDatabase = {

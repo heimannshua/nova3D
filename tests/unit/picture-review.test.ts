@@ -24,7 +24,8 @@ import {
   type ReviewItem,
   type ReviewableImage,
 } from '@/lib/picture-review';
-import {attemptReview, reviewIdle, reviewKey, settleReview, type ReviewState} from '@/lib/picture-view';
+import {anyUnkept} from '@/lib/picture-review';
+import {attemptRetain, attemptReview, confirmReview, confirmStatusKey, retainForm, retainIdle, reviewIdle, reviewKey, reviewOfRetain, reviewParams, settleReview, type RetainState, type ReviewState} from '@/lib/picture-view';
 
 // What the review screen works out about the pictures it shows (Story 2.3, lib/picture-review.ts) and how an answer to Confirm is read (lib/picture-view.ts), as pure
 // rules: the first step's issue and its order, the facts a Generate anyway warning puts into words, the form the action reads, and the messages.
@@ -339,6 +340,17 @@ describe('what Confirm answers', () => {
     [{outcome: 'not_editable'}, 'review.confirm.notEditable'],
     [{outcome: 'unavailable', unknown: false}, 'review.confirm.unavailable'],
     [{outcome: 'unavailable', unknown: true}, 'review.confirm.unknown'],
+    // Story 2.12: the pictures could not be kept.
+    [{outcome: 'not_retained', position: 2}, 'review.confirm.notRetained'],
+    [{outcome: 'bytes_changed', position: 2}, 'review.confirm.bytesChanged'],
+    [{outcome: 'strip_failed', position: 2}, 'review.confirm.stripFailed'],
+    [{outcome: 'lease_expired', position: 2}, 'review.confirm.leaseExpired'],
+    [{outcome: 'not_complete', position: 2}, 'review.confirm.notComplete'],
+    [{outcome: 'manifest_conflict', position: 2}, 'review.confirm.manifestConflict'],
+    [{outcome: 'quota_exceeded', kept: 5, asked: 6}, 'review.confirm.quota'],
+    [{outcome: 'quota_exceeded', kept: null, asked: null}, 'review.confirm.quotaFull'],
+    [{outcome: 'retain_unavailable', position: 2}, 'review.confirm.retainUnavailablePicture'],
+    [{outcome: 'retain_unavailable', position: null}, 'review.confirm.retainUnavailable'],
   ];
 
   it.each(states)('has a message of its own for %j', (state, key) => {
@@ -364,5 +376,230 @@ describe('what Confirm answers', () => {
     };
     expect(await attemptReview(failing, reviewIdle, new FormData())).toEqual({outcome: 'unavailable', unknown: true});
     expect(await attemptReview(async () => ({outcome: 'stale'}), reviewIdle, new FormData())).toEqual({outcome: 'stale'});
+  });
+});
+
+describe('keeping the pictures before the review is recorded (Story 2.12)', () => {
+  it('forgets no command ID for a refusal to keep: the same Confirm, sent again, carries the same command (nothing was recorded)', () => {
+    for (const outcome of ['bytes_changed', 'strip_failed', 'lease_expired', 'not_complete', 'manifest_conflict'] as const) {
+      expect(settleReview({outcome, position: 1})).toEqual({forgetCommand: false, failed: true});
+    }
+    expect(settleReview({outcome: 'quota_exceeded', kept: null, asked: null})).toEqual({forgetCommand: false, failed: true});
+    expect(settleReview({outcome: 'retain_unavailable', position: null})).toEqual({forgetCommand: false, failed: true});
+    expect(settleReview({outcome: 'not_retained', position: 3})).toEqual({forgetCommand: false, failed: true});
+  });
+
+  it('names the picture a refusal is about, and the sizes of the quota\'s, in the message\'s parameters', () => {
+    expect(reviewParams({outcome: 'bytes_changed', position: 3})).toEqual({position: 3});
+    expect(reviewParams({outcome: 'retain_unavailable', position: 2})).toEqual({position: 2});
+    expect(reviewParams({outcome: 'not_retained', position: 1})).toEqual({position: 1});
+    // The limit is a parameter, so no language has to spell it; the sizes are written as the picture screen writes them.
+    expect(reviewParams({outcome: 'quota_exceeded', kept: 2_137_000_000, asked: 12_582_912})).toEqual({limit: '2 GiB', kept: '2038 MiB', asked: '12 MiB'});
+    expect(reviewParams({outcome: 'quota_exceeded', kept: null, asked: null})).toEqual({limit: '2 GiB'});
+    expect(reviewParams({outcome: 'quota_exceeded', kept: 5, asked: null})).toEqual({limit: '2 GiB'});
+    // An answer about no picture still gives a position, so a message that names one never prints its own placeholder.
+    expect(reviewParams({outcome: 'retain_unavailable', position: null})).toEqual({position: 0});
+    expect(reviewParams({outcome: 'stale'})).toEqual({position: 0});
+  });
+
+  it('has every message in both languages with the placeholders its parameters fill', () => {
+    const states: ReviewState[] = [
+      {outcome: 'bytes_changed', position: 2},
+      {outcome: 'strip_failed', position: 2},
+      {outcome: 'lease_expired', position: 2},
+      {outcome: 'not_complete', position: 2},
+      {outcome: 'manifest_conflict', position: 2},
+      {outcome: 'not_retained', position: 2},
+      {outcome: 'retain_unavailable', position: 2},
+      {outcome: 'retain_unavailable', position: null},
+      {outcome: 'quota_exceeded', kept: 2_137_000_000, asked: 12_582_912},
+      {outcome: 'quota_exceeded', kept: null, asked: null},
+    ];
+    for (const state of states) {
+      const key = reviewKey(state)!;
+      for (const locale of ['en', 'he'] as const) {
+        const words = translate(locale, key, reviewParams(state));
+        expect(words, `${locale} ${key}`).not.toMatch(/\{\w+\}/);
+        expect(words.length, key).toBeGreaterThan(20);
+      }
+    }
+    // Each says nothing was confirmed or recorded, and what to do (English).
+    for (const state of states) expect(translate('en', reviewKey(state)!, reviewParams(state)), reviewKey(state)!).toMatch(/nothing was (?:confirmed|recorded)|Nothing was confirmed/);
+  });
+
+  it('turns an answer of the retain action that is not "kept" into the Confirm\'s own state, so one rule shows, announces and focuses every refusal', () => {
+    expect(reviewOfRetain({outcome: 'invalid'})).toEqual({outcome: 'invalid', problems: []});
+    expect(reviewOfRetain({outcome: 'idle'})).toEqual({outcome: 'retain_unavailable', position: null});
+    for (const state of [
+      {outcome: 'stale'},
+      {outcome: 'gone'},
+      {outcome: 'not_editable'},
+      {outcome: 'unknown_upload', position: 2},
+      {outcome: 'not_ready', position: 2},
+      {outcome: 'expired_upload', position: 2},
+      {outcome: 'bytes_changed', position: 2},
+      {outcome: 'quota_exceeded', kept: 1, asked: 2},
+      {outcome: 'retain_unavailable', position: null},
+    ] as Exclude<RetainState, {outcome: 'retained'}>[]) {
+      expect(reviewOfRetain(state)).toEqual(state);
+      expect(reviewKey(reviewOfRetain(state))).not.toBeNull();
+    }
+  });
+
+  it('reads a retain call that did not answer as "the private store did not answer": nothing was confirmed, and trying again is safe', async () => {
+    const failing = async () => {
+      throw new Error('network');
+    };
+    expect(await attemptRetain(failing, retainIdle, new FormData())).toEqual({outcome: 'retain_unavailable', position: null});
+    expect(await attemptRetain(async () => ({outcome: 'retained', count: 3}), retainIdle, new FormData())).toEqual({outcome: 'retained', count: 3});
+    const redirect = Object.assign(new Error('NEXT_REDIRECT'), {digest: 'NEXT_REDIRECT;replace;/;307;'});
+    await expect(attemptRetain(async () => Promise.reject(redirect), retainIdle, new FormData())).rejects.toBe(redirect);
+  });
+
+  it('makes the retain form from the Confirm form: the Project, the revision and the uploads in order, and nothing of the review', () => {
+    const confirm = new FormData();
+    for (const [name, value] of [
+      ['commandId', 'c'], ['projectId', 'p'], ['expectedSeq', '2'], ['mode', 'image_direct'], ['scope', 'S'], ['outcome', 'O'], ['obstruction', 'on'], ['acknowledge', 'on'],
+      ['uploadId', 'u1'], ['label', 'front'], ['shortEdge', '900'], ['blur', '120'], ['clipped', '0'],
+      ['uploadId', 'u2'], ['label', 'left'], ['shortEdge', '901'], ['blur', '121'], ['clipped', '0.1'],
+    ]) confirm.append(name, value);
+    const form = retainForm(confirm);
+    expect([...form.entries()]).toEqual([['projectId', 'p'], ['expectedSeq', '2'], ['uploadId', 'u1'], ['uploadId', 'u2']]);
+    expect([...retainForm(new FormData()).entries()]).toEqual([]);
+  });
+
+  describe('confirmReview: keep the pictures first, and record the review only when every one is kept', () => {
+    const confirmForm = (count = 3) => {
+      const form = new FormData();
+      form.append('commandId', 'c');
+      form.append('projectId', 'p');
+      form.append('expectedSeq', '2');
+      form.append('mode', 'evidence_images');
+      for (let index = 0; index < count; index += 1) form.append('uploadId', `u${index + 1}`);
+      return form;
+    };
+    const recorded: ReviewState = {outcome: 'stale'};
+    function steps(retained: unknown) {
+      const log: string[] = [];
+      const retain = vi.fn(async (_previous: RetainState, form: FormData) => {
+        log.push(`retain:${[...form.getAll('uploadId')].join(',')}`);
+        if (retained instanceof Error) throw retained;
+        return retained as RetainState;
+      });
+      const record = vi.fn(async (_previous: ReviewState, form: FormData) => {
+        log.push(`record:${form.get('commandId')}`);
+        return recorded;
+      });
+      const phases: string[] = [];
+      return {retain, record, log, phases, deps: {retain, record, phase: (phase: string) => phases.push(phase)}};
+    }
+
+    it('keeps first with the Project, the revision and the uploads in order, then records the review with the whole form, when the answer is that all three are kept', async () => {
+      const world = steps({outcome: 'retained', count: 3});
+      const form = confirmForm();
+      expect(await confirmReview(world.deps, reviewIdle, form)).toBe(recorded);
+      expect(world.log).toEqual(['retain:u1,u2,u3', 'record:c']);
+      expect(world.record).toHaveBeenCalledWith(reviewIdle, form);
+      expect(world.phases).toEqual(['retaining', 'recording']);
+      // The retain action is handed only what it reads.
+      expect([...(world.retain.mock.calls[0][1] as FormData).keys()].sort()).toEqual(['expectedSeq', 'projectId', 'uploadId', 'uploadId', 'uploadId']);
+    });
+
+    it.each([
+      [{outcome: 'bytes_changed', position: 2}],
+      [{outcome: 'strip_failed', position: 1}],
+      [{outcome: 'lease_expired', position: 3}],
+      [{outcome: 'not_complete', position: 3}],
+      [{outcome: 'manifest_conflict', position: 2}],
+      [{outcome: 'unknown_upload', position: 2}],
+      [{outcome: 'quota_exceeded', kept: 5, asked: 6}],
+      [{outcome: 'retain_unavailable', position: 2}],
+      [{outcome: 'stale'}],
+      [{outcome: 'gone'}],
+      [{outcome: 'not_editable'}],
+    ])('records NOTHING when the answer is %j: it is Confirm\'s own answer, and the screen stays where it is', async (answer) => {
+      const world = steps(answer);
+      expect(await confirmReview(world.deps, reviewIdle, confirmForm())).toEqual(answer);
+      expect(world.record).not.toHaveBeenCalled();
+      expect(world.phases).toEqual(['retaining']);
+    });
+
+    it('is a form the screen did not make when the answer is invalid: nothing to point at, nothing recorded', async () => {
+      const world = steps({outcome: 'invalid'});
+      expect(await confirmReview(world.deps, reviewIdle, confirmForm())).toEqual({outcome: 'invalid', problems: []});
+      expect(world.record).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['fewer pictures kept than the form has', {outcome: 'retained', count: 2}],
+      ['more pictures kept than the form has', {outcome: 'retained', count: 4}],
+      ['no answer at all (a call that redirected)', undefined],
+      ['an answer that is not one', 'kept'],
+      ['an answer with no outcome', {count: 3}],
+    ])('records nothing for %s: only "every picture is kept" opens the record call', async (_name, answer) => {
+      const world = steps(answer);
+      expect(await confirmReview(world.deps, reviewIdle, confirmForm())).toEqual({outcome: 'retain_unavailable', position: null});
+      expect(world.record).not.toHaveBeenCalled();
+    });
+
+    it('reads a retain call that did not answer as the private store not answering, and records nothing: nothing was confirmed', async () => {
+      const world = steps(new Error('network'));
+      expect(await confirmReview(world.deps, reviewIdle, confirmForm())).toEqual({outcome: 'retain_unavailable', position: null});
+      expect(world.record).not.toHaveBeenCalled();
+    });
+
+    it('reads a record call that did not answer as possibly recorded, as before: the pictures are kept, and the review may have been recorded', async () => {
+      const world = steps({outcome: 'retained', count: 3});
+      world.record.mockRejectedValue(new Error('network'));
+      expect(await confirmReview(world.deps, reviewIdle, confirmForm())).toEqual({outcome: 'unavailable', unknown: true});
+    });
+
+    it('lets a redirect through, from either call, for Next.js to follow', async () => {
+      const redirect = Object.assign(new Error('NEXT_REDIRECT'), {digest: 'NEXT_REDIRECT;replace;/;307;'});
+      await expect(confirmReview(steps(redirect).deps, reviewIdle, confirmForm())).rejects.toBe(redirect);
+      const world = steps({outcome: 'retained', count: 3});
+      world.record.mockRejectedValue(redirect);
+      await expect(confirmReview(world.deps, reviewIdle, confirmForm())).rejects.toBe(redirect);
+    });
+
+    it('is the same Confirm again after a refusal: the form, and so the command ID, is the one given, and a second run keeps and records exactly as the first', async () => {
+      const world = steps({outcome: 'retained', count: 3});
+      const form = confirmForm();
+      await confirmReview(world.deps, reviewIdle, form);
+      await confirmReview(world.deps, reviewIdle, form);
+      expect(world.log).toEqual(['retain:u1,u2,u3', 'record:c', 'retain:u1,u2,u3', 'record:c']);
+    });
+
+    it('works without a phase listener', async () => {
+      const world = steps({outcome: 'retained', count: 3});
+      expect(await confirmReview({retain: world.retain, record: world.record}, reviewIdle, confirmForm())).toBe(recorded);
+    });
+  });
+
+  it('says "Keeping your pictures privately…" with the count while the pictures are being kept, then that the review is being saved, and nothing when no Confirm is running', () => {
+    expect(confirmStatusKey(false, 'idle')).toBeNull();
+    expect(confirmStatusKey(false, 'retaining')).toBeNull();
+    expect(confirmStatusKey(true, 'retaining')).toBe('review.confirm.retaining');
+    expect(confirmStatusKey(true, 'recording')).toBe('review.confirm.pending');
+    expect(confirmStatusKey(true, 'idle')).toBe('review.confirm.pending');
+    expect(translate('en', 'review.confirm.retaining', {count: 3})).toBe('Keeping your pictures privately… (3 pictures)');
+    expect(translate('en', 'review.confirm.retaining', {count: 1})).toBe('Keeping your pictures privately… (1 picture)');
+    for (const count of [1, 2, 3, 12]) expect(translate('he', 'review.confirm.retaining', {count}), String(count)).toContain(String(count));
+    expect(translate('he', 'review.confirm.retaining', {count: 2})).not.toBe(translate('he', 'review.confirm.retaining', {count: 3}) as string);
+  });
+
+  it('keeps the facts of a retained copy beside a picture the revision pins, and none for one that is only in staging', () => {
+    const kept = {sha256: sha('k'), length: 400001};
+    const [pinned, staged, plain] = reviewItems([image(1, {retained: kept}), image(2, {retained: null}), image(3)]);
+    expect(pinned.retained).toEqual(kept);
+    expect(staged.retained).toBeNull();
+    expect(plain.retained).toBeNull();
+    // The staged digest and length stay the saved picture's own.
+    expect(pinned).toMatchObject({sha256: sha('a'), length: 482113});
+    expect(anyUnkept([pinned, staged, plain])).toBe(true);
+    expect(anyUnkept([pinned])).toBe(false);
+    expect(anyUnkept([])).toBe(false);
+    // A pinned picture is available whatever its staged copy is: the review decides that by `available`, which the database makes true for it.
+    expect(reviewItems([image(1, {available: true, retained: kept})])[0].state).toBe('measuring');
   });
 });

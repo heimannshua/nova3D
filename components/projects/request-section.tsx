@@ -6,7 +6,7 @@ import type {MessageKey} from '@/lib/i18n';
 import {incompleteSentences, labelKeys, problemWords} from '@/lib/picture-review';
 import {assess, blurText, percentOf} from '@/lib/picture-quality';
 import {formatBytes, shortSha, typeLabel} from '@/lib/picture-set';
-import {formatUpdated, picturesPath, reviewPath, updatedIso, type ProjectRequestRow} from '@/lib/project-view';
+import {formatUpdated, picturesPath, reviewPath, updatedIso, type KeptPicture, type ProjectRequestRow} from '@/lib/project-view';
 import {LinkButton} from '../ui/button';
 import {Notice} from '../ui/states';
 import {LtrToken} from '../ui/text-span';
@@ -18,9 +18,12 @@ const modeKeys = {
   image_direct: 'request.mode.image_direct',
 } as const satisfies Record<ProjectRequestRow['mode'], MessageKey>;
 
-/** What the Project page knows about its request: the latest revision (with the subject's display name), none, or that it could not be read. */
+/**
+ * What the Project page knows about its request: the latest revision (with the subject's display name), none, or that it could not be read. For a request made of
+ * pictures, `kept` says which of them the revision pins as retained pictures (Story 2.12; absent or empty when none is).
+ */
 export type RequestSectionData =
-  | {state: 'found'; request: ProjectRequestRow; subjectName: string | null}
+  | {state: 'found'; request: ProjectRequestRow; subjectName: string | null; kept?: readonly KeptPicture[]}
   | {state: 'none'}
   | {state: 'unreadable'};
 
@@ -50,7 +53,7 @@ export function RequestSection({data}: {data: RequestSectionData}) {
     );
   }
   const {request, subjectName} = data;
-  if (request.images.length > 0 || !request.confirmed) return <PicturesPart request={request} headingId={headingId}/>;
+  if (request.images.length > 0 || !request.confirmed) return <PicturesPart request={request} kept={data.kept ?? []} headingId={headingId}/>;
   const confirmed = request.confirmedAt ? formatUpdated(request.confirmedAt) : '';
   return (
     <section className="section request-section" aria-labelledby={headingId}>
@@ -87,7 +90,7 @@ export function RequestSection({data}: {data: RequestSectionData}) {
 }
 
 /** The Request section of a request made of pictures: its status, what was reviewed and chosen, and its pictures in the person's order. */
-function PicturesPart({request, headingId}: {request: ProjectRequestRow; headingId: string}) {
+function PicturesPart({request, kept, headingId}: {request: ProjectRequestRow; kept: readonly KeptPicture[]; headingId: string}) {
   const {t, locale} = useI18n();
   // The pictures are changed on their own screen while the request is not confirmed (the database refuses a change once it is).
   const editable = !request.confirmed;
@@ -98,6 +101,9 @@ function PicturesPart({request, headingId}: {request: ProjectRequestRow; heading
   const confirmedAt = request.confirmedAt ? formatUpdated(request.confirmedAt) : '';
   const obstructionAt = request.obstructionConfirmedAt ? formatUpdated(request.obstructionConfirmedAt) : '';
   const acknowledgedAt = request.acknowledgedAt ? formatUpdated(request.acknowledgedAt) : '';
+  // A picture the revision pins is kept privately with the request (Story 2.12): its staged copy lapsing is of no consequence, and is not said.
+  const keptIds = new Set(kept.map((picture) => picture.uploadId));
+  const allKept = request.images.length > 0 && request.images.every((image) => keptIds.has(image.uploadId));
   return (
     <section className="section request-section" aria-labelledby={headingId}>
       <h2 id={headingId}>{t('request.section.title')}</h2>
@@ -197,7 +203,9 @@ function PicturesPart({request, headingId}: {request: ProjectRequestRow; heading
               <p className="project-muted">
                 {t('picture.section.fingerprint', {algorithm: 'SHA-256'})}: <LtrToken>{shortSha(image.sha256)}</LtrToken>
               </p>
-              {image.available ? (
+              {keptIds.has(image.uploadId) ? (
+                <p className="project-muted" data-kept="true">{t('picture.section.kept')}</p>
+              ) : image.available ? (
                 lapses ? <p className="project-muted">{t('picture.section.lapses', {time: lapses})}</p> : null
               ) : (
                 <div className="picture-note"><Notice tone="warning">{t('picture.section.unavailable')}</Notice></div>
@@ -206,7 +214,7 @@ function PicturesPart({request, headingId}: {request: ProjectRequestRow; heading
           );
         })}
       </ol>
-      <p className="project-muted request-note">{request.confirmed ? t('review.section.directNothingStarted') : t('picture.section.note')}</p>
+      <p className="project-muted request-note">{request.confirmed ? t('review.section.directNothingStarted') : allKept ? t('picture.section.noteKept') : t('picture.section.note')}</p>
       <div className="request-actions picture-section-actions">
         <LinkButton variant="primary" icon="image" href={reviewPath(request.projectId)}>{reviewed ? t('review.section.reviewAgain') : t('review.section.review')}</LinkButton>
         {editable ? <LinkButton variant="secondary" icon="image" href={picturesPath(request.projectId)}>{t('picture.section.change')}</LinkButton> : null}

@@ -14,7 +14,8 @@ import {cache} from 'react';
 import {gatingTimeoutMs, type ActiveAccess} from '@/lib/access';
 import {operationOf} from '@/lib/authority';
 import {defaultDomainRegistry} from '@/lib/domain-registry';
-import {listProjects, readProject, readProjectRequest, type ProjectRequestRow, type ProjectRow} from '@/lib/projects';
+import type {KeptPicture} from '@/lib/project-view';
+import {listProjects, readProject, readProjectRequest, readRetainedPictures, type ProjectRequestRow, type ProjectRow} from '@/lib/projects';
 
 const describe = (error: unknown) => (error instanceof Error ? `${error.name}: ${error.message}` : 'unknown failure');
 
@@ -69,6 +70,24 @@ export const loadProjectRequest = cache(async (accountId: string, epoch: number,
     return {state: 'found', request: read.request, subjectName: subject?.displayName ?? null};
   } catch (error) {
     console.error('A Project request could not be read.', describe(error));
+    return {state: 'unreadable'};
+  }
+});
+
+export type RetainedLoading = {state: 'found'; pictures: KeptPicture[]} | {state: 'none'} | {state: 'unavailable'} | {state: 'unreadable'} | {state: 'denied'};
+
+/**
+ * The pictures the latest request revision of a Project pins as retained pictures (Story 2.12), as the pages need to know them (the upload, and the SHA-256 and length of
+ * its retained copy; never a manifest root). `none` is a request nothing of which is retained yet. A read that cannot be made is `unreadable`, and each page decides what
+ * that means for it (the review does not guess where a picture lives; the Project page shows what the request itself records). One read per render, as `loadProject` is.
+ */
+export const loadRetainedPictures = cache(async (accountId: string, epoch: number, projectId: string): Promise<RetainedLoading> => {
+  try {
+    const read = await readRetainedPictures({accountId, epoch}, projectId, {timeoutMs: gatingTimeoutMs});
+    if (read.outcome !== 'found') return {state: read.outcome};
+    return {state: 'found', pictures: read.pictures.map((picture) => ({uploadId: picture.uploadId, sha256: picture.retainedSha256, length: picture.retainedLength}))};
+  } catch (error) {
+    console.error('The retained pictures of a Project could not be read.', describe(error));
     return {state: 'unreadable'};
   }
 });

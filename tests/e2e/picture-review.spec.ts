@@ -754,7 +754,7 @@ test.describe('C-06 for pictures: direct image-derived conversion (AC-2, AC-3)',
     expect(confirmed.incomplete_acknowledged_digest).toBe(expected);
   });
 
-  test('says the truth about a confirmed direct request whose private copy has lapsed: it cannot be changed here yet, no link leads to the locked picture screen, and nothing is recorded', async ({page, context, baseURL}) => {
+  test('says the truth about a confirmed direct request made before pictures were kept, whose private copy has lapsed: it cannot be changed here, no link leads to the locked picture screen, and nothing is recorded', async ({page, context, baseURL}) => {
     const { user, projectId } = await savedPictures(page, context, baseURL!, sharpViews(3));
     await openReviewFromProject(page);
     await throughFirstStep(page, ['front', 'left', 'top']);
@@ -764,8 +764,21 @@ test.describe('C-06 for pictures: direct image-derived conversion (AC-2, AC-3)',
     await expect(page).toHaveURL(new RegExp(`/projects/${projectId}$`), crossing);
     const [made] = await stored(user);
     expect(made.stage).toBe('request_confirmed');
-    // 24 hours after the last save, the second picture's private copy lapses.
-    await world.db.query(`update artifacts.staging_leases set expires_at = now() - interval '1 minute' where id = $1`, [made.revisions[1].images[1].upload_id]);
+    // Story 2.12 keeps a confirmed picture, so a request like this exists only from before: its pictures were never kept. The database is put in that state (the pins are
+    // taken off the revision by its owner, as no writer does), the first and third staged copies are given another day and the second lapses.
+    const uploads = made.revisions[1].images.map((image) => image.upload_id);
+    await world.db.query('begin');
+    try {
+      await world.db.query('alter table projects.request_images disable trigger request_images_no_update');
+      await world.db.query('update projects.request_images set retained_root = null, retained_sha256 = null, retained_length = null where revision_id = $1', [made.revisions[1].id]);
+      await world.db.query('alter table projects.request_images enable trigger request_images_no_update');
+      await world.db.query('commit');
+    } catch (error) {
+      await world.db.query('rollback');
+      throw error;
+    }
+    await world.db.query(`update artifacts.staging_leases set expires_at = now() + interval '1 day' where id = any($1)`, [[uploads[0], uploads[2]]]);
+    await world.db.query(`update artifacts.staging_leases set expires_at = now() - interval '1 minute' where id = $1`, [uploads[1]]);
 
     await openReview(page, projectId);
     await measured(page);
@@ -781,7 +794,7 @@ test.describe('C-06 for pictures: direct image-derived conversion (AC-2, AC-3)',
     await nextButton(page).click();
     await expect(alerts(page).filter({hasText: t('en', 'review.issue.unusableConfirmed')})).toBeVisible();
     await expect(heading(page)).toHaveText(t('en', 'review.title.check'));
-    // Nothing was recorded (the database would answer `expired_upload`): the request is the confirmed one it was.
+    // Nothing was recorded: the request is the confirmed one it was.
     const [after] = await stored(user);
     expect(after.revisions).toHaveLength(2);
     expect(after.stage).toBe('request_confirmed');
@@ -854,7 +867,7 @@ test.describe('a mode change is a successor (AC-3)', () => {
     await expect(page.getByRole('link', {name: t('en', 'picture.section.change')})).toBeVisible();
   });
 
-  test('Change pictures after a review supersedes it with an unreviewed set: no labels, the review asked again', async ({page, context, baseURL}) => {
+  test('Change pictures after a review supersedes it with an unreviewed set: no labels, the review asked again; the pictures that were kept carry their pins', async ({page, context, baseURL}) => {
     const { user, projectId } = await savedPictures(page, context, baseURL!, sharpViews(3));
     await openReviewFromProject(page);
     await throughFirstStep(page, ['front', 'left', 'top']);
@@ -865,10 +878,14 @@ test.describe('a mode change is a successor (AC-3)', () => {
     await page.getByRole('link', {name: t('en', 'picture.section.change')}).click();
     await expect(heading(page)).toHaveText(t('en', 'picture.title.change'), crossing);
     await hydrated(page, 'main button[type="submit"]');
+    // The three pictures were kept when the review was confirmed: the screen says so for each (not the lapse of a staged copy that no longer matters).
+    await expect(page.locator('.picture-item')).toHaveCount(3);
+    await expect(page.locator('.picture-item [data-kept="true"]')).toHaveCount(3);
+    await expect(page.locator('.picture-item').filter({hasText: t('en', 'picture.item.kept')})).toHaveCount(3);
     await chooser(page).setInputFiles([{name: 'extra.png', mimeType: 'image/png', buffer: sharpPng(1200, 900, 30, 1)}] as never);
     await expect(page.locator('.picture-item')).toHaveCount(4, crossing);
-    // (A saved picture says "Saved. In private staging until ...", the new one "In private staging": both hold the words of a picture that is staged.)
-    await expect(page.locator('.picture-item').filter({hasText: t('en', 'picture.item.ready')})).toHaveCount(4, crossing);
+    // (A kept picture says "Saved. Kept privately with this request.", the new one "In private staging": the words of a picture that is only staged.)
+    await expect(page.locator('.picture-item').filter({hasText: t('en', 'picture.item.ready')})).toHaveCount(1, crossing);
     await page.getByRole('button', {name: t('en', 'picture.save'), exact: true}).click();
     await expect(page).toHaveURL(new RegExp(`/projects/${projectId}$`), crossing);
     const [project] = await stored(user);
@@ -876,8 +893,13 @@ test.describe('a mode change is a successor (AC-3)', () => {
     expect(project.revisions[2]).toMatchObject({mode: 'evidence_images', obstruction_confirmed_at: null});
     expect(project.revisions[2].images.map((image) => image.view_label)).toEqual([null, null, null, null]);
     expect(project.revisions[1].images.map((image) => image.view_label)).toEqual(['front', 'left', 'top']);
+    // The pictures that were kept keep their pins in the successor; the new one has none yet.
+    const pins = (await world.db.query('select position, retained_root is not null as kept from projects.request_images where revision_id = $1 order by position', [project.revisions[2].id])).rows;
+    expect(pins).toEqual([{position: 1, kept: true}, {position: 2, kept: true}, {position: 3, kept: true}, {position: 4, kept: false}]);
     const section = page.getByRole('region', {name: t('en', 'request.section.title'), exact: true});
     await expect(section).toContainText(t('en', 'review.section.notReviewed'));
+    await expect(section.locator('[data-kept="true"]')).toHaveCount(3);
+    await expect(section.getByText(t('en', 'picture.section.kept'))).toHaveCount(3);
   });
 
   test('is stale in a window that was opened before another window recorded a review: nothing is recorded, and the person is told to load the page again', async ({page, context, baseURL}) => {
@@ -885,6 +907,10 @@ test.describe('a mode change is a successor (AC-3)', () => {
     const other = await context.newPage();
     await openReviewFromProject(page);
     await openReview(other, projectId);
+    // (The second window has read its pictures before the first one confirms: Confirm keeps them and sets their staged copies to expire, so a window that was still
+    // reading them afterwards would be told they have lapsed, which is true, and not that it is stale.)
+    await measured(other);
+    await measured(page);
     // The first window records the choice.
     await throughFirstStep(page, ['front', 'left', 'top']);
     await pathRadio(page, 'evidence_images').check();

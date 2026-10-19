@@ -17,7 +17,9 @@ import {start, StartupError} from '../../workers/files/src/main';
 import {bucketName, MissingObject} from '../../workers/files/src/storage';
 import {createHarness} from '../support/accounts-db';
 import {appOrigin, createMember, epochOf, MiB, jpegBytes, pngBytes, roleUrl, sha256, startGateway, uploadClaims, uploadHeaders, webpBytes, type Gateway, type GatewayOptions, type Member, type TicketInput} from '../support/gateway-world';
+import {readOrientation, stripPictureMetadata} from '../../workers/files/src/strip';
 import {testKeyPair, testSigner} from '../support/service-keys';
+import {gpsJpeg, gpsJpegOrientation, gpsMarker, jpegNames, markersIn, pngWithMetadata, webpWithMetadata} from '../support/metadata-pictures';
 import {localStack, s3Of, stackEnvironment} from '../support/stack';
 
 // Story 1.12: the file gateway, end to end. The gateway runs IN-PROCESS on a loopback port (workers/files/src/main.ts `start`) against the REAL local
@@ -2273,6 +2275,211 @@ describe('start-up: the gateway never listens in the wrong environment or withou
     } finally {
       await real.close();
     }
+  });
+});
+
+// =====================================================================================================================================================
+// =====================================================================================================================================================
+// Story 2.12: retaining a picture, against the real database role and the real Storage. A real JPEG that carries location data goes up through the gateway,
+// the application-signed attach command with the transform `strip-picture-metadata` retains it, the stored object is read back out of Storage, and the
+// retained-picture resolver serves it from its root while a revision of a live Project of the same Account pins it.
+describe('retaining a picture: the strip, the manifest and the retained download (Story 2.12)', () => {
+  const strip = 'strip-picture-metadata';
+  const post = (token: string) => raw(`${gateway.url}/v1/commands`, {method: 'POST', headers: {authorization: `Command ${token}`}});
+  const manifestOf = async (id: string) => (await db.query('select * from artifacts.manifests where upload_id = $1', [id])).rows;
+
+  async function staged(who: Member, bytes: Buffer = gpsJpeg(), contentType = 'image/jpeg') {
+    const stored = await uploaded(who, bytes, {cls: 'picture', ct: contentType});
+    return {...stored, epoch: await epochOf(db, who.accountId), contentType};
+  }
+  const attachClaims = (who: Member, stored: {id: string; epoch: number}, transform = strip) => ({cmd: 'attach' as const, acct: who.accountId, epoch: stored.epoch, uid: stored.id, tr: transform});
+  const retain = async (who: Member, stored: {id: string; epoch: number}) => {
+    const result = await post(commandFor(gateway, attachClaims(who, stored)));
+    expect(result.status, result.body).toBe(200);
+    return JSON.parse(result.body) as {outcome: string; manifest: {id: string; root: string; digest: string; length: number; kind: string}};
+  };
+
+  /** A Project of the Account with this upload as its picture, reviewed, so the revision pins the retained root (the writers, as the application calls them). */
+  async function pinned(who: Member, stored: {id: string; epoch: number}) {
+    const saved = await db.query('select * from api.record_picture_set($1, $2, $3, null, $4, $5)', [who.accountId, stored.epoch, randomUUID(), 'Retained picture', [stored.id]]);
+    expect(saved.rows[0].outcome).toBe('created');
+    const reviewed = await db.query(`select * from api.record_picture_review($1, $2, $3, $4, 1, 'evidence_images', null, null, $5::jsonb, true, false)`, [
+      who.accountId,
+      stored.epoch,
+      randomUUID(),
+      saved.rows[0].project_id,
+      JSON.stringify([{upload_id: stored.id, label: 'front', short_edge_px: 1200, blur_variance: 412.375, clipped_fraction: 0.0213}]),
+    ]);
+    expect(reviewed.rows[0].outcome).toBe('created');
+    return {projectId: saved.rows[0].project_id as string, revisionId: reviewed.rows[0].request_id as string};
+  }
+
+  const retainedDownload = async (who: Member, id: string, headers: Record<string, string> = {}) => {
+    const ticket = await downloadTicket(who, id, {tk: 'retained'});
+    return fetch(`${gateway.url}/v1/files/retained/${id}`, {headers: {authorization: `Ticket ${ticket}`, ...headers}});
+  };
+
+  it('strips a JPEG with location data: the stored object has no GPS and keeps the orientation, the manifest describes it, the staged copy is untouched', async () => {
+    const who = await member();
+    const original = gpsJpeg();
+    expect(markersIn(original)).toContain(gpsMarker);
+    const stored = await staged(who, original);
+    const answer = await retain(who, stored);
+    const retained = stripPictureMetadata('image/jpeg', original);
+    const body = canonicalize({id: stored.id, scope: who.accountId, activity: `upload:${strip}`, kind: 'picture', digest: sha256(retained), length: retained.length, serialization: 1, children: []});
+    expect(answer).toEqual({outcome: 'published', manifest: {id: stored.id, root: sha256(body), digest: sha256(retained), length: retained.length, kind: 'picture'}});
+    // The object under the manifest's root IS the stripped copy.
+    const object = (await objectOf(objectKey(who.accountId, answer.manifest.root)))!;
+    expect(object.equals(retained)).toBe(true);
+    expect(markersIn(object)).toEqual([]);
+    expect(readOrientation('image/jpeg', object)).toBe(gpsJpegOrientation);
+    expect(jpegNames(object).filter((name) => /^APP/.test(name))).toEqual(['APP1']);
+    // The staged copy is the person's original, until the cleanup.
+    expect((await objectOf(staging(who.accountId, stored.id)))!.equals(original)).toBe(true);
+    const [row, ...more] = await manifestOf(stored.id);
+    expect(more).toEqual([]);
+    expect(row).toMatchObject({root: answer.manifest.root, id: stored.id, account_id: who.accountId, upload_id: stored.id, kind: 'picture', digest: sha256(retained), length: String(retained.length), activity: `upload:${strip}`});
+    expect(row.body).toBe(body);
+    expect(sha256(Buffer.from(row.body, 'utf8'))).toBe(row.root);
+    expect(sha256(original)).toBe((await leaseOf(stored.id))!.sha256);
+    expect(await leaseOf(stored.id)).toMatchObject({state: 'attached'});
+    expect(await objectsOf(who.accountId)).toEqual([objectKey(who.accountId, answer.manifest.root)]);
+  });
+
+  it('is reproducible: a repeat recomputes the same bytes and the same root, answers exists, and creates no second manifest or object', async () => {
+    const who = await member();
+    const stored = await staged(who);
+    const first = await retain(who, stored);
+    const again = await post(commandFor(gateway, attachClaims(who, stored)));
+    expect(again.status).toBe(200);
+    expect(JSON.parse(again.body)).toEqual({...first, outcome: 'exists'});
+    expect(await manifestOf(stored.id)).toHaveLength(1);
+    expect(await objectsOf(who.accountId)).toEqual([objectKey(who.accountId, first.manifest.root)]);
+    // Another upload of the very same picture is another manifest with another root and the same retained digest.
+    const twin = await staged(who, gpsJpeg());
+    const second = await retain(who, twin);
+    expect(second.manifest.root).not.toBe(first.manifest.root);
+    expect(second.manifest.digest).toBe(first.manifest.digest);
+  });
+
+  it('strips a PNG and a WebP that carry metadata as well, each with its own type', async () => {
+    const who = await member();
+    for (const [bytes, contentType] of [[pngWithMetadata(), 'image/png'], [webpWithMetadata(), 'image/webp']] as const) {
+      const stored = await staged(who, bytes, contentType);
+      const answer = await retain(who, stored);
+      const object = (await objectOf(objectKey(who.accountId, answer.manifest.root)))!;
+      expect(object.equals(stripPictureMetadata(contentType, bytes)), contentType).toBe(true);
+      expect(markersIn(object), contentType).toEqual([]);
+      expect(readOrientation(contentType, object), contentType).not.toBeNull();
+      expect(sha256(object)).toBe(answer.manifest.digest);
+    }
+  });
+
+  it('refuses bytes_changed when the staged object is not the one the lease describes, and strip_failed for a picture it cannot parse: nothing is published or stored', async () => {
+    const who = await member();
+    const changed = await staged(who);
+    const other = gpsJpeg({seed: 99});
+    const replacement = Buffer.concat([other, Buffer.alloc(Math.max(0, gpsJpeg().length - other.length))]).subarray(0, gpsJpeg().length);
+    await gateway.storage.put(staging(who.accountId, changed.id), (async function* () { yield replacement; })(), {contentType: 'image/jpeg'});
+    const refused = await post(commandFor(gateway, attachClaims(who, changed)));
+    expect([refused.status, JSON.parse(refused.body)]).toEqual([409, errorBody('bytes_changed')]);
+
+    const broken = await staged(who, jpegBytes(5000), 'image/jpeg');
+    const unparsed = await post(commandFor(gateway, attachClaims(who, broken)));
+    expect([unparsed.status, JSON.parse(unparsed.body)]).toEqual([400, errorBody('strip_failed')]);
+
+    for (const stored of [changed, broken]) {
+      expect(await manifestOf(stored.id)).toEqual([]);
+      expect(await leaseOf(stored.id)).toMatchObject({state: 'complete'});
+    }
+    expect(await objectsOf(who.accountId)).toEqual([]);
+  });
+
+  it('refuses quota_exceeded when the Account\'s retained pictures plus this one would pass 2 GiB, takes its copy back, and admits the one that brings it exactly to the limit', async () => {
+    const who = await member();
+    const original = gpsJpeg();
+    const retained = stripPictureMetadata('image/jpeg', original);
+    const keep = async (bytes: number) => {
+      const body = `kept ${randomUUID()}`;
+      const id = randomUUID();
+      await db.query(
+        `insert into artifacts.manifests (root, id, account_id, upload_id, kind, digest, length, serialization, activity, body) values ($1, $2, $3, $2, 'picture', $4, $5, 1, 'upload:strip-picture-metadata', $6)`,
+        [sha256(body), id, who.accountId, randomBytes(32).toString('hex'), bytes, body],
+      );
+    };
+    const quota = 2 * 1024 * MiB;
+    await keep(quota - retained.length + 1);
+    const stored = await staged(who, original);
+    const refused = await post(commandFor(gateway, attachClaims(who, stored)));
+    expect([refused.status, JSON.parse(refused.body)]).toEqual([413, errorBody('quota_exceeded')]);
+    expect(await manifestOf(stored.id)).toEqual([]);
+    expect(await leaseOf(stored.id)).toMatchObject({state: 'complete'});
+    expect(await objectsOf(who.accountId)).toEqual([]);
+    // One byte of room less to ask: the very limit is admitted.
+    await db.query('alter table artifacts.manifests disable trigger manifests_no_change');
+    await db.query(`update artifacts.manifests set length = length - 1 where account_id = $1 and activity = 'upload:strip-picture-metadata' and body like 'kept %'`, [who.accountId]);
+    await db.query('alter table artifacts.manifests enable trigger manifests_no_change');
+    const admitted = await post(commandFor(gateway, attachClaims(who, stored)));
+    expect(admitted.status, admitted.body).toBe(200);
+    expect(JSON.parse(admitted.body).outcome).toBe('published');
+  });
+
+  it('serves a retained picture from its root while a revision of a live Project pins it, to its owner only, with the retained length and type; never the staged copy', async () => {
+    const who = await member();
+    const stranger = await member();
+    const stored = await staged(who);
+    const answer = await retain(who, stored);
+    const object = (await objectOf(objectKey(who.accountId, answer.manifest.root)))!;
+    // Not pinned yet (retained, but no revision names it): the same unavailable answer as for an unknown ID.
+    expect((await retainedDownload(who, stored.id)).status).toBe(404);
+    const { projectId } = await pinned(who, stored);
+    const reply = await retainedDownload(who, stored.id);
+    expect(reply.status).toBe(200);
+    const read = await readAll(reply);
+    expect(read.data.equals(object)).toBe(true);
+    expect(markersIn(read.data)).toEqual([]);
+    expect(reply.headers.get('content-type')).toBe('image/jpeg');
+    expect(reply.headers.get('content-length')).toBe(String(answer.manifest.length));
+    expect(reply.headers.get('etag')).toBe(`"${answer.manifest.digest}"`);
+    expect(reply.headers.get('content-disposition')).toBe('attachment');
+    // A range of it.
+    const part = await retainedDownload(who, stored.id, {range: 'bytes=0-9'});
+    expect(part.status).toBe(206);
+    expect((await readAll(part)).data.equals(object.subarray(0, 10))).toBe(true);
+    // Another Account, and an ID that is nobody's: one answer.
+    expect((await retainedDownload(stranger, stored.id)).status).toBe(404);
+    expect((await retainedDownload(who, randomUUID())).status).toBe(404);
+    // The staged copy is expiring, and the picture is still served: it never reads staging.
+    await db.query(`update artifacts.staging_leases set expires_at = now() - interval '1 minute' where id = $1`, [stored.id]);
+    const client = createGatewayClient({gateway: gateway.url, instanceId, signer: gateway.signer, keySet: gateway.keySet});
+    expect(await client.deleteStaging({accountId: who.accountId, uploadId: stored.id})).toEqual({outcome: 'deleted'});
+    expect(await objectOf(staging(who.accountId, stored.id))).toBeNull();
+    expect((await download(who, stored.id)).status).toBe(404);
+    const after = await retainedDownload(who, stored.id);
+    expect(after.status).toBe(200);
+    expect((await readAll(after)).data.equals(object)).toBe(true);
+    // The Project is deleted: the picture is gone from the resolver at once, the object stays for Epic 8.
+    expect((await db.query('select outcome from api.record_tombstone($1, $2)', ['project', projectId])).rows[0].outcome).toBe('recorded');
+    expect((await retainedDownload(who, stored.id)).status).toBe(404);
+    expect(await objectOf(objectKey(who.accountId, answer.manifest.root))).not.toBeNull();
+  });
+
+  it('refuses an upload ticket of the kind retained before anything is leased or stored, and a download once the Account is disabled', async () => {
+    const who = await member();
+    const stored = await staged(who);
+    await retain(who, stored);
+    await pinned(who, stored);
+    expect((await retainedDownload(who, stored.id)).status).toBe(200);
+    // A retained picture is only read: a ticket to upload to it names no target the gateway takes.
+    const id = randomUUID();
+    const bytes = pngBytes(2000);
+    const ticket = await ticketFor(gateway, who, {...uploadClaims(id, bytes), tk: 'retained'});
+    const refused = await raw(`${gateway.url}/v1/uploads/${id}`, {method: 'PUT', headers: uploadHeaders(ticket, bytes), body: bytes});
+    expect([refused.status, JSON.parse(refused.body)]).toEqual([400, errorBody('unknown_target')]);
+    expect(await leaseOf(id)).toBeUndefined();
+    // Disabled, the Account's session is no longer allowed: the download is refused before its first byte.
+    await disableAccount({accountId: who.accountId, actor}, {env});
+    expect((await retainedDownload(who, stored.id)).status).toBe(403);
   });
 });
 

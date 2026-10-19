@@ -4,6 +4,7 @@ import {
   downloadUrl,
   fetchDownloadTicket,
   fetchProblems,
+  fetchRetainedPicture,
   fetchRetryable,
   fetchStagedPicture,
   fetchTimeoutMs,
@@ -465,5 +466,90 @@ describe('one picture, from wherever it is', () => {
     const loaded = await loadPicture(picture, {}, {...insecure.deps, digest: async () => { throw new TypeError('This page cannot hash a file'); }});
     expect(loaded).toEqual({ok: false, problem: 'refused'});
     expect(insecure.calls.tickets).toHaveLength(1);
+  });
+});
+
+// A retained picture (Story 2.12) --------------------------------------------------------------------------------------------------
+
+describe('a picture the revision pins is read from its retained copy', () => {
+  // The retained copy is another file: the staged picture with its metadata removed. Its own SHA-256 and length are what the revision records beside the staged ones.
+  const kept = new TextEncoder().encode('the retained bytes of a picture');
+  const KEPT_SHA = createHash('sha256').update(kept).digest('hex');
+  const retained = {sha256: KEPT_SHA, length: kept.length};
+  const pinned = {...picture, retained};
+  const file = (content: Uint8Array<ArrayBuffer>) => new File([content], 'held.png', {type: 'image/png'});
+
+  it('asks for a ticket of the kind `retained` for the upload ID, with exactly the three members, and reads from /v1/files/retained/<id> at the gateway the ticket names', async () => {
+    const {deps, calls} = world({get: new Response(kept, {status: 200})});
+    const loaded = await loadPicture(pinned, {}, deps);
+    expect(loaded.ok && loaded.from).toBe('retained');
+    expect(JSON.parse(String(calls.tickets[0][1].body))).toEqual({direction: 'download', kind: 'retained', id: ID});
+    expect(Object.keys(JSON.parse(String(calls.tickets[0][1].body))).sort()).toEqual(['direction', 'id', 'kind']);
+    expect(calls.gets).toHaveLength(1);
+    expect(calls.gets[0][0]).toBe(`${GATEWAY}/v1/files/retained/${ID}`);
+    // The ticket is in a header, never in the address, and nothing is sent but it. No root and no key is in the request.
+    expect(calls.gets[0][1].headers).toEqual({authorization: 'Ticket TICKET.VALUE'});
+    expect(calls.gets[0][0]).not.toMatch(/objects|staging|ticket/i);
+    if (loaded.ok) expect(new Uint8Array(await loaded.blob.arrayBuffer())).toEqual(kept);
+  });
+
+  it('checks the bytes against the RETAINED SHA-256 and length, and not the staged ones: the staged picture\'s bytes are not accepted for it', async () => {
+    expect(await loadPicture(pinned, {}, world({get: new Response(kept, {status: 200})}).deps)).toMatchObject({ok: true, from: 'retained'});
+    // The staged bytes (a different length and digest) are refused as changed.
+    expect(await loadPicture(pinned, {}, world({get: new Response(bytes, {status: 200})}).deps)).toEqual({ok: false, problem: 'changed'});
+    // The same length with other bytes is refused too: the digest decides.
+    const altered = new TextEncoder().encode('the retained bytes of a pictur3');
+    expect(altered.length).toBe(kept.length);
+    expect(await loadPicture(pinned, {}, world({get: new Response(altered, {status: 200})}).deps)).toEqual({ok: false, problem: 'changed'});
+    // A gateway that announces another length is not read at all.
+    expect(await loadPicture(pinned, {}, world({get: new Response(bytes, {status: 200, headers: {'content-length': String(bytes.length)}})}).deps)).toEqual({ok: false, problem: 'changed'});
+  });
+
+  it('never reads staging for a pinned picture, and never uses a File this page holds for it: its staged copy is expiring or gone', async () => {
+    holdFiles([{uploadId: ID, file: file(bytes)}]);
+    const {deps, calls} = world({get: new Response(kept, {status: 200})});
+    const loaded = await loadPicture(pinned, {}, deps);
+    expect(loaded.ok && loaded.from).toBe('retained');
+    for (const [, init] of calls.tickets) expect(JSON.parse(String(init.body)).kind).toBe('retained');
+    for (const [url] of calls.gets) expect(url).not.toContain('/staging/');
+    // A pinned picture that cannot be read from its retained copy is NOT read from staging instead.
+    const refused = world({get: json(404, {})});
+    expect(await loadPicture(pinned, {}, refused.deps)).toEqual({ok: false, problem: 'lapsed'});
+    expect(refused.calls.tickets).toHaveLength(1);
+    expect(refused.calls.gets).toHaveLength(1);
+  });
+
+  it('keeps reading a picture that is not pinned from staging, as before', async () => {
+    for (const unpinned of [picture, {...picture, retained: null}]) {
+      const {deps, calls} = world();
+      const loaded = await loadPicture(unpinned, {}, deps);
+      expect(loaded.ok && loaded.from).toBe('gateway');
+      expect(JSON.parse(String(calls.tickets[0][1].body))).toEqual({direction: 'download', kind: 'staging', id: ID});
+      expect(calls.gets[0][0]).toBe(`${GATEWAY}/v1/files/staging/${ID}`);
+    }
+  });
+
+  it('answers each problem as a staged read does: a ticket refused, a copy gone, a session to refresh, a busy gateway, a connection that broke, and nothing throws', async () => {
+    expect(await fetchRetainedPicture({uploadId: ID, ...retained}, {}, world({ticket: json(403, {})}).deps)).toEqual({ok: false, problem: 'reload'});
+    expect(await fetchRetainedPicture({uploadId: ID, ...retained}, {}, world({get: json(401, {})}).deps)).toEqual({ok: false, problem: 'reload'});
+    expect(await fetchRetainedPicture({uploadId: ID, ...retained}, {}, world({get: json(404, {})}).deps)).toEqual({ok: false, problem: 'lapsed'});
+    expect(await fetchRetainedPicture({uploadId: ID, ...retained}, {}, world({get: json(503, {})}).deps)).toEqual({ok: false, problem: 'network'});
+    expect(await fetchRetainedPicture({uploadId: ID, ...retained}, {}, world({get: () => { throw new TypeError('fetch failed'); }}).deps)).toEqual({ok: false, problem: 'network'});
+    expect(await fetchRetainedPicture({uploadId: ID, ...retained}, {signal: AbortSignal.abort()}, world().deps)).toEqual({ok: false, problem: 'network'});
+  });
+
+  it('leaves the staged read as it was: fetchStagedPicture still asks for the kind `staging`', async () => {
+    const {deps, calls} = world();
+    expect((await fetchStagedPicture(picture, {}, deps)).ok).toBe(true);
+    expect(JSON.parse(String(calls.tickets[0][1].body)).kind).toBe('staging');
+    expect(calls.gets[0][0]).toBe(`${GATEWAY}/v1/files/staging/${ID}`);
+  });
+
+  it('builds the address of either kind from the ticket\'s gateway and nothing else of its address', () => {
+    expect(downloadUrl(`${GATEWAY}/some/path?x=1`, ID, 'retained')).toBe(`${GATEWAY}/v1/files/retained/${ID}`);
+    expect(downloadUrl(GATEWAY, ID, 'staging')).toBe(`${GATEWAY}/v1/files/staging/${ID}`);
+    expect(downloadUrl(GATEWAY, ID)).toBe(`${GATEWAY}/v1/files/staging/${ID}`);
+    expect(downloadUrl('ftp://gateway.example/', ID, 'retained')).toBeNull();
+    expect(downloadUrl('http://user:pass@gateway.example/', ID, 'retained')).toBeNull();
   });
 });

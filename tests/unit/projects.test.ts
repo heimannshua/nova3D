@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 import {AccountsUnavailableError} from '@/lib/accounts';
-import {createProjectRequest, listProjects, maxListed, readProject, readProjectRequest, recordPictureReview, recordPictureSet, releaseStagedPictures, renameProjectCommand} from '@/lib/projects';
+import {checkPictureRetention, createProjectRequest, listProjects, maxListed, readProject, readProjectRequest, readRetainedPictures, recordPictureReview, recordPictureSet, releaseStagedPictures, renameProjectCommand} from '@/lib/projects';
 import {resolveProjectTarget} from '@/lib/project-target';
 
 // The typed calls of the Projects functions (lib/projects.ts) and the target resolver (lib/project-target.ts), against a fake fetch:
@@ -733,7 +733,7 @@ describe('recordPictureReview (Story 2.3)', () => {
     await expect(recordPictureReview(operation, direct, fake({outcome: 'stale', seq: 0}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
   });
 
-  it.each(['unknown_upload', 'not_ready', 'expired_upload'] as const)('answers %s with the position of the upload, which it must have', async (outcome) => {
+  it.each(['unknown_upload', 'not_ready', 'expired_upload', 'not_retained'] as const)('answers %s with the position of the upload, which it must have', async (outcome) => {
     expect(await recordPictureReview(operation, direct, fake({outcome, position: 2}).options)).toEqual({outcome, position: 2});
     for (const position of [null, 0, 3, -1, 1.5, 'one']) {
       await expect(recordPictureReview(operation, direct, fake({outcome, position}).options), String(position)).rejects.toBeInstanceOf(AccountsUnavailableError);
@@ -796,5 +796,171 @@ describe('recordPictureReview (Story 2.3)', () => {
     await expect(recordPictureReview(operation, direct, {env, fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true});
     await expect(recordPictureReview(operation, direct, fake({code: '22023'}, 400).options)).rejects.toMatchObject({name: 'AccountsUnavailableError', outcomeUnknown: false});
     await expect(recordPictureReview(operation, direct, fake({}, 500).options)).rejects.toMatchObject({name: 'AccountsUnavailableError', outcomeUnknown: true});
+  });
+});
+
+// Retained pictures (Story 2.12) ---------------------------------------------------------------------------------------------------
+
+describe('checkPictureRetention (Story 2.12)', () => {
+  const UPLOADS = ['aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa', 'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb', 'cccccccc-3333-4333-8333-cccccccccccc'];
+  const ROOT = 'ab'.repeat(32);
+  const input = {projectId: PROJECT, expectedSeq: 2, uploadIds: UPLOADS};
+  const blank = {seq: null, position: null, kept: null, asked: null, pictures: null};
+  const checked = (actions: ('attach' | 'retained')[]) => ({
+    ...blank,
+    outcome: 'checked',
+    pictures: actions.map((action, index) => ({position: index + 1, upload_id: UPLOADS[index], action, root: action === 'retained' ? ROOT : null})),
+  });
+
+  it('asks as the service role for the Account and epoch of the operation, the Project, the revision expected and the uploads in order, and nothing a request chose', async () => {
+    const {sent, options} = fake(checked(['attach', 'retained', 'attach']));
+    await checkPictureRetention(operation, input, options);
+    expect(sent).toEqual([
+      expect.objectContaining({name: 'check_picture_retention', body: {p_account_id: ACCOUNT, p_epoch: 3, p_project_id: PROJECT, p_expected_seq: 2, p_upload_ids: UPLOADS}}),
+    ]);
+    expect(sent[0].headers).toMatchObject({authorization: 'Bearer service-key-for-tests-only', 'content-profile': 'api'});
+  });
+
+  it('reads, per position, whether a picture needs an attach or is retained (with its root, which only the server reads)', async () => {
+    expect(await checkPictureRetention(operation, input, fake(checked(['attach', 'retained', 'attach'])).options)).toEqual({
+      outcome: 'checked',
+      pictures: [
+        {position: 1, uploadId: UPLOADS[0], action: 'attach', root: null},
+        {position: 2, uploadId: UPLOADS[1], action: 'retained', root: ROOT},
+        {position: 3, uploadId: UPLOADS[2], action: 'attach', root: null},
+      ],
+    });
+  });
+
+  it.each(['unavailable', 'not_editable', 'denied'] as const)('answers %s with nothing else', async (outcome) => {
+    expect(await checkPictureRetention(operation, input, fake({...blank, outcome}).options)).toEqual({outcome});
+  });
+
+  it('answers stale with the latest revision\'s number when the database says it, and with none when it does not', async () => {
+    expect(await checkPictureRetention(operation, input, fake({...blank, outcome: 'stale', seq: 4}).options)).toEqual({outcome: 'stale', seq: 4});
+    expect(await checkPictureRetention(operation, input, fake({...blank, outcome: 'stale'}).options)).toEqual({outcome: 'stale', seq: null});
+    await expect(checkPictureRetention(operation, input, fake({...blank, outcome: 'stale', seq: 0}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it.each(['unknown_upload', 'not_ready', 'expired_upload'] as const)('answers %s with the position of the upload, which it must have', async (outcome) => {
+    expect(await checkPictureRetention(operation, input, fake({...blank, outcome, position: 2}).options)).toEqual({outcome, position: 2});
+    for (const position of [null, 0, 4, -1, 1.5, 'one']) {
+      await expect(checkPictureRetention(operation, input, fake({...blank, outcome, position}).options), String(position)).rejects.toBeInstanceOf(AccountsUnavailableError);
+    }
+  });
+
+  it('answers quota_exceeded with the bytes kept and the bytes asked, which it must have', async () => {
+    expect(await checkPictureRetention(operation, input, fake({...blank, outcome: 'quota_exceeded', kept: 2_137_000_000, asked: 12_582_912}).options)).toEqual({outcome: 'quota_exceeded', kept: 2_137_000_000, asked: 12_582_912});
+    for (const [kept, asked] of [[null, 5], [5, null], [-1, 5], [5, 1.5], ['5', 5]]) {
+      await expect(checkPictureRetention(operation, input, fake({...blank, outcome: 'quota_exceeded', kept, asked}).options), `${kept} ${asked}`).rejects.toBeInstanceOf(AccountsUnavailableError);
+    }
+  });
+
+  it.each([
+    ['an outcome it does not know', {...blank, outcome: 'maybe'}],
+    ['a body that is not an object', []],
+    ['no pictures for a checked answer', {...blank, outcome: 'checked'}],
+    ['fewer pictures than uploads', {...checked(['attach', 'attach', 'attach']), pictures: checked(['attach', 'attach', 'attach']).pictures.slice(0, 2)}],
+    ['a picture out of place', {...checked(['attach', 'attach', 'attach']), pictures: [...checked(['attach', 'attach', 'attach']).pictures].reverse()}],
+    ['a picture of another upload', {...checked(['attach', 'attach', 'attach']), pictures: checked(['attach', 'attach', 'attach']).pictures.map((picture) => ({...picture, upload_id: UPLOADS[0]}))}],
+    ['an action it does not know', {...checked(['attach', 'attach', 'attach']), pictures: checked(['attach', 'attach', 'attach']).pictures.map((picture) => ({...picture, action: 'copy'}))}],
+    ['a retained picture with no root', {...checked(['retained', 'attach', 'attach']), pictures: checked(['retained', 'attach', 'attach']).pictures.map((picture) => ({...picture, root: null}))}],
+    ['a retained picture with a root that is not a digest', {...checked(['retained', 'attach', 'attach']), pictures: checked(['retained', 'attach', 'attach']).pictures.map((picture) => ({...picture, root: picture.action === 'retained' ? 'objects/../x' : null}))}],
+    ['a picture to attach that has a root', {...checked(['attach', 'attach', 'attach']), pictures: checked(['attach', 'attach', 'attach']).pictures.map((picture) => ({...picture, root: ROOT}))}],
+  ])('treats %s as no answer: the typed call refuses it by throwing', async (_name, answer) => {
+    await expect(checkPictureRetention(operation, input, fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('refuses arguments the database would never be sent: an expected revision under 1, no or too many or repeated uploads, an upload or Project that is not an ID, an operation that is not one', async () => {
+    const {fetch, options} = fake({});
+    await expect(checkPictureRetention(operation, {...input, expectedSeq: 0}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(checkPictureRetention(operation, {...input, expectedSeq: 1.5}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(checkPictureRetention(operation, {...input, uploadIds: []}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(checkPictureRetention(operation, {...input, uploadIds: Array.from({length: 13}, (_unused, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(checkPictureRetention(operation, {...input, uploadIds: [UPLOADS[0], UPLOADS[0]]}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(checkPictureRetention(operation, {...input, uploadIds: ['nope']}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(checkPictureRetention(operation, {...input, projectId: 'nope'}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(checkPictureRetention({accountId: 'not-an-id', epoch: 1}, input, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(checkPictureRetention({accountId: ACCOUNT, epoch: 0}, input, options)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('is an error, never a clean answer, when the database cannot be reached or refuses', async () => {
+    await expect(checkPictureRetention(operation, input, {env, fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true});
+    await expect(checkPictureRetention(operation, input, fake({code: '22023'}, 400).options)).rejects.toMatchObject({name: 'AccountsUnavailableError', outcomeUnknown: false});
+    await expect(checkPictureRetention(operation, input, fake({}, 500).options)).rejects.toMatchObject({name: 'AccountsUnavailableError'});
+  });
+});
+
+describe('readRetainedPictures (Story 2.12)', () => {
+  const UPLOAD_1 = 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa';
+  const UPLOAD_2 = 'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb';
+  const ROOT = 'ab'.repeat(32);
+  const entry = (position: number, uploadId: string, patch: Record<string, unknown> = {}) => ({
+    position,
+    upload_id: uploadId,
+    root: ROOT,
+    retained_sha256: 'cd'.repeat(32),
+    retained_length: 480000 + position,
+    staged_sha256: 'ef'.repeat(32),
+    label: position === 1 ? 'front' : null,
+    content_type: 'image/jpeg',
+    ...patch,
+  });
+  const found = (pictures: unknown[]) => ({outcome: 'found', pictures});
+
+  it('asks as the service role for the Account and epoch of the operation and the Project, and nothing a request chose', async () => {
+    const {sent, options} = fake(found([entry(1, UPLOAD_1)]));
+    await readRetainedPictures(operation, PROJECT, options);
+    expect(sent).toEqual([expect.objectContaining({name: 'read_retained_pictures', body: {p_account_id: ACCOUNT, p_epoch: 3, p_project_id: PROJECT}})]);
+    expect(sent[0].headers).toMatchObject({authorization: 'Bearer service-key-for-tests-only', 'content-profile': 'api'});
+  });
+
+  it('reads the pinned pictures in order, each with its root, the retained digest and length and the staged digest the person confirmed, its label and its type, and nothing else', async () => {
+    const read = await readRetainedPictures(operation, PROJECT, fake(found([entry(1, UPLOAD_1), entry(2, UPLOAD_2, {label: 'left', content_type: 'image/png'})])).options);
+    expect(read).toEqual({
+      outcome: 'found',
+      pictures: [
+        {position: 1, uploadId: UPLOAD_1, root: ROOT, retainedSha256: 'cd'.repeat(32), retainedLength: 480001, stagedSha256: 'ef'.repeat(32), label: 'front', contentType: 'image/jpeg'},
+        {position: 2, uploadId: UPLOAD_2, root: ROOT, retainedSha256: 'cd'.repeat(32), retainedLength: 480002, stagedSha256: 'ef'.repeat(32), label: 'left', contentType: 'image/png'},
+      ],
+    });
+    // The pictures of a revision that pins only some of them keep their own positions.
+    const gap = await readRetainedPictures(operation, PROJECT, fake(found([entry(2, UPLOAD_2), entry(5, UPLOAD_1)])).options);
+    expect(gap.outcome === 'found' && gap.pictures.map((picture) => picture.position)).toEqual([2, 5]);
+  });
+
+  it.each(['none', 'unavailable', 'denied'] as const)('answers %s with nothing else', async (outcome) => {
+    expect(await readRetainedPictures(operation, PROJECT, fake({outcome, pictures: []}).options)).toEqual({outcome});
+  });
+
+  it('is unavailable for anything that is not a Project ID, without asking the database', async () => {
+    const {fetch, options} = fake({});
+    for (const id of ['not-an-id', '', 5, null, undefined, ` ${PROJECT}`]) expect(await readRetainedPictures(operation, id, options), String(id)).toEqual({outcome: 'unavailable'});
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['an outcome it does not know', {outcome: 'maybe'}],
+    ['a body that is not an object', []],
+    ['found with no pictures', {outcome: 'found', pictures: []}],
+    ['found with pictures that are not a list', {outcome: 'found', pictures: 'x'}],
+    ['more than twelve pictures', found(Array.from({length: 13}, (_unused, index) => entry(index + 1, `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)))],
+    ['positions that do not rise', found([entry(2, UPLOAD_1), entry(1, UPLOAD_2)])],
+    ['a position of zero', found([entry(0, UPLOAD_1)])],
+    ['an upload that is not an ID', found([entry(1, 'nope')])],
+    ['a root that is not a digest', found([entry(1, UPLOAD_1, {root: 'objects/../x'})])],
+    ['a retained digest that is not one', found([entry(1, UPLOAD_1, {retained_sha256: 'x'})])],
+    ['a staged digest that is not one', found([entry(1, UPLOAD_1, {staged_sha256: 'AB'.repeat(32)})])],
+    ['a retained length of zero', found([entry(1, UPLOAD_1, {retained_length: 0})])],
+    ['a retained length that is not a number', found([entry(1, UPLOAD_1, {retained_length: '5'})])],
+    ['a type a picture cannot have', found([entry(1, UPLOAD_1, {content_type: 'image/gif'})])],
+    ['a label it does not know', found([entry(1, UPLOAD_1, {label: 'inside'})])],
+  ])('treats %s as no answer: the typed call refuses it by throwing', async (_name, answer) => {
+    await expect(readRetainedPictures(operation, PROJECT, fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('is an error, never an empty answer, when the database cannot be reached', async () => {
+    await expect(readRetainedPictures(operation, PROJECT, {env, fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true});
   });
 });

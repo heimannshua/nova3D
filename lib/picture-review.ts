@@ -55,6 +55,11 @@ export type ReviewItem = {
   measurements: Measurements | null;
   reason: UnusableReason | null;
   thumbnailUrl: string | null;
+  /**
+   * The SHA-256 and length of the picture's RETAINED copy when the revision pins it (Story 2.12), otherwise null. A pinned picture is read from its retained copy and
+   * never from staging, and its staged copy lapsing is of no consequence; an unpinned one is only in private staging.
+   */
+  retained: {sha256: string; length: number} | null;
 };
 
 /** What a saved picture offers the review: where it is and what it is, and the label it was given if the set was reviewed before. */
@@ -66,6 +71,8 @@ export type ReviewableImage = {
   contentType: PictureType;
   available: boolean;
   label: ViewLabel | null;
+  /** The facts of the picture's retained copy when the revision pins it (Story 2.12); absent or null otherwise. */
+  retained?: {sha256: string; length: number} | null;
 };
 
 /** The review's pictures from a saved revision's, in their order. A picture whose private copy has lapsed is unusable from the start (`lapsed`); the others wait to be measured. */
@@ -84,8 +91,12 @@ export function reviewItems(images: readonly ReviewableImage[]): ReviewItem[] {
       measurements: null,
       reason: image.available ? null : ('lapsed' as const),
       thumbnailUrl: null,
+      retained: image.retained ?? null,
     }));
 }
+
+/** Whether any picture is only in private staging (not pinned as a retained picture): the staged copies' 24-hour lapse is still true of those. */
+export const anyUnkept = (items: readonly ReviewItem[]): boolean => items.some((item) => item.retained === null);
 
 /** Changes some fields of one item. The list is returned as it was when the key names none. */
 export function updateReviewItem(items: readonly ReviewItem[], key: string, patch: Partial<Omit<ReviewItem, 'key' | 'position'>>): ReviewItem[] {

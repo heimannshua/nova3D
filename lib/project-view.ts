@@ -39,6 +39,13 @@ export type RequestPicture = SavedPicture & {
 };
 
 /**
+ * A picture the latest revision PINS as a retained picture (Story 2.12), as the pages and the review know it: the upload, and the SHA-256 and length of the retained
+ * copy (what a read of the retained picture is checked against). It carries no manifest root and no object key: those are for a later consumer on the server and are in
+ * no page, address or log.
+ */
+export type KeptPicture = {uploadId: string; sha256: string; length: number};
+
+/**
  * The request a Project holds (Story 2.1, Story 2.2, Story 2.3), as its page shows it: the latest request revision. Everything a person may read about it, and no
  * approval, permission or payment (a revision has none). The wish is `applied` (text and style set), or declined (a wording and the `reason` it was not
  * applied), or there is none (no wording).

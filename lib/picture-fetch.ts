@@ -7,6 +7,10 @@
 //   3. the body is read through a reader that stops at the saved length (more than that is `changed`), and its SHA-256 must equal the SHA-256 the saved revision
 //      records. A picture whose bytes differ is `changed` and is NOT used.
 //
+// Story 2.12: a picture the revision PINS is read from its retained copy and never from staging (its staged copy is expiring or gone): the same three steps with
+// the kind `retained` (the ticket's target is the picture's upload ID, equal to its manifest ID) and the SHA-256 and length of the RETAINED copy, which the revision
+// records beside the staged ones. A retained root or object key is in no request here: the gateway resolves the upload ID to its object itself.
+//
 // The bytes live in memory only: never in a URL that is shown or stored, in storage, or in a log. There is no download link, no `<a download>`, no reusable
 // URL: the ticket is in a header, spent by the one request, and gone. The caller decodes the picture and lets go of it before it asks for the next.
 //
@@ -55,6 +59,9 @@ export type FetchedPicture = {ok: true; blob: Blob} | {ok: false; problem: Fetch
 /** What the download ticket route answers: the ticket and the gateway's address, or why not. */
 export type DownloadTicket = {ok: true; ticket: string; gateway: string} | {ok: false; problem: FetchProblem};
 
+/** The two kinds of target a picture is read from: its staged copy (`staging`) or, once the revision pins it, its retained copy (`retained`). */
+export type PictureSource = 'staging' | 'retained';
+
 // A request with a time limit ---------------------------------------------------------------------------------------------
 
 const expired = Symbol('expired');
@@ -101,11 +108,11 @@ async function jsonOf(response: Response): Promise<Record<string, unknown>> {
 }
 
 /**
- * Asks the application for a single-use ticket to download ONE staged upload: exactly {direction:'download', kind:'staging', id}, through `csrfFetch`. 401 and 403
- * mean the session or the page's token is no longer good; a status the application cannot serve now (408, 425, 429, 5xx) and a request that takes more than 30
- * seconds are worth trying again.
+ * Asks the application for a single-use ticket to download ONE picture: exactly {direction:'download', kind, id}, through `csrfFetch`, for its staged upload
+ * (`staging`, the default) or its retained copy (`retained`). 401 and 403 mean the session or the page's token is no longer good; a status the application cannot
+ * serve now (408, 425, 429, 5xx) and a request that takes more than 30 seconds are worth trying again.
  */
-export async function fetchDownloadTicket(id: string, deps: FetchDeps = {}, signal?: AbortSignal): Promise<DownloadTicket> {
+export async function fetchDownloadTicket(id: string, deps: FetchDeps = {}, signal?: AbortSignal, kind: PictureSource = 'staging'): Promise<DownloadTicket> {
   const send = deps.ticketFetch ?? ((url: string, init: RequestInit) => csrfFetch(url, init));
   const clock = limit(deps.timeoutMs ?? fetchTimeoutMs, signal);
   try {
@@ -116,7 +123,7 @@ export async function fetchDownloadTicket(id: string, deps: FetchDeps = {}, sign
           response = await send('/api/transfers/tickets', {
             method: 'POST',
             headers: {'content-type': 'application/json'},
-            body: JSON.stringify({direction: 'download', kind: 'staging', id}),
+            body: JSON.stringify({direction: 'download', kind, id}),
             cache: 'no-store',
             signal: clock.signal,
           });
@@ -136,14 +143,14 @@ export async function fetchDownloadTicket(id: string, deps: FetchDeps = {}, sign
 }
 
 /**
- * The address of a staged upload at the gateway the ticket named: its origin and `/v1/files/staging/<id>`, nothing else of the ticket's address. Null when the gateway
- * is no web address (or holds a name and a password).
+ * The address of a picture at the gateway the ticket named: its origin and `/v1/files/<kind>/<id>` (staging unless the kind is `retained`), nothing else of the ticket's
+ * address. Null when the gateway is no web address (or holds a name and a password).
  */
-export function downloadUrl(gateway: string, id: string): string | null {
+export function downloadUrl(gateway: string, id: string, kind: PictureSource = 'staging'): string | null {
   try {
     const base = new URL(gateway);
     if ((base.protocol !== 'http:' && base.protocol !== 'https:') || base.username || base.password) return null;
-    return `${base.origin}/v1/files/staging/${id}`;
+    return `${base.origin}/v1/files/${kind}/${id}`;
   } catch {
     return null;
   }
@@ -194,18 +201,19 @@ async function readCapped(response: Response, length: number): Promise<{blob: Bl
 }
 
 /**
- * Reads ONE saved picture back from the gateway and checks it is the one that was saved: a download ticket, the whole body read through a reader capped at the
- * saved length, and its SHA-256 compared with the revision's. Resolves with a problem and never rejects. The picture is a `Blob` in memory only.
+ * Reads ONE picture back from the gateway, from the target of `source`, and checks it is the one that was recorded: a download ticket, the whole body read through a
+ * reader capped at the recorded length, and its SHA-256 compared with the recorded one. Resolves with a problem and never rejects. The picture is a `Blob` in memory only.
  */
-export async function fetchStagedPicture(
+async function fetchPicture(
+  source: PictureSource,
   picture: {uploadId: string; sha256: string; length: number},
-  hooks: {signal?: AbortSignal} = {},
-  deps: FetchDeps = {},
+  hooks: {signal?: AbortSignal},
+  deps: FetchDeps,
 ): Promise<FetchedPicture> {
   if (hooks.signal?.aborted) return {ok: false, problem: 'network'};
-  const ticket = await fetchDownloadTicket(picture.uploadId, deps, hooks.signal);
+  const ticket = await fetchDownloadTicket(picture.uploadId, deps, hooks.signal, source);
   if (!ticket.ok) return ticket;
-  const url = downloadUrl(ticket.gateway, picture.uploadId);
+  const url = downloadUrl(ticket.gateway, picture.uploadId, source);
   if (!url) return {ok: false, problem: 'refused'};
   const get = deps.gatewayFetch ?? ((address: string, init: RequestInit) => fetch(address, init));
   const clock = limit(deps.timeoutMs ?? fetchTimeoutMs, hooks.signal);
@@ -252,6 +260,19 @@ export async function fetchStagedPicture(
   }
 }
 
+/** Reads ONE saved picture back from private staging and checks it is the one that was saved (its staged SHA-256 and length). Resolves with a problem and never rejects. */
+export function fetchStagedPicture(picture: {uploadId: string; sha256: string; length: number}, hooks: {signal?: AbortSignal} = {}, deps: FetchDeps = {}): Promise<FetchedPicture> {
+  return fetchPicture('staging', picture, hooks, deps);
+}
+
+/**
+ * Reads ONE retained picture back (Story 2.12): from the target of kind `retained` (its upload ID, resolved to its object by the gateway), checked against the SHA-256
+ * and length of the RETAINED copy. Resolves with a problem and never rejects. Never reads staging.
+ */
+export function fetchRetainedPicture(picture: {uploadId: string; sha256: string; length: number}, hooks: {signal?: AbortSignal} = {}, deps: FetchDeps = {}): Promise<FetchedPicture> {
+  return fetchPicture('retained', picture, hooks, deps);
+}
+
 // The Files of the picture screen ------------------------------------------------------------------------------------------
 
 const held = new Map<string, File>();
@@ -295,14 +316,24 @@ export function heldFile(uploadId: string): File | null {
 
 // One picture, from wherever it is -----------------------------------------------------------------------------------------
 
-/** Where a picture's bytes came from: `held` (the File of the picture screen, checked against the saved SHA-256) or `gateway` (read back by a ticket and checked). */
-export type LoadedPicture = {ok: true; blob: Blob; from: 'held' | 'gateway'} | {ok: false; problem: FetchProblem};
+/** Where a picture's bytes came from: `held` (the File of the picture screen, checked against the saved SHA-256), `gateway` (read back from staging by a ticket and checked) or `retained` (read back from its retained copy and checked). */
+export type LoadedPicture = {ok: true; blob: Blob; from: 'held' | 'gateway' | 'retained'} | {ok: false; problem: FetchProblem};
 
 /**
- * The bytes of ONE saved picture: the File the picture screen handed over when there is one AND its SHA-256 is the saved one (a File that has changed since it was
- * uploaded is not what was saved, and is not measured), and otherwise the picture read back from the gateway by a single-use ticket.
+ * The bytes of ONE saved picture. A picture the revision PINS (`retained`: the SHA-256 and length of its retained copy, Story 2.12) is read from its retained copy and
+ * checked against those, and never from staging or from a File this page holds: its staged copy is expiring or gone. Any other picture: the File the picture screen
+ * handed over when there is one AND its SHA-256 is the saved one (a File that has changed since it was uploaded is not what was saved, and is not measured), and
+ * otherwise the picture read back from private staging by a single-use ticket.
  */
-export async function loadPicture(picture: {uploadId: string; sha256: string; length: number}, hooks: {signal?: AbortSignal} = {}, deps: FetchDeps = {}): Promise<LoadedPicture> {
+export async function loadPicture(
+  picture: {uploadId: string; sha256: string; length: number; retained?: {sha256: string; length: number} | null},
+  hooks: {signal?: AbortSignal} = {},
+  deps: FetchDeps = {},
+): Promise<LoadedPicture> {
+  if (picture.retained) {
+    const kept = await fetchRetainedPicture({uploadId: picture.uploadId, sha256: picture.retained.sha256, length: picture.retained.length}, hooks, deps);
+    return kept.ok ? {ok: true, blob: kept.blob, from: 'retained'} : kept;
+  }
   const file = heldFile(picture.uploadId);
   if (file) {
     try {

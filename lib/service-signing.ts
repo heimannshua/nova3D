@@ -327,10 +327,11 @@ export const fileType = 'application/octet-stream';
 
 /**
  * The kinds of target a transfer can name (the gateway's resolver registry has one resolver for each; a ticket for any other kind is refused
- * by the route that issues it and again by the gateway). Story 1.12 registers `staging`; the stories that attach files to a Project (1.7's
- * wiring), retained pictures (2.12), artifact manifests (4.1) and exports (6.9) add theirs here and in the registry.
+ * by the route that issues it and again by the gateway). Story 1.12 registers `staging`; Story 2.12 registers `retained` (a picture the person confirmed,
+ * kept as a manifest root; its target ID is the picture's upload ID, equal to its manifest ID, and it is only ever downloaded); the stories that attach
+ * files to a Project (1.7's wiring), artifact manifests (4.1) and exports (6.9) add theirs here and in the registry.
  */
-export const transferTargetKinds = ['staging'] as const;
+export const transferTargetKinds = ['staging', 'retained'] as const;
 export type TransferTargetKind = (typeof transferTargetKinds)[number];
 
 export function isTransferTargetKind(value: unknown): value is TransferTargetKind {

@@ -2,7 +2,8 @@
 title: 'Story 2.12: Retain confirmed pictures as immutable Project artifacts'
 type: 'feature'
 created: '2026-10-20'
-status: 'in-progress'
+status: 'done'
+baseline_commit: '52f587441f86f1abf664a7e3c79cd5bf3b62786a'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
@@ -69,13 +70,13 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `workers/files/src/strip.ts`, `workers/files/src/server.ts`, `workers/files/src/database.ts`, `workers/files/src/resolvers.ts` -- the strip, the transform-aware attach, the retained resolver -- AC-1, AC-2, AC-4, AC-5
-- [ ] `supabase/migrations/20261021120000_retained_pictures.sql` -- the transform, `publish_attachment` for it with the quota lock, pin columns, the pre-check, the extended writers and read, `read_retained_pictures`, the live-authorization view, the index, preflight -- AC-1 to AC-5
-- [ ] `lib/service-signing.ts`, `lib/gateway-client.ts`, `lib/retention.ts`, `lib/projects.ts`, `lib/picture-fetch.ts`, `lib/picture-view.ts`, `lib/picture-review.ts` -- the `retained` kind, error codes and timeouts, the server-only orchestration, typed calls, read-back from retained roots, the new states -- AC-1 to AC-4
-- [ ] `app/projects/[projectId]/pictures/review/actions.ts`, `app/projects/[projectId]/pictures/review/page.tsx`, `components/projects/picture-review.tsx`, `components/projects/request-section.tsx`, `lib/i18n/en.ts`, `lib/i18n/he.ts`, `app/globals.css` -- `retainPictures`, the retaining state, every refusal message, the kept-privately copy -- AC-1 to AC-4
-- [ ] `docs/authority-contract.md`, `docs/picture-quality.md`, `docs/staging.md`, `README.md` -- retention, the resolver, the strip and ICC note, deploy order -- housekeeping
-- [ ] `tests/` -- every matrix row: unit (the strip on spliced JPEG, PNG and WebP fixtures with GPS: every segment removed, orientation kept, pixels identical, truncated and corrupt input refused, reproducible digest; attach with the fake gateway world; the retained resolver; retention orchestration with fakes incl. partial failure and parallelism limit; the new states), integration (pre-check, quota exactly at the edge and over, race, writer pins and `not_retained`, `unchanged` needs pins, picture change keeps pins, `read_retained_pictures`, authority, isolation, immutability, view, preflight, a real attach against Postgres and Storage that strips a GPS JPEG), browser on desktop and phone in both languages against the real gateway (review, Confirm retains, reload shows the pictures from retained roots, quota exceeded, changed bytes, no GPS in the stored object, no URL leaks); update the pins above -- all ACs
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- orphan manifests until Epic 8, quota never shrinks, ICC removal, provider derivatives bake orientation (2.5), thumbnails, resolver for other kinds (4.1), the closed Story 2.2/2.3 deferrals -- housekeeping
+- [x] `workers/files/src/strip.ts`, `workers/files/src/server.ts`, `workers/files/src/database.ts`, `workers/files/src/resolvers.ts` -- the strip, the transform-aware attach, the retained resolver -- AC-1, AC-2, AC-4, AC-5
+- [x] `supabase/migrations/20261021120000_retained_pictures.sql` -- the transform, `publish_attachment` for it with the quota lock, pin columns, the pre-check, the extended writers and read, `read_retained_pictures`, the live-authorization view, the index, preflight -- AC-1 to AC-5
+- [x] `lib/service-signing.ts`, `lib/gateway-client.ts`, `lib/retention.ts`, `lib/projects.ts`, `lib/picture-fetch.ts`, `lib/picture-view.ts`, `lib/picture-review.ts` -- the `retained` kind, error codes and timeouts, the server-only orchestration, typed calls, read-back from retained roots, the new states -- AC-1 to AC-4
+- [x] `app/projects/[projectId]/pictures/review/actions.ts`, `app/projects/[projectId]/pictures/review/page.tsx`, `components/projects/picture-review.tsx`, `components/projects/request-section.tsx`, `lib/i18n/en.ts`, `lib/i18n/he.ts`, `app/globals.css` -- `retainPictures`, the retaining state, every refusal message, the kept-privately copy -- AC-1 to AC-4
+- [x] `docs/authority-contract.md`, `docs/picture-quality.md`, `docs/staging.md`, `README.md` -- retention, the resolver, the strip and ICC note, deploy order -- housekeeping
+- [x] `tests/` -- every matrix row: unit (the strip on spliced JPEG, PNG and WebP fixtures with GPS: every segment removed, orientation kept, pixels identical, truncated and corrupt input refused, reproducible digest; attach with the fake gateway world; the retained resolver; retention orchestration with fakes incl. partial failure and parallelism limit; the new states), integration (pre-check, quota exactly at the edge and over, race, writer pins and `not_retained`, `unchanged` needs pins, picture change keeps pins, `read_retained_pictures`, authority, isolation, immutability, view, preflight, a real attach against Postgres and Storage that strips a GPS JPEG), browser on desktop and phone in both languages against the real gateway (review, Confirm retains, reload shows the pictures from retained roots, quota exceeded, changed bytes, no GPS in the stored object, no URL leaks); update the pins above -- all ACs
+- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- orphan manifests until Epic 8, quota never shrinks, ICC removal, provider derivatives bake orientation (2.5), thumbnails, resolver for other kinds (4.1), the closed Story 2.2/2.3 deferrals -- housekeeping
 
 **Acceptance Criteria:**
 - Given confirmed ordered pictures and their staged copies, when retention runs, then each picture has a verified manifest root, the successor revision pins the ordered roots, and the staging copies expire.
@@ -110,3 +111,97 @@ request_images row: position 2, upload_id, sha256 <staged>, retained_root <root>
 
 **Manual checks (if no CLI):**
 - With the stack and gateway up, save a JPEG that carries GPS EXIF, review it, Confirm: the Project shows "Kept privately with this request". Download the retained object from local Storage (`objects/<account>/<root>`) and confirm with `exiftool` or a hex dump that no GPS segment remains and the orientation tag does. Reload the review page: the picture appears again with no staging read.
+
+## Suggested Review Order
+
+**The strip (what a retained picture is)**
+
+- Entry point: one pure function per type, refusing anything it cannot parse.
+  [`strip.ts:384`](../../workers/files/src/strip.ts#L384)
+
+- JPEG walk keeps decoding segments only; PNG and WebP follow the same shape.
+  [`strip.ts:105`](../../workers/files/src/strip.ts#L105)
+  [`strip.ts:255`](../../workers/files/src/strip.ts#L255)
+  [`strip.ts:326`](../../workers/files/src/strip.ts#L326)
+
+- The one thing kept: an orientation-only EXIF block, written fresh.
+  [`strip.ts:81`](../../workers/files/src/strip.ts#L81)
+
+**Publishing it (gateway and database)**
+
+- The gateway attach reads, verifies, strips and stores under the new root.
+  [`server.ts:633`](../../workers/files/src/server.ts#L633)
+
+- The database registers the transform and enforces the 2 GiB quota under a per-Account lock.
+  [`retained_pictures.sql:73`](../../supabase/migrations/20261021120000_retained_pictures.sql#L73)
+
+- Read-only pre-check: authority, ownership, staleness and quota before anything is published.
+  [`retained_pictures.sql:229`](../../supabase/migrations/20261021120000_retained_pictures.sql#L229)
+
+**Pinning it to the confirmed review**
+
+- The review writer takes roots from its own manifests, never from the browser.
+  [`retained_pictures.sql:570`](../../supabase/migrations/20261021120000_retained_pictures.sql#L570)
+
+- The picture-set writer carries pins into the unreviewed successor.
+  [`retained_pictures.sql:339`](../../supabase/migrations/20261021120000_retained_pictures.sql#L339)
+
+- Pin columns, all-or-none, plus the quota index.
+  [`retained_pictures.sql:46`](../../supabase/migrations/20261021120000_retained_pictures.sql#L46)
+
+**Application orchestration**
+
+- Pre-check, then at most 4 attaches in flight, each limited to 30 seconds.
+  [`retention.ts:141`](../../lib/retention.ts#L141)
+
+- Confirm keeps first and records only when every picture is kept.
+  [`actions.ts:90`](../../app/projects/%5BprojectId%5D/pictures/review/actions.ts#L90)
+  [`picture-view.ts:264`](../../lib/picture-view.ts#L264)
+
+- The screen drives both phases and announces each one.
+  [`picture-review.tsx:315`](../../components/projects/picture-review.tsx#L315)
+
+- Typed calls and the gateway's own error code surfaced to the application.
+  [`projects.ts:564`](../../lib/projects.ts#L564)
+  [`gateway-client.ts:49`](../../lib/gateway-client.ts#L49)
+
+**Reading it back**
+
+- A new `retained` ticket kind, signed and registered.
+  [`service-signing.ts:334`](../../lib/service-signing.ts#L334)
+
+- The gateway resolver serves a picture only while a live Project pins it.
+  [`resolvers.ts:60`](../../workers/files/src/resolvers.ts#L60)
+  [`retained_pictures.sql:196`](../../supabase/migrations/20261021120000_retained_pictures.sql#L196)
+
+- Pixels for the review come from the retained root when pinned.
+  [`picture-fetch.ts:273`](../../lib/picture-fetch.ts#L273)
+
+- The Project page says "Kept privately" instead of the staging lapse.
+  [`request-section.tsx:105`](../../components/projects/request-section.tsx#L105)
+
+- The later consumers' read, and the preflight.
+  [`retained_pictures.sql:922`](../../supabase/migrations/20261021120000_retained_pictures.sql#L922)
+  [`retained_pictures.sql:989`](../../supabase/migrations/20261021120000_retained_pictures.sql#L989)
+
+**Documentation**
+
+- Retention before confirmation and the resolver's authority.
+  [`authority-contract.md:79`](../../docs/authority-contract.md#L79)
+
+- The strip, orientation and the ICC consequence.
+  [`picture-quality.md:58`](../../docs/picture-quality.md#L58)
+
+**Tests**
+
+- Strip fixtures with GPS: every segment gone, orientation kept, pixels identical.
+  [`strip.test.ts:71`](../../tests/unit/strip.test.ts#L71)
+
+- Database: quota edge, pins, resolver view, immutability.
+  [`retained-pictures.test.ts:136`](../../tests/integration/retained-pictures.test.ts#L136)
+
+- Retention orchestration with fakes, including partial failure.
+  [`retention.test.ts:83`](../../tests/unit/retention.test.ts#L83)
+
+- End to end against the real gateway, both locales, announcements included.
+  [`picture-retention.spec.ts:297`](../../tests/e2e/picture-retention.spec.ts#L297)

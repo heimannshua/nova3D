@@ -1363,10 +1363,10 @@ describe('the preflight carries the Story 2.1 table and functions', () => {
     for (const needle of ['projects.request_revisions', 'q.personalization_applied', 'q.digest', 'q.confirmed_at', 'Story 2.1 migration', create_, read_, 'Story 1.13 migration', 'Story 1.12 migration', 'projects.project_commands']) {
       expect(definition, needle).toContain(needle);
     }
-    // The service role can execute all thirty-six api functions (Story 2.3 added the last), these two among them; the bucket check is still the last of all.
+    // The service role can execute all thirty-eight api functions (Story 2.3 added the thirty-sixth, Story 2.12 the last two), these two among them; the bucket check is still the last of all.
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(36);
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(38);
     expect(executable).toContain(create_);
     expect(executable).toContain(read_);
     expect(definition.indexOf('Story 2.1 migration')).toBeLessThan(check);

@@ -1,6 +1,6 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import type {Env} from '@/lib/environment';
-import {configuredGatewayClient, createGatewayClient, GatewayError, GatewayUnavailableError, signingConfigOf, type SigningConfig} from '@/lib/gateway-client';
+import {attachTimeoutMs, configuredGatewayClient, createGatewayClient, GatewayError, GatewayUnavailableError, signingConfigOf, type SigningConfig} from '@/lib/gateway-client';
 import {commandClaimsOf, verifyToken} from '@/lib/service-signing';
 import {testKeyPair, testKeys} from '../support/service-keys';
 
@@ -259,6 +259,75 @@ describe('when the gateway does not do it', () => {
     expect(error.message).not.toContain(tokenOf(calls[0]));
     expect(error.message).not.toContain(GATEWAY);
     expect(error.message).not.toContain('something the gateway said');
+  });
+
+  it.each([
+    [409, 'bytes_changed'],
+    [400, 'strip_failed'],
+    [409, 'lease_expired'],
+    [413, 'quota_exceeded'],
+    [409, 'manifest_conflict'],
+    [404, 'not_found'],
+  ])('carries the gateway\'s own error code for a %i that says %s (Story 2.12), and still nothing else of the answer', async (status, code) => {
+    const {fetch, calls} = gateway(() => json({error: code, secret: 'not carried'}, status));
+    const attempt = createGatewayClient(configured(), {fetch}).attach({accountId: ACCOUNT, epoch: 1, uploadId: UPLOAD, transform: 'strip-picture-metadata'});
+    const error = (await attempt.then(
+      () => null,
+      (caught: unknown) => caught,
+    )) as GatewayError;
+    expect(error).toBeInstanceOf(GatewayError);
+    expect([error.status, error.code]).toEqual([status, code]);
+    expect(error.message).not.toContain(code);
+    expect(error.message).not.toContain(tokenOf(calls[0]));
+    expect(JSON.stringify(error)).not.toContain('not carried');
+  });
+
+  it.each([
+    ['text with spaces', {error: 'something the gateway said'}],
+    ['upper case', {error: 'Bytes_Changed'}],
+    ['a path', {error: '../../x'}],
+    ['a number', {error: 5}],
+    ['nothing', {}],
+    ['a list', ['bytes_changed']],
+    ['a word that is too long', {error: 'a'.repeat(41)}],
+  ])('carries no code when the error is %s: the code is a short lower-case word the gateway chose, or null', async (_name, body) => {
+    const {fetch} = gateway(() => json(body, 409));
+    const error = (await createGatewayClient(configured(), {fetch}).deleteRoot({accountId: ACCOUNT, root: ROOT}).then(
+      () => null,
+      (caught: unknown) => caught,
+    )) as GatewayError;
+    expect(error).toBeInstanceOf(GatewayError);
+    expect(error.code).toBeNull();
+    expect(error.status).toBe(409);
+  });
+
+  it('has no code for an answer that is not JSON, or for a success whose body is not what it should be', async () => {
+    const html = gateway(() => new Response('Bad Gateway', {status: 502}));
+    expect(await createGatewayClient(configured(), {fetch: html.fetch}).deleteRoot({accountId: ACCOUNT, root: ROOT}).catch((error: GatewayError) => error.code)).toBeNull();
+    const odd = gateway(() => json({outcome: 'published'}));
+    expect(await createGatewayClient(configured(), {fetch: odd.fetch}).attach({accountId: ACCOUNT, epoch: 1, uploadId: UPLOAD, transform: 'none'}).catch((error: GatewayError) => [error.status, error.code])).toEqual([200, null]);
+  });
+
+  it('gives an attach 30 seconds of its own (Story 2.12), and every other command the 10 of timeoutMs', async () => {
+    const seen: number[] = [];
+    const spy = vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms: number) => {
+      seen.push(ms);
+      return new AbortController().signal;
+    });
+    const {fetch} = gateway(() => json({outcome: 'deleted', manifest: {id: UPLOAD, root: ROOT, digest: ROOT, length: 5, kind: 'picture'}}));
+    const client = createGatewayClient(configured(), {fetch});
+    await client.deleteRoot({accountId: ACCOUNT, root: ROOT});
+    await client.attach({accountId: ACCOUNT, epoch: 1, uploadId: UPLOAD, transform: 'strip-picture-metadata'}).catch(() => undefined);
+    await createGatewayClient(configured(), {fetch, timeoutMs: 25, attachTimeoutMs: 40}).attach({accountId: ACCOUNT, epoch: 1, uploadId: UPLOAD, transform: 'none'}).catch(() => undefined);
+    await createGatewayClient(configured(), {fetch, timeoutMs: 25, attachTimeoutMs: 40}).deleteRoot({accountId: ACCOUNT, root: ROOT});
+    spy.mockRestore();
+    expect(seen).toEqual([10_000, 30_000, 40, 25]);
+    expect(attachTimeoutMs).toBe(30_000);
+  });
+
+  it('gives up on an attach that does not answer within its own limit, as a gateway that did not answer', async () => {
+    const hanging = vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener('abort', () => reject(init.signal!.reason))));
+    await expect(createGatewayClient(configured(), {fetch: hanging as never, timeoutMs: 5_000, attachTimeoutMs: 25}).attach({accountId: ACCOUNT, epoch: 1, uploadId: UPLOAD, transform: 'strip-picture-metadata'})).rejects.toBeInstanceOf(GatewayUnavailableError);
   });
 
   it('throws a GatewayError for a non-2xx answer that is not JSON either', async () => {

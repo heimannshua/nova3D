@@ -843,7 +843,9 @@ function PictureRow({
             </>
           ) : null}
           {item.state === 'ready' && !expired ? (
-            <p className="project-muted">{item.saved && expiry ? t('picture.item.saved', {time: expiry}) : t('picture.item.ready')}</p>
+            <p className="project-muted" data-kept={item.kept ? 'true' : undefined}>
+              {item.saved && item.kept ? t('picture.item.kept') : item.saved && expiry ? t('picture.item.saved', {time: expiry}) : t('picture.item.ready')}
+            </p>
           ) : null}
           {expired ? (
             <div className="picture-note">

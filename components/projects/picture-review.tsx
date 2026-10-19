@@ -1,7 +1,8 @@
 'use client';
 
 import {useActionState, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent} from 'react';
-import {recordPictureReview} from '@/app/projects/[projectId]/pictures/review/actions';
+import {flushSync} from 'react-dom';
+import {recordPictureReview, retainPictures} from '@/app/projects/[projectId]/pictures/review/actions';
 import {useI18n} from '@/lib/i18n/react';
 import type {MessageKey} from '@/lib/i18n';
 import {decodePicture} from '@/lib/picture-decode';
@@ -16,6 +17,7 @@ import {
   type ViewLabel,
 } from '@/lib/picture-quality';
 import {
+  anyUnkept,
   badgeKeys,
   coverageOf,
   firstStepIssue,
@@ -38,18 +40,21 @@ import {
 import {formatBytes, formatParams, typeLabel} from '@/lib/picture-set';
 import {canHash} from '@/lib/picture-upload';
 import {
-  attemptReview,
   browserStorage,
   commandIdFor,
+  confirmReview,
+  confirmStatusKey,
   forgetCommandId,
   newCommandId,
   requestKey,
   reviewIdle,
   reviewKey,
+  reviewParams,
   settleReview,
+  type ConfirmPhase,
   type ReviewState,
 } from '@/lib/picture-view';
-import {picturesPath, projectPath, type RequestPicture} from '@/lib/project-view';
+import {picturesPath, projectPath, type KeptPicture, type RequestPicture} from '@/lib/project-view';
 import type {RequestMode} from '@/lib/request-intake';
 import {fieldText, lineProblem, maxOutcomeLength, maxScopeLength} from '@/lib/request-intake';
 import {limitOf, problemKey} from '@/lib/request-view';
@@ -138,7 +143,18 @@ const issueKeys = {
  * reconstruction records the choice and nothing more (the subject is identified and the scope confirmed in a later step). Confirming approves no plan and
  * authorizes no cost. After a step focus moves to the new heading, or to the first thing to fix; each result is announced through the page's live region.
  */
-export function PictureReview({project, request, initial = {}}: {project: {id: string; title: string}; request: ReviewedRequest; initial?: InitialReview}) {
+export function PictureReview({
+  project,
+  request,
+  kept = [],
+  initial = {},
+}: {
+  project: {id: string; title: string};
+  request: ReviewedRequest;
+  /** The pictures the revision pins as retained pictures (Story 2.12): they are read from their retained copy, and the others from private staging. */
+  kept?: readonly KeptPicture[];
+  initial?: InitialReview;
+}) {
   const {t, locale} = useI18n();
   const announce = useAnnounce();
 
@@ -165,8 +181,16 @@ export function PictureReview({project, request, initial = {}}: {project: {id: s
     coverage: useId(),
   };
 
-  // The pictures: kept in a ref as well, so a measurement that finishes later reads them as they are then, not as they were when it began.
-  const [items, setItems] = useState<ReviewItem[]>(() => initial.items ?? reviewItems(request.images as ReviewableImage[]));
+  // The pictures: kept in a ref as well, so a measurement that finishes later reads them as they are then, not as they were when it began. A picture the revision pins
+  // carries the facts of its retained copy (Story 2.12), which is where its pixels come from.
+  const savedImages = (): ReviewableImage[] => {
+    const pinned = new Map(kept.map((picture) => [picture.uploadId, picture]));
+    return request.images.map((image) => {
+      const copy = pinned.get(image.uploadId);
+      return {...image, retained: copy ? {sha256: copy.sha256, length: copy.length} : null};
+    });
+  };
+  const [items, setItems] = useState<ReviewItem[]>(() => initial.items ?? reviewItems(savedImages()));
   const itemsRef = useRef(items);
   const commit = (next: ReviewItem[]) => {
     itemsRef.current = next;
@@ -178,7 +202,7 @@ export function PictureReview({project, request, initial = {}}: {project: {id: s
   const [choice, setChoice] = useState<PathChoice | null>(initial.choice ?? null);
   const [edits, setEdits] = useState<{scope: string | null; outcome: string | null}>({scope: initial.scope ?? null, outcome: initial.outcome ?? null});
   // The acknowledgment is given for the facts the warning states (lib/picture-review.ts `incompleteKey`): it is void when they change, whatever changed them.
-  const [acknowledgedFor, setAcknowledgedFor] = useState<string | null>(() => (initial.acknowledged ? incompleteKey(initial.items ?? reviewItems(request.images as ReviewableImage[])) : null));
+  const [acknowledgedFor, setAcknowledgedFor] = useState<string | null>(() => (initial.acknowledged ? incompleteKey(initial.items ?? reviewItems(savedImages())) : null));
   const [tried, setTried] = useState(initial.tried ?? false);
   const [chose, setChose] = useState(initial.chose ?? false);
   const [confirmTried, setConfirmTried] = useState(initial.confirmTried ?? false);
@@ -223,7 +247,9 @@ export function PictureReview({project, request, initial = {}}: {project: {id: s
     };
 
     // The File the picture screen handed over (checked against the saved SHA-256) or else the picture read back by a ticket (checked as well): lib/picture-fetch.ts.
-    const loaded = await loadPicture({uploadId: item.uploadId, sha256: item.sha256, length: item.length}, {signal});
+    // A pinned picture is read from its retained copy and checked against the retained SHA-256 and length; any other from the File the picture screen handed over, or
+    // from private staging: lib/picture-fetch.ts.
+    const loaded = await loadPicture({uploadId: item.uploadId, sha256: item.sha256, length: item.length, retained: item.retained}, {signal});
     if (!loaded.ok) return settle({state: 'unusable', reason: loaded.problem, measurements: null});
     const decoded = await decodePicture(loaded.blob);
     if (!decoded.ok) return settle({state: 'unusable', reason: decoded.problem, measurements: null});
@@ -280,9 +306,27 @@ export function PictureReview({project, request, initial = {}}: {project: {id: s
   const scope = edits.scope ?? request.scope ?? t('review.scopeDefault');
   const outcome = edits.outcome ?? request.outcome ?? t('review.outcomeDefault');
 
+  // Confirm is two steps (Story 2.12): the pictures are KEPT first (`retaining`), and only when every one is kept is the review RECORDED (`recording`). `phase` says which
+  // is running, for the words and the live region; it is `idle` between Confirms.
+  const [phase, setPhase] = useState<ConfirmPhase>('idle');
+
   const [reviewed, reviewForm, saving] = useActionState(async (previous: ReviewState, formData: FormData) => {
     try {
-      const result = await attemptReview(recordPictureReview, previous, formData);
+      // Keep the pictures first, and record the review only when every one is kept (lib/picture-view.ts `confirmReview`).
+      const result = await confirmReview(
+        {
+          retain: retainPictures,
+          record: recordPictureReview,
+          phase: (next) => {
+            // The Confirm runs as an async action, and React holds the state updates of an action back until it ends; the words that say the pictures are being kept
+            // (and then that the review is being saved) are shown while it runs, so this update is applied at once.
+            flushSync(() => setPhase(next));
+            if (next === 'recording') say('review.announce.saving');
+          },
+        },
+        previous,
+        formData,
+      );
       const settled = settleReview(result);
       if (settled.forgetCommand) {
         const used = formData.get('commandId');
@@ -299,6 +343,7 @@ export function PictureReview({project, request, initial = {}}: {project: {id: s
       return result;
     } finally {
       confirming.current = false;
+      setPhase('idle');
     }
   }, initial.state ?? reviewIdle);
 
@@ -401,12 +446,14 @@ export function PictureReview({project, request, initial = {}}: {project: {id: s
     if (field instanceof HTMLInputElement) field.value = chosen;
     lastSent.current = {key, id: chosen};
     confirming.current = true;
-    say('review.announce.saving');
+    say('review.announce.retaining');
   };
+
+  const statusKey = confirmStatusKey(saving, phase);
 
   // The answer to Confirm: a failure is told, and focus goes to it (a field problem is focused by the action's callback).
   const failureKey = reviewed === dismissed ? null : reviewKey(reviewed);
-  const failurePosition = 'position' in reviewed ? reviewed.position : 0;
+  const failureParams = reviewParams(reviewed);
   useEffect(() => {
     if (failureKey) failureRef.current?.focus();
   }, [failureKey, reviewed]);
@@ -668,7 +715,7 @@ export function PictureReview({project, request, initial = {}}: {project: {id: s
                 ))}
               </div>
               <p className="project-muted request-note">{t('review.confirm.directNote')}</p>
-              <p className="project-muted request-note">{t('review.confirm.lapseNote')}</p>
+              {anyUnkept(items) ? <p className="project-muted request-note" data-note="lapse">{t('review.confirm.lapseNote')}</p> : null}
 
               {incompleteNow ? (
                 <section className="review-ack" aria-labelledby={`${ids.acknowledge}-title`}>
@@ -705,17 +752,20 @@ export function PictureReview({project, request, initial = {}}: {project: {id: s
           ) : (
             <p className="project-muted request-note">{t('review.confirm.researchNote')}</p>
           )}
+          <p className="project-muted request-note" data-note="kept">{t('review.confirm.keptNote')}</p>
 
           {failureKey ? (
             <div className="invite-notice" ref={failureRef} tabIndex={-1}>
-              <Notice tone="danger" role="alert">{t(failureKey, {position: failurePosition})}</Notice>
+              <Notice tone="danger" role="alert">{t(failureKey, failureParams)}</Notice>
             </div>
           ) : null}
           <div className="request-actions review-nav">
             <Button variant="primary" type="submit" iconAfter="arrow" aria-disabled={saving ? true : undefined}>{direct ? t('review.confirm.button') : t('review.confirm.save')}</Button>
             <Button variant="secondary" icon="back" onClick={back}>{t('review.back')}</Button>
           </div>
-          <p className="auth-hint auth-status" role="status">{saving ? t('review.confirm.pending') : null}</p>
+          <p className="auth-hint auth-status" role="status" data-phase={saving ? phase : 'idle'}>
+            {statusKey ? t(statusKey, {count: items.length}) : null}
+          </p>
         </form>
       ) : null}
     </div>
@@ -778,8 +828,9 @@ function ReviewPicture({
             <Notice tone="danger" role="alert" id={errorId}>
               <strong>{t('review.unusable.title', {position})}</strong> {t(unusableKeys[item.reason])}{' '}
               {confirmed && remedy ? (
-                // A confirmed request's pictures are locked: nothing on the picture screen can fix this one, so it is not offered.
-                t('review.unusable.confirmed')
+                // A confirmed request's pictures are locked: nothing on the picture screen can fix this one, so it is not offered. (A picture that is kept is kept as it
+                // was; one that is not was confirmed before pictures were kept, and its lapsed copy cannot be brought back.)
+                t(item.retained ? 'review.unusable.keptConfirmed' : 'review.unusable.confirmed')
               ) : (
                 <>
                   {t('review.unusable.cannotAcknowledge')}

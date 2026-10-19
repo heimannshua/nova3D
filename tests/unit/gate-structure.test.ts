@@ -1581,7 +1581,7 @@ describe('The file gateway (Story 1.12): no file through a Vercel function, one 
   };
 
   it('finds the gateway it is meant to read', () => {
-    expect(gateway.map((file) => file.replace('workers/files/src/', '')).sort()).toEqual(['config.ts', 'database.ts', 'main.ts', 'resolvers.ts', 'server.ts', 'storage.ts', 'transfer.ts']);
+    expect(gateway.map((file) => file.replace('workers/files/src/', '')).sort()).toEqual(['config.ts', 'database.ts', 'main.ts', 'resolvers.ts', 'server.ts', 'storage.ts', 'strip.ts', 'transfer.ts']);
   });
 
   it('gives the application one route about transfers, a POST that reads a capped body and moves no file', () => {
@@ -1644,7 +1644,8 @@ describe('The file gateway (Story 1.12): no file through a Vercel function, one 
     expect(callers('listExpiredStaging')).toEqual(['lib/job-tasks.ts', 'lib/lifecycle.ts']);
     expect(callers('revokeServiceKey')).toEqual(['lib/lifecycle.ts']);
     expect(callers('createGatewayClient')).toEqual(['lib/gateway-client.ts']);
-    expect(callers('configuredGatewayClient')).toEqual(['lib/gateway-client.ts', 'lib/job-tasks.ts']);
+    // On purpose changed (Story 2.12): lib/retention.ts is the new caller of the gateway client, and the one caller of its `attach` for pictures.
+    expect(callers('configuredGatewayClient')).toEqual(['lib/gateway-client.ts', 'lib/job-tasks.ts', 'lib/retention.ts']);
     expect(callers('signTicket')).toEqual(['lib/service-signing.ts', 'lib/transfer-tickets.ts']);
     expect(callers('signCommand')).toEqual(['lib/gateway-client.ts', 'lib/service-signing.ts']);
   });
@@ -2956,12 +2957,13 @@ describe('Picture review (Story 2.3) is recorded through one typed call, by one 
 
   it('is one Server Action behind withActiveAccount in a file of its own, with the Account from the verified access and only a command, a Project, the revision, the choice and the review from the form', () => {
     expect(read(actions).trimStart()).toMatch(/^'use server';/);
-    expect([...code(actions).matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)].map((match) => match[1])).toEqual(['recordPictureReview']);
-    expect([...code(actions).matchAll(/^export\s/gm)]).toHaveLength(1);
-    expect([...code(actions).matchAll(/withActiveAccount<(\w+)>\(/g)].map((match) => match[1])).toEqual(['ReviewState']);
-    expect([...code(actions).matchAll(/operationOf\(access\.account\)/g)]).toHaveLength(1);
+    // On purpose changed (Story 2.12): the file holds a second Server Action, `retainPictures`, which keeps the pictures BEFORE this one records the review.
+    expect([...code(actions).matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)].map((match) => match[1])).toEqual(['retainPictures', 'recordPictureReview']);
+    expect([...code(actions).matchAll(/^export\s/gm)]).toHaveLength(2);
+    expect([...code(actions).matchAll(/withActiveAccount<(\w+)>\(/g)].map((match) => match[1])).toEqual(['RetainState', 'ReviewState']);
+    expect([...code(actions).matchAll(/operationOf\(access\.account\)/g)]).toHaveLength(2);
     expect([...code(actions).matchAll(/formData\.(?:get|getAll)\(['"](\w+)['"]\)/g)].map((match) => match[1])).toEqual([
-      'uploadId', 'label', 'shortEdge', 'blur', 'clipped', 'commandId', 'projectId', 'expectedSeq', 'mode', 'scope', 'outcome', 'obstruction', 'acknowledge',
+      'uploadId', 'label', 'shortEdge', 'blur', 'clipped', 'uploadId', 'projectId', 'expectedSeq', 'commandId', 'projectId', 'expectedSeq', 'mode', 'scope', 'outcome', 'obstruction', 'acknowledge',
     ]);
     for (const forbidden of [/\baccountId\s*:\s*(?:formData|String\()/, /\bepoch\s*:\s*(?:formData|Number\()/, /\bsearchParams\b/, /\bheaders\(\)/, /\brequest\.url\b/, /cookies\(/, /formData\.get\(['"](?:title|accountId|epoch|approved|permission|payment|ok|pass|passed|fail|failed|verdict|incomplete|complete|digest|sha256|length|contentType|stage|subject)/, /\.arrayBuffer\(|\.stream\(|\.blob\(|\.text\(\)/]) {
       expect(code(actions)).not.toMatch(forbidden);
@@ -2982,14 +2984,16 @@ describe('Picture review (Story 2.3) is recorded through one typed call, by one 
   });
 
   it('has a branch for every outcome of the typed call, and an unknown one is never a redirect to a Project', () => {
-    const body = code(actions);
-    for (const outcome of ['created', 'replayed', 'unchanged', 'stale', 'unknown_upload', 'not_ready', 'expired_upload', 'obstruction_not_confirmed', 'acknowledgment_required', 'reused', 'not_editable', 'unavailable']) expect(body, outcome).toContain(`case '${outcome}':`);
+    // On purpose changed (Story 2.12): the file holds the retain action first; the review writer's branches are those of the second action.
+    const whole = code(actions);
+    const body = whole.slice(whole.indexOf('export async function recordPictureReview'));
+    for (const outcome of ['created', 'replayed', 'unchanged', 'stale', 'unknown_upload', 'not_ready', 'expired_upload', 'not_retained', 'obstruction_not_confirmed', 'acknowledgment_required', 'reused', 'not_editable', 'unavailable']) expect(body, outcome).toContain(`case '${outcome}':`);
     expect(body).toMatch(/case 'unavailable':[\s\S]*?return \{outcome: 'gone'\};/);
     expect(body.slice(body.indexOf("case 'unavailable':"), body.indexOf('default:'))).not.toMatch(/redirect\(/);
     expect(body).toMatch(/default:[\s\S]*?return redirect\(homePath\);/);
     // On purpose changed (review patch A2): an identical re-confirmation is `unchanged`, and it goes to the Project like a created or replayed review.
     expect(body).toMatch(/case 'created':\s*case 'replayed':\s*case 'unchanged':[^]*?return redirect\(projectPath\(receipt\.projectId\)\);/);
-    expect(code('lib/projects.ts')).toMatch(/const pictureReviewOutcomes = \[\s*'created', 'replayed', 'unchanged', 'stale', 'unknown_upload', 'not_ready', 'expired_upload', 'obstruction_not_confirmed', 'acknowledgment_required', 'reused', 'unavailable', 'not_editable', 'denied',\s*\] as const;/);
+    expect(code('lib/projects.ts')).toMatch(/const pictureReviewOutcomes = \[\s*'created', 'replayed', 'unchanged', 'stale', 'unknown_upload', 'not_ready', 'expired_upload', 'not_retained', 'obstruction_not_confirmed', 'acknowledgment_required', 'reused', 'unavailable', 'not_editable', 'denied',\s*\] as const;/);
     // The outcome is read after the call and the redirect is outside the try that decides whether the call may have happened.
     const tryAt = body.indexOf('try {');
     const catchAt = body.indexOf('} catch (error) {');
@@ -3043,16 +3047,23 @@ describe('Picture review (Story 2.3) is recorded through one typed call, by one 
     expect(callers('csrfFetch')).toEqual(['lib/csrf-client.ts', 'lib/picture-fetch.ts', 'lib/picture-upload.ts']);
     // On purpose changed (review patch C2): the screen asks for a picture by `loadPicture`, which holds the held-File check and the read-back together.
     expect(callers('fetchStagedPicture')).toEqual(['lib/picture-fetch.ts']);
+    expect(callers('fetchRetainedPicture')).toEqual(['lib/picture-fetch.ts']);
     expect(callers('loadPicture')).toEqual([screen, 'lib/picture-fetch.ts']);
     const body = code('lib/picture-fetch.ts');
     // The ticket is in a header, never in the address; nothing else is sent; the gateway is the ticket's and nobody else's.
     expect(body).toMatch(/headers: \{authorization: `Ticket \$\{ticket\.ticket\}`\}/);
     expect(body).toMatch(/credentials: 'omit'/);
     expect(body).toMatch(/referrerPolicy: 'no-referrer'/);
-    expect(body).toMatch(/downloadUrl\(ticket\.gateway, picture\.uploadId\)/);
-    expect(body).toContain('return `${base.origin}/v1/files/staging/${id}`;');
+    // On purpose changed (Story 2.12): a picture the revision pins is read from its retained copy, by the same ticket and the same hash check, with the kind `retained`.
+    expect(body).toMatch(/downloadUrl\(ticket\.gateway, picture\.uploadId, source\)/);
+    expect(body).toContain('return `${base.origin}/v1/files/${kind}/${id}`;');
+    expect(body).toContain("export type PictureSource = 'staging' | 'retained';");
+    expect(body).toMatch(/return fetchPicture\('staging', picture, hooks, deps\);/);
+    expect(body).toMatch(/return fetchPicture\('retained', picture, hooks, deps\);/);
     expect(body).not.toMatch(/uploadUrl|https?:\/\//);
-    expect(body).toMatch(/JSON\.stringify\(\{direction: 'download', kind: 'staging', id\}\)/);
+    expect(body).toMatch(/JSON\.stringify\(\{direction: 'download', kind, id\}\)/);
+    // A pinned picture is read from its retained copy and never from staging or from a held File, checked against the RETAINED SHA-256 and length.
+    expect(body).toMatch(/if \(picture\.retained\) \{\s*const kept = await fetchRetainedPicture\(\{uploadId: picture\.uploadId, sha256: picture\.retained\.sha256, length: picture\.retained\.length\}, hooks, deps\);/);
     // The bytes live in memory only: no address made of them, no storage, no link, no log.
     expect(body).not.toMatch(/createObjectURL|localStorage|sessionStorage|indexedDB|document\.|<a\b|\bdownload=|console\.|caches\b|navigator\.storage/);
     // The hash must equal the saved SHA-256, or the picture is not used.
@@ -3087,7 +3098,7 @@ describe('Picture review (Story 2.3) is recorded through one typed call, by one 
     expect(code('lib/picture-fetch.ts')).toMatch(/const held = new Map<string, File>\(\);/);
     // The held File is checked against the saved SHA-256 before it is used, and otherwise the picture is read back: in loadPicture, once, behind a unit test.
     expect(code('lib/picture-fetch.ts')).toMatch(/if \(\(await sha256Hex\(file, deps\)\) === picture\.sha256\) return \{ok: true, blob: file, from: 'held'\};/);
-    expect(code(screen)).toMatch(/await loadPicture\(\{uploadId: item\.uploadId, sha256: item\.sha256, length: item\.length\}, \{signal\}\);/);
+    expect(code(screen)).toMatch(/await loadPicture\(\{uploadId: item\.uploadId, sha256: item\.sha256, length: item\.length, retained: item\.retained\}, \{signal\}\);/);
     expect(code(screen)).not.toMatch(/\bsha256Hex\b|\bheldFile\b|\bfetchStagedPicture\b/);
   });
 
@@ -3319,5 +3330,106 @@ describe('Picture review (Story 2.3) is recorded through one typed call, by one 
     expect(code('lib/project-stage.ts')).toMatch(/request_draft: \{[^}]*destination: reviewPath\}/);
     expect(code('lib/project-paths.ts')).toContain('export const reviewPath = (projectId: string) => `/projects/${projectId}/pictures/review`;');
     expect(code('lib/project-paths.ts')).toContain('(?:\\/(?:sources|pictures(?:\\/review)?))?');
+  });
+});
+
+describe('Retaining the confirmed pictures (Story 2.12) is one module, before the review is recorded, with no root or key in a page, an address or a log', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+    'next.config.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const code = (file: string) => withoutComments(read(file));
+  const retention = 'lib/retention.ts';
+  const actions = 'app/projects/[projectId]/pictures/review/actions.ts';
+  const page = 'app/projects/[projectId]/pictures/review/page.tsx';
+  const screen = 'components/projects/picture-review.tsx';
+
+  it('is the one caller of the gateway\'s attach, and the one place the strip transform is named in the application', () => {
+    // `attach(` is the gateway client's method; its definition is in lib/gateway-client.ts and its one caller is lib/retention.ts.
+    expect(sources.filter((file) => /\bgateway\.attach\(|\.attach\(\{/.test(code(file)))).toEqual([retention]);
+    expect(sources.filter((file) => /strip-picture-metadata/.test(code(file)))).toEqual([retention]);
+    expect(code(retention)).toContain("export const stripTransform = 'strip-picture-metadata';");
+    expect(code(retention)).toMatch(/transform: stripTransform/);
+    // Nothing in the application deletes through the gateway on its behalf here, and nothing signs a command of its own.
+    expect(code(retention)).not.toMatch(/deleteStaging|deleteRoot|signCommand|signTicket/);
+    expect(callers('retainPictures')).toEqual([actions, screen, retention].sort());
+  });
+
+  it('runs the pre-check first and asks the gateway for nothing when there is nothing to attach, with at most 4 in flight and 30 seconds for each attach', () => {
+    const body = code(retention);
+    expect(body).toContain('export const maxInFlight = 4;');
+    expect(body).toContain('export const attachLimitMs = 30_000;');
+    expect(body).toContain('export const retainBudgetMs = 60_000;');
+    expect(body.indexOf('await check(')).toBeLessThan(body.indexOf('gateway.attach('));
+    expect(body).toMatch(/if \(pending\.length === 0\) return \{outcome: 'retained', count: checked\.pictures\.length\};/);
+    // The client is built only after that line: a run that attaches nothing needs no gateway.
+    expect(body.indexOf('if (pending.length === 0)')).toBeLessThan(body.indexOf('deps.gateway ??'));
+    expect(body).toMatch(/withDeadline\(gateway\.attach\(/);
+    // A failure that trying again cannot cure stops new attaches; one that it may cure does not.
+    expect(body).toMatch(/if \(!failure\.retryable\) stopped = true;/);
+  });
+
+  it('keeps every root, key and address out of what it answers and prints: it reads no environment, logs nothing and returns no root', () => {
+    const body = code(retention);
+    expect(body).not.toMatch(/process\.env|console\.|\blog\(/);
+    // The pre-check's pictures carry a root; the module reads `action` and `position` and `uploadId` of them, and never `root`.
+    expect(body).not.toMatch(/\.root\b|\broot\b/);
+    expect(body).not.toMatch(/objects\/|staging\/|\/v1\/|https?:\/\//);
+    for (const file of [retention, actions, page, screen, 'lib/picture-view.ts', 'lib/project-pages.ts']) expect(code(file), file).not.toMatch(/\.root\b|retained_root|retainedRoot|\bretained\.root\b/);
+  });
+
+  it('reaches the database through two typed calls in lib/projects.ts and nothing else, and the pages take the pins without a root', () => {
+    expect(code('lib/projects.ts')).toMatch(/callRow\(\s*'check_picture_retention'/);
+    expect(code('lib/projects.ts')).toMatch(/callRow\('read_retained_pictures'/);
+    for (const file of sources.filter((candidate) => candidate !== 'lib/projects.ts' && candidate !== 'lib/accounts.ts')) {
+      expect(code(file), file).not.toMatch(/['"`](?:check_picture_retention|read_retained_pictures)['"`]/);
+    }
+    expect(callers('checkPictureRetention')).toEqual(['lib/projects.ts', retention]);
+    expect(callers('readRetainedPictures')).toEqual(['lib/project-pages.ts', 'lib/projects.ts']);
+    // The pages' shape of a pinned picture is the upload and the retained copy's SHA-256 and length.
+    expect(code('lib/project-view.ts')).toContain('export type KeptPicture = {uploadId: string; sha256: string; length: number};');
+  });
+
+  it('is a second Server Action beside the review writer, with a budget of its own, and the page names the limit the action runs under', () => {
+    const body = code(actions);
+    expect(body).toMatch(/export async function retainPictures\(_previous: RetainState, formData: FormData\): Promise<RetainState>/);
+    expect(body).toContain('createBudget(retainBudgetMs)');
+    // The Account is the verified access's; the form names the Project, the revision and the uploads and nothing else.
+    expect(body.slice(body.indexOf('export async function retainPictures'), body.indexOf('export async function recordPictureReview'))).not.toMatch(/accountId\s*:\s*(?:formData|String\()|epoch\s*:\s*(?:formData|Number\()|formData\.get\(['"](?:root|key|sha256|digest|length|stage|label)/);
+    expect(read(page)).toMatch(/^export const maxDuration = 60;$/m);
+    expect(read(page)).toContain('maxDuration.md');
+    // No new route handler: the actions are Server Actions.
+    expect(files('app', (name) => /^route\.(ts|js)$/.test(name)).filter((file) => /retain|retention|picture|review/i.test(file))).toEqual([]);
+  });
+
+  it('records the review only when every picture was kept: the screen confirms through one function that calls the record action after the retain action answered retained', () => {
+    const body = code(screen);
+    expect([...body.matchAll(/confirmReview\(/g)]).toHaveLength(1);
+    expect(body).toMatch(/retain: retainPictures,\s*record: recordPictureReview,/);
+    // The screen no longer calls the record action itself.
+    expect(body).not.toMatch(/attemptReview\(|attemptRetain\(/);
+    const view = code('lib/picture-view.ts');
+    const confirm = view.slice(view.indexOf('export async function confirmReview('), view.indexOf('/** The message of an answer to Confirm'));
+    expect(confirm.indexOf('attemptRetain(steps.retain')).toBeGreaterThan(0);
+    expect(confirm.indexOf('attemptRetain(steps.retain')).toBeLessThan(confirm.indexOf('attemptReview(steps.record'));
+    expect([...confirm.matchAll(/attemptReview\(steps\.record/g)]).toHaveLength(1);
+    // Anything but "kept", and a count that is not the form's pictures, is Confirm's own answer; the record call comes after those returns.
+    expect(confirm.indexOf("if (kept.outcome !== 'retained') return reviewOfRetain(kept);")).toBeLessThan(confirm.indexOf('attemptReview(steps.record'));
+    expect(confirm).toContain("kept.count !== formData.getAll('uploadId').length");
+    expect(callers('attemptRetain')).toEqual(['lib/picture-view.ts']);
+    expect(callers('confirmReview')).toEqual([screen, 'lib/picture-view.ts']);
+    // The screen reads the page's pins (never a root), and reads a picture from where it is kept.
+    expect(body).toContain('retained: item.retained');
+    expect(body).toMatch(/kept\?: readonly KeptPicture\[\]/);
+  });
+
+  it('uses no new dependency, variable or secret, and no CSP or header policy', () => {
+    const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>; devDependencies: Record<string, string>};
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+    expect(read('next.config.ts')).not.toMatch(/Content-Security-Policy|Permissions-Policy|headers\(/);
   });
 });

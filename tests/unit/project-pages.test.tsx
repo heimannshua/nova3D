@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   listProjects: vi.fn(),
   readProject: vi.fn(),
   readProjectRequest: vi.fn(),
+  readRetainedPictures: vi.fn(),
 }));
 vi.mock('next/headers', () => ({
   cookies: async () => ({
@@ -34,6 +35,7 @@ vi.mock('@/lib/projects', async (importOriginal) => ({
   listProjects: mocks.listProjects,
   readProject: mocks.readProject,
   readProjectRequest: mocks.readProjectRequest,
+  readRetainedPictures: mocks.readRetainedPictures,
 }));
 
 import HomePage from '@/app/page';
@@ -92,6 +94,8 @@ beforeEach(() => {
     return found ? {outcome: 'found', project: found} : {outcome: 'unavailable'};
   });
   mocks.readProjectRequest.mockReset().mockResolvedValue({outcome: 'none'});
+  // Nothing is retained unless a test says so (Story 2.12).
+  mocks.readRetainedPictures.mockReset().mockResolvedValue({outcome: 'none'});
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
 
@@ -321,6 +325,7 @@ describe('the page functions', () => {
       description: 'Build the altar',
       personalization: {wording: null, text: null, style: null, applied: false, reason: null},
       confirmedAt: '2026-10-18T19:12:12.844515+00:00',
+      images: [],
     };
 
     it('asks for the Account and epoch of the verified access, and the Project it was asked to open', async () => {
@@ -338,6 +343,60 @@ describe('the page functions', () => {
       expect(await requestOf()).toMatchObject({state: 'found', subjectName: null});
       mocks.readProjectRequest.mockResolvedValue({outcome: 'found', request: {...revision, subjectId: null}});
       expect(await requestOf()).toMatchObject({state: 'found', subjectName: null});
+    });
+
+    describe('and which of its pictures are kept as retained pictures (Story 2.12)', () => {
+      const UPLOAD = '00000000-0000-4000-8000-000000000001';
+      const pictureRevision = {
+        ...revision,
+        mode: 'evidence_images',
+        subjectId: null,
+        confirmedAt: null,
+        scope: null,
+        outcome: null,
+        description: null,
+        images: [{position: 1, uploadId: UPLOAD, sha256: 'a'.repeat(64), length: 1000, contentType: 'image/jpeg', expiresAt: null, available: true, label: null}],
+      };
+      const keptRead = {
+        outcome: 'found',
+        pictures: [{position: 1, uploadId: UPLOAD, root: 'ab'.repeat(32), retainedSha256: 'c'.repeat(64), retainedLength: 900, stagedSha256: 'a'.repeat(64), label: null, contentType: 'image/jpeg'}],
+      };
+
+      it('asks the database which pictures are pinned, as the Account of the verified access, only for a request made of pictures', async () => {
+        mocks.readProjectRequest.mockResolvedValue({outcome: 'found', request: revision});
+        await open();
+        expect(mocks.readRetainedPictures).not.toHaveBeenCalled();
+        mocks.readProjectRequest.mockResolvedValue({outcome: 'found', request: pictureRevision});
+        await open();
+        expect(mocks.readRetainedPictures).toHaveBeenCalledWith({accountId: ACCOUNT, epoch: 4}, first.id, expect.anything());
+      });
+
+      it('hands the section the pinned pictures: the upload and the retained SHA-256 and length, and no root', async () => {
+        mocks.readProjectRequest.mockResolvedValue({outcome: 'found', request: pictureRevision});
+        mocks.readRetainedPictures.mockResolvedValue(keptRead);
+        const data = (await requestOf()) as {kept: unknown};
+        expect(data.kept).toEqual([{uploadId: UPLOAD, sha256: 'c'.repeat(64), length: 900}]);
+        expect(JSON.stringify(data.kept)).not.toContain('ab'.repeat(32));
+        mocks.readRetainedPictures.mockResolvedValue({outcome: 'none'});
+        expect(((await requestOf()) as {kept: unknown}).kept).toEqual([]);
+      });
+
+      it('opens the Project with the request as it records it when the pinned pictures cannot be read: not an error, and never as unavailable', async () => {
+        mocks.readProjectRequest.mockResolvedValue({outcome: 'found', request: pictureRevision});
+        mocks.readRetainedPictures.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
+        const element = (await open()) as ReactElement<{project: {id: string}; request: unknown}>;
+        expect(element.props.project).toMatchObject({id: first.id});
+        // Not knowing which pictures are pinned is no pinned picture: the section shows each as the request records it.
+        expect(element.props.request).toMatchObject({state: 'found', kept: []});
+      });
+
+      it('sends the person Home when the database refuses the pinned read, and is the unavailable page when the Project went between the reads', async () => {
+        mocks.readProjectRequest.mockResolvedValue({outcome: 'found', request: pictureRevision});
+        mocks.readRetainedPictures.mockResolvedValue({outcome: 'denied'});
+        expect(await redirectedTo(open())).toBe('/');
+        mocks.readRetainedPictures.mockResolvedValue({outcome: 'unavailable'});
+        expect(await isNotFound(open())).toBe(true);
+      });
     });
 
     it('has no section for a Project without a request', async () => {

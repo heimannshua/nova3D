@@ -957,6 +957,7 @@ describe('the preflight probes the Story 1.5 functions and the privilege to end 
         'artifacts.service_key_revocations',
         'artifacts.session_authority',
         'artifacts.instance',
+        'artifacts.retained_pictures',
         'lifecycle.alarms',
         'lifecycle.alarm_notices',
         'lifecycle.heartbeats',

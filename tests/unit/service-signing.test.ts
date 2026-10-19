@@ -980,10 +980,11 @@ describe('uploadProblem', () => {
 });
 
 describe('the kinds of target and the UUID test', () => {
-  it('knows `staging` and no other kind yet: a kind with no resolver is refused', () => {
-    expect([...transferTargetKinds]).toEqual(['staging']);
+  it('knows `staging` and `retained` (Story 2.12) and no other kind yet: a kind with no resolver is refused', () => {
+    expect([...transferTargetKinds]).toEqual(['staging', 'retained']);
     expect(isTransferTargetKind('staging')).toBe(true);
-    for (const kind of ['project', 'manifest', 'export', 'Staging', 'staging ', '', 'constructor', '__proto__', undefined, null, 5]) expect(isTransferTargetKind(kind), String(kind)).toBe(false);
+    expect(isTransferTargetKind('retained')).toBe(true);
+    for (const kind of ['project', 'manifest', 'export', 'Staging', 'Retained', 'staging ', 'retained ', '', 'constructor', '__proto__', undefined, null, 5]) expect(isTransferTargetKind(kind), String(kind)).toBe(false);
   });
 
   it('holds an ID to the lower-case canonical UUID spelling', () => {

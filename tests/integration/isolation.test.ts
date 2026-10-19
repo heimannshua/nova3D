@@ -197,6 +197,9 @@ describe('through the REST API', () => {
       p_obstruction_confirmed: true,
       p_acknowledge: false,
     },
+    // Story 2.12: the pre-check of retaining a Project's pictures, and the read of what a Project pins, for an Account that is not the caller's.
+    check_picture_retention: {p_account_id: victim.accountId, p_epoch: 1, p_project_id: randomUUID(), p_expected_seq: 1, p_upload_ids: [randomUUID()]},
+    read_retained_pictures: {p_account_id: victim.accountId, p_epoch: 1, p_project_id: randomUUID()},
     record_tombstone: {p_kind: 'account', p_target_id: victim.accountId},
     resolve_alarm: {p_condition: 'isolation-test', p_subject: null},
     release_staged_pictures: {p_account_id: victim.accountId, p_epoch: 1, p_upload_ids: [randomUUID()]},

@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   createSupabaseServerClient: vi.fn(),
   authorizeSession: vi.fn(),
   recordPictureReview: vi.fn(),
+  retain: vi.fn(),
 }));
 vi.mock('next/navigation', () => ({
   redirect: (to: string) => {
@@ -27,10 +28,11 @@ vi.mock('next/headers', () => ({cookies: async () => ({getAll: () => [], get: ()
 vi.mock('@/lib/supabase/server', async (importOriginal) => ({...(await importOriginal<typeof import('@/lib/supabase/server')>()), createSupabaseServerClient: mocks.createSupabaseServerClient}));
 vi.mock('@/lib/accounts', async (importOriginal) => ({...(await importOriginal<typeof import('@/lib/accounts')>()), authorizeSession: mocks.authorizeSession}));
 vi.mock('@/lib/projects', async (importOriginal) => ({...(await importOriginal<typeof import('@/lib/projects')>()), recordPictureReview: mocks.recordPictureReview}));
+vi.mock('@/lib/retention', async (importOriginal) => ({...(await importOriginal<typeof import('@/lib/retention')>()), retainPictures: mocks.retain}));
 
-import {recordPictureReview} from '@/app/projects/[projectId]/pictures/review/actions';
+import {recordPictureReview, retainPictures} from '@/app/projects/[projectId]/pictures/review/actions';
 import {AccountsConfigError, AccountsUnavailableError} from '@/lib/accounts';
-import {reviewIdle} from '@/lib/picture-view';
+import {retainIdle, reviewIdle} from '@/lib/picture-view';
 import {sessionReader} from '../support/access-token';
 
 const USER = '5f0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c44';
@@ -97,6 +99,10 @@ beforeEach(() => {
   mocks.recordPictureReview.mockReset().mockImplementation(async () => {
     order.push('recordPictureReview');
     return receipt('created');
+  });
+  mocks.retain.mockReset().mockImplementation(async () => {
+    order.push('retain');
+    return {outcome: 'retained', count: 3};
   });
   for (const method of ['log', 'info', 'warn', 'error', 'debug'] as const) vi.spyOn(console, method).mockImplementation(() => undefined);
 });
@@ -279,7 +285,7 @@ describe('recordPictureReview reads a form that is the screen\'s, and refuses on
 
 describe('the other answers of Confirm', () => {
   it('says which picture is the matter by its position for an upload that is gone, not ready or expired, and recorded nothing', async () => {
-    for (const outcome of ['unknown_upload', 'not_ready', 'expired_upload']) {
+    for (const outcome of ['unknown_upload', 'not_ready', 'expired_upload', 'not_retained']) {
       mocks.recordPictureReview.mockResolvedValue({outcome, position: 2});
       expect(await review(), outcome).toEqual({outcome, position: 2});
     }
@@ -370,5 +376,144 @@ describe('an outage while recording', () => {
   it('prints nothing at all when recording works', async () => {
     await redirected(review());
     expect(printed()).toEqual([]);
+  });
+});
+
+// Retaining the pictures (Story 2.12) ------------------------------------------------------------------------------------------
+
+describe('retainPictures keeps the pictures of the review, before the review is recorded', () => {
+  /** What the screen sends to keep three pictures: the Project, the revision reviewed and the uploads in order. */
+  const keep: Fields = {projectId: PROJECT, expectedSeq: '2', uploadId: UPLOADS};
+  const retain = (fields: Fields = keep) => retainPictures(retainIdle, form(fields));
+
+  it('asks retention as the verified Account and epoch, for the Project, the revision and the uploads in order, and answers retained with the count, recording nothing', async () => {
+    expect(await retain()).toEqual({outcome: 'retained', count: 3});
+    expect(mocks.retain).toHaveBeenCalledTimes(1);
+    const [operation, input] = mocks.retain.mock.calls[0];
+    expect(operation).toEqual({accountId: ACCOUNT, epoch: 4});
+    expect(input).toEqual({projectId: PROJECT, expectedSeq: 2, uploadIds: UPLOADS});
+    expect(mocks.recordPictureReview).not.toHaveBeenCalled();
+    expect(order).toEqual(['authorizeSession', 'retain']);
+  });
+
+  it('gives retention a budget of its own, 60 seconds long, and not the 8 seconds the gate has', async () => {
+    await retain();
+    const deps = mocks.retain.mock.calls[0][2];
+    expect(deps.budget.remaining()).toBeGreaterThan(58_000);
+    expect(deps.budget.remaining()).toBeLessThanOrEqual(60_000);
+  });
+
+  it('takes the Account and the epoch from the verified session, and nothing about either from the form', async () => {
+    await retain({...keep, accountId: OTHER_ACCOUNT, account_id: OTHER_ACCOUNT, epoch: '99'});
+    expect(mocks.retain.mock.calls[0][0]).toEqual({accountId: ACCOUNT, epoch: 4});
+    expect(JSON.stringify(mocks.retain.mock.calls[0])).not.toContain(OTHER_ACCOUNT);
+  });
+
+  it('reads nothing but the Project, the revision and the uploads: a root, a key, a digest, a verdict or a stage in the form are not carried', async () => {
+    await retain({...keep, root: 'ab'.repeat(32), key: `objects/${ACCOUNT}/x`, sha256: 'e'.repeat(64), retainedSha256: 'f'.repeat(64), length: '12', stage: 'request_confirmed', ok: 'true'});
+    const [, input] = mocks.retain.mock.calls[0];
+    expect(Object.keys(input).sort()).toEqual(['expectedSeq', 'projectId', 'uploadIds']);
+    expect(JSON.stringify(input)).not.toMatch(/ab{4}|objects\/|request_confirmed|eeee|ffff/);
+  });
+
+  it('lower-cases every ID', async () => {
+    await retain({projectId: PROJECT.toUpperCase(), expectedSeq: '2', uploadId: UPLOADS.map((id) => id.toUpperCase())});
+    expect(mocks.retain.mock.calls[0][1]).toEqual({projectId: PROJECT, expectedSeq: 2, uploadIds: UPLOADS});
+  });
+
+  it('can be asked twice: it is idempotent, and the second answer is the first', async () => {
+    expect(await retain()).toEqual(await retain());
+    expect(mocks.retain).toHaveBeenCalledTimes(2);
+    expect(mocks.retain.mock.calls[0][1]).toEqual(mocks.retain.mock.calls[1][1]);
+  });
+
+  it.each([
+    ['no Project', {projectId: ''}],
+    ['a Project ID that is not one', {projectId: 'nope'}],
+    ['no revision', {expectedSeq: ''}],
+    ['a revision of 0', {expectedSeq: '0'}],
+    ['a revision too large for the database', {expectedSeq: '2000000001'}],
+    ['no pictures', {uploadId: []}],
+    ['thirteen pictures', {uploadId: Array.from({length: 13}, (_, index) => `aaaaaaaa-1111-4111-8111-${String(index).padStart(12, '0')}`)}],
+    ['an upload ID that is not one', {uploadId: [UPLOADS[0], UPLOADS[1], 'nope']}],
+    ['a repeated upload', {uploadId: [UPLOADS[0], UPLOADS[1], UPLOADS[0].toUpperCase()]}],
+  ] as [string, Fields][])('is invalid for %s: nothing to point at and nothing kept', async (_name, change) => {
+    expect(await retain({...keep, ...change})).toEqual({outcome: 'invalid'});
+    expect(mocks.retain).not.toHaveBeenCalled();
+  });
+
+  it('is invalid for a form with nothing in it', async () => {
+    expect(await retainPictures(retainIdle, new FormData())).toEqual({outcome: 'invalid'});
+    expect(mocks.retain).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{outcome: 'bytes_changed', position: 2}, {outcome: 'bytes_changed', position: 2}],
+    [{outcome: 'strip_failed', position: 1}, {outcome: 'strip_failed', position: 1}],
+    [{outcome: 'lease_expired', position: 3}, {outcome: 'lease_expired', position: 3}],
+    [{outcome: 'not_complete', position: 3}, {outcome: 'not_complete', position: 3}],
+    [{outcome: 'manifest_conflict', position: 2}, {outcome: 'manifest_conflict', position: 2}],
+    [{outcome: 'unknown_upload', position: 2}, {outcome: 'unknown_upload', position: 2}],
+    [{outcome: 'not_ready', position: 2}, {outcome: 'not_ready', position: 2}],
+    [{outcome: 'expired_upload', position: 2}, {outcome: 'expired_upload', position: 2}],
+    [{outcome: 'quota_exceeded', kept: 2_137_000_000, asked: 12_582_912}, {outcome: 'quota_exceeded', kept: 2_137_000_000, asked: 12_582_912}],
+    [{outcome: 'quota_exceeded', kept: null, asked: null}, {outcome: 'quota_exceeded', kept: null, asked: null}],
+    [{outcome: 'unavailable', position: 2}, {outcome: 'retain_unavailable', position: 2}],
+    [{outcome: 'unavailable', position: null}, {outcome: 'retain_unavailable', position: null}],
+    [{outcome: 'stale', seq: 5}, {outcome: 'stale'}],
+    [{outcome: 'not_editable'}, {outcome: 'not_editable'}],
+    [{outcome: 'gone'}, {outcome: 'gone'}],
+  ])('answers %j as %j, and records nothing', async (result, expected) => {
+    mocks.retain.mockResolvedValue(result);
+    expect(await retain()).toEqual(expected);
+    expect(mocks.recordPictureReview).not.toHaveBeenCalled();
+    expect(order.filter((step) => step.startsWith('redirect:'))).toEqual([]);
+  });
+
+  it('sends the person Home, with nothing kept confirmed, when the database no longer gives this request authority', async () => {
+    mocks.retain.mockResolvedValue({outcome: 'denied'});
+    expect(await redirected(retain())).toBe('/');
+  });
+
+  it.each(['disabled', 'revoked', 'stale_epoch', 'expired', 'idle', 'no_session', 'no_grant', 'subject_mismatch'])('sends a %s session where any private request goes, and keeps nothing', async (state) => {
+    authorizationIs(state);
+    expect(await redirected(retain())).toMatch(/^\/login/);
+    expect(mocks.retain).not.toHaveBeenCalled();
+  });
+
+  it('sends a person with no Account to register, and keeps nothing', async () => {
+    authorizationIs('unregistered');
+    expect(await redirected(retain())).toBe('/register');
+    expect(mocks.retain).not.toHaveBeenCalled();
+  });
+
+  it('answers "the private store did not answer", retryable, when the check of who is asking could not be made', async () => {
+    mocks.authorizeSession.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
+    expect(await retain()).toEqual({outcome: 'retain_unavailable', position: null});
+    expect(mocks.retain).not.toHaveBeenCalled();
+  });
+
+  it('answers the same when the pre-check could not reach the database: nothing was confirmed, and trying again is safe', async () => {
+    mocks.retain.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
+    expect(await retain()).toEqual({outcome: 'retain_unavailable', position: null});
+    mocks.retain.mockRejectedValue(new TypeError('surprise'));
+    expect(await retain()).toEqual({outcome: 'retain_unavailable', position: null});
+  });
+
+  it('prints a name and a message only when it fails: never an ID, an upload or an address', async () => {
+    mocks.retain.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
+    await retain();
+    const lines = printed();
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      for (const secret of [PROJECT, COMMAND, ACCOUNT, ...UPLOADS, 'person@example.com']) expect(line).not.toContain(secret);
+    }
+    expect(lines.join(' ')).toContain('AccountsUnavailableError: The accounts database did not answer.');
+  });
+
+  it('prints nothing at all when the pictures are kept, and the form the review is recorded with is a different one', async () => {
+    await retain();
+    expect(printed()).toEqual([]);
+    expect(await redirected(review())).toBe(`/projects/${PROJECT}`);
   });
 });

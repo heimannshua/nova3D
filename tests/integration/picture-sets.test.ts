@@ -1338,12 +1338,14 @@ describe('the record: projects.request_images', () => {
       `select column_name as name, is_nullable = 'NO' as required from information_schema.columns where table_schema = 'projects' and table_name = 'request_images' order by column_name`,
     );
     // On purpose changed (Story 2.3): four nullable columns are added (the person's label and the browser's three measurements: all four or none), and no other.
+    // On purpose changed again (Story 2.12): three more nullable columns, the pins (the retained copy's manifest root, SHA-256 and length: all three or none).
     const required = ['revision_id', 'project_id', 'account_id', 'position', 'upload_id', 'sha256', 'length', 'content_type'];
-    const added = ['view_label', 'short_edge_px', 'blur_variance', 'clipped_fraction'];
+    const added = ['view_label', 'short_edge_px', 'blur_variance', 'clipped_fraction', 'retained_root', 'retained_sha256', 'retained_length'];
     expect(columns.map((column) => column.name)).toEqual([...required, ...added].sort());
     expect(columns.filter((column) => column.required).map((column) => column.name)).toEqual(required.sort());
     expect(columns.filter((column) => !column.required).map((column) => column.name)).toEqual(added.sort());
-    for (const column of columns) expect(column.name, column.name).not.toMatch(/manifest|root|retain|pin|ordinal|digest|approv|permission|payment|cost|job/);
+    // On purpose changed (Story 2.12): `root` and `retain` are allowed in the three pin columns `retained_*` (and in no other name); the rest stay banned.
+    for (const column of columns) expect(column.name.replace(/^retained_(root|sha256|length)$/, ''), column.name).not.toMatch(/manifest|root|retain|pin|ordinal|digest|approv|permission|payment|cost|job/);
   });
 
   it('has the primary key (revision_id, position), a unique (revision_id, upload_id) and foreign keys that restrict', async () => {
@@ -1682,10 +1684,10 @@ describe('the preflight carries the Story 2.2 table and functions', () => {
       'projects.request_revisions', 'Story 2.1 migration', 'Story 1.13 migration', 'Story 1.12 migration', 'Story 1.9 migration', 'Story 1.8 migration', 'Story 1.7 migration', 'Story 1.6 migration', 'Story 1.5 migration',
       'artifacts.staging_leases', 'lifecycle.alarms', 'auth.mfa_amr_claims', 'private-files',
     ]) expect(definition, needle).toContain(needle);
-    // The service role must be able to execute all thirty-six api functions (Story 2.3 adds the thirty-sixth), the two of this story among them; the bucket check is still the last of all.
+    // The service role must be able to execute all thirty-eight api functions (Story 2.3 added the thirty-sixth, Story 2.12 the last two), the two of this story among them; the bucket check is still the last of all.
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(36);
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(38);
     expect(executable).toContain(functions[0]);
     expect(executable).toContain(functions[1]);
     expect(definition.indexOf('Story 2.2 migration')).toBeLessThan(check);

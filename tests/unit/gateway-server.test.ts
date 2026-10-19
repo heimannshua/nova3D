@@ -6,10 +6,12 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {canonicalize} from '../../lib/canonical-json';
 import {newJti, signCommand, signTicket, tokenLabel, type CommandClaims, type Signer, type TicketClaims} from '../../lib/service-signing';
 import {createResolvers, type Resolvers} from '../../workers/files/src/resolvers';
+import {readOrientation, stripPictureMetadata} from '../../workers/files/src/strip';
 import {PartialDeleteError} from '../../workers/files/src/storage';
 import {createGatewayServer} from '../../workers/files/src/server';
 import {createFixtureResolver, fixtureKind} from '../support/fixture-resolver';
-import {DatabaseUnavailable, fakeClock, fakeDatabase, fakeStorage, jpegBytes, MiB, pngBytes, sha256, webpBytes, type FakeMember} from '../support/gateway-fakes';
+import {DatabaseUnavailable, fakeClock, fakeDatabase, fakeStorage, jpegBytes, MiB, pngBytes, retainedQuotaBytes, sha256, webpBytes, type FakeMember} from '../support/gateway-fakes';
+import {baselineJpeg, contains, gpsJpeg, gpsJpegOrientation, gpsMarker, jpegNames, markersIn, pngWithMetadata, webpWithMetadata} from '../support/metadata-pictures';
 import {testKeyPair, testSigner, type TestKeySetOptions} from '../support/service-keys';
 
 // Story 1.12: the file gateway's HTTP server (workers/files/src/server.ts), over real HTTP on a loopback port, with in-memory stand-ins for its
@@ -221,10 +223,10 @@ async function start(settings: StartOptions = {}) {
     },
 
     /** Puts an upload where the gateway holds one: a lease and its object. */
-    stage(member: FakeMember, bytes: Buffer, settings: {id?: string; kind?: 'picture' | 'file'; state?: 'receiving' | 'complete' | 'attached' | 'released'; object?: boolean; expiresAt?: Date} = {}) {
+    stage(member: FakeMember, bytes: Buffer, settings: {id?: string; kind?: 'picture' | 'file'; contentType?: string; state?: 'receiving' | 'complete' | 'attached' | 'released'; object?: boolean; expiresAt?: Date} = {}) {
       const id = settings.id ?? randomUUID();
       const kind = settings.kind ?? 'file';
-      const contentType = kind === 'picture' ? 'image/png' : 'application/octet-stream';
+      const contentType = settings.contentType ?? (kind === 'picture' ? 'image/png' : 'application/octet-stream');
       const lease = db.seedLease({
         id,
         accountId: member.accountId,
@@ -2255,5 +2257,329 @@ describe('a prefix is called deleted only after a clean delete (P3)', () => {
     expect((await world.post(world.command({cmd: 'delete-staging', acct: member.accountId, uid: staged.id}))).json()).toEqual({outcome: 'deleted'});
     expect(world.db.leases.get(staged.id)!.state).toBe('deleted');
     expect(world.storage.keys()).toEqual([]);
+  });
+});
+
+
+// ---------------------------------------------------------------------------------------------------
+// Story 2.12: retaining a picture. The attach command gains a transform, `strip-picture-metadata`: the gateway reads the staged object (at most 12 MiB), refuses it
+// unless its SHA-256 and length are the lease's, removes every metadata segment but the EXIF orientation in memory, hashes the result, builds the manifest body with
+// the retained digest and length, stores the result at objects/<account>/<root> and publishes. A repeated attach recomputes the same bytes and so the same root.
+describe('attach with the transform strip-picture-metadata (Story 2.12)', () => {
+  const strip = 'strip-picture-metadata';
+  const claimsOf = (member: FakeMember, staged: {id: string}, transform = strip): CommandClaims => ({cmd: 'attach', acct: member.accountId, epoch: member.epoch, uid: staged.id, tr: transform});
+  const picture = (member: FakeMember, bytes: Buffer, contentType = 'image/jpeg', settings: Parameters<World['stage']>[2] = {}) => world.stage(member, bytes, {kind: 'picture', contentType, ...settings});
+  const bodyOf = (staged: {id: string}, member: FakeMember, retained: Buffer) =>
+    canonicalize({id: staged.id, scope: member.accountId, activity: `upload:${strip}`, kind: 'picture', digest: sha256(retained), length: retained.length, serialization: 1, children: []});
+  const objectsHeld = () => world.storage.keys().filter((key) => key.startsWith('objects/'));
+
+  it('strips a JPEG that carries location data: the manifest describes the stripped copy, which is stored under objects/<account>/<root>, and the lease is attached', async () => {
+    const member = world.member();
+    const original = gpsJpeg();
+    expect(markersIn(original)).toContain(gpsMarker);
+    const staged = picture(member, original);
+    const retained = stripPictureMetadata('image/jpeg', original);
+    const body = bodyOf(staged, member, retained);
+    const root = sha256(body);
+
+    const reply = await world.post(world.command(claimsOf(member, staged)));
+    expect([reply.status, reply.json()]).toEqual([200, {outcome: 'published', manifest: {id: staged.id, root, digest: sha256(retained), length: retained.length, kind: 'picture'}}]);
+    // The digest and the length are the RETAINED copy's, not the lease's; the canonical order is unchanged.
+    expect(retained.length).toBeLessThan(original.length);
+    expect(sha256(retained)).not.toBe(staged.sha);
+    expect(body).toBe(`{"activity":"upload:${strip}","children":[],"digest":"${sha256(retained)}","id":"${staged.id}","kind":"picture","length":${retained.length},"scope":"${member.accountId}","serialization":1}`);
+    expect(world.db.manifestOf(staged.id)).toMatchObject({root, kind: 'picture', digest: sha256(retained), length: retained.length, activity: `upload:${strip}`, body});
+    expect(world.db.leases.get(staged.id)!.state).toBe('attached');
+    // The stored object is the stripped copy: no location data, the orientation, the decoding segments; the staged object is untouched.
+    const stored = world.storage.objects.get(`objects/${member.accountId}/${root}`)!;
+    expect(stored.bytes.equals(retained)).toBe(true);
+    expect(stored.contentType).toBe('image/jpeg');
+    expect(markersIn(stored.bytes)).toEqual([]);
+    expect(readOrientation('image/jpeg', stored.bytes)).toBe(gpsJpegOrientation);
+    expect(jpegNames(stored.bytes).filter((name) => /^APP/.test(name))).toEqual(['APP1']);
+    expect(world.storage.objects.get(staged.key)!.bytes.equals(original)).toBe(true);
+    // Read once, whole; written once, to the root's key. Nothing is copied server side.
+    expect(world.storage.calls).toEqual([`get:${staged.key}`, `put:objects/${member.accountId}/${root}`]);
+    expect(objectsHeld()).toEqual([`objects/${member.accountId}/${root}`]);
+  });
+
+  it('strips a PNG and a WebP too, each with the type it was staged with', async () => {
+    const member = world.member();
+    const png = pngWithMetadata();
+    const webp = webpWithMetadata();
+    for (const [bytes, contentType] of [[png, 'image/png'], [webp, 'image/webp']] as const) {
+      const staged = picture(member, bytes, contentType);
+      const retained = stripPictureMetadata(contentType, bytes);
+      expect(retained.length).toBeLessThan(bytes.length);
+      const reply = await world.post(world.command(claimsOf(member, staged)));
+      expect(reply.status, contentType).toBe(200);
+      const { manifest } = reply.json<{manifest: {root: string; digest: string; length: number}}>();
+      expect([manifest.digest, manifest.length], contentType).toEqual([sha256(retained), retained.length]);
+      const stored = world.storage.objects.get(`objects/${member.accountId}/${manifest.root}`)!;
+      expect(stored.bytes.equals(retained), contentType).toBe(true);
+      expect(stored.contentType).toBe(contentType);
+      expect(markersIn(stored.bytes), contentType).toEqual([]);
+    }
+  });
+
+  it('is reproducible: the same upload attached again recomputes the same bytes and the same root, answers exists, and stores nothing twice', async () => {
+    const member = world.member();
+    const staged = picture(member, gpsJpeg());
+    const first = (await world.post(world.command(claimsOf(member, staged)))).json<{outcome: string; manifest: {root: string; digest: string; length: number}}>();
+    expect(first.outcome).toBe('published');
+    const calls = world.storage.calls.length;
+    const again = await world.post(world.command(claimsOf(member, staged)));
+    expect([again.status, again.json()]).toEqual([200, {outcome: 'exists', manifest: {id: staged.id, root: first.manifest.root, digest: first.manifest.digest, length: first.manifest.length, kind: 'picture'}}]);
+    // The repeat reads the staged object again to recompute (the gateway cannot read the manifests) and writes nothing: the lease is attached, its object is already there.
+    expect(world.storage.calls.slice(calls)).toEqual([`get:${staged.key}`]);
+    expect(world.db.manifests.size).toBe(1);
+    expect(objectsHeld()).toEqual([`objects/${member.accountId}/${first.manifest.root}`]);
+  });
+
+  it('gives two uploads of the same picture one retained digest and two roots (the body holds the upload ID), each its own object', async () => {
+    const member = world.member();
+    const original = gpsJpeg();
+    const one = picture(member, original);
+    const two = picture(member, original);
+    const roots: string[] = [];
+    const digests = new Set<string>();
+    for (const staged of [one, two]) {
+      const { manifest } = (await world.post(world.command(claimsOf(member, staged)))).json<{manifest: {root: string; digest: string}}>();
+      roots.push(manifest.root);
+      digests.add(manifest.digest);
+    }
+    expect(new Set(roots).size).toBe(2);
+    expect(digests.size).toBe(1);
+    expect(objectsHeld()).toEqual(roots.map((root) => `objects/${member.accountId}/${root}`).sort());
+  });
+
+  it('refuses bytes_changed (409) when the staged object is not the one the lease describes: another digest, a longer or a shorter object; nothing is stored or published', async () => {
+    const member = world.member();
+    const original = gpsJpeg();
+    const cases: [string, Buffer][] = [
+      ['the same length and other bytes', Buffer.concat([original.subarray(0, original.length - 1), Buffer.from([original[original.length - 1] ^ 0xff])])],
+      ['a longer object', Buffer.concat([original, Buffer.from('more')])],
+      ['a shorter object', original.subarray(0, original.length - 10)],
+    ];
+    for (const [name, replacement] of cases) {
+      const staged = picture(member, original);
+      world.storage.objects.set(staged.key, {bytes: Buffer.from(replacement), contentType: 'image/jpeg'});
+      const reply = await world.post(world.command(claimsOf(member, staged)));
+      expect([reply.status, reply.json()], name).toEqual([409, {error: 'bytes_changed'}]);
+      expect(world.db.manifestOf(staged.id), name).toBeUndefined();
+      expect(world.db.leases.get(staged.id)!.state, name).toBe('complete');
+    }
+    expect(objectsHeld()).toEqual([]);
+    expect(world.storage.calls.filter((call) => call.startsWith('put:') || call.startsWith('copy:') || call.startsWith('delete:'))).toEqual([]);
+    expect(world.db.count('publishAttachment')).toBe(0);
+  });
+
+  it('reads no more of an object than the lease promised: a longer one is cancelled, not buffered', async () => {
+    const member = world.member();
+    const original = gpsJpeg();
+    const staged = picture(member, original);
+    world.storage.objects.set(staged.key, {bytes: Buffer.concat([original, randomBytes(3 * MiB)]), contentType: 'image/jpeg'});
+    const reply = await world.post(world.command(claimsOf(member, staged)));
+    expect([reply.status, reply.json()]).toEqual([409, {error: 'bytes_changed'}]);
+    // (The store reported a length that is not the lease's, so the read was cancelled before a byte of it was held.)
+    expect(world.storage.cancels).toBe(1);
+  });
+
+  it('refuses strip_failed (400) for a picture whose structure it cannot parse, and publishes and stores nothing unstripped', async () => {
+    const member = world.member();
+    const truncated = gpsJpeg().subarray(0, 300);
+    const brokenPng = (() => {
+      const bytes = Buffer.from(pngWithMetadata());
+      bytes.writeUInt32BE(0x7fffffff, 8);
+      return bytes;
+    })();
+    for (const [name, bytes, contentType] of [['a truncated JPEG', truncated, 'image/jpeg'], ['a PNG with a broken chunk length', brokenPng, 'image/png'], ['bytes that are no picture of the type', randomBytes(2000), 'image/webp']] as const) {
+      const staged = picture(member, Buffer.from(bytes), contentType);
+      const reply = await world.post(world.command(claimsOf(member, staged)));
+      expect([reply.status, reply.json()], name).toEqual([400, {error: 'strip_failed'}]);
+      expect(world.db.manifestOf(staged.id), name).toBeUndefined();
+      expect(world.db.leases.get(staged.id)!.state, name).toBe('complete');
+    }
+    expect(objectsHeld()).toEqual([]);
+    expect(world.storage.calls.filter((call) => call.startsWith('put:') || call.startsWith('copy:'))).toEqual([]);
+    expect(world.db.count('publishAttachment')).toBe(0);
+  });
+
+  it('refuses lease_expired (409) for a complete lease whose time has passed, without reading its object, and for a staged object that is gone', async () => {
+    const member = world.member();
+    const lapsed = picture(member, gpsJpeg(), 'image/jpeg', {expiresAt: new Date(T0 - 1000)});
+    const first = await world.post(world.command(claimsOf(member, lapsed)));
+    expect([first.status, first.json()]).toEqual([409, {error: 'lease_expired'}]);
+    expect(world.storage.calls).toEqual([]);
+    const gone = picture(member, gpsJpeg(), 'image/jpeg', {object: false});
+    const second = await world.post(world.command(claimsOf(member, gone)));
+    expect([second.status, second.json()]).toEqual([409, {error: 'lease_expired'}]);
+    expect(world.db.manifests.size).toBe(0);
+  });
+
+  it('refuses not_complete (409) for a lease that is not complete or attached, not_found (404) for another Account\'s upload, and unknown_transform (400) for a file', async () => {
+    const member = world.member();
+    const stranger = world.member();
+    const released = picture(member, gpsJpeg(), 'image/jpeg', {state: 'released'});
+    expect((await world.post(world.command(claimsOf(member, released)))).json()).toEqual({error: 'not_complete'});
+    const theirs = picture(stranger, gpsJpeg());
+    const foreign = await world.post(world.command(claimsOf(member, theirs)));
+    expect([foreign.status, foreign.json()]).toEqual([404, {error: 'not_found'}]);
+    const file = world.stage(member, randomBytes(3000));
+    const refused = await world.post(world.command(claimsOf(member, file)));
+    expect([refused.status, refused.json()]).toEqual([400, {error: 'unknown_transform'}]);
+    expect(world.storage.calls).toEqual([]);
+    expect(world.db.manifests.size).toBe(0);
+  });
+
+  it('refuses quota_exceeded (413) when the Account\'s retained pictures plus this one would pass 2 GiB: its own copy is taken back and nothing is published', async () => {
+    const member = world.member();
+    const original = gpsJpeg();
+    const retained = stripPictureMetadata('image/jpeg', original);
+    // Exactly at the limit passes; one byte over does not.
+    world.db.extraRetained.set(member.accountId, retainedQuotaBytes - retained.length + 1);
+    const over = picture(member, original);
+    const root = sha256(bodyOf(over, member, retained));
+    const refused = await world.post(world.command(claimsOf(member, over)));
+    expect([refused.status, refused.json()]).toEqual([413, {error: 'quota_exceeded'}]);
+    expect(world.storage.calls).toEqual([`get:${over.key}`, `put:objects/${member.accountId}/${root}`, `delete:objects/${member.accountId}/${root}`]);
+    expect(objectsHeld()).toEqual([]);
+    expect(world.db.manifestOf(over.id)).toBeUndefined();
+    expect(world.db.leases.get(over.id)!.state).toBe('complete');
+    world.db.extraRetained.set(member.accountId, retainedQuotaBytes - retained.length);
+    const exact = await world.post(world.command(claimsOf(member, over)));
+    expect([exact.status, exact.json<{outcome: string}>().outcome]).toEqual([200, 'published']);
+  });
+
+  it.each([
+    ['an Account that is disabled', (m: FakeMember) => world.db.disableAccount(m.accountId)],
+    ['an epoch that is not the Account\'s', (m: FakeMember) => (world.db.accounts.get(m.accountId)!.epoch = 3)],
+  ])('%s: 403, no manifest, and the copy it made is taken back', async (_name, act) => {
+    const member = world.member();
+    const staged = picture(member, gpsJpeg());
+    act(member);
+    const reply = await world.post(world.command({cmd: 'attach', acct: member.accountId, epoch: 1, uid: staged.id, tr: strip}));
+    expect([reply.status, reply.json()]).toEqual([403, {error: 'forbidden'}]);
+    expect(objectsHeld()).toEqual([]);
+    expect(world.db.manifests.size).toBe(0);
+    expect(world.db.leases.get(staged.id)!.state).toBe('complete');
+  });
+
+  it('keeps the transform none working exactly as before, for a picture as for a file: a server-side copy of the staged object, the lease\'s digest and length', async () => {
+    const member = world.member();
+    const original = baselineJpeg();
+    const staged = picture(member, original);
+    const reply = await world.post(world.command(claimsOf(member, staged, 'none')));
+    expect(reply.status).toBe(200);
+    const { manifest } = reply.json<{manifest: {root: string; digest: string; length: number}}>();
+    expect([manifest.digest, manifest.length]).toEqual([sha256(original), original.length]);
+    expect(world.storage.calls).toEqual([`copy:${staged.key}>objects/${member.accountId}/${manifest.root}`]);
+  });
+
+  it('logs nothing of the picture: a strip that fails is answered by status alone', async () => {
+    const member = world.member();
+    const staged = picture(member, gpsJpeg().subarray(0, 200));
+    await world.post(world.command(claimsOf(member, staged)));
+    expect(world.logs).toEqual([]);
+    expect(contains(Buffer.from(JSON.stringify(world.seen)), gpsMarker)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+// Story 2.12: the resolver of the kind `retained`. A retained picture is served from objects/<account>/<root> while it is pinned by a revision of a live Project of
+// the same Account, with the retained length and content type, and is asked about before EVERY chunk.
+describe('the retained-picture resolver (Story 2.12)', () => {
+  const retain = async (member: FakeMember, bytes = gpsJpeg(), contentType = 'image/jpeg') => {
+    const staged = world.stage(member, bytes, {kind: 'picture', contentType});
+    const reply = await world.post(world.command({cmd: 'attach', acct: member.accountId, epoch: member.epoch, uid: staged.id, tr: 'strip-picture-metadata'}));
+    const { manifest } = reply.json<{manifest: {root: string; digest: string; length: number}}>();
+    const pin = world.db.pinRetained({accountId: member.accountId, uploadId: staged.id, root: manifest.root, digest: manifest.digest, length: manifest.length, contentType});
+    return {staged, manifest, pin, key: `objects/${member.accountId}/${manifest.root}`};
+  };
+  const retainedOf = (member: FakeMember, id: string, o: Parameters<World['download']>[2] = {}) => world.download(member, id, {kind: 'retained', ...o});
+
+  it('is registered with staging and nothing else, and is read-only: a download of the picture, the retained length and type, its digest as the entity tag', async () => {
+    expect(createResolvers().kinds()).toEqual(['retained', 'staging']);
+    const member = world.member();
+    const { staged, manifest, key } = await retain(member);
+    const reply = await retainedOf(member, staged.id);
+    expect(reply.status).toBe(200);
+    expect(reply.body.equals(world.storage.objects.get(key)!.bytes)).toBe(true);
+    expect(reply.headers['content-type']).toBe('image/jpeg');
+    expect(reply.headers['content-length']).toBe(String(manifest.length));
+    expect(reply.headers.etag).toBe(`"${manifest.digest}"`);
+    expect(reply.headers['content-disposition']).toBe('attachment');
+    expect(markersIn(reply.body)).toEqual([]);
+    // It reads the retained object and never the staged one.
+    expect(world.storage.calls.filter((call) => call.startsWith('get:'))).toEqual([`get:${staged.key}`, `get:${key}`]);
+  });
+
+  it('serves one range of it, and never the staged copy: a picture whose staged copy is deleted is still served', async () => {
+    const member = world.member();
+    const { staged, manifest, key } = await retain(member);
+    world.storage.objects.delete(staged.key);
+    world.db.leases.get(staged.id)!.state = 'released';
+    world.db.leases.get(staged.id)!.state = 'deleted';
+    const reply = await retainedOf(member, staged.id, {headers: {range: 'bytes=0-9'}});
+    expect(reply.status).toBe(206);
+    expect(reply.headers['content-range']).toBe(`bytes 0-9/${manifest.length}`);
+    expect(reply.body.equals(world.storage.objects.get(key)!.bytes.subarray(0, 10))).toBe(true);
+  });
+
+  it('refuses another Account\'s picture, an unknown one, a picture no revision pins, and one of a deleted or tombstoned Project: one answer, 404 not_found, nothing read', async () => {
+    const owner = world.member();
+    const stranger = world.member();
+    const { staged } = await retain(owner);
+    const unpinned = await retain(owner);
+    world.db.pins.delete(`${owner.accountId}/${unpinned.staged.id}`);
+    const gone = await retain(owner);
+    world.db.setProjectLive(owner.accountId, gone.staged.id, false);
+    const reads = world.storage.calls.length;
+    const answers = [
+      await retainedOf(stranger, staged.id),
+      await retainedOf(owner, randomUUID()),
+      await retainedOf(owner, unpinned.staged.id),
+      await retainedOf(owner, gone.staged.id),
+    ];
+    for (const reply of answers) expect([reply.status, reply.text]).toEqual([404, JSON.stringify({error: 'not_found'})]);
+    expect(world.storage.calls.slice(reads).filter((call) => call.includes('objects/'))).toEqual([]);
+  });
+
+  it('refuses an upload ticket of the kind retained, 400 unknown_target, before it is redeemed: nothing is leased or stored', async () => {
+    const member = world.member();
+    const bytes = pngBytes(3000);
+    const id = randomUUID();
+    const reply = await world.upload(member, id, bytes, {claims: {tk: 'retained'}});
+    expect(reply.status === 400 ? reply.json() : reply.status).toEqual({error: 'unknown_target'});
+    expect(world.db.leases.has(id)).toBe(false);
+    expect(world.storage.keys()).toEqual([]);
+  });
+
+  it('asks again before every chunk: a Project deleted between two chunks closes the stream, and what was sent stands', async () => {
+    const member = world.member();
+    // A retained picture of 3 MiB: three chunks.
+    const bytes = Buffer.concat([baselineJpeg(), randomBytes(3 * MiB)]);
+    const staged = world.stage(member, bytes, {kind: 'picture', contentType: 'image/jpeg'});
+    const key = `objects/${member.accountId}/${sha256(staged.id)}`;
+    world.storage.objects.set(key, {bytes, contentType: 'image/jpeg'});
+    world.db.pinRetained({accountId: member.accountId, uploadId: staged.id, root: sha256(staged.id), digest: sha256(bytes), length: bytes.length, contentType: 'image/jpeg'});
+    world.hooks.onChunk = ({direction, index}) => {
+      if (direction === 'download' && index === 1) world.db.setProjectLive(member.accountId, staged.id, false);
+    };
+    const token = world.ticket(member, {dir: 'download', tid: staged.id, tk: 'retained'});
+    const reply = await world.stream(`/v1/files/retained/${staged.id}`, {headers: {authorization: `Ticket ${token}`}});
+    expect(reply.outcome).toBe('aborted');
+    expect(reply.received.length).toBeLessThan(bytes.length);
+    expect(reply.received.length).toBeGreaterThan(0);
+  });
+
+  it('is unavailable (404) for a Project that is deleted before the first byte, and 503 when the database cannot answer the resolver; never a cached allow', async () => {
+    const member = world.member();
+    const { staged } = await retain(member);
+    world.db.setProjectLive(member.accountId, staged.id, false);
+    expect((await retainedOf(member, staged.id)).status).toBe(404);
+    world.db.setProjectLive(member.accountId, staged.id, true);
+    world.db.failing.add('query');
+    expect((await retainedOf(member, staged.id)).status).toBe(503);
   });
 });

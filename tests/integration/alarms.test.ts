@@ -897,10 +897,10 @@ describe('the preflight carries every earlier probe and the new ones', () => {
     ]) expect(definition, needle).toContain(needle);
     // It reads no row of auth.users (the identities are counted by api.alarm_observations, not here).
     expect(definition).not.toMatch(/from auth\.users/);
-    // The seven new `api` functions are among those the service role must be able to execute (thirty-one in all when this story added them, thirty-three since Story 2.1 added two, thirty-five since Story 2.2 added two more, thirty-six since Story 2.3 added one).
+    // The seven new `api` functions are among those the service role must be able to execute (thirty-one in all when this story added them, thirty-three since Story 2.1 added two, thirty-five since Story 2.2 added two more, thirty-six since Story 2.3 added one, thirty-eight since Story 2.12 added two).
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(36);
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(38);
     // The bucket check stays last.
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));
   });

@@ -6,7 +6,8 @@ import type {RequestSectionData} from '@/components/projects/request-section';
 import {homePath} from '@/lib/access';
 import {getAccess, requireActiveAccount} from '@/lib/auth';
 import {getI18n} from '@/lib/i18n/server';
-import {loadProject, loadProjectRequest} from '@/lib/project-pages';
+import {loadProject, loadProjectRequest, loadRetainedPictures} from '@/lib/project-pages';
+import type {KeptPicture} from '@/lib/project-view';
 
 // Next evaluates the page's metadata before the page runs its own check, and a page's title wins over the 404 page's. So the title
 // asks the same question the page does, of the same read (`loadProject` is memoized for the render: this and the page share one
@@ -41,7 +42,20 @@ export default async function ProjectPage({params}: {params: Promise<{projectId:
   const request = await loadProjectRequest(access.account.accountId, access.account.epoch, projectId);
   if (request.state === 'denied') return redirect(homePath);
   if (request.state === 'unavailable') return notFound();
+  // A request made of pictures (Story 2.12) also asks which of them are kept as retained pictures, to say so instead of when their staged copy lapses. A read that
+  // cannot be made leaves the pictures shown as the request itself records them (not an error: the request is still there).
+  let kept: KeptPicture[] | undefined;
+  if (request.state === 'found' && request.request.images.length > 0) {
+    const retained = await loadRetainedPictures(access.account.accountId, access.account.epoch, projectId);
+    if (retained.state === 'denied') return redirect(homePath);
+    if (retained.state === 'unavailable') return notFound();
+    kept = retained.state === 'found' ? retained.pictures : [];
+  }
   const data: RequestSectionData =
-    request.state === 'found' ? {state: 'found', request: request.request, subjectName: request.subjectName} : request.state === 'none' ? {state: 'none'} : {state: 'unreadable'};
+    request.state === 'found'
+      ? {state: 'found', request: request.request, subjectName: request.subjectName, ...(kept ? {kept} : {})}
+      : request.state === 'none'
+        ? {state: 'none'}
+        : {state: 'unreadable'};
   return <ProjectOverview project={loaded.project} request={data}/>;
 }

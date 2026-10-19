@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {describe, expect, it, vi} from 'vitest';
 import {readConfig, type Env} from '../../workers/files/src/config';
 import type {Query, Row} from '../../workers/files/src/database';
-import {createResolvers, stagingResolver, type Resolver} from '../../workers/files/src/resolvers';
+import {createResolvers, retainedResolver, stagingResolver, type Resolver} from '../../workers/files/src/resolvers';
 import {blocks, handleHashOf, leadingBytesMatch, newHandle, parseRange} from '../../workers/files/src/transfer';
 import {testKeys} from '../support/service-keys';
 
@@ -222,22 +222,24 @@ describe('handles', () => {
 describe('the resolver registry', () => {
   const never: Resolver = async () => ({outcome: 'unavailable'});
 
-  it('holds `staging` and nothing else, and no resolver for any other kind', () => {
+  it('holds `staging` and `retained` (Story 2.12) and nothing else, and no resolver for any other kind', () => {
     const registry = createResolvers();
-    expect(registry.kinds()).toEqual(['staging']);
+    expect(registry.kinds()).toEqual(['retained', 'staging']);
     expect(registry.resolver('staging')).toBe(stagingResolver);
-    for (const kind of ['project', 'manifest', 'export', 'fixture', '', 'Staging', 'constructor', '__proto__', 'toString']) expect(registry.resolver(kind), kind).toBeUndefined();
+    expect(registry.resolver('retained')).toBe(retainedResolver);
+    for (const kind of ['project', 'manifest', 'export', 'fixture', '', 'Staging', 'Retained', 'constructor', '__proto__', 'toString']) expect(registry.resolver(kind), kind).toBeUndefined();
   });
 
   it('takes the kinds a caller registers (a test fixture, a later story), listed in order', () => {
     const registry = createResolvers({project: never, fixture: never});
-    expect(registry.kinds()).toEqual(['fixture', 'project', 'staging']);
+    expect(registry.kinds()).toEqual(['fixture', 'project', 'retained', 'staging']);
     expect(registry.resolver('project')).toBe(never);
     expect(registry.resolver('fixture')).toBe(never);
   });
 
-  it('refuses a kind registered twice, `staging` included: the registry is one place and says who owns a kind', () => {
+  it('refuses a kind registered twice, `staging` and `retained` included: the registry is one place and says who owns a kind', () => {
     expect(() => createResolvers({staging: never})).toThrow(/already registered/);
+    expect(() => createResolvers({retained: never})).toThrow(/already registered/);
   });
 
   it('refuses a kind that is not a lower-case word', () => {
@@ -246,7 +248,7 @@ describe('the resolver registry', () => {
 
   it('is built fresh for each caller, so one test\'s fixture is never another\'s', () => {
     createResolvers({fixture: never});
-    expect(createResolvers().kinds()).toEqual(['staging']);
+    expect(createResolvers().kinds()).toEqual(['retained', 'staging']);
   });
 });
 
@@ -312,6 +314,79 @@ describe('the staging resolver', () => {
       throw new Error('connection terminated');
     };
     await expect(stagingResolver(failing, {accountId: ACCOUNT, targetId: UPLOAD, direction: 'download', now})).rejects.toThrow('connection terminated');
+  });
+});
+
+describe('the retained resolver (Story 2.12)', () => {
+  const ACCOUNT = '7a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d';
+  const UPLOAD = '9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a';
+  const ROOT = 'ab'.repeat(32);
+  const DIGEST = 'cd'.repeat(32);
+  const now = new Date('2026-10-21T12:00:00Z');
+
+  function asking(rows: Row[]) {
+    const calls: {sql: string; params: unknown[]}[] = [];
+    const query: Query = async (sql, params) => {
+      calls.push({sql, params});
+      return rows;
+    };
+    return {query, calls};
+  }
+  const pinned = {root: ROOT, digest: DIGEST, length: '482113', content_type: 'image/jpeg'};
+
+  it('asks the live-authorization view for the Account\'s own pinned picture by upload, and nothing else', async () => {
+    const {query, calls} = asking([pinned]);
+    await retainedResolver(query, {accountId: ACCOUNT, targetId: UPLOAD, direction: 'download', now});
+    expect(calls).toHaveLength(1);
+    expect(calls[0].sql).toMatch(/from artifacts\.retained_pictures/);
+    expect(calls[0].sql).toMatch(/upload_id = \$1 and account_id = \$2/);
+    expect(calls[0].params).toEqual([UPLOAD, ACCOUNT]);
+    // It reads no table of the Projects or the staging: the view is the whole of the question.
+    expect(calls[0].sql).not.toMatch(/staging_leases|projects\.|manifests/);
+  });
+
+  it('serves the object at objects/<account>/<root> with the retained length and type and the retained digest as its etag', async () => {
+    const {query} = asking([pinned]);
+    expect(await retainedResolver(query, {accountId: ACCOUNT, targetId: UPLOAD, direction: 'download', now})).toEqual({
+      outcome: 'allowed',
+      key: `objects/${ACCOUNT}/${ROOT}`,
+      length: 482113,
+      contentType: 'image/jpeg',
+      etag: DIGEST,
+    });
+  });
+
+  it('is `unavailable` for an upload, and asks nothing, when the direction is an upload: a retained picture is only ever read', async () => {
+    const {query, calls} = asking([pinned]);
+    expect(await retainedResolver(query, {accountId: ACCOUNT, targetId: UPLOAD, direction: 'upload', now})).toEqual({outcome: 'unavailable'});
+    expect(calls).toHaveLength(0);
+  });
+
+  it('is `unavailable`, one answer with nothing in it, when no pinned picture of this Account is there (another Account\'s, unknown, unpinned, deleted or tombstoned)', async () => {
+    const {query} = asking([]);
+    expect(await retainedResolver(query, {accountId: ACCOUNT, targetId: UPLOAD, direction: 'download', now})).toEqual({outcome: 'unavailable'});
+  });
+
+  it.each([
+    ['a root that is not a digest', {...pinned, root: 'objects/../x'}],
+    ['an upper-case root', {...pinned, root: ROOT.toUpperCase()}],
+    ['no root', {...pinned, root: undefined}],
+    ['a length that is not a number', {...pinned, length: 'big'}],
+    ['a length of zero', {...pinned, length: 0}],
+    ['a fractional length', {...pinned, length: 1.5}],
+    ['no content type', {...pinned, content_type: undefined}],
+    ['no digest', {...pinned, digest: undefined}],
+    ['nothing', {}],
+  ])('is `unavailable` for a row with %s: a row that is not an answer is not permission, and a key is never made of text the database did not validate', async (_name, row) => {
+    const {query} = asking([row as Row]);
+    expect(await retainedResolver(query, {accountId: ACCOUNT, targetId: UPLOAD, direction: 'download', now})).toEqual({outcome: 'unavailable'});
+  });
+
+  it('lets a database failure reach the caller, which stops the transfer: it does not turn it into an answer', async () => {
+    const failing: Query = async () => {
+      throw new Error('connection terminated');
+    };
+    await expect(retainedResolver(failing, {accountId: ACCOUNT, targetId: UPLOAD, direction: 'download', now})).rejects.toThrow('connection terminated');
   });
 });
 

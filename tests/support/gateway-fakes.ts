@@ -56,6 +56,10 @@ export type FakeMember = {accountId: string; sessionId: string; epoch: number};
 export type FakeRedemption = {jti: string; typ: 'ticket' | 'command'; kid: string; accountId: string; sessionId: string | null; direction: string | null; targetKind: string; targetId: string; expiresAt: Date; redeemedAt: Date};
 export type FakeHandle = {hash: string; jti: string; sessionId: string; accountId: string; epoch: number; direction: 'upload' | 'download'; targetKind: string; targetId: string; kid: string; createdAt: Date; expiresAt: Date; endedAt: Date | null};
 export type FakeManifest = {root: string; id: string; accountId: string; uploadId: string; kind: string; digest: string; length: number; activity: string; body: string};
+/** A retained picture as `artifacts.retained_pictures` shows it (Story 2.12): pinned by a revision of a Project, which is live or not. */
+export type FakePin = {accountId: string; uploadId: string; root: string; digest: string; length: number; contentType: string; live: boolean};
+/** The retained quota (Story 2.12): 2 GiB of the Account's manifests of kind picture. */
+export const retainedQuotaBytes = 2 * 1024 * MiB;
 
 export type FakeDatabase = GatewayDatabase & {
   accounts: Map<string, FakeAccount>;
@@ -64,6 +68,8 @@ export type FakeDatabase = GatewayDatabase & {
   handles: Map<string, FakeHandle>;
   leases: Map<string, Lease>;
   manifests: Map<string, FakeManifest>;
+  /** The retained pictures the resolver of the kind `retained` can see, by `<account>/<upload>`. */
+  pins: Map<string, FakePin>;
   transforms: Set<string>;
   revokedKeys: Set<string>;
   /** Every method asked of the database, in order (a `query` is one entry). */
@@ -86,9 +92,18 @@ export type FakeDatabase = GatewayDatabase & {
   openBytes: (accountId: string) => number;
   /** The manifest of an upload, or undefined. */
   manifestOf: (uploadId: string) => FakeManifest | undefined;
+  /** Pins a retained picture the way a review does (the Project is live): the resolver of the kind `retained` serves it. */
+  pinRetained: (pin: Omit<FakePin, 'live'> & {live?: boolean}) => FakePin;
+  /** Whether the pinning Project is live (not deleted, not tombstoned): the view's one condition beyond the pin. */
+  setProjectLive: (accountId: string, uploadId: string, live: boolean) => void;
+  /** The bytes of the Account's retained pictures (the sum of the length of its manifests of kind picture). */
+  retainedBytes: (accountId: string) => number;
+  /** Bytes the Account already keeps beyond its manifests, for a test that sits at the quota's edge. */
+  extraRetained: Map<string, number>;
 };
 
 const stagingQueryPattern = /from artifacts\.staging_leases/;
+const retainedQueryPattern = /from artifacts\.retained_pictures/;
 const pictureTypes = ['image/jpeg', 'image/png', 'image/webp'];
 
 export function fakeDatabase(options: {clock: FakeClock; instanceId?: string}): FakeDatabase {
@@ -109,7 +124,10 @@ export function fakeDatabase(options: {clock: FakeClock; instanceId?: string}): 
   const handles = new Map<string, FakeHandle>();
   const leases = new Map<string, Lease>();
   const manifests = new Map<string, FakeManifest>();
-  const transforms = new Set<string>(['none']);
+  const pins = new Map<string, FakePin>();
+  const extraRetained = new Map<string, number>();
+  // `none`, and (Story 2.12) the metadata strip of a picture: both are registered by the migrations.
+  const transforms = new Set<string>(['none', 'strip-picture-metadata']);
   const revokedKeys = new Set<string>();
 
   const openBytes = (accountId: string, now = clock.now()) =>
@@ -147,6 +165,8 @@ export function fakeDatabase(options: {clock: FakeClock; instanceId?: string}): 
     handles,
     leases,
     manifests,
+    pins,
+    extraRetained,
     transforms,
     revokedKeys,
     calls,
@@ -160,6 +180,18 @@ export function fakeDatabase(options: {clock: FakeClock; instanceId?: string}): 
     failing,
     openBytes,
     manifestOf: (uploadId) => manifests.get(uploadId),
+    pinRetained(pin) {
+      const made: FakePin = {live: true, ...pin};
+      pins.set(`${pin.accountId}/${pin.uploadId}`, made);
+      return made;
+    },
+    setProjectLive(accountId, uploadId, live) {
+      const pin = pins.get(`${accountId}/${uploadId}`);
+      if (!pin) throw new Error('no such pin');
+      pin.live = live;
+    },
+    retainedBytes: (accountId) =>
+      [...manifests.values()].filter((manifest) => manifest.accountId === accountId && manifest.kind === 'picture').reduce((sum, manifest) => sum + manifest.length, 0) + (extraRetained.get(accountId) ?? 0),
 
     addMember(settings = {}) {
       const accountId = randomUUID();
@@ -304,9 +336,16 @@ export function fakeDatabase(options: {clock: FakeClock; instanceId?: string}): 
       return {outcome: 'allowed', accountId: handle.accountId, sessionId: handle.sessionId, epoch: handle.epoch, direction: handle.direction, targetKind: handle.targetKind, targetId: handle.targetId};
     },
 
-    // The only read the gateway's registered resolvers make: the staging resolver's (workers/files/src/resolvers.ts).
+    // The reads the gateway's registered resolvers make: the staging resolver's and the retained resolver's (workers/files/src/resolvers.ts).
     async query(sql, params): Promise<Row[]> {
       enter('query');
+      if (retainedQueryPattern.test(sql)) {
+        // artifacts.retained_pictures: one row for a picture a revision of a live Project of the same Account pins.
+        const [uploadId, accountId] = params as [string, string];
+        const pin = pins.get(`${accountId}/${uploadId}`);
+        if (!pin || !pin.live) return [];
+        return [{root: pin.root, digest: pin.digest, length: String(pin.length), content_type: pin.contentType}];
+      }
       if (!stagingQueryPattern.test(sql) || !/state = any\(\$3\)/.test(sql)) throw new Error('the fake database does not know this query');
       const [id, accountId, states, now] = params as [string, string, string[], Date];
       const lease = leases.get(id);
@@ -403,12 +442,28 @@ export function fakeDatabase(options: {clock: FakeClock; instanceId?: string}): 
       // A lease whose time has passed is not attachable (the cleanup may be deleting its staging object).
       if (lease.expiresAt.getTime() <= options.clock.ms) return receipt('expired');
       if (!transforms.has(input.transform)) return receipt('transform_unknown');
+      const stripped = input.transform === 'strip-picture-metadata';
+      // The strip is for pictures only (Story 2.12).
+      if (stripped && lease.kind !== 'picture') return receipt('transform_unknown');
       if (sha256(input.body) !== input.root) return receipt('root_mismatch');
+      // The digest and length the manifest describes: the lease's, or for the strip the stripped copy's, read out of the body the way the SQL does.
+      let digest = lease.sha256;
+      let length = lease.length;
+      if (stripped) {
+        const digestText = /"digest":"([0-9a-f]{64})"/.exec(input.body)?.[1];
+        const lengthText = /"length":([1-9][0-9]{0,8}),/.exec(input.body)?.[1];
+        if (digestText === undefined || lengthText === undefined) return receipt('body_mismatch');
+        digest = digestText;
+        length = Number(lengthText);
+        if (length < 1 || length > lease.length + 4096) return receipt('body_mismatch');
+      }
       // The body must be, byte for byte, the canonical text of this lease's manifest: built here the way the SQL builds it, and compared whole.
-      const canonical = `{"activity":"upload:${input.transform}","children":[],"digest":"${lease.sha256}","id":"${input.uploadId}","kind":"${lease.kind}","length":${lease.length},"scope":"${input.accountId}","serialization":1}`;
+      const canonical = `{"activity":"upload:${input.transform}","children":[],"digest":"${digest}","id":"${input.uploadId}","kind":"${lease.kind}","length":${length},"scope":"${input.accountId}","serialization":1}`;
       if (input.body !== canonical) return receipt('body_mismatch');
+      // The retained quota: the Account's kept pictures plus this one must not pass 2 GiB.
+      if (stripped && db.retainedBytes(input.accountId) + length > retainedQuotaBytes) return receipt('quota_exceeded');
       const expected = {activity: `upload:${input.transform}`};
-      manifests.set(input.uploadId, {root: input.root, id: input.uploadId, accountId: input.accountId, uploadId: input.uploadId, kind: lease.kind, digest: lease.sha256, length: lease.length, activity: expected.activity, body: input.body});
+      manifests.set(input.uploadId, {root: input.root, id: input.uploadId, accountId: input.accountId, uploadId: input.uploadId, kind: lease.kind, digest, length, activity: expected.activity, body: input.body});
       move(lease, 'attached');
       return receipt('published', input.root, input.uploadId);
     },

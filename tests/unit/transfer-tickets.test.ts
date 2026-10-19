@@ -107,10 +107,15 @@ describe('parseTicketRequest', () => {
   });
 
   it('refuses a kind with no resolver, for either direction, with its own answer', () => {
-    for (const kind of ['project', 'manifest', 'export', 'Staging', 'staging ', '']) {
+    for (const kind of ['project', 'manifest', 'export', 'Staging', 'Retained', 'staging ', 'retained ', '']) {
       expect(parseTicketRequest(JSON.stringify(download({kind}))), kind).toEqual({ok: false, status: 400, error: 'unknown_target'});
       expect(parseTicketRequest(JSON.stringify(upload({kind}))), kind).toEqual({ok: false, status: 400, error: 'unknown_target'});
     }
+  });
+
+  it('takes a download of a retained picture (Story 2.12) and refuses an upload to the kind `retained`: a retained picture is only ever read', () => {
+    expect(parseTicketRequest(JSON.stringify(download({kind: 'retained'})))).toEqual({ok: true, request: {direction: 'download', kind: 'retained', id: TARGET}});
+    expect(parseTicketRequest(JSON.stringify(upload({kind: 'retained'})))).toEqual({ok: false, status: 400, error: 'unknown_target'});
   });
 });
 
@@ -311,6 +316,16 @@ describe('issueTransferTicket: a body that is too large, unreadable or wrong', (
     expect([response.status, body]).toEqual([400, {error: 'unknown_target'}]);
     const up = await issue(upload({kind: 'manifest'}));
     expect([up.response.status, up.body]).toEqual([400, {error: 'unknown_target'}]);
+  });
+
+  it('signs a download ticket for a retained picture, bound to the Account, the session and the epoch, and signs nothing for an upload to one (Story 2.12)', async () => {
+    const down = await issue(download({kind: 'retained'}));
+    expect(down.response.status).toBe(200);
+    const verified = await verifyToken(down.body.ticket as string, {issuer: 'application', audience: 'gateway', environment: INSTANCE, keySet: keys.keySet, now: NOW});
+    expect(verified.ok && ticketClaimsOf(verified.payload)).toEqual({acct: ACCOUNT, sid: SESSION, epoch: 4, dir: 'download', tk: 'retained', tid: TARGET});
+    const up = await issue(upload({kind: 'retained'}));
+    expect([up.response.status, up.body]).toEqual([400, {error: 'unknown_target'}]);
+    expect(up.body).not.toHaveProperty('ticket');
   });
 
   it('is 400 for upload members on a download and a download\'s bareness on an upload', async () => {

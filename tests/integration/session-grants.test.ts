@@ -1191,6 +1191,8 @@ describe('the preflight', () => {
     'artifacts.service_key_revocations',
     'artifacts.session_authority',
     'artifacts.instance',
+    // Story 2.12: the retained-picture resolver's view (one more read, before the privilege checks).
+    'artifacts.retained_pictures',
     // Story 1.13: the three alarm tables (one more read each, before the privilege checks).
     'lifecycle.alarms',
     'lifecycle.alarm_notices',
@@ -1201,7 +1203,7 @@ describe('the preflight', () => {
   ];
 
   // The functions run as their owner. Hand this one to `anon`, which can use the auth schema but read none of
-  // its tables, give it the right to read only some of the twenty-eight (Story 1.12 made it twenty-four, Story 1.13 added the three alarm tables, Story 2.1 the request revisions), inside a transaction that is rolled back,
+  // its tables, give it the right to read only some of the twenty-nine (Story 1.12 made it twenty-four, Story 1.13 added the three alarm tables, Story 2.1 the request revisions), inside a transaction that is rolled back,
   // and see what the preflight says. (Everything granted here is undone with the transaction.)
   async function ownedByRoleThatCanRead(client: Client, readable: string[]) {
     // (`artifacts` since Story 1.12: the preflight reads its tables and looks for its function by name.)
@@ -1211,13 +1213,13 @@ describe('the preflight', () => {
     await client.query('alter function api.preflight() owner to anon');
   }
 
-  it('gets past all twenty-eight reads when the role it runs as can read all twenty-eight tables and views (the control for the next cases)', async () => {
+  it('gets past all twenty-nine reads when the role it runs as can read all twenty-nine tables and views (the control for the next cases)', async () => {
     await inTx(async (client) => {
       await ownedByRoleThatCanRead(client, tablesRead);
       // Story 1.5 added a further thing the preflight asks of its owner: the privilege to delete from auth.sessions, which a
       // disable needs to end a person's sessions (and a recovery, Story 1.6, to end the others). `anon` cannot be given it (the
       // migration role holds it without the right to grant it), so the control is that the preflight reaches that check, which
-      // comes after the twenty-eight reads, and fails there.
+      // comes after the twenty-nine reads, and fails there.
       const result = await attempt(client, 'service_role', 'select * from api.preflight()');
       expect(result.ok).toBe(false);
       if (!result.ok) {

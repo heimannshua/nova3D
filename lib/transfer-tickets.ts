@@ -8,9 +8,10 @@
 //
 // The request is one JSON object of at most 4 KiB:
 //   {"direction": "upload", "kind": "staging", "id": "<UUID the caller chooses>", "class": "picture" | "file", "length": <bytes>, "sha256": "<hex>", "contentType": "<type>"}
-//   {"direction": "download", "kind": "staging", "id": "<UUID>"}
+//   {"direction": "download", "kind": "staging" | "retained", "id": "<UUID>"}
 // and nothing else (an unknown member is a bad request). A kind with no resolver at the gateway (lib/service-signing.ts `transferTargetKinds`) is refused
-// here, 400, and again by the gateway.
+// here, 400, and again by the gateway. Only `staging` takes an upload: a retained picture (Story 2.12) is only ever read, so a ticket to upload to it is
+// the same `unknown_target`.
 //
 // This module reads no environment variable: the route passes `process.env` in. Without the application's keys or the gateway's address the answer is 503
 // (fail closed), and nothing is signed. Erasable TypeScript syntax and relative `.ts` imports. It logs nothing.
@@ -90,7 +91,7 @@ export function parseTicketRequest(text: string): TicketRequestResult {
   // The limits are the gateway's, written once (lib/service-signing.ts `uploadProblem`) and checked here so that a ticket it would refuse is never made.
   const problem = uploadProblem({cls: body.class, len: body.length, ct: body.contentType});
   if (problem !== null) return bad(problem === 'class' ? 'class' : problem === 'content_type' ? 'contentType' : 'length');
-  if (!isTransferTargetKind(kind)) return {ok: false, status: 400, error: 'unknown_target'};
+  if (!isTransferTargetKind(kind) || kind !== 'staging') return {ok: false, status: 400, error: 'unknown_target'};
   return {
     ok: true,
     request: {direction, kind, id, class: body.class as 'picture' | 'file', length: body.length as number, sha256: body.sha256, contentType: body.contentType as string},

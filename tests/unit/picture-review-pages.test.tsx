@@ -7,7 +7,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 // tests/e2e/picture-review.spec.ts. A state the browser would reach is given to the screen as its initial state (as the other screens' is only for tests), which is how
 // every state of the three screens is seen here.
 const request = vi.hoisted(() => ({cookies: {} as Record<string, string>}));
-const mocks = vi.hoisted(() => ({access: null as unknown, readProject: vi.fn(), readProjectRequest: vi.fn()}));
+const mocks = vi.hoisted(() => ({access: null as unknown, readProject: vi.fn(), readProjectRequest: vi.fn(), readRetainedPictures: vi.fn()}));
 vi.mock('next/headers', () => ({
   cookies: async () => ({
     get: (name: string) => (name in request.cookies ? {name, value: request.cookies[name]} : undefined),
@@ -28,6 +28,7 @@ vi.mock('@/lib/projects', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/projects')>()),
   readProject: mocks.readProject,
   readProjectRequest: mocks.readProjectRequest,
+  readRetainedPictures: mocks.readRetainedPictures,
 }));
 
 import ProjectPictureReviewPage, {generateMetadata as reviewMetadata} from '@/app/projects/[projectId]/pictures/review/page';
@@ -113,6 +114,8 @@ beforeEach(() => {
   mocks.access = active;
   mocks.readProject.mockReset();
   mocks.readProjectRequest.mockReset();
+  // Nothing is retained unless a test says so (Story 2.12).
+  mocks.readRetainedPictures.mockReset().mockResolvedValue({outcome: 'none'});
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
 
@@ -153,6 +156,7 @@ describe('the review page', () => {
       expect(element.props).toEqual({
         project: {id: PROJECT, title: row.title},
         request: {seq: 2, mode, confirmed: false, scope: null, outcome: null, images: savedRequest().images},
+        kept: [],
       });
     }
     expect(mocks.readProject).toHaveBeenCalledWith({accountId: ACCOUNT, epoch: 4}, PROJECT, expect.anything());
@@ -165,6 +169,47 @@ describe('the review page', () => {
     expect(element.type).toBe(PictureReview);
     expect(element.key).toBe('3');
     expect(element.props.request).toEqual({seq: 3, mode: 'image_direct', confirmed: true, scope: 'The subject', outcome: 'A model', images: confirmed.images});
+  });
+
+  it('hands the screen which pictures the revision pins as retained pictures (Story 2.12), with the SHA-256 and length of the retained copy and no root', async () => {
+    found(savedRequest());
+    const ROOT = 'ab'.repeat(32);
+    mocks.readRetainedPictures.mockResolvedValue({
+      outcome: 'found',
+      pictures: [1, 3].map((position) => ({
+        position,
+        uploadId: upload(position),
+        root: ROOT,
+        retainedSha256: sha(String.fromCharCode(100 + position)),
+        retainedLength: 400000 + position,
+        stagedSha256: sha(String.fromCharCode(96 + position)),
+        label: null,
+        contentType: 'image/jpeg',
+      })),
+    });
+    const element = await ProjectPictureReviewPage({params});
+    expect(element.props.kept).toEqual([
+      {uploadId: upload(1), sha256: sha('e'), length: 400001},
+      {uploadId: upload(3), sha256: sha('g'), length: 400003},
+    ]);
+    // The page asked as the verified Account, and what it hands the screen holds no root and no key.
+    expect(mocks.readRetainedPictures).toHaveBeenCalledWith({accountId: ACCOUNT, epoch: 4}, PROJECT, expect.anything());
+    expect(JSON.stringify(element.props)).not.toContain(ROOT);
+  });
+
+  it('does not guess where a picture lives: a retained read that cannot be made is the page that says to try again, and an answer of no authority or no Project is the same as for the request', async () => {
+    found(savedRequest());
+    mocks.readRetainedPictures.mockRejectedValue(new Error('down'));
+    expect(JSON.stringify(await ProjectPictureReviewPage({params}))).toContain('project.error.title');
+    mocks.readRetainedPictures.mockResolvedValue({outcome: 'denied'});
+    expect(await digest(ProjectPictureReviewPage({params}))).toMatch(/^NEXT_REDIRECT;replace;\/;/);
+    mocks.readRetainedPictures.mockResolvedValue({outcome: 'unavailable'});
+    expect(await digest(ProjectPictureReviewPage({params}))).toBe('NEXT_HTTP_ERROR_FALLBACK;404');
+  });
+
+  it('names the action\'s budget: the page may run for 60 seconds, which retaining the pictures needs', async () => {
+    const reviewPage = await import('@/app/projects/[projectId]/pictures/review/page');
+    expect(reviewPage.maxDuration).toBe(60);
   });
 
   it.each([
@@ -354,8 +399,20 @@ describe.each(locales)('C-04, quality and coverage, in %s', (locale) => {
     expect(text(unconfirmed)).not.toContain(t(locale, 'review.unusable.confirmed'));
     if (locale === 'en') {
       expect(plain(screen(locale, {items: [item(1, 'front', null, {state: 'unusable', reason: 'lapsed'})]}, {request: confirmedRequest}))).toMatch(
-        /This request is already confirmed, so its pictures cannot be changed here yet\. Until pictures are retained \(a later step\), a picture whose private copy has lapsed cannot be brought back, and this request cannot be reviewed again\./,
+        /This request is already confirmed, so its pictures cannot be changed here\. This picture was confirmed before pictures were kept and its private copy has lapsed, so it cannot be brought back, and this request cannot be reviewed again\./,
       );
+    }
+  });
+
+  it('says that a KEPT picture of a confirmed request is kept as it was, not that its private copy cannot be brought back (Story 2.12): the "cannot be recovered" message is for a picture that was never kept', () => {
+    const confirmedRequest = {...reviewRequest, mode: 'image_direct' as const, confirmed: true, scope: 'S', outcome: 'O'};
+    const kept = {sha256: sha('k'), length: 400001};
+    for (const reason of ['changed', 'undecodable'] as const) {
+      const markup = screen(locale, {items: [item(1, 'front', null, {state: 'unusable', reason, retained: kept}), item(2, 'left'), item(3, 'top')], tried: true, obstruction: true}, {request: confirmedRequest});
+      const row = markup.split('<li class="picture-item review-item"').slice(1)[0];
+      expect(text(row), reason).toContain(t(locale, 'review.unusable.keptConfirmed'));
+      expect(text(row), reason).not.toContain(t(locale, 'review.unusable.confirmed'));
+      expect(markup, reason).not.toContain(`href="/projects/${PROJECT}/pictures"`);
     }
   });
 
@@ -628,17 +685,36 @@ describe.each(locales)('C-06, the confirmation for pictures, in %s', (locale) =>
     }
   });
 
-  it('tells a direct request, before Confirm, that until pictures are retained their private copies lapse 24 hours after the last save and never later than 7 days after upload, and what to do then', () => {
+  it('tells a direct request, before Confirm, that a picture that is not kept yet lapses 24 hours after the last save and never later than 7 days after upload, and that confirming keeps it', () => {
     const markup = third({choice: 'image_direct'});
     expect(text(markup)).toContain(t(locale, 'review.confirm.lapseNote'));
     // It comes before the button it is a warning for.
     expect(markup.indexOf(t(locale, 'review.confirm.lapseNote'))).toBeGreaterThan(0);
     expect(markup.indexOf(t(locale, 'review.confirm.lapseNote'))).toBeLessThan(markup.indexOf(`<span>${t(locale, 'review.confirm.button')}</span>`));
     if (locale === 'en') {
-      expect(plain(markup)).toContain('Pictures are not retained yet. Until they are (a later step), their private copies lapse 24 hours after your last save, and never later than 7 days after they were uploaded. After that this request cannot be reviewed again here, so keep your original pictures.');
+      expect(plain(markup)).toContain('Pictures that are not kept yet lapse 24 hours after your last save, and never later than 7 days after they were uploaded. Confirming keeps them privately with this request.');
     }
     // A research-assisted choice confirms nothing that depends on the copies: the note is for the direct request only.
     expect(text(third({choice: 'evidence_images'}))).not.toContain(t(locale, 'review.confirm.lapseNote'));
+  });
+
+  it('says the staging lapse only of a picture that is not kept (Story 2.12): when every picture is pinned the note is gone', () => {
+    const kept = {sha256: sha('k'), length: 400001};
+    const allKept = threeGood.map((one) => ({...one, retained: kept}));
+    expect(text(third({choice: 'image_direct', items: allKept}))).not.toContain(t(locale, 'review.confirm.lapseNote'));
+    // One picture still in staging brings it back.
+    expect(text(third({choice: 'image_direct', items: [allKept[0], allKept[1], threeGood[2]]}))).toContain(t(locale, 'review.confirm.lapseNote'));
+  });
+
+  it('tells both choices that confirming keeps the pictures privately with their location data removed and the camera orientation kept', () => {
+    for (const choice of ['image_direct', 'evidence_images'] as const) {
+      const markup = third({choice});
+      expect(text(markup), choice).toContain(t(locale, 'review.confirm.keptNote'));
+      expect(markup, choice).toContain('data-note="kept"');
+    }
+    if (locale === 'en') {
+      expect(plain(third({choice: 'image_direct'}))).toContain('only the camera orientation stays');
+    }
   });
 
   it('sends the acknowledgment when it is checked, and asks for it with a message when Confirm was tried without it', () => {
@@ -699,10 +775,54 @@ describe.each(locales)('C-06, the confirmation for pictures, in %s', (locale) =>
     [{outcome: 'not_editable'}, 'review.confirm.notEditable'],
     [{outcome: 'unavailable', unknown: false}, 'review.confirm.unavailable'],
     [{outcome: 'unavailable', unknown: true}, 'review.confirm.unknown'],
+    // Story 2.12: the pictures could not be kept, and nothing was confirmed.
+    [{outcome: 'not_retained', position: 2}, 'review.confirm.notRetained'],
+    [{outcome: 'bytes_changed', position: 2}, 'review.confirm.bytesChanged'],
+    [{outcome: 'strip_failed', position: 2}, 'review.confirm.stripFailed'],
+    [{outcome: 'lease_expired', position: 2}, 'review.confirm.leaseExpired'],
+    [{outcome: 'not_complete', position: 2}, 'review.confirm.notComplete'],
+    [{outcome: 'manifest_conflict', position: 2}, 'review.confirm.manifestConflict'],
+    [{outcome: 'retain_unavailable', position: 2}, 'review.confirm.retainUnavailablePicture'],
+    [{outcome: 'retain_unavailable', position: null}, 'review.confirm.retainUnavailable'],
   ] as const)('says what happened for the answer %j, in an alert that is focusable, and records nothing', (state, key) => {
     const markup = third({choice: 'image_direct', state: state as never});
     expect(text(markup)).toContain(t(locale, key, {position: 2}));
     expect(markup).toMatch(/<div class="invite-notice" tabindex="-1"><div class="notice notice-danger" role="alert">/);
+  });
+
+  it('names the picture a retention failure is about, and says what to do, in plain words with a remedy', () => {
+    for (const [outcome, key] of [
+      ['bytes_changed', 'review.confirm.bytesChanged'],
+      ['strip_failed', 'review.confirm.stripFailed'],
+      ['lease_expired', 'review.confirm.leaseExpired'],
+      ['not_complete', 'review.confirm.notComplete'],
+      ['manifest_conflict', 'review.confirm.manifestConflict'],
+    ] as const) {
+      const markup = third({choice: 'image_direct', state: {outcome, position: 3} as never});
+      expect(text(markup), outcome).toContain(t(locale, key, {position: 3}));
+      // Each message is about picture 3, and says nothing was confirmed.
+      expect(translate(locale, key, {position: 3}, {isolate: false}), outcome).toContain('3');
+    }
+    if (locale === 'en') {
+      expect(plain(third({choice: 'image_direct', state: {outcome: 'bytes_changed', position: 3}}))).toMatch(/Picture 3 is not the picture you saved: its bytes changed, so it was not kept and nothing was confirmed\. Go to the pictures and add it again, then review again\./);
+      expect(plain(third({choice: 'image_direct', state: {outcome: 'lease_expired', position: 1}}))).toMatch(/Add it again on the pictures screen/);
+      expect(plain(third({choice: 'image_direct', state: {outcome: 'strip_failed', position: 1}}))).toMatch(/Replace it on the pictures screen/);
+      expect(plain(third({choice: 'image_direct', state: {outcome: 'retain_unavailable', position: 1}}))).toMatch(/Nothing was confirmed\. Try again/);
+    }
+  });
+
+  it('says the kept pictures are full at 2 GiB, what is kept and what is asked, and that deleting arrives later, when the quota is exceeded', () => {
+    const markup = third({choice: 'image_direct', state: {outcome: 'quota_exceeded', kept: 2_137_000_000, asked: 12_582_912}});
+    const words = plain(markup);
+    expect(words).toContain(translate(locale, 'review.confirm.quota', {limit: '2 GiB', kept: '2038 MiB', asked: '12 MiB'}, {isolate: false}).replace(/[\u2066-\u2069]/g, ''));
+    expect(markup).toMatch(/<div class="invite-notice" tabindex="-1"><div class="notice notice-danger" role="alert">/);
+    if (locale === 'en') {
+      expect(words).toContain('Your kept pictures are full at 2 GiB: 2038 MiB are kept and these pictures need 12 MiB more, so none of them were kept and nothing was confirmed. Deleting kept pictures arrives in a later release.');
+    }
+    // The gateway's own backstop for a race knows no sizes: the same message without them.
+    const full = plain(third({choice: 'image_direct', state: {outcome: 'quota_exceeded', kept: null, asked: null}}));
+    expect(full).toContain(translate(locale, 'review.confirm.quotaFull', {limit: '2 GiB'}, {isolate: false}).replace(/[\u2066-\u2069]/g, ''));
+    expect(full).not.toContain('MiB are kept');
   });
 
   it('names the field problem the server found in the scope or the outcome, next to the field', () => {
@@ -727,13 +847,20 @@ describe('the review in Hebrew', () => {
       {step: 2, items: threeGood, obstruction: true, chose: true},
       {step: 3, items: [item(1, 'front'), item(2, 'left', {...good, blurVariance: 3}), item(3, 'detail')], obstruction: true, choice: 'image_direct', confirmTried: true, state: {outcome: 'acknowledgment_required'}},
       {step: 3, items: threeGood, obstruction: true, choice: 'evidence_images'},
+      // Story 2.12: every way the pictures cannot be kept.
+      ...(['bytes_changed', 'strip_failed', 'lease_expired', 'not_complete', 'manifest_conflict', 'not_retained'] as const).map((outcome) => ({step: 3 as const, items: threeGood, obstruction: true, choice: 'image_direct' as const, state: {outcome, position: 2}})),
+      {step: 3, items: threeGood, obstruction: true, choice: 'image_direct', state: {outcome: 'retain_unavailable', position: 2}},
+      {step: 3, items: threeGood, obstruction: true, choice: 'image_direct', state: {outcome: 'retain_unavailable', position: null}},
+      {step: 3, items: threeGood, obstruction: true, choice: 'image_direct', state: {outcome: 'quota_exceeded', kept: 2_137_000_000, asked: 12_582_912}},
+      {step: 3, items: threeGood, obstruction: true, choice: 'image_direct', state: {outcome: 'quota_exceeded', kept: null, asked: null}},
+      {step: 3, items: threeGood.map((one) => ({...one, retained: {sha256: sha('k'), length: 400001}})), obstruction: true, choice: 'evidence_images'},
     ];
     for (const initial of states) {
       // (React puts the script that replays a form submitted before hydration into the markup of a form: it is not text.)
       const markup = screen('he', initial).replace(/<script>[\s\S]*?<\/script>/g, '').replace(/<bdi dir="ltr" class="ltr-token">.*?<\/bdi>/g, '');
       const words = plain(markup).replace(/nova3D/g, '');
       // The Latin that is left is a token a message puts in through a placeholder (a size in px, the project title, the scheme https): none is a word of the catalog.
-      const prose = words.replace(/Picture request 2026-10-20/g, '').replace(/\b\d+(?:\.\d+)? px\b/g, '').replace(/\bhttps\b/g, '');
+      const prose = words.replace(/Picture request 2026-10-20/g, '').replace(/\b\d+(?:\.\d+)? px\b/g, '').replace(/\bhttps\b/g, '').replace(/\b\d+(?:\.\d+)? (?:KiB|MiB|GiB)\b/g, '');
       expect(prose, JSON.stringify(initial).slice(0, 80)).not.toMatch(/[A-Za-z]{2,}/);
     }
   });
@@ -828,6 +955,43 @@ describe.each(locales)('the review on the Project page, in %s', (locale) => {
     }
     expect(text(block)).toContain(t(locale, 'review.ack.warning'));
     expect(block).not.toContain(t(locale, 'review.section.noAcknowledgment'));
+  });
+
+  it('says "Kept privately with this request" for a picture the revision pins, instead of when its private copy lapses or that it cannot be recovered (Story 2.12)', () => {
+    const images = [picture(1, {label: 'front', available: true}), picture(2, {label: 'left', available: true}), picture(3, {label: 'top', available: false, expiresAt: null})];
+    const kept = [{uploadId: upload(1), sha256: sha('x'), length: 1000}, {uploadId: upload(3), sha256: sha('y'), length: 2000}];
+    const markup = render(locale, <RequestSection data={{state: 'found', request: reviewed({}, images), subjectName: null, kept}}/>);
+    const items = markup.split('<li class="picture-saved-item">').slice(1);
+    // A pinned picture is kept, whatever its staged copy is now (even one that has gone: the retained copy is what the request has).
+    for (const index of [0, 2]) {
+      expect(text(items[index]), `picture ${index + 1}`).toContain(t(locale, 'picture.section.kept'));
+      expect(items[index], `picture ${index + 1}`).toContain('data-kept="true"');
+      expect(text(items[index]), `picture ${index + 1}`).not.toContain(t(locale, 'picture.section.unavailable'));
+      expect(items[index], `picture ${index + 1}`).not.toContain('notice-warning');
+      expect(text(items[index]), `picture ${index + 1}`).not.toContain(t(locale, 'picture.section.lapses', {time: '2026-10-21 12:34 UTC'}));
+    }
+    // A picture that is only in staging says when it lapses, as before.
+    expect(text(items[1])).toContain(t(locale, 'picture.section.lapses', {time: '2026-10-21 12:34 UTC'}));
+    expect(items[1]).not.toContain('data-kept');
+    if (locale === 'en') expect(plain(items[0])).toContain('Kept privately with this request');
+    // No root, no key, no address and no digest of the retained copy is on the page.
+    expect(markup).not.toContain(sha('x'));
+    expect(markup).not.toContain(sha('y'));
+    expect(markup).not.toMatch(/objects\/|\/v1\/files|ticket/i);
+  });
+
+  it('says "in private staging" of the set only while a picture is not kept, and that it is kept privately when every one is', () => {
+    const all = [1, 2, 3].map((position) => ({uploadId: upload(position), sha256: sha('x'), length: 1000}));
+    const some = render(locale, <RequestSection data={{state: 'found', request: savedRequest(), subjectName: null, kept: all.slice(0, 2)}}/>);
+    expect(text(some)).toContain(t(locale, 'picture.section.note'));
+    expect(text(some)).not.toContain(t(locale, 'picture.section.noteKept'));
+    const every = render(locale, <RequestSection data={{state: 'found', request: savedRequest(), subjectName: null, kept: all}}/>);
+    expect(text(every)).toContain(t(locale, 'picture.section.noteKept'));
+    expect(text(every)).not.toContain(t(locale, 'picture.section.note'));
+    // A section handed no `kept` at all (a read that could not be made) shows the request as it records it.
+    const none = render(locale, <RequestSection data={{state: 'found', request: savedRequest(), subjectName: null}}/>);
+    expect(text(none)).toContain(t(locale, 'picture.section.note'));
+    expect(none).not.toContain('data-kept');
   });
 
   it('shows no picture and links no download: only what the request records', () => {

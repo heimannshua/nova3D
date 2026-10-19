@@ -45,13 +45,20 @@ export function signingConfigOf(env: Env): SigningConfig | null {
   return {gateway, instanceId: instanceId.toLowerCase(), signer: loaded.signer, keySet: keys.keySet};
 }
 
-/** The gateway did not do what a command asked: it answered a status that is not a success, or an answer that is not one. `status` is the HTTP status. */
+/**
+ * The gateway did not do what a command asked: it answered a status that is not a success, or an answer that is not one. `status` is the HTTP status. `code` is
+ * the gateway's own error code (`bytes_changed`, `strip_failed`, `quota_exceeded`, ...: the `error` member of its JSON answer when that is a short lower-case word,
+ * otherwise null), so a caller can tell one refusal from another. It is a word the gateway chose, never the token, the address or a body, and the message of the
+ * error says none of it.
+ */
 export class GatewayError extends Error {
   readonly status: number;
-  constructor(status: number) {
+  readonly code: string | null;
+  constructor(status: number, code: string | null = null) {
     super('the file gateway refused a command');
     this.name = 'GatewayError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -69,7 +76,17 @@ export type GatewayClientOptions = {
   now?: () => number;
   /** How long a command may take; 10 seconds by default. */
   timeoutMs?: number;
+  /**
+   * How long an `attach` may take; 30 seconds by default. Retaining a picture reads the staged object (at most 12 MiB), strips its metadata and stores the result
+   * before the gateway answers, which takes longer than a deletion.
+   */
+  attachTimeoutMs?: number;
 };
+
+/** The longest an `attach` may take unless the caller says otherwise: the limit Story 2.12 gives each picture. */
+export const attachTimeoutMs = 30_000;
+
+const errorCodePattern = /^[a-z][a-z_]{0,39}$/;
 
 export type GatewayClient = {
   /** Removes a staging upload's objects if its lease is expired or released at the moment the gateway checks: `kept` when it is not. */
@@ -81,7 +98,7 @@ export type GatewayClient = {
 };
 
 export function createGatewayClient(config: SigningConfig, options: GatewayClientOptions = {}): GatewayClient {
-  const send = async (claims: CommandClaims): Promise<Record<string, unknown>> => {
+  const send = async (claims: CommandClaims, timeoutMs: number = options.timeoutMs ?? 10_000): Promise<Record<string, unknown>> => {
     const now = options.now?.();
     const token = signCommand(config.signer, config.instanceId, claims, now === undefined ? {} : {now});
     let response: Response;
@@ -92,7 +109,7 @@ export function createGatewayClient(config: SigningConfig, options: GatewayClien
         headers: {authorization: `Command ${token}`},
         redirect: 'error',
         cache: 'no-store',
-        signal: AbortSignal.timeout(options.timeoutMs ?? 10_000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch {
       throw new GatewayUnavailableError();
@@ -103,7 +120,10 @@ export function createGatewayClient(config: SigningConfig, options: GatewayClien
     } catch {
       body = undefined;
     }
-    if (!response.ok) throw new GatewayError(response.status);
+    if (!response.ok) {
+      const code = typeof body === 'object' && body !== null && !Array.isArray(body) ? (body as Record<string, unknown>).error : undefined;
+      throw new GatewayError(response.status, typeof code === 'string' && errorCodePattern.test(code) ? code : null);
+    }
     if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new GatewayError(response.status);
     return body as Record<string, unknown>;
   };
@@ -120,7 +140,7 @@ export function createGatewayClient(config: SigningConfig, options: GatewayClien
       return {outcome: 'deleted'};
     },
     async attach(input) {
-      const body = await send({cmd: 'attach', acct: input.accountId, epoch: input.epoch, uid: input.uploadId, tr: input.transform});
+      const body = await send({cmd: 'attach', acct: input.accountId, epoch: input.epoch, uid: input.uploadId, tr: input.transform}, options.attachTimeoutMs ?? attachTimeoutMs);
       const manifest = body.manifest as Record<string, unknown> | undefined;
       if ((body.outcome !== 'published' && body.outcome !== 'exists') || typeof manifest !== 'object' || manifest === null) throw new GatewayError(200);
       const {id, root, digest, length, kind} = manifest;

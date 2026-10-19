@@ -666,6 +666,14 @@ describe('savedSet and discardable', () => {
     expect(orderedUploadIds(set)).toEqual(set.map((item) => item.uploadId));
   });
 
+  it('carries a picture the revision pins as kept (Story 2.12), and adds nothing to one that is not: a kept picture is still saved, ready and available, and is never discarded by this screen', () => {
+    const set = savedSet([saved(1, {kept: true}), saved(2), saved(3, {kept: false})], (picture) => `saved-${picture.position}`);
+    expect(set[0]).toMatchObject({saved: true, state: 'ready', available: true, kept: true});
+    expect(set[1]).not.toHaveProperty('kept');
+    expect(set[2]).not.toHaveProperty('kept');
+    for (const item of set) expect(discardable(item)).toBeNull();
+  });
+
   it('does not change the list it is given', () => {
     const given = [saved(2), saved(1)];
     savedSet(given, () => 'k');

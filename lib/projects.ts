@@ -14,7 +14,7 @@
 import {callRow, oneOf, requireUuid, unexpected, type AccountsOptions, type Row} from '@/lib/accounts';
 import type {Operation} from '@/lib/authority';
 import {isProjectStage} from '@/lib/project-stage';
-import {isPictureType, maxPictures} from '@/lib/picture-set';
+import {isPictureType, maxPictures, type PictureType} from '@/lib/picture-set';
 import {isViewLabel, type ViewLabel} from '@/lib/picture-quality';
 import {projectIdOf, type ProjectRequestRow, type ProjectRow, type RequestPicture} from '@/lib/project-view';
 import {declineReasons, requestModes, type ConfirmedRequest, type DeclineReason, type PersonalizationStyle, type RequestMode} from '@/lib/request-intake';
@@ -432,6 +432,8 @@ export type ReviewedImage = {uploadId: string; label: ViewLabel; shortEdgePx: nu
  *  - `stale`: the Project's latest revision is not the one that was reviewed (another window saved a newer set or review, or the pictures changed); nothing was
  *    written. `seq` is the latest revision's when the database says (null when the Project has no revision).
  *  - `unknown_upload`, `not_ready`, `expired_upload`: the upload at `position` (1 is the first) is not the Account's own picture, is not complete, or has expired.
+ *  - `not_retained` (Story 2.12): the picture at `position` has no retained copy (no manifest of kind `picture` exists for its upload). The application retains the pictures
+ *    first (lib/retention.ts); the database refuses a review of pictures that were not, and nothing was written.
  *  - `obstruction_not_confirmed`: the person did not confirm that nothing blocks the subject. `acknowledgment_required`: direct conversion with incomplete inputs
  *    (the database decides from the labels and measurements) without the Generate anyway acknowledgment. Nothing was written for any of these.
  *  - `reused`: the command ID was used before for something else. `unavailable`: the Project is another Account's, deleted, tombstoned or unknown (one answer), or a
@@ -440,11 +442,11 @@ export type ReviewedImage = {uploadId: string; label: ViewLabel; shortEdgePx: nu
 export type PictureReviewReceipt =
   | {outcome: 'created' | 'replayed' | 'unchanged'; projectId: string; requestId: string; seq: number}
   | {outcome: 'stale'; seq: number | null}
-  | {outcome: 'unknown_upload' | 'not_ready' | 'expired_upload'; position: number}
+  | {outcome: 'unknown_upload' | 'not_ready' | 'expired_upload' | 'not_retained'; position: number}
   | {outcome: 'reused' | 'unavailable' | 'not_editable' | 'obstruction_not_confirmed' | 'acknowledgment_required' | 'denied'};
 
 const pictureReviewOutcomes = [
-  'created', 'replayed', 'unchanged', 'stale', 'unknown_upload', 'not_ready', 'expired_upload', 'obstruction_not_confirmed', 'acknowledgment_required', 'reused', 'unavailable', 'not_editable', 'denied',
+  'created', 'replayed', 'unchanged', 'stale', 'unknown_upload', 'not_ready', 'expired_upload', 'not_retained', 'obstruction_not_confirmed', 'acknowledgment_required', 'reused', 'unavailable', 'not_editable', 'denied',
 ] as const;
 
 /** The images of a call as the database takes them: 1 to 12, none repeated, each with a label from the seven and measurements in range. A call that is not shaped like this is a bug. */
@@ -471,7 +473,8 @@ function requireReviewedImages(images: readonly ReviewedImage[]) {
  * person confirmed nothing blocks the subject, and, for `image_direct`, the confirmed scope and outcome (and, when the database finds the inputs incomplete, the
  * Generate anyway acknowledgment pinned to the ordered pictures and the scope). Research-assisted (`evidence_images`) records the choice and nothing else: no scope.
  * The command ID makes a retry safe. If this throws an AccountsUnavailableError with `outcomeUnknown`, the review may or may not have been recorded: the caller
- * tells the person to check the Project, and may send the same command again. Nothing here converts, researches, retains or charges.
+ * tells the person to check the Project, and may send the same command again. Nothing here converts, researches or charges. Retaining the pictures comes BEFORE this call
+ * (lib/retention.ts): the database pins the retained roots from its own manifests, takes none from here, and refuses `not_retained` a review of pictures that were not kept.
  */
 export async function recordPictureReview(
   operation: Operation,
@@ -518,7 +521,7 @@ export async function recordPictureReview(
     if (row.seq !== null && row.seq !== undefined && (seq === null || seq < 1)) throw unexpected();
     return {outcome, seq};
   }
-  if (outcome === 'unknown_upload' || outcome === 'not_ready' || outcome === 'expired_upload') {
+  if (outcome === 'unknown_upload' || outcome === 'not_ready' || outcome === 'expired_upload' || outcome === 'not_retained') {
     const position = wholeNumber(row.position);
     // An answer about an upload that does not say which one is not an answer.
     if (position === null || position < 1 || position > input.images.length) throw unexpected();
@@ -529,4 +532,134 @@ export async function recordPictureReview(
   const seq = wholeNumber(row.seq);
   if (!projectId || !projectIdOf(projectId) || !requestId || !projectIdOf(requestId) || seq === null || seq < 2) throw unexpected();
   return {outcome, projectId: projectId.toLowerCase(), requestId: requestId.toLowerCase(), seq};
+}
+
+// Retained pictures (Story 2.12) ------------------------------------------------------------------------------------------------
+
+/**
+ * What api.check_picture_retention answers: whether the pictures of a Project can be retained now, read-only.
+ *  - `checked`: every picture is fine, and says per position what is left to do: `attach` (no manifest of its upload yet) or `retained` (one exists; `root` is its
+ *    manifest root, a 64-character hexadecimal digest, which the application reads and never shows, logs or puts in an address).
+ *  - `stale`: the Project's latest revision is not the one expected, is not a picture revision, or does not hold exactly these uploads in this order (`seq` is the
+ *    latest revision's when the database says). `not_editable`: a text request, or a Project that is past the request stages.
+ *  - `unknown_upload`, `not_ready`, `expired_upload`: the upload at `position` (1 is the first) is not the Account's own picture, is not complete or attached, or
+ *    its staged copy has expired and it has no retained copy.
+ *  - `quota_exceeded`: the Account's kept pictures plus the staged lengths still to keep would pass 2 GiB; `kept` and `asked` are the bytes of each. Nothing is kept.
+ *  - `unavailable`: the Project is another Account's, deleted, tombstoned or unknown (one answer). `denied`: the Account has no authority for this request.
+ */
+export type PictureRetentionCheck =
+  | {outcome: 'checked'; pictures: {position: number; uploadId: string; action: 'attach' | 'retained'; root: string | null}[]}
+  | {outcome: 'stale'; seq: number | null}
+  | {outcome: 'unknown_upload' | 'not_ready' | 'expired_upload'; position: number}
+  | {outcome: 'quota_exceeded'; kept: number; asked: number}
+  | {outcome: 'unavailable' | 'not_editable' | 'denied'};
+
+const retentionOutcomes = ['checked', 'denied', 'unavailable', 'stale', 'not_editable', 'unknown_upload', 'not_ready', 'expired_upload', 'quota_exceeded'] as const;
+const rootPattern = /^[0-9a-f]{64}$/;
+
+/**
+ * Asks whether the pictures of a Project can be retained now (the first step of retaining: lib/retention.ts is the one caller). Read-only: the database writes nothing.
+ * `uploadIds` are the Project's latest revision's pictures in their order and `expectedSeq` is that revision's `seq`; the database checks both again.
+ */
+export async function checkPictureRetention(
+  operation: Operation,
+  input: {projectId: string; expectedSeq: number; uploadIds: readonly string[]},
+  options: AccountsOptions = {},
+): Promise<PictureRetentionCheck> {
+  if (!Number.isSafeInteger(input.expectedSeq) || input.expectedSeq < 1) throw new TypeError('expectedSeq must be a positive integer');
+  const uploadIds = requireUploadIds(input.uploadIds);
+  const row = await callRow(
+    'check_picture_retention',
+    {...requireOperation(operation), p_project_id: requireUuid('projectId', input.projectId), p_expected_seq: input.expectedSeq, p_upload_ids: uploadIds},
+    options,
+  );
+  const outcome = oneOf(row.outcome, retentionOutcomes);
+  if (outcome === 'unavailable' || outcome === 'not_editable' || outcome === 'denied') return {outcome};
+  if (outcome === 'stale') {
+    const seq = row.seq === null || row.seq === undefined ? null : wholeNumber(row.seq);
+    if (row.seq !== null && row.seq !== undefined && (seq === null || seq < 1)) throw unexpected();
+    return {outcome, seq};
+  }
+  if (outcome === 'unknown_upload' || outcome === 'not_ready' || outcome === 'expired_upload') {
+    const position = wholeNumber(row.position);
+    // An answer about an upload that does not say which one is not an answer.
+    if (position === null || position < 1 || position > uploadIds.length) throw unexpected();
+    return {outcome, position};
+  }
+  if (outcome === 'quota_exceeded') {
+    const kept = wholeNumber(row.kept);
+    const asked = wholeNumber(row.asked);
+    if (kept === null || asked === null) throw unexpected();
+    return {outcome, kept, asked};
+  }
+  // `checked`: one entry for every upload asked about, in order, each saying `attach` (no root) or `retained` (its root).
+  if (!Array.isArray(row.pictures) || row.pictures.length !== uploadIds.length) throw unexpected();
+  const pictures = row.pictures.map((entry, index) => {
+    const picture = (typeof entry === 'object' && entry !== null && !Array.isArray(entry) ? entry : {}) as Row;
+    const uploadId = text(picture.upload_id);
+    const root = picture.root === null || picture.root === undefined ? null : text(picture.root);
+    if (
+      picture.position !== index + 1 || !uploadId || uploadId.toLowerCase() !== uploadIds[index] || (picture.action !== 'attach' && picture.action !== 'retained') ||
+      (picture.action === 'attach' ? root !== null : root === null || !rootPattern.test(root))
+    ) {
+      throw unexpected();
+    }
+    return {position: index + 1, uploadId: uploadIds[index], action: picture.action as 'attach' | 'retained', root};
+  });
+  return {outcome, pictures};
+}
+
+/**
+ * One picture a revision pins, as `api.read_retained_pictures` returns it, and nothing else: its place, upload, the manifest root of its retained copy, the retained
+ * SHA-256 and length, the staged SHA-256 the person confirmed (so each retained digest maps to the original, in order), its label and its type. `root` is for a
+ * later consumer of the retained pictures on the server (subject identification, research, conversion); it is never shown, logged or put in an address.
+ */
+export type RetainedPicture = {
+  position: number;
+  uploadId: string;
+  root: string;
+  retainedSha256: string;
+  retainedLength: number;
+  stagedSha256: string;
+  label: ViewLabel | null;
+  contentType: PictureType;
+};
+
+/** `found`: the pictures the latest revision pins, in order. `none`: nothing is pinned. `unavailable` is one answer for another Account's, deleted, tombstoned and unknown Projects. */
+export type RetainedPicturesRead = {outcome: 'found'; pictures: RetainedPicture[]} | {outcome: 'none' | 'unavailable' | 'denied'};
+
+/**
+ * The pictures the latest request revision of a Project of the Account pins, in the confirmed order (Story 2.12): the retained roots a later consumer reads, never the
+ * lease-bounded staging. Fails closed: if the database cannot be reached this throws.
+ */
+export async function readRetainedPictures(operation: Operation, projectId: unknown, options: AccountsOptions = {}): Promise<RetainedPicturesRead> {
+  const id = projectIdOf(projectId);
+  const args = requireOperation(operation);
+  if (!id) return {outcome: 'unavailable'};
+  const row = await callRow('read_retained_pictures', {...args, p_project_id: id}, options);
+  const outcome = oneOf(row.outcome, ['found', 'none', 'unavailable', 'denied'] as const);
+  if (outcome !== 'found') return {outcome};
+  if (!Array.isArray(row.pictures) || row.pictures.length < 1 || row.pictures.length > maxPictures) throw unexpected();
+  let previous = 0;
+  const pictures = row.pictures.map((entry): RetainedPicture => {
+    const picture = (typeof entry === 'object' && entry !== null && !Array.isArray(entry) ? entry : {}) as Row;
+    const position = wholeNumber(picture.position);
+    const uploadId = text(picture.upload_id);
+    const root = text(picture.root);
+    const retainedSha256 = text(picture.retained_sha256);
+    const stagedSha256 = text(picture.staged_sha256);
+    const retainedLength = wholeNumber(picture.retained_length);
+    const contentType = picture.content_type;
+    // The pictures are the pinned ones of one revision: positions rise, and each is shaped like what the pin records.
+    if (
+      position === null || position <= previous || position > maxPictures || !uploadId || !projectIdOf(uploadId) || !root || !rootPattern.test(root) ||
+      !retainedSha256 || !rootPattern.test(retainedSha256) || !stagedSha256 || !rootPattern.test(stagedSha256) || retainedLength === null || retainedLength < 1 ||
+      !isPictureType(contentType) || (picture.label !== null && !isViewLabel(picture.label))
+    ) {
+      throw unexpected();
+    }
+    previous = position;
+    return {position, uploadId: uploadId.toLowerCase(), root, retainedSha256, retainedLength, stagedSha256, label: picture.label === null ? null : (picture.label as ViewLabel), contentType};
+  });
+  return {outcome, pictures};
 }

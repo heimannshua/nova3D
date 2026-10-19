@@ -6,7 +6,7 @@ import {Unreadable} from '@/components/projects/unreadable';
 import {homePath} from '@/lib/access';
 import {getAccess, requireActiveAccount} from '@/lib/auth';
 import {getI18n} from '@/lib/i18n/server';
-import {loadProject, loadProjectRequest} from '@/lib/project-pages';
+import {loadProject, loadProjectRequest, loadRetainedPictures} from '@/lib/project-pages';
 
 // As the overview's title: the same read, and a Project that is not available has the title of the page that says so.
 export async function generateMetadata({params}: {params: Promise<{projectId: string}>}): Promise<Metadata> {
@@ -49,5 +49,12 @@ export default async function ProjectPicturesPage({params}: {params: Promise<{pr
   if (request.state !== 'found' || request.request.mode === 'evidence_text' || request.request.confirmed) return <PicturesLocked project={loaded.project}/>;
   // A revision whose pictures carry labels was reviewed; saving a successor starts the review again.
   const reviewed = request.request.images.some((image) => image.label !== null);
-  return <PictureIntake projectId={loaded.project.id} title={loaded.project.title} revision={request.request.seq} saved={request.request.images} reviewed={reviewed}/>;
+  // A picture the revision pins is kept privately with the request (Story 2.12): the screen says so instead of when its staged copy lapses. A read that cannot be made
+  // leaves each picture as the request records it.
+  const retained = await loadRetainedPictures(access.account.accountId, access.account.epoch, projectId);
+  if (retained.state === 'denied') return redirect(homePath);
+  if (retained.state === 'unavailable') return notFound();
+  const keptIds = new Set(retained.state === 'found' ? retained.pictures.map((picture) => picture.uploadId) : []);
+  const saved = keptIds.size === 0 ? request.request.images : request.request.images.map((image) => (keptIds.has(image.uploadId) ? {...image, kept: true} : image));
+  return <PictureIntake projectId={loaded.project.id} title={loaded.project.title} revision={request.request.seq} saved={saved} reviewed={reviewed}/>;
 }

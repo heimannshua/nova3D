@@ -1118,3 +1118,75 @@
   summary: Smaller gaps, none blocking. (1) The database enforces the acknowledgment's shape but not that a confirmed `image_direct` revision is fully labelled and obstruction-confirmed; that rests on the one definer function. (2) `picture-review.tsx` is one component of about 800 lines with about twenty state hooks and a repeated inline `{field, problem}` type; it could be a reducer and three units. (3) An undecodable picture blocks the research-assisted choice too, although its measurements drive no decision there, because the writer requires labels and measurements for every picture. (4) The view labels' left and right are explained in one line of help, not a diagram.
   evidence: `supabase/migrations/20261020120000_picture_review.sql`, `components/projects/picture-review.tsx`; Blind Hunter in the Story 2.3 review.
   mapped_story: A later pass on the review screen; (3) with 2.13.
+
+## Story 2.12 (retain confirmed pictures as immutable Project artifacts)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: Closed by this story, from earlier specs (nothing further to do for them): (1) Story 1.12's "pictures keep EXIF and location metadata until 2.12 registers the strip" and the retained quota: the transform `strip-picture-metadata` is registered, the gateway strips in memory, and the 2 GiB per Account is enforced (pre-check and `artifacts.publish_attachment`); (2) Story 2.2's "staged pictures keep their metadata" for the retained copy (a staged copy is still the original until it expires, 24 hours after the commit at the latest); (3) Story 2.2's 7-day bound on staging, for any picture that has been confirmed (a retained picture's staged copy is no longer renewed or needed); (4) Story 2.3's "a confirmed direct request whose staged pictures lapse cannot be recovered": the review writer now reads the manifest, so a lapsed staged copy no longer matters once the picture is pinned; (5) Story 2.3's "the retained-picture resolver" and the review's read-back from staging: a pinned picture is read from its retained root. Still open from those specs: previews in other screens, the Project title of a picture request, and the review losing labels on a picture change.
+  evidence: `supabase/migrations/20261021120000_retained_pictures.sql`, `workers/files/src/strip.ts`, `workers/files/src/server.ts` (`attachStripped`), `workers/files/src/resolvers.ts` (`retainedResolver`), `lib/retention.ts`, `docs/authority-contract.md` ("Retaining pictures").
+  mapped_story: none (closed); the open remainders keep their own mapped stories above.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: Orphan manifests and a quota that never shrinks. A manifest that is published but never pinned (a confirmation that failed part way or was abandoned, or a picture replaced after its attach) is kept, reused by the next attempt of the same upload, and counted against the Account's 2 GiB until a deletion exists; the same holds for every pinned picture of a Project that is later deleted. Nothing deletes or purges a retained object (`delete-root` exists, and nothing sends it), so the quota is monotone: an Account that fills it sees "deleting kept pictures arrives in a later release" and has no way forward but a new Account. The quota counts the manifests of kind `picture` of any transform, though only the strip transform is refused for it (the transform `none` is the previous gateway's and never knew it).
+  evidence: `supabase/migrations/20261021120000_retained_pictures.sql` (`artifacts.publish_attachment`, `api.check_picture_retention`), `workers/files/src/server.ts` (`delete-root`), `tests/integration/retained-pictures.test.ts`.
+  mapped_story: Epic 8 (Stories 8.1 to 8.3: deleting a Project deletes its retained roots and frees the quota; orphans are found by manifests that no revision pins).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: Removing an ICC profile can change how a wide-gamut picture is displayed. The retained copy keeps no profile (it follows the story's "every metadata segment except orientation"), so a Display P3 or Adobe RGB photograph is shown as sRGB where a viewer would have read the profile; the colorimetric hints of a PNG (`gAMA`, `cHRM`, `sRGB`, `sBIT`) and an Adobe `APP14` are kept. The measurements of Story 2.3 are made on the browser's rendition of the staged file and are unaffected, but nothing compares a retained picture's colours with the original's.
+  evidence: `workers/files/src/strip.ts`, `docs/picture-quality.md` ("Retaining a picture").
+  mapped_story: Josh's approval of the removal list (an Ask first); 3.x or 7.x if colour-accurate conversion matters; keep the profile in a separate manifest child if it is wanted.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: Provider-bound derivatives must bake the orientation in. The retained copy keeps its EXIF orientation as a tag (the browser and the later steps apply it), and the Story 2.5 derivative drops all metadata, so it has to rotate the pixels first, or the model sees a sideways picture; nothing in this story rotates a pixel. Thumbnails are not stored either: the review decodes and thumbnails each picture again from its retained root, one at a time.
+  evidence: `workers/files/src/strip.ts` (the orientation block), `lib/picture-decode.ts`.
+  mapped_story: 2.5 (the provider derivative bakes the orientation); a later pass if stored thumbnails are wanted.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: A mixed deploy retains an unstripped copy. The database cannot tell a stripped digest from an unstripped one, so a gateway older than this story that is asked for the new transform copies the staged object as it is and publishes it under the name `strip-picture-metadata`. The defence is the order of the deploy (the migration, then the gateway image, then the application; never the gateway rolled back below this migration's database), which is written in `docs/staging.md` and held by nothing in the code. The attach command's claims are fixed by the story, so a gateway cannot be asked which build it is.
+  evidence: `docs/staging.md` (the migration row, "Retained pictures"), `supabase/migrations/20261021120000_retained_pictures.sql` (`artifacts.publish_attachment`).
+  mapped_story: The first hosted deploy; a version check between the application and the gateway (the gateway reports its build in `/healthz` and the application refuses to send the transform to one that does not know it) when Story 1.12's hosted checks are done.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: The strip is strict and has only been exercised on synthetic pictures. It refuses a JPEG with a marker it does not know (a reserved marker or JPG0 to JPG13), a missing end marker, a second start marker, or garbage between segments; a PNG with no `IDAT`, a second `IHDR` or a chunk longer than the file; a WebP with a size larger than the file or a `VP8X` with no image. A picture that a browser would tolerate but the strip refuses is shown as "cannot be read" with the picture screen as the remedy. The fixtures are built byte by byte (and decoded in Chromium) and a seeded fuzz checks that no metadata marker survives, but no corpus of real camera and phone files (HEIC converted by the picker, MPO, 12-bit, multi-scan arithmetic JPEG, animated PNG and WebP from real tools) has been run through it.
+  evidence: `workers/files/src/strip.ts`, `tests/unit/strip.test.ts`, `tests/support/metadata-pictures.ts`.
+  mapped_story: The G-1 corpus approval (Josh) with a small set of real photographs; widen the accepted structures only with a failing real file in hand.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: Retention is sequential for the person and bounded for the gateway, not rate limited. Confirm waits for the whole keep (at most 4 attaches in flight, 30 seconds each, 60 seconds for the action), each attach holds the staged object and its stripped result in memory (at most 12 MiB each, so up to about 100 MiB for four at once), and a second Confirm from a screen whose revision has moved on is `stale` at the pre-check before the writer could replay it, so the person reloads. There is no per-Account rate limit on attaches and no cancel button.
+  evidence: `lib/retention.ts`, `workers/files/src/server.ts` (`readStaged`), `components/projects/picture-review.tsx`.
+  mapped_story: Gateway rate limiting (open since Story 1.12); 1.13 for the first look at real traffic.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: The pins are not tied to the manifests by a foreign key, because a Projects table must not reference an Artifacts table, and `retained_length` has no upper bound in the table. The review writer is the only function that fills them and takes them from `artifacts.manifests` as the owner, and a test holds the pins equal to the manifests, but a row inserted by the owner could name any root. The resolver's view joins the manifest on root and upload, so a pin without a manifest simply serves nothing.
+  evidence: `supabase/migrations/20261021120000_retained_pictures.sql` (`request_images_retained_shape`, `artifacts.retained_pictures`), `tests/integration/retained-pictures.test.ts`.
+  mapped_story: Epic 8 (the purge verifies roots against pins); 4.1 when the manifest family is extended to worker outputs.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: The resolver of the kind `retained` is the only new kind; the Project resolver as a general target, artifact manifests (4.1) and exports (6.9) still register nothing. A retained picture is reachable only by its upload ID through a pin of a live Project; a consumer that wants a picture by root (a worker, with an attempt-scoped ticket) needs the manifest-family resolver.
+  evidence: `workers/files/src/resolvers.ts`, `lib/service-signing.ts` (`transferTargetKinds`).
+  mapped_story: 4.1 (artifact manifests and worker tickets), 6.9 (exports).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: Nothing at run time proves that the gateway answering a `strip-picture-metadata` attach really strips; the only guard is the documented deploy order (migration, then gateway image, then application). A new application against an older gateway would publish the staged copy, location data included, as the "retained" picture, because the database accepts any digest and length in range and a metadata-free picture legitimately strips to identical bytes. The spec accepted the documentation as the control.
+  evidence: `workers/files/src/server.ts` (`attach`), `lib/retention.ts` (`attachOne`), `lib/gateway-client.ts` (`attach`), `docs/staging.md` (deploy order); found independently by the blind, edge-case and verification-gap reviewers.
+  mapped_story: Whichever story next changes the attach answer (2.5 provider derivatives): have the gateway echo a strip version and the application refuse an answer without it.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: The pre-check, the two writers and the resolver's view treat any manifest of kind `picture` as a retained picture, whatever its activity; a picture manifest published with the transform `none` (the old gateway's, which only a bug in the application could ask for) would be pinned and served unstripped. Restricting the joins to `activity = 'upload:strip-picture-metadata'` would close that.
+  evidence: `supabase/migrations/20261021120000_retained_pictures.sql` (`api.check_picture_retention`, `api.record_picture_review`, `api.record_picture_set`, `artifacts.retained_pictures`).
+  mapped_story: 2.5 (when the provider derivative reads the retained picture).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: `api.read_retained_pictures` answers `found` with the pinned pictures of the latest revision and no completeness signal, so an unreviewed successor that keeps only some pins (a picture was replaced) is answered with a subset; the positions show the gaps but a consumer that does not compare them with the revision's picture count could act on part of the set.
+  evidence: `supabase/migrations/20261021120000_retained_pictures.sql` (`api.read_retained_pictures`), `tests/integration/retained-pictures.test.ts` (the gap case).
+  mapped_story: 2.13 (identify the subject) and every later reader of the retained pictures: read only a confirmed revision, or require every position to be pinned.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: The gateway has no limit across Accounts on concurrent strip attaches (each holds up to two 12 MiB buffers and parses and hashes them synchronously; the application limits one confirmation to 4), and the JPEG, PNG and WebP walkers keep an entry per segment or chunk without a cap, so a file of millions of tiny segments costs memory out of proportion to its size.
+  evidence: `workers/files/src/server.ts` (`attachStripped`), `workers/files/src/strip.ts`.
+  mapped_story: Gateway rate limiting (open since Story 1.12); 1.13 for the first look at real traffic.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-12-retain-confirmed-pictures-as-immutable-project-artifacts.md`
+  summary: `projects.request_images` has no index on `upload_id`, and the retained-picture resolver's view is read by upload ID before every transfer chunk (at most 1 MiB), so each read scans the table; the primary key and the unique constraint both lead with `revision_id`.
+  evidence: `supabase/migrations/20261021120000_retained_pictures.sql` (`artifacts.retained_pictures`), `supabase/migrations/20261020120000_picture_review.sql` and earlier (the table's constraints).
+  mapped_story: Any story that adds readers of the retained pictures at volume (2.13, 4.1).

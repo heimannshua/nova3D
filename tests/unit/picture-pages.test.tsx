@@ -6,7 +6,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 // browser (the file chooser, hashing, uploading, the camera, focus, the live region, the Server Actions) is in tests/e2e/pictures.spec.ts. A state the browser would
 // reach is given to the screen as its initial state (as the text flow's is only for tests), which is how every state of C-03 is seen here.
 const request = vi.hoisted(() => ({cookies: {} as Record<string, string>}));
-const mocks = vi.hoisted(() => ({access: null as unknown, readProject: vi.fn(), readProjectRequest: vi.fn()}));
+const mocks = vi.hoisted(() => ({access: null as unknown, readProject: vi.fn(), readProjectRequest: vi.fn(), readRetainedPictures: vi.fn()}));
 vi.mock('next/headers', () => ({
   cookies: async () => ({
     get: (name: string) => (name in request.cookies ? {name, value: request.cookies[name]} : undefined),
@@ -28,6 +28,7 @@ vi.mock('@/lib/projects', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/projects')>()),
   readProject: mocks.readProject,
   readProjectRequest: mocks.readProjectRequest,
+  readRetainedPictures: mocks.readRetainedPictures,
 }));
 
 import NewPicturesPage, {generateMetadata as newMetadata} from '@/app/projects/new/pictures/page';
@@ -110,6 +111,8 @@ beforeEach(() => {
   mocks.access = active;
   mocks.readProject.mockReset();
   mocks.readProjectRequest.mockReset();
+  // Nothing is retained unless a test says so (Story 2.12).
+  mocks.readRetainedPictures.mockReset().mockResolvedValue({outcome: 'none'});
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
 
@@ -170,6 +173,32 @@ describe('the picture pages', () => {
     // On purpose changed (review patch D2): the page also says whether the saved revision was reviewed (its pictures carry labels); these were only saved.
     expect(element.props).toEqual({projectId: PROJECT, title: row.title, revision: 3, saved: unconfirmed.images, reviewed: false});
     expect(mocks.readProject).toHaveBeenCalledWith({accountId: ACCOUNT, epoch: 4}, PROJECT, expect.anything());
+  });
+
+  it('marks the pictures the revision pins as kept (Story 2.12), so the screen says they are kept privately and not when their staged copy lapses, and leaves the others as they are', async () => {
+    found(unconfirmed);
+    mocks.readRetainedPictures.mockResolvedValue({
+      outcome: 'found',
+      pictures: [{position: 1, uploadId: unconfirmed.images[0].uploadId, root: 'ab'.repeat(32), retainedSha256: 'c'.repeat(64), retainedLength: 900, stagedSha256: unconfirmed.images[0].sha256, label: null, contentType: 'image/jpeg'}],
+    });
+    const element = await ProjectPicturesPage({params});
+    expect(element.type).toBe(PictureIntake);
+    expect(element.props.saved).toEqual([{...unconfirmed.images[0], kept: true}, ...unconfirmed.images.slice(1)]);
+    expect(element.props.saved[1]).not.toHaveProperty('kept');
+    // Nothing of the retained copy goes to the screen: not its root, not its digest.
+    expect(JSON.stringify(element.props)).not.toContain('ab'.repeat(32));
+    expect(JSON.stringify(element.props)).not.toContain('c'.repeat(64));
+    expect(mocks.readRetainedPictures).toHaveBeenCalledWith({accountId: ACCOUNT, epoch: 4}, PROJECT, expect.anything());
+  });
+
+  it('opens the screen with the pictures as the request records them when the retained read cannot be made, sends the person Home when it is refused, and is the unavailable page when the Project went', async () => {
+    found(unconfirmed);
+    mocks.readRetainedPictures.mockRejectedValue(new Error('down'));
+    expect((await ProjectPicturesPage({params})).props.saved).toEqual(unconfirmed.images);
+    mocks.readRetainedPictures.mockResolvedValue({outcome: 'denied'});
+    expect(await digest(ProjectPicturesPage({params}))).toMatch(/^NEXT_REDIRECT;replace;\/;/);
+    mocks.readRetainedPictures.mockResolvedValue({outcome: 'unavailable'});
+    expect(await digest(ProjectPicturesPage({params}))).toBe('NEXT_HTTP_ERROR_FALLBACK;404');
   });
 
   it('says the saved revision was reviewed when its pictures carry labels, so that the screen can say that saving changes starts the review again', async () => {
@@ -340,6 +369,19 @@ describe.each(locales)('C-03, the picture screen of a Project, in %s', (locale) 
     expect(text(list[0])).toContain(t(locale, 'picture.item.details', {type: 'JPEG', size: formatBytes(482113)}));
     expect(text(list[2])).toContain(t(locale, 'picture.item.details', {type: 'WebP', size: '2 KiB'}));
     for (const row of list) expect(text(row)).toContain(t(locale, 'picture.item.saved', {time: '2026-10-19 12:34 UTC'}));
+  });
+
+  it('says a kept picture is kept privately with the request (Story 2.12), and not when its staged copy lapses, while a picture that is only in staging says when it lapses', () => {
+    const mixed = screen(locale, {projectId: PROJECT, title: 'Statue', revision: 2, saved: [savedPicture(1, {kept: true}), savedPicture(2), savedPicture(3, {kept: true, expiresAt: '2026-10-19T12:34:56.789Z'})]});
+    const list = rows(mixed);
+    expect(text(list[0])).toContain(t(locale, 'picture.item.kept'));
+    expect(text(list[0])).not.toContain(t(locale, 'picture.item.saved', {time: '2026-10-19 12:34 UTC'}));
+    expect(list[0]).toContain('data-kept="true"');
+    expect(text(list[1])).toContain(t(locale, 'picture.item.saved', {time: '2026-10-19 12:34 UTC'}));
+    expect(list[1]).not.toContain('data-kept');
+    expect(text(list[2])).toContain(t(locale, 'picture.item.kept'));
+    // A kept picture is a saved one for everything else: it is in the form, in order, and can be moved, replaced and removed like the others.
+    expect([...mixed.matchAll(/name="uploadId" value="([^"]*)"/g)].map((match) => match[1])).toEqual([1, 2, 3].map((position) => savedPicture(position).uploadId));
   });
 
   it('carries the Project and the saved uploads, in order, in the form', () => {

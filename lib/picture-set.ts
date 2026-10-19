@@ -123,6 +123,8 @@ export type PictureItem = {
   /** For a saved picture: when its private copy lapses, and whether it is still there. */
   expiresAt: string | null;
   available: boolean;
+  /** Story 2.12: the saved revision pins this picture as a retained picture, so it is kept privately with the request and its staged copy's lapse is of no consequence. Absent when it is not. */
+  kept?: boolean;
   problem: UploadProblem | null;
 };
 
@@ -142,6 +144,8 @@ export type SavedPicture = {
   contentType: PictureType;
   expiresAt: string | null;
   available: boolean;
+  /** Story 2.12: the revision pins this picture as a retained picture (set by the page from the retained read; absent otherwise). */
+  kept?: boolean;
 };
 
 /** The set of a saved revision, in its order, each picture ready (and, if its private copy has lapsed, not available). */
@@ -161,6 +165,7 @@ export function savedSet(pictures: readonly SavedPicture[], key: (picture: Saved
       saved: true,
       expiresAt: picture.expiresAt,
       available: picture.available,
+      ...(picture.kept ? {kept: true} : {}),
       problem: null,
     }));
 }
