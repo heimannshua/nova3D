@@ -2,7 +2,8 @@
 title: 'Story 2.11: Create durable Job, attempt, step and operation identities'
 type: 'feature'
 created: '2026-10-20'
-status: 'in-progress'
+status: 'done'
+baseline_commit: '011ff7b5415b7d56e4e0657055ff3d276ac9b19e'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
@@ -68,12 +69,12 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/20261023120000_job_records.sql`, `docs/staging.md` -- the schema, tables, guards, internal gate and public state, six commands, preflight, migration row -- AC-1 to AC-4
-- [ ] `lib/job-records.ts` -- typed calls, vocabularies, `isChargeable` -- AC-1 to AC-4
-- [ ] `tests/` -- every matrix row: integration (accept, replay, reuse, duplicate step, uniqueness, not running, every operation move, gate with and without a charge, third-attempt bypass, not retryable, stale, terminal, ending an attempt, public state against the raw rows, authority, hidden, concurrency including `record_tombstone`, immutability, invalid arguments, closure, preflight), unit (the module: validation, every outcome, shape errors, `isChargeable`); update the pins above -- all ACs
-- [ ] `tests/support/accounts-data.ts`, `tests/support/forged-session.ts`, `scripts/seed-projects.mjs` -- delete `jobs` rows first -- housekeeping
-- [ ] `README.md`, `docs/authority-contract.md` -- the Jobs module row, the families, the gate, the command rules, rollout -- housekeeping
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- Job copy and detail (2.7), outbox/leases/fencing and the cancel-on-disable path (2.7), purge registry (Epic 8), operations of a tombstoned Project (2.8, Epic 8), closed reason codes extended by later stories -- housekeeping
+- [x] `supabase/migrations/20261023120000_job_records.sql`, `docs/staging.md` -- the schema, tables, guards, internal gate and public state, six commands, preflight, migration row -- AC-1 to AC-4
+- [x] `lib/job-records.ts` -- typed calls, vocabularies, `isChargeable` -- AC-1 to AC-4
+- [x] `tests/` -- every matrix row: integration (accept, replay, reuse, duplicate step, uniqueness, not running, every operation move, gate with and without a charge, third-attempt bypass, not retryable, stale, terminal, ending an attempt, public state against the raw rows, authority, hidden, concurrency including `record_tombstone`, immutability, invalid arguments, closure, preflight), unit (the module: validation, every outcome, shape errors, `isChargeable`); update the pins above -- all ACs
+- [x] `tests/support/accounts-data.ts`, `tests/support/forged-session.ts`, `scripts/seed-projects.mjs` -- delete `jobs` rows first -- housekeeping
+- [x] `README.md`, `docs/authority-contract.md` -- the Jobs module row, the families, the gate, the command rules, rollout -- housekeeping
+- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- Job copy and detail (2.7), outbox/leases/fencing and the cancel-on-disable path (2.7), purge registry (Epic 8), operations of a tombstoned Project (2.8, Epic 8), closed reason codes extended by later stories -- housekeeping
 
 **Acceptance Criteria:**
 - Given the same logical step requested by two commands, when both run, then one StepExecution and one ExternalOperation exist, the second returns the original receipt, and the same command ID with a different payload is rejected.
@@ -103,3 +104,92 @@ op 1 dispatched -> ambiguous -> settled           -> read_job: waiting / awaitin
 
 **Manual checks (if no CLI):**
 - None: nothing in the application calls the commands yet. Inspect that `\dt jobs.*` shows five tables after `supabase db reset` and that `select * from api.preflight(...)` as the service role raises nothing.
+
+## Suggested Review Order
+
+**The gate and the public state**
+
+- The one rule: a retry never starts past an earlier chargeable operation, whatever its number.
+  [`job_records.sql:383`](../../supabase/migrations/20261023120000_job_records.sql#L383)
+
+- Enforced at the only door a retry has to pass, waiting to running.
+  [`job_records.sql:930`](../../supabase/migrations/20261023120000_job_records.sql#L930)
+
+- A waiting attempt's reason is derived from the gate, never stored.
+  [`job_records.sql:406`](../../supabase/migrations/20261023120000_job_records.sql#L406)
+
+- The Job has no state column: its state is its highest attempt's.
+  [`job_records.sql:421`](../../supabase/migrations/20261023120000_job_records.sql#L421)
+
+**Identity and uniqueness**
+
+- Attempts: forward-only states, reason shape, and at most one open attempt per Job.
+  [`job_records.sql:98`](../../supabase/migrations/20261023120000_job_records.sql#L98)
+
+- A single partial index is what makes a second open attempt impossible.
+  [`job_records.sql:141`](../../supabase/migrations/20261023120000_job_records.sql#L141)
+
+- Operations: unique by step and ordinal, with a request ID written once.
+  [`job_records.sql:258`](../../supabase/migrations/20261023120000_job_records.sql#L258)
+
+- Receipts by Account and command ID make a lost answer replay instead of redo.
+  [`job_records.sql:346`](../../supabase/migrations/20261023120000_job_records.sql#L346)
+
+**The six commands**
+
+- Skeleton shared by all writes: arguments, authority, locks, hidden state, receipt, own checks.
+  [`job_records.sql:499`](../../supabase/migrations/20261023120000_job_records.sql#L499)
+
+- Existing records replay whatever the attempt's state; only new ones need it running.
+  [`job_records.sql:589`](../../supabase/migrations/20261023120000_job_records.sql#L589)
+
+- Operation moves are guarded; a late outcome of an ended attempt still lands.
+  [`job_records.sql:708`](../../supabase/migrations/20261023120000_job_records.sql#L708)
+
+- Ending an attempt abandons what never went out and keeps what may be charged.
+  [`job_records.sql:840`](../../supabase/migrations/20261023120000_job_records.sql#L840)
+
+- A retry only creates the next attempt; it never waits and never starts it.
+  [`job_records.sql:988`](../../supabase/migrations/20261023120000_job_records.sql#L988)
+
+- One statement builds the state and the attempts, so a read cannot contradict itself.
+  [`job_records.sql:1103`](../../supabase/migrations/20261023120000_job_records.sql#L1103)
+
+- Preflight keeps every earlier probe and adds the tables and six signatures (47).
+  [`job_records.sql:1173`](../../supabase/migrations/20261023120000_job_records.sql#L1173)
+
+**The typed module**
+
+- Vocabularies and the pure chargeable test the later stories share.
+  [`job-records.ts:29`](../../lib/job-records.ts#L29)
+
+- A replay is the operation as it is now; only a fresh advance must match.
+  [`job-records.ts:262`](../../lib/job-records.ts#L262)
+
+- Fails closed unless the Job's public state equals its highest attempt's.
+  [`job-records.ts:466`](../../lib/job-records.ts#L466)
+
+**Contract and housekeeping**
+
+- The Jobs section: families, gate, command order, replay rules and rollout.
+  [`authority-contract.md:216`](../../docs/authority-contract.md#L216)
+
+- Cleanup helpers delete the `jobs` family first so Projects and Accounts can go.
+  [`accounts-data.ts:110`](../../tests/support/accounts-data.ts#L110)
+
+- The seed's `--remove` clears a fixture Project's Jobs before the Project.
+  [`seed-projects.mjs:95`](../../scripts/seed-projects.mjs#L95)
+
+**Tests**
+
+- Every matrix row against the real database, including the tombstone race.
+  [`integration/job-records.test.ts:1396`](../../tests/integration/job-records.test.ts#L1396)
+
+- Replaying an old operation command after the operation moved on.
+  [`integration/job-records.test.ts:2107`](../../tests/integration/job-records.test.ts#L2107)
+
+- The module's validation, outcomes and shape errors without a database.
+  [`unit/job-records.test.ts:273`](../../tests/unit/job-records.test.ts#L273)
+
+- Pins the migration's order, the single caller and the vocabulary.
+  [`gate-structure.test.ts:3703`](../../tests/unit/gate-structure.test.ts#L3703)

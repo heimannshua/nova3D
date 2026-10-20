@@ -1638,10 +1638,10 @@ describe('the preflight carries the Story 2.4 tables and functions', () => {
       // Every earlier probe is still there.
       'Story 1.5 migration', 'Story 2.12 migration', 'lifecycle.heartbeats', 'private-files',
     ]) expect(definition, needle).toContain(needle);
-    // The three new `api` functions are among those the service role must be able to execute (forty-one in all).
+    // The three new `api` functions are among those the service role must be able to execute (forty-one in all; forty-seven since Story 2.11 added six, On purpose changed).
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(41);
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(47);
     for (const signature of apiSignatures) expect(executable, signature).toContain(`'${signature}'`);
     // The bucket check stays last.
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));
@@ -1673,16 +1673,16 @@ describe('the preflight carries the Story 2.4 tables and functions', () => {
     });
   });
 
-  it.each(['usage.periods', 'usage.fixture_figures'])('fails, naming a permission and not answering ok, when the role it runs as cannot read %s', async (blocked) => {
+  it.each(['usage.periods', 'usage.fixture_figures', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands'])('fails, naming a permission and not answering ok, when the role it runs as cannot read %s', async (blocked) => {
     const everything = [
       'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
       'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
-      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'usage.fixture_figures',
+      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'usage.fixture_figures', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
     ];
     await inTx(async (client) => {
-      await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage to anon');
+      await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage, jobs to anon');
       await client.query('grant create on schema api to anon');
       for (const table of everything.filter((name) => name !== blocked)) await client.query(`grant select on ${table} to anon`);
       await client.query('alter function api.preflight() owner to anon');

@@ -321,9 +321,9 @@ describe('the gateway role holds exactly its list and nothing else', () => {
     expect(readFileSync(join(directory, '20261015120000_file_gateway.sql'), 'utf8')).toMatch(/NO password here/);
   });
 
-  it('can reach exactly what its list says, read from the catalog over every relation, column and function of api, identity, projects, lifecycle, artifacts, usage, storage, auth and public', async () => {
-    // On purpose changed (Story 2.4): the closed `usage` schema is read too, so the gateway role is shown to hold nothing in it.
-    const schemas = ['api', 'identity', 'projects', 'lifecycle', 'artifacts', 'usage', 'storage', 'auth', 'public'];
+  it('can reach exactly what its list says, read from the catalog over every relation, column and function of api, identity, projects, lifecycle, artifacts, usage, jobs, storage, auth and public', async () => {
+    // On purpose changed (Story 2.4): the closed `usage` schema is read too, so the gateway role is shown to hold nothing in it. Story 2.11 adds `jobs` the same way.
+    const schemas = ['api', 'identity', 'projects', 'lifecycle', 'artifacts', 'usage', 'jobs', 'storage', 'auth', 'public'];
     const {rows: usage} = await db.query(
       `select nspname as name, has_schema_privilege('nova3d_gateway', oid, 'usage') as usage, has_schema_privilege('nova3d_gateway', oid, 'create') as create from pg_namespace where nspname = any($1) order by 1`,
       [schemas],
@@ -388,7 +388,7 @@ describe('the gateway role holds exactly its list and nothing else', () => {
     expect(functions).toEqual([{schema: 'artifacts', name: 'publish_attachment'}]);
   });
 
-  it('is refused for the rest when it tries, as itself: no api, identity, projects, lifecycle, usage, storage or auth object, no other artifacts table, no delete, no truncate', async () => {
+  it('is refused for the rest when it tries, as itself: no api, identity, projects, lifecycle, usage, jobs, storage or auth object, no other artifacts table, no delete, no truncate', async () => {
     await asGateway(async (client) => {
       for (const sql of [
         'select * from identity.accounts',
@@ -403,6 +403,14 @@ describe('the gateway role holds exactly its list and nothing else', () => {
         'select * from usage.periods',
         'select * from usage.fixture_figures',
         `select usage.ensure_period(gen_random_uuid())`,
+        // Story 2.11: the Job records and the gate are the application's, not the gateway's.
+        'select * from jobs.jobs',
+        'select * from jobs.attempts',
+        'select * from jobs.steps',
+        'select * from jobs.operations',
+        'select * from jobs.commands',
+        `select jobs.charge_open(gen_random_uuid(), 2)`,
+        `select * from api.read_job(gen_random_uuid(), 1, gen_random_uuid())`,
         'select * from auth.users',
         'select * from storage.buckets',
         'select * from storage.objects',
@@ -1764,8 +1772,8 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
     expect(check).toBeGreaterThan(-1);
-    // On purpose changed (Story 2.4): forty-one since it added the three functions of the usage limits.
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(41);
+    // On purpose changed (Story 2.11): forty-seven since it added the six functions of the Job records (it was forty-one after the three functions of the usage limits).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(47);
     for (const signature of ['api.revoke_service_key(text,text,text)', 'api.list_expired_staging(integer)']) {
       expect((await db.query(`select has_function_privilege('service_role', $1, 'execute') as can`, [signature])).rows[0].can).toBe(true);
     }
@@ -1831,11 +1839,11 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
         'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
         'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
         'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
-        'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'usage.fixture_figures',
+        'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'usage.fixture_figures', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands',
         'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
       ];
       await inTx(async (client) => {
-        await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage to anon');
+        await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage, jobs to anon');
         await client.query('grant create on schema api to anon');
         for (const table of everything.filter((name) => name !== blocked)) await client.query(`grant select on ${table} to anon`);
         await client.query('alter function api.preflight() owner to anon');
@@ -1873,13 +1881,13 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
       'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
       'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
-      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'usage.fixture_figures',
+      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'usage.fixture_figures', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
     ];
     await admin.query('begin');
     try {
       await admin.query('create role preflight_probe_bucket nologin');
-      await admin.query('grant usage on schema api, identity, projects, lifecycle, auth, artifacts, usage, storage to preflight_probe_bucket');
+      await admin.query('grant usage on schema api, identity, projects, lifecycle, auth, artifacts, usage, jobs, storage to preflight_probe_bucket');
       await admin.query('grant create on schema api to preflight_probe_bucket');
       for (const table of tables) await admin.query(`grant select on ${table} to preflight_probe_bucket`);
       await admin.query('grant select on storage.buckets to preflight_probe_bucket');

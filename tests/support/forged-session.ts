@@ -331,6 +331,12 @@ export function accountsWorld() {
     await db.query(`delete from identity.session_grants where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.registration_commands where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.invitations where redeemed_account_id in ${accounts}`, [user.id]);
+    // The Job records (Story 2.11) restrict their Project and the Account: operations, steps, attempts, Jobs and command receipts go first.
+    await db.query(`delete from jobs.operations where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from jobs.steps where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from jobs.attempts where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from jobs.jobs where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from jobs.commands where account_id in ${accounts}`, [user.id]);
     // The usage periods (Story 2.4) restrict the Account too; their fixture figures go with them.
     await db.query(`delete from usage.periods where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from projects.request_images where account_id in ${accounts}`, [user.id]);

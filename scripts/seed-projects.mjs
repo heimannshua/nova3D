@@ -92,6 +92,16 @@ try {
     for (const fixture of projectFixtures) {
       const ids = (await client.query('select id from projects.projects where account_id = $1 and title = $2', [accountId, fixture.title])).rows.map((row) => row.id);
       if (!ids.length) continue;
+      // The Job records of a Project (Story 2.11) restrict it: operations, steps, attempts, then Jobs, before anything else of the Project goes. (Nothing in the
+      // application makes a Job for a fixture Project yet, but a Job can be made for any Project; the receipts of the commands are the Account's and stay.
+      // tests/integration/projects-seed.test.ts runs this against a fixture Project that has one.)
+      const jobsOf = 'select j.id from jobs.jobs j where j.account_id = $1 and j.project_id = any($2)';
+      const attemptsOf = `select a.id from jobs.attempts a where a.account_id = $1 and a.job_id in (${jobsOf})`;
+      const stepsOf = `select s.id from jobs.steps s where s.account_id = $1 and s.attempt_id in (${attemptsOf})`;
+      await client.query(`delete from jobs.operations where account_id = $1 and step_id in (${stepsOf})`, [accountId, ids]);
+      await client.query(`delete from jobs.steps where account_id = $1 and attempt_id in (${attemptsOf})`, [accountId, ids]);
+      await client.query(`delete from jobs.attempts where account_id = $1 and job_id in (${jobsOf})`, [accountId, ids]);
+      await client.query('delete from jobs.jobs where account_id = $1 and project_id = any($2)', [accountId, ids]);
       await client.query('delete from projects.request_images where account_id = $1 and project_id = any($2)', [accountId, ids]);
       await client.query('delete from projects.request_revisions where account_id = $1 and project_id = any($2)', [accountId, ids]);
       await client.query('delete from projects.project_commands where account_id = $1 and project_id = any($2)', [accountId, ids]);

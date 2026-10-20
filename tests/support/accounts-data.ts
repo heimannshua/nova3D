@@ -107,6 +107,13 @@ export async function removeAccountData(client: Client, data: CommittedData) {
       [data.users, data.hashes, data.invitationIds, data.users.map((id) => `user:${id}`)],
     );
     await client.query(`delete from identity.preauthorizations where account_id in ${accounts} or email = any($2)`, [data.users, data.emails]);
+    // The Job records (Story 2.11) reference their Project and their Account with ON DELETE RESTRICT, so they go first, children before parents: operations,
+    // steps, attempts (one statement removes a Job's attempts together), Jobs, and the receipts of their commands.
+    await client.query(`delete from jobs.operations where account_id in ${accounts}`, [data.users]);
+    await client.query(`delete from jobs.steps where account_id in ${accounts}`, [data.users]);
+    await client.query(`delete from jobs.attempts where account_id in ${accounts}`, [data.users]);
+    await client.query(`delete from jobs.jobs where account_id in ${accounts}`, [data.users]);
+    await client.query(`delete from jobs.commands where account_id in ${accounts}`, [data.users]);
     // The usage periods of an Account (Story 2.4) reference it with ON DELETE RESTRICT (their fixture figures go with them), so they go before the Account does.
     await client.query(`delete from usage.periods where account_id in ${accounts}`, [data.users]);
     // A Project (Story 1.7) references its Workspace, and a command's receipt and a request revision (Story 2.1) reference their Project (all

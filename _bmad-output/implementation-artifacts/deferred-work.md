@@ -1232,3 +1232,33 @@
   summary: Two or more Accounts whose Auth user no longer vouches for an address all show the same stand-in name, so their card headings, field labels, button names and result notices on the Usage and limits page cannot be told apart by name alone.
   evidence: `usageNameOf` in `components/admin/usage-list.tsx:104` falls back to one catalog string (`usage.row.noAddress`); the Accounts page uses the same stand-in. Raised by the Blind Hunter and the Edge Case Hunter reviews; rare (Auth user removed), so left for a change to both pages together.
   mapped_story: none (a shared naming rule for Accounts without an address, across the Accounts and Usage pages).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-11-create-durable-job-attempt-step-and-operation-identities.md`
+  summary: Job copy and detail. The Job records have no screen, no route and no `lib/i18n` copy: the reasons (`awaiting_dispatch`, `awaiting_reconciliation`, `step_failed`, `lease_lost`, `user_cancelled`, `account_disabled`), the stages (`accepted`, `retry`, `started` and the step keys) and the states are machine words with no beginner-friendly sentence, cost impact or next action in either language.
+  evidence: `lib/job-records.ts` (the vocabularies), `api.read_job`, `docs/authority-contract.md` ("Jobs: durable identities for background work").
+  mapped_story: 2.7 (Job detail with its copy; the notification bar and history are 2.10).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-11-create-durable-job-attempt-step-and-operation-identities.md`
+  summary: Dispatch outbox, leases, fencing tokens, signing, the worker registry and the cancel-on-disable recording path are not built. `api.accept_job` commits only the Job and attempt 1 (no reservation, no outbox row), so a Job that is accepted waits for ever until Story 2.7 wraps it. The cancel and disable path needs an authority-free internal move: every command here begins with `identity.assert_operation_authority`, so a disabled Account's `waiting` or `running` attempt cannot be moved to `cancelled` with `account_disabled` through `api.move_attempt` (the stored reason exists; nothing may write it after a disable). The concurrent-Jobs limit (3 per Account) is not enforced here.
+  evidence: `supabase/migrations/20261023120000_job_records.sql` (`api.accept_job`, `api.move_attempt`), `lib/authority.ts` (`registerCanceller`).
+  mapped_story: 2.7 (outbox, leases, fencing, signing, registry, the internal cancel move and the concurrency limit).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-11-create-durable-job-attempt-step-and-operation-identities.md`
+  summary: No purge registry exists for the `jobs` family. The foreign keys restrict (a Project, an Account, a Job, an attempt and a step each keep their children), `jobs.attempts` links to its previous attempt with NO ACTION so a Job's attempts can be deleted in one statement, and delete is left allowed on every table; the purge must remove operations, steps, attempts, Jobs and receipts before the Project and the Account, as the test helpers do. A deleted Project de-links its settlements, reservations and incidents from Project, Job and request identity (AD-11) but keeps amounts, so the purge must decide what of the Job family it keeps.
+  evidence: `tests/support/accounts-data.ts`, `tests/support/forged-session.ts`, `scripts/seed-projects.mjs`, `docs/deletion-verification.md:22,30,32`.
+  mapped_story: Epic 8 (the purge registry and the deletion manifest).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-11-create-durable-job-attempt-step-and-operation-identities.md`
+  summary: The operations of a tombstoned or deleted Project cannot be advanced. Every command answers `unavailable` once the Project is deleted or tombstoned (the Project row is locked `FOR SHARE` and must be live), which includes `api.advance_operation`: an operation that was `dispatched` or `ambiguous` when the Project was deleted can no longer be reconciled through these commands, though its charge is real and AD-11 says deleting a Project never restores headroom. The reconciliation process needs an authority-free path to settle it.
+  evidence: `supabase/migrations/20261023120000_job_records.sql` (`jobs.hold_project`, `api.advance_operation`), `docs/authority-contract.md` ("The tombstone guard").
+  mapped_story: 2.8 (reconciliation of ambiguous charges) and Epic 8 (deletion of a Project with open charges).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-11-create-durable-job-attempt-step-and-operation-identities.md`
+  summary: The stored reasons are a closed set of four (`step_failed`, `lease_lost` for a failed attempt; `user_cancelled`, `account_disabled` for a cancelled one), and a Job `kind` is any lower-case word. Later stories will need more: a restore that fails every non-terminal Job as interrupted (AD-15), a lease expiry that is not a lost lease, a Job refused by a limit. Each addition is a migration that widens the check, the `moveAttempt` argument rules and `lib/job-records.ts`; no code path may store a reason outside the set.
+  evidence: `supabase/migrations/20261023120000_job_records.sql` (`jobs.attempts` reason checks, `api.move_attempt`), `lib/job-records.ts` (`storedReasons`).
+  mapped_story: 2.7 and Epic 8 (restore), whichever needs a new reason first.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-11-create-durable-job-attempt-step-and-operation-identities.md`
+  summary: `jobs.operations.outcome_at` is written at the FIRST move out of `dispatched` (completed, ambiguous or noncharge) and, being written once, is not rewritten by a later reconciliation (`settled`, `noncharge` from `ambiguous`). It is the moment an ambiguous outcome began, which is what the 24-hour deadline of Story 2.8 counts from; the time of the settlement itself is the Usage ledger's (Story 2.6), not a column here.
+  evidence: `supabase/migrations/20261023120000_job_records.sql` (`jobs.operations`, `jobs.guard_operation_change`, `api.advance_operation`).
+  mapped_story: 2.8 (the 24-hour deadline) and 2.6 (the settlement time).

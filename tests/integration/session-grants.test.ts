@@ -1200,6 +1200,12 @@ describe('the preflight', () => {
     // Story 2.4: the two tables of the usage schema (one more read each, before the privilege checks).
     'usage.periods',
     'usage.fixture_figures',
+    // Story 2.11: the five tables of the jobs schema (one more read each, before the privilege checks).
+    'jobs.jobs',
+    'jobs.attempts',
+    'jobs.steps',
+    'jobs.operations',
+    'jobs.commands',
     'auth.sessions',
     'auth.identities',
     'auth.mfa_amr_claims',
@@ -1210,7 +1216,7 @@ describe('the preflight', () => {
   // and see what the preflight says. (Everything granted here is undone with the transaction.)
   async function ownedByRoleThatCanRead(client: Client, readable: string[]) {
     // (`artifacts` since Story 1.12: the preflight reads its tables and looks for its function by name.)
-    await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage to anon');
+    await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage, jobs to anon');
     await client.query('grant create on schema api to anon');
     for (const table of readable) await client.query(`grant select on ${table} to anon`);
     await client.query('alter function api.preflight() owner to anon');

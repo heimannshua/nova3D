@@ -1033,7 +1033,8 @@ describe('Projects (Story 1.7) are read and renamed through the typed calls, for
   it('exports the call helpers from lib/accounts.ts for lib/projects.ts and, since Story 1.8, lib/lifecycle.ts alone', () => {
     const users = sources.filter((file) => /\b(?:callApi|callRow)\b/.test(withoutComments(read(file)))).sort();
     // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
-    expect(users).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
+    expect(users).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
   });
 
   it('is one Server Action behind withActiveAccount, with the Account from the verified access and nothing about it from the form', () => {
@@ -2263,7 +2264,8 @@ describe('Request revisions (Story 2.1) are created and read through two typed c
     expect(code('lib/projects.ts')).toMatch(/callRow\('read_project_request'/);
     // callApi and callRow still have the same three users.
     // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
   });
 
   it('is two Server Actions behind withActiveAccount in their own file, with the Account from the verified access and nothing about it from the form', () => {
@@ -2586,7 +2588,8 @@ describe('Picture sets (Story 2.2) are recorded through two typed calls, by two 
       expect(code(file), file).not.toMatch(/\b(?:recordPictureSet|releaseStagedPictures|callApi|callRow)\b/);
     }
     // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
   });
 
   it('is two Server Actions behind withActiveAccount in a file of their own, with the Account from the verified access and only a command, a Project and uploads from the form', () => {
@@ -2958,7 +2961,8 @@ describe('Picture review (Story 2.3) is recorded through one typed call, by one 
       expect(code(file), file).not.toMatch(/\b(?:callApi|callRow)\b/);
     }
     // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
     // The Project typed calls did not move.
     expect(callers('recordPictureSet')).toEqual(['app/projects/new/pictures/actions.ts', 'lib/projects.ts']);
     expect(callers('readProjectRequest')).toEqual(['lib/project-pages.ts', 'lib/projects.ts']);
@@ -3693,5 +3697,365 @@ describe('Usage limits (Story 2.4) are changed through one typed module and one 
     expect(readme.split('\n').find((line) => line.startsWith('| Usage')) ?? '').not.toContain('nothing yet');
     const deferred = read('_bmad-output/implementation-artifacts/deferred-work.md');
     for (const needle of ['Story 2.4', 'usage.fixture_figures', '$10,000', 'scheduler', 'history']) expect(deferred, needle).toContain(needle);
+  });
+});
+
+describe('Job records (Story 2.11) are written by six commands and read through one typed module that nothing calls yet, in an order that lets neither a duplicate nor a retry through', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+    'next.config.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const code = (file: string) => withoutComments(read(file));
+  const moduleFile = 'lib/job-records.ts';
+  const migrationFile = 'supabase/migrations/20261023120000_job_records.sql';
+  const migration = read(migrationFile).replace(/^\s*--.*$/gm, '');
+  const apiNames = ['accept_job', 'begin_step', 'advance_operation', 'move_attempt', 'request_retry', 'read_job'];
+  const tables = ['jobs', 'attempts', 'steps', 'operations', 'commands'];
+  /** The text of one `api` function, from its `create function` to its `comment on function`. */
+  const body = (name: string) => migration.slice(migration.indexOf(`create function api.${name}(`), migration.indexOf(`comment on function api.${name}(`));
+  /** The text of one table's definition. */
+  const table = (name: string) => migration.slice(migration.indexOf(`create table jobs.${name} (`), migration.indexOf('\n);', migration.indexOf(`create table jobs.${name} (`)) + 3);
+  /** The position of each needle in the text, which must all be found and must come in this order. */
+  const inOrder = (text: string, needles: string[], label = '') => {
+    const positions = needles.map((needle) => text.indexOf(needle));
+    expect(positions.every((index) => index >= 0), `${label}: ` + needles.filter((needle, index) => positions[index] < 0).join(' | ')).toBe(true);
+    expect([...positions].sort((a, b) => a - b), `${label}: ${needles.join(' < ')}`).toEqual(positions);
+  };
+
+  it('finds the files it reads', () => {
+    for (const file of [moduleFile, migrationFile]) expect(() => read(file), file).not.toThrow();
+    for (const name of apiNames) expect(body(name).length, name).toBeGreaterThan(200);
+    for (const name of tables) expect(table(name).length, name).toBeGreaterThan(100);
+  });
+
+  // The module -----------------------------------------------------------------------------------------------------------------------------
+
+  it('reaches the six database functions through lib/job-records.ts and nothing else names them', () => {
+    for (const file of sources.filter((candidate) => candidate !== moduleFile && candidate !== 'lib/accounts.ts')) {
+      expect(code(file), file).not.toMatch(/['"`](?:accept_job|begin_step|advance_operation|move_attempt|request_retry|read_job)['"`]/);
+    }
+    for (const name of apiNames) expect(code(moduleFile), name).toMatch(new RegExp(`callRow\\(\\s*'${name}'`));
+    expect([...code(moduleFile).matchAll(/callRow\(\s*'([a-z_]+)'/g)].map((match) => match[1]).sort()).toEqual([...apiNames].sort());
+    // callApi, the other call helper, is not used at all.
+    expect(code(moduleFile)).not.toMatch(/\bcallApi\b/);
+  });
+
+  it('has no caller yet, as lib/project-target.ts has none: Stories 2.6 to 2.8 are the first', () => {
+    for (const name of ['acceptJob', 'beginStep', 'advanceOperation', 'moveAttempt', 'requestRetry', 'readJob']) expect(callers(name), name).toEqual([moduleFile]);
+    expect(callers('isChargeable')).toEqual([moduleFile]);
+    // Nothing in the application, not even a page or a component, imports the module.
+    expect(sources.filter((file) => file !== moduleFile && /lib\/job-records|\.\/job-records/.test(code(file)))).toEqual([]);
+  });
+
+  it('names no tombstone, reads no environment, prints nothing and imports only the call helpers and the Operation type', () => {
+    const source = code(moduleFile);
+    expect(source).not.toMatch(/tombstone/i);
+    expect(source).not.toMatch(/process\.env|console\.|node:|next\/|\brequire\(|window|document\.|localStorage|sessionStorage|fetch\(/);
+    expect([...source.matchAll(/^import .* from '([^']+)';$/gm)].map((match) => match[1]).sort()).toEqual(['@/lib/accounts', '@/lib/authority']);
+    expect(source).toMatch(/import type \{Operation\} from '@\/lib\/authority';/);
+    // Server-only by reading, like the other typed modules: it sits on lib/accounts.ts, which refuses to load in a browser.
+    expect(read(moduleFile)).toContain('SERVER-ONLY');
+  });
+
+  it('exports the vocabularies and the pure isChargeable, and nothing that retries, waits or dispatches', () => {
+    const source = code(moduleFile);
+    for (const exported of ['jobStates', 'storedReasons', 'waitingReasons', 'jobReasons', 'fixedStages', 'operationStates', 'chargeableOperationStates', 'isChargeable', 'acceptJob', 'beginStep', 'advanceOperation', 'moveAttempt', 'requestRetry', 'readJob']) {
+      expect(source, exported).toMatch(new RegExp(`export (?:async )?(?:function|const) ${exported}\\b`));
+    }
+    expect(source).not.toMatch(/setTimeout|setInterval|\bsleep\b|while \(|for \(;;|\bdispatch(?:ed)?\(|outbox|fencing/i);
+  });
+
+  it('reads a Job in one statement from stable helpers, so its public state and its attempts are one snapshot', () => {
+    const read = body('read_job');
+    // One query over the attempts, with the public state joined to it; no second statement for the highest attempt.
+    expect([...read.matchAll(/from jobs\.attempts/g)]).toHaveLength(1);
+    expect([...read.matchAll(/jobs\.public_state\(/g)]).toHaveLength(1);
+    expect(read).toContain('left join lateral jobs.public_state(v_job.id) s on true');
+    // It writes nothing and takes no lock of its own.
+    expect(read).not.toMatch(/\bfor (?:update|share)\b|insert into|update jobs\.|delete from|pg_advisory|record_command/i);
+    // The helpers it asks are STABLE, so they read the snapshot of that statement (a volatile one takes a snapshot of its own for each call).
+    for (const helper of ['charge_open', 'derived_reason', 'public_state']) {
+      const start = migration.indexOf(`create function jobs.${helper}(`);
+      const header = migration.slice(start, migration.indexOf("set search_path = ''", start));
+      expect(header, helper).toMatch(/language sql\s+stable\s*$/);
+    }
+  });
+
+  // The schema -------------------------------------------------------------------------------------------------------------------------------
+
+  it('closes the jobs schema like the others: row-level security on, no policy, every privilege revoked, nothing granted but the six functions', () => {
+    expect(migration).toMatch(/create schema jobs;/);
+    expect(migration).toMatch(/revoke all on schema jobs from public, anon, authenticated, service_role;/);
+    expect(migration).toMatch(/alter default privileges for role postgres in schema jobs revoke execute on functions from public, anon, authenticated, service_role;/);
+    expect(migration).toMatch(/alter default privileges for role postgres in schema jobs revoke all on tables from public, anon, authenticated, service_role;/);
+    expect(migration).toMatch(/alter default privileges for role postgres in schema jobs revoke all on sequences from public, anon, authenticated, service_role;/);
+    for (const name of tables) {
+      expect(migration, name).toContain(`alter table jobs.${name} enable row level security;`);
+      expect(migration, name).toContain(`revoke all on jobs.${name} from public, anon, authenticated, service_role;`);
+    }
+    expect(migration).toMatch(/revoke all on all tables in schema jobs from public, anon, authenticated, service_role;/);
+    expect(migration).toMatch(/revoke all on all functions in schema jobs from public, anon, authenticated, service_role;/);
+    expect(migration).not.toMatch(/create policy/i);
+    // The only grants anywhere in the file: execute on the six `api` functions, to the service role.
+    const grants = [...migration.matchAll(/^grant .*;$/gm)].map((match) => match[0]);
+    expect(grants).toHaveLength(6);
+    for (const [index, name] of apiNames.entries()) expect(grants[index], name).toMatch(new RegExp(`^grant execute on function api\\.${name}\\([a-z, ]+\\) to service_role;$`));
+    expect(migration).not.toMatch(/\bgrant\b[^;]*\b(?:anon|authenticated|public|nova3d_gateway)\b/i);
+    // The `jobs` functions are granted to nobody, and every function pins its search path.
+    expect(migration).not.toMatch(/grant execute on function jobs\./);
+    const functions = [...migration.matchAll(/create (?:or replace )?function ([a-z_.]+)\(/g)];
+    expect(functions.length).toBeGreaterThanOrEqual(19);
+    for (const match of functions) {
+      const definition = migration.slice(match.index, migration.indexOf('$$;', migration.indexOf('$$', match.index) + 2) + 3);
+      expect(definition, match[1]).toContain("set search_path = ''");
+      if (match[1].startsWith('api.') && match[1] !== 'api.preflight') expect(definition, match[1]).toContain('security definer');
+    }
+  });
+
+  it('gives a Job no state of its own, and the four families the keys and the shapes the story names', () => {
+    // A Job has no state column: its state is its highest attempt's.
+    expect(table('jobs')).not.toMatch(/\b(?:state|stage|reason|status)\b/);
+    expect(table('jobs')).toContain('constraint jobs_project_fkey foreign key (project_id, account_id) references projects.projects (id, account_id) on delete restrict');
+    expect(table('jobs')).toContain("kind text not null check (kind ~ '^[a-z][a-z0-9_]{0,39}$')");
+    expect(table('jobs')).toContain('references identity.accounts (id) on delete restrict');
+    // Attempts: unique by (Job, number), at most one open, linked to the one before, a closed state set, a stored reason that agrees with the state.
+    expect(table('attempts')).toContain('constraint attempts_job_number_key unique (job_id, number)');
+    expect(table('attempts')).toContain('constraint attempts_job_fkey foreign key (job_id, account_id) references jobs.jobs (id, account_id) on delete restrict');
+    expect(table('attempts')).toContain('constraint attempts_previous_shape check ((previous_attempt_id is null) = (number = 1))');
+    expect(table('attempts')).toContain("state text not null check (state in ('waiting', 'running', 'completed', 'failed', 'cancelled'))");
+    expect(table('attempts')).toContain("stage text not null check (stage ~ '^[a-z][a-z0-9_]{0,39}$')");
+    expect(table('attempts')).toContain("input_digest text not null check (input_digest ~ '^[0-9a-f]{64}$')");
+    expect(table('attempts')).toContain("reason in ('step_failed', 'lease_lost', 'user_cancelled', 'account_disabled')");
+    expect(table('attempts')).toContain("when 'failed' then reason is not null and reason in ('step_failed', 'lease_lost')");
+    expect(table('attempts')).toContain("when 'cancelled' then reason is not null and reason in ('user_cancelled', 'account_disabled')");
+    expect(migration).toContain("create unique index attempts_one_open_key on jobs.attempts (job_id) where state in ('waiting', 'running');");
+    // Steps and operations: unique by their logical keys, owned by composite keys.
+    expect(table('steps')).toContain('constraint steps_attempt_key_key unique (attempt_id, step_key)');
+    expect(table('steps')).toContain('references jobs.attempts (id, account_id) on delete restrict');
+    expect(table('operations')).toContain('constraint operations_step_ordinal_key unique (step_id, ordinal)');
+    expect(table('operations')).toContain('references jobs.steps (id, account_id) on delete restrict');
+    expect(table('operations')).toContain('ordinal integer not null check (ordinal between 1 and 100)');
+    expect(table('operations')).toContain("check (state in ('planned', 'dispatched', 'completed', 'ambiguous', 'noncharge', 'settled', 'abandoned'))");
+    // Printable ASCII without spaces, 1 to 200 characters, written once.
+    expect(table('operations')).toMatch(/request_id text check \(request_id ~ '\^\[(?:!-~|\\u0021-\\u007e)\]\{1,200\}\$'\)/);
+    expect(table('operations')).toContain("constraint operations_noncharge_request check (state <> 'noncharge' or request_id is not null)");
+    // Receipts: one for each (Account, command ID).
+    expect(table('commands')).toContain('primary key (account_id, command_id)');
+    expect(table('commands')).toContain("kind text not null check (kind in ('accept_job', 'begin_step', 'advance_operation', 'move_attempt', 'request_retry'))");
+    expect(table('commands')).toContain("digest text not null check (digest ~ '^[0-9a-f]{64}$')");
+    // Times are the database clock's.
+    for (const name of tables) expect(table(name), name).toContain('created_at timestamptz not null default clock_timestamp()');
+    expect(migration).not.toMatch(/\bnow\(\)|current_timestamp|statement_timestamp|transaction_timestamp/i);
+  });
+
+  it('refuses to edit what is never edited, and lets an attempt and an operation change only by a guarded move; delete is left for the purge', () => {
+    for (const name of ['jobs', 'steps', 'commands']) {
+      expect(migration, name).toMatch(new RegExp(`create trigger ${name}_no_update before update on jobs\\.${name}`));
+      expect(migration, name).toMatch(new RegExp(`create trigger ${name}_no_truncate before truncate on jobs\\.${name}`));
+    }
+    for (const [name, trigger] of [['attempts', 'attempts_guard'], ['operations', 'operations_guard']]) {
+      expect(migration, name).toMatch(new RegExp(`create trigger ${trigger} before update on jobs\\.${name}`));
+      expect(migration, name).toMatch(new RegExp(`create trigger ${name}_no_truncate before truncate on jobs\\.${name}`));
+    }
+    expect(migration).not.toMatch(/before delete on jobs\.|before update or delete on jobs\.|(?:^|\s)delete\s+from\s+jobs\./im);
+    // The moves are the story's, and nothing else.
+    const attempt = migration.slice(migration.indexOf('create function jobs.guard_attempt_change'), migration.indexOf('create trigger attempts_guard'));
+    expect(attempt).toContain("(('waiting', 'running'), ('waiting', 'cancelled'), ('running', 'completed'), ('running', 'failed'), ('running', 'cancelled'))");
+    expect(attempt).toContain("old.state in ('completed', 'failed', 'cancelled')");
+    expect(attempt).toContain('an identity column is not changed');
+    const operation = migration.slice(migration.indexOf('create function jobs.guard_operation_change'), migration.indexOf('create trigger operations_guard'));
+    expect(operation).toContain("('planned', 'dispatched'), ('planned', 'abandoned'), ('dispatched', 'completed'), ('dispatched', 'ambiguous'), ('dispatched', 'noncharge')");
+    expect(operation).toContain("('ambiguous', 'settled'), ('ambiguous', 'noncharge')");
+    expect(operation).toContain("old.state in ('completed', 'noncharge', 'settled', 'abandoned')");
+    expect(operation).toContain('a time and the request ID are written once');
+    // An attempt is created by two commands only, a step and an operation only in a running attempt.
+    expect([...migration.matchAll(/insert into jobs\.attempts/g)]).toHaveLength(2);
+    expect(body('accept_job')).toContain('insert into jobs.attempts');
+    expect(body('request_retry')).toContain('insert into jobs.attempts');
+    expect(migration.slice(migration.indexOf('create function jobs.check_step'), migration.indexOf('create trigger steps_check'))).toContain("a.state = 'running'");
+    expect(migration.slice(migration.indexOf('create function jobs.check_operation'), migration.indexOf('create trigger operations_check'))).toContain("a.state = 'running'");
+    // Every update in the file is inside a command.
+    const updates = [...migration.matchAll(/(?:^|\n)\s*update (jobs\.[a-z]+)/g)].map((match) => {
+      const owner = [...migration.slice(0, match.index).matchAll(/create function ([a-z_.]+)\(/g)].pop()![1];
+      return `${match[1]} in ${owner}`;
+    });
+    expect(updates.sort()).toEqual(['jobs.attempts in api.begin_step', 'jobs.attempts in api.move_attempt', 'jobs.operations in api.advance_operation', 'jobs.operations in api.move_attempt'].sort());
+    // Nothing is inserted anywhere but by the commands (and the one receipt writer).
+    const inserts = [...migration.matchAll(/insert into (jobs\.[a-z]+)/g)].map((match) => `${match[1]} in ${[...migration.slice(0, match.index).matchAll(/create function ([a-z_.]+)\(/g)].pop()![1]}`);
+    expect(inserts.sort()).toEqual([
+      'jobs.attempts in api.accept_job', 'jobs.attempts in api.request_retry', 'jobs.commands in jobs.record_command', 'jobs.jobs in api.accept_job',
+      'jobs.operations in api.begin_step', 'jobs.steps in api.begin_step',
+    ]);
+  });
+
+  it('names no reservation, rate, provider, lease, signing, outbox or result field, writes no other module\'s table and records no audit event', () => {
+    for (const name of tables) {
+      expect(table(name), name).not.toMatch(/\b(?:reservation\w*|rates?|provider\w*|model\w*|lease_(?!lost\b)\w*|leases\b|leased\w*|fenc\w*|signing\w*|signature\w*|outbox\w*|results?|payload\w*|cost\w*|amount\w*|microdollars?\w*|worker\w*|dispatch_id|callback\w*)\b/i);
+    }
+    expect(migration).not.toMatch(/(?:insert into|update|delete from)\s+(?:usage|lifecycle|identity|projects|artifacts)\./i);
+    // (The preflight, last, names the older functions it checks.)
+    const own = migration.slice(0, migration.indexOf('create or replace function api.preflight'));
+    expect(own).not.toMatch(/record_audit|record_tombstone|audit_events/);
+    expect(migration).not.toMatch(/alter table (?!jobs\.)/i);
+    expect(migration).not.toMatch(/create or replace function (?!api\.preflight)/);
+    expect(migration).not.toMatch(/pg_cron|cron\.schedule|pg_sleep|pg_advisory_lock\(|pg_try_advisory|\bnowait\b|skip locked/i);
+  });
+
+  // The commands -------------------------------------------------------------------------------------------------------------------------------
+
+  it('runs the four commands on a record in the order the story names: arguments, authority, the command lock, the Project held, the Job lock, the receipt, then its own checks', () => {
+    const common = (name: string, own: string[]) => [
+      "raise exception 'invalid argument'",
+      'identity.assert_operation_authority(p_account_id, p_epoch)',
+      "exception when sqlstate 'N3010'",
+      "v_result.outcome := 'denied'",
+      "pg_advisory_xact_lock(hashtextextended('nova3d:jobs-command:' || p_account_id::text || ':' || p_command_id::text, 0))",
+      'jobs.hold_project(p_account_id, v_project_id)',
+      "v_result.outcome := 'unavailable'",
+      "pg_advisory_xact_lock(hashtextextended('nova3d:job:' ||",
+      `jobs.command_digest('${name}'`,
+      'from jobs.commands c where c.account_id = p_account_id and c.command_id = p_command_id',
+      "v_result.outcome := 'reused'",
+      "v_result.outcome := 'replayed'",
+      ...own,
+    ];
+    inOrder(body('begin_step'), common('begin_step', ["v_step.id is not null and (p_ordinal is null or v_operation.id is not null)", "v_attempt.state <> 'running'", 'insert into jobs.steps', 'insert into jobs.operations']), 'begin_step');
+    inOrder(body('advance_operation'), common('advance_operation', ['if v_operation.state = p_to then', "(v_operation.state, p_to) not in (", 'update jobs.operations o']), 'advance_operation');
+    // A dispatch needs a running attempt: after the replay, before the write (whether it comes before or after the list of moves).
+    const advance = body('advance_operation');
+    expect(advance.indexOf("p_to = 'dispatched' and v_attempt_state <> 'running'")).toBeGreaterThan(advance.indexOf('if v_operation.state = p_to then'));
+    expect(advance.indexOf("p_to = 'dispatched' and v_attempt_state <> 'running'")).toBeLessThan(advance.indexOf('update jobs.operations o'));
+    expect(advance).toContain("v_result.outcome := 'not_running'");
+    inOrder(body('move_attempt'), common('move_attempt', ['if v_attempt.state = p_to then', "(v_attempt.state, p_to) not in (", "p_to = 'running' and jobs.charge_open(", "p_to = 'completed' and exists (", "p_to in ('failed', 'cancelled') then", 'update jobs.attempts a']), 'move_attempt');
+    inOrder(body('request_retry'), common('request_retry', ["v_latest.number <> p_expected_number", "v_latest.state <> 'failed'", 'insert into jobs.attempts']), 'request_retry');
+    // The receipt of the work done is the last thing each command writes; a receipt of a replay is written where the replay is found.
+    for (const [name, last] of [['begin_step', 'insert into jobs.operations'], ['advance_operation', 'update jobs.operations o'], ['move_attempt', 'update jobs.attempts a'], ['request_retry', 'insert into jobs.attempts']]) {
+      expect(body(name).lastIndexOf('jobs.record_command('), name).toBeGreaterThan(body(name).lastIndexOf(last));
+    }
+    // The first command has no Job to lock yet: a new Job is its own.
+    inOrder(body('accept_job'), [
+      "raise exception 'invalid argument'", 'identity.assert_operation_authority(p_account_id, p_epoch)', "exception when sqlstate 'N3010'", "'nova3d:jobs-command:'", 'jobs.hold_project(p_account_id, p_project_id)',
+      "jobs.command_digest('accept_job'", 'from jobs.commands c', "v_result.outcome := 'reused'", "v_result.outcome := 'replayed'", 'insert into jobs.jobs', 'insert into jobs.attempts', "jobs.record_command(p_account_id, p_command_id, 'accept_job'",
+    ]);
+    expect(body('accept_job')).not.toContain("'nova3d:job:'");
+    // The read takes no command ID and no lock: only the checks it needs.
+    inOrder(body('read_job'), ["raise exception 'invalid argument'", 'identity.assert_operation_authority(p_account_id, p_epoch)', "exception when sqlstate 'N3010'", "lifecycle.is_tombstoned('project', p.id)", 'jobs.public_state(']);
+    expect(body('read_job')).not.toMatch(/p_command_id|pg_advisory|for share|for update|insert into|\bupdate\b/);
+  });
+
+  it('holds the Project row FOR SHARE, live and without a tombstone, before every write, so a step can never land after one', () => {
+    const hold = migration.slice(migration.indexOf('create function jobs.hold_project'), migration.indexOf('comment on function jobs.hold_project'));
+    inOrder(hold, ['from projects.projects p', 'p.account_id = p_account_id', 'p.deleted_at is null', 'for share;', "lifecycle.is_tombstoned('project', p_project_id)"]);
+    // Every command that writes asks for it, before any write; none takes the Project FOR UPDATE.
+    for (const name of apiNames.filter((candidate) => candidate !== 'read_job')) expect([...body(name).matchAll(/jobs\.hold_project\(/g)], name).toHaveLength(1);
+    expect(migration).not.toMatch(/projects\.projects[^;]*for update/i);
+    // The subject belongs to the Account: every lookup of a subject names it.
+    expect(body('begin_step')).toContain('where a.id = p_attempt_id and a.account_id = p_account_id');
+    expect(body('advance_operation')).toContain('where o.id = p_operation_id and o.account_id = p_account_id');
+    expect(body('move_attempt')).toContain('where a.id = p_attempt_id and a.account_id = p_account_id');
+    expect(body('request_retry')).toContain('where j.id = p_job_id and j.account_id = p_account_id');
+    expect(body('read_job')).toContain('j.id = p_job_id and j.account_id = p_account_id');
+  });
+
+  it('leaves a receipt from one writer, whenever a command did its work or replayed, and the digest covers the kind and every argument', () => {
+    expect([...migration.matchAll(/insert into jobs\.commands/g)]).toHaveLength(1);
+    expect(migration.slice(migration.indexOf('create function jobs.record_command'), migration.indexOf('comment on function jobs.record_command'))).toContain('insert into jobs.commands');
+    // begin_step, advance_operation and move_attempt record a receipt when they find the work done (a second command ID) and when they do it.
+    for (const [name, calls] of [['accept_job', 1], ['begin_step', 2], ['advance_operation', 2], ['move_attempt', 2], ['request_retry', 1]] as const) {
+      expect([...body(name).matchAll(/jobs\.record_command\(/g)], name).toHaveLength(calls);
+    }
+    const digest = migration.slice(migration.indexOf('create function jobs.command_digest'), migration.indexOf('comment on function jobs.command_digest'));
+    expect(digest).toContain('projects.length_prefixed(p_kind)');
+    expect(digest).toContain('projects.length_prefixed(x.argument)');
+    expect(digest).toContain("encode(sha256(");
+    expect(body('accept_job')).toContain("array[p_project_id::text, p_kind, p_input_digest]");
+    expect(body('begin_step')).toContain("array[p_attempt_id::text, p_step_key, p_ordinal::text]");
+    expect(body('advance_operation')).toContain("array[p_operation_id::text, p_to, p_request_id]");
+    expect(body('move_attempt')).toContain("array[p_attempt_id::text, p_to, p_reason]");
+    expect(body('request_retry')).toContain("array[p_job_id::text, p_expected_number::text, p_input_digest]");
+    // Neither the Account, nor the epoch, nor the command ID is in a digest.
+    for (const name of apiNames.slice(0, 5)) expect(body(name).match(/command_digest\([^;]*;/)![0], name).not.toMatch(/p_account_id|p_epoch|p_command_id/);
+  });
+
+  it('puts the retry wait at the one move that could bypass it, over every earlier attempt, and derives the waiting reason from it', () => {
+    const gate = migration.slice(migration.indexOf('create function jobs.charge_open'), migration.indexOf('comment on function jobs.charge_open'));
+    expect(gate).toContain('a.number < p_before_number');
+    expect(gate).toContain("o.state in ('dispatched', 'ambiguous')");
+    expect(gate).toContain('a.job_id = p_job_id');
+    const start = body('move_attempt');
+    expect(start).toContain("p_to = 'running' and jobs.charge_open(v_attempt.job_id, v_attempt.number)");
+    expect(start.indexOf('jobs.charge_open(')).toBeLessThan(start.indexOf('update jobs.attempts a'));
+    expect(start.indexOf("v_result.outcome := 'blocked'")).toBeGreaterThan(start.indexOf('jobs.charge_open('));
+    // The gate is asked nowhere else but where the reason is derived, and request_retry never starts, waits or sleeps.
+    expect([...migration.matchAll(/(?<!function )jobs\.charge_open\(/g)].length).toBe(2);
+    const derived = migration.slice(migration.indexOf('create function jobs.derived_reason'), migration.indexOf('comment on function jobs.derived_reason'));
+    expect(derived).toContain("when p_state = 'waiting' then case when jobs.charge_open(p_job_id, p_number) then 'awaiting_reconciliation' else 'awaiting_dispatch' end");
+    expect(body('request_retry')).not.toMatch(/update jobs\.attempts|'running'|charge_open|pg_sleep|loop/);
+    const state = migration.slice(migration.indexOf('create function jobs.public_state'), migration.indexOf('comment on function jobs.public_state'));
+    expect(state).toContain('order by a.number desc');
+    expect(state).toContain('limit 1');
+    expect(state).toContain('jobs.derived_reason(');
+    // Ending an attempt abandons only what never went out.
+    expect(start).toContain("set state = 'abandoned'");
+    expect(start).toContain("o.state = 'planned'");
+  });
+
+  it('re-creates the preflight with every earlier probe, a Story 2.11 block, and forty-seven functions', () => {
+    const preflight = (text: string) => text.slice(text.indexOf('create or replace function api.preflight()'), text.indexOf('$$;', text.indexOf('$$', text.indexOf('create or replace function api.preflight()')) + 2));
+    const current = preflight(migration);
+    const before = preflight(read('supabase/migrations/20261022120000_usage_limits.sql').replace(/^\s*--.*$/gm, ''));
+    for (const probe of before.match(/perform [^;]+;/g) ?? []) expect(current, probe).toContain(probe);
+    for (const signature of before.match(/'(?:api|usage|identity|lifecycle|artifacts|projects)\.[a-z_]+\([^']*\)'/g) ?? []) expect(current, signature).toContain(signature);
+    for (const probe of ['from jobs.jobs jb limit 1', 'from jobs.attempts at limit 1', 'from jobs.steps sp limit 1', 'from jobs.operations op limit 1', 'from jobs.commands cm limit 1']) expect(current, probe).toContain(probe);
+    expect(current).toContain("raise exception 'api.preflight: the Story 2.11 migration is not applied (missing %)', v_missing using errcode = 'N3020';");
+    const block = current.slice(current.indexOf("'api.accept_job(uuid,bigint,uuid,uuid,text,text)'"), current.indexOf('the Story 2.11 migration is not applied'));
+    expect([...block.matchAll(/'api\.[a-z_]+\(/g)]).toHaveLength(6);
+    for (const signature of ['api.accept_job(uuid,bigint,uuid,uuid,text,text)', 'api.begin_step(uuid,bigint,uuid,uuid,text,integer)', 'api.advance_operation(uuid,bigint,uuid,uuid,text,text)', 'api.move_attempt(uuid,bigint,uuid,uuid,text,text)', 'api.request_retry(uuid,bigint,uuid,uuid,integer,text)', 'api.read_job(uuid,bigint,uuid)']) {
+      expect(block, signature).toContain(`'${signature}'`);
+    }
+    const privileges = current.slice(current.lastIndexOf('from unnest(array[', current.indexOf('has_function_privilege')), current.indexOf('has_function_privilege'));
+    expect([...privileges.matchAll(/'api\.[a-z_]+\(/g)]).toHaveLength(47);
+    // The bucket check stays last.
+    expect(current.indexOf("b.id = 'private-files'")).toBeGreaterThan(current.indexOf('has_table_privilege'));
+    expect(current.indexOf('v_result.ok := true')).toBeGreaterThan(current.indexOf("b.id = 'private-files'"));
+    // The file ends by having the Data API reload its schema cache.
+    expect(migration.trimEnd().endsWith("notify pgrst, 'reload schema';")).toBe(true);
+  });
+
+  it('adds no route, no dependency, no variable, no screen and no copy, and leaves the scheduled tasks of Story 1.9 alone', () => {
+    expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).sort()).toEqual([
+      'app/api/health/route.ts',
+      'app/api/heartbeat/route.ts',
+      'app/api/jobs/route.ts',
+      'app/api/kit/mutation/route.ts',
+      'app/api/status/route.ts',
+      'app/api/transfers/tickets/route.ts',
+      'app/auth/callback/route.ts',
+    ]);
+    const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>};
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+    // No page, action or component names a Job record, and `lib/i18n` has no copy for one.
+    for (const file of sources.filter((candidate) => candidate.startsWith('app/') || candidate.startsWith('components/') || candidate.startsWith('lib/i18n'))) {
+      expect(code(file), file).not.toMatch(/awaiting_reconciliation|awaiting_dispatch|\bjobs\.(?:jobs|attempts|steps|operations|commands)\b/);
+    }
+    // Stories 1.9's tasks are untouched: lib/jobs.ts and lib/job-tasks.ts do not know the new module or its schema.
+    for (const file of ['lib/jobs.ts', 'lib/job-tasks.ts', 'app/api/jobs/route.ts']) expect(code(file), file).not.toMatch(/job-records|\bjobs\.(?:jobs|attempts|steps|operations|commands)\b|accept_job|read_job/);
+    expect(read('supabase/config.toml')).not.toMatch(/^schemas\s*=.*\bjobs\b/m);
+  });
+
+  it('writes the story down: the contract, the gate, the staging row and the README', () => {
+    const contract = read('docs/authority-contract.md');
+    for (const needle of [
+      'Jobs: durable identities for background work', 'jobs.charge_open', 'jobs.public_state', 'api.accept_job', 'api.begin_step', 'api.advance_operation', 'api.move_attempt', 'api.request_retry', 'api.read_job',
+      'lib/job-records.ts', 'awaiting_reconciliation', 'potentially chargeable', 'FOR SHARE', 'nova3d:jobs-command', 'nova3d:job:', '20261023120000_job_records.sql',
+    ]) expect(contract, needle).toContain(needle);
+    const guide = read('docs/staging.md');
+    for (const needle of ['20261023120000_job_records.sql', 'api.accept_job', 'jobs.charge_open', 'forty-seven']) expect(guide, needle).toContain(needle);
+    const readme = read('README.md');
+    for (const needle of ['Story 2.11', 'job_records', 'lib/job-records.ts']) expect(readme, needle).toContain(needle);
   });
 });

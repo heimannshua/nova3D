@@ -214,6 +214,13 @@ describe('through the REST API', () => {
       p_limit_microdollars: 100_000_000,
       p_expected_seq: 1,
     },
+    // Story 2.11: the six functions behind Jobs (accept a Job, begin a step, advance an operation, move an attempt, request a retry, read a Job), with the other Account's IDs.
+    accept_job: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_project_id: randomUUID(), p_kind: 'isolation', p_input_digest: '0'.repeat(64)},
+    begin_step: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_attempt_id: randomUUID(), p_step_key: 'search', p_ordinal: 1},
+    advance_operation: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_operation_id: randomUUID(), p_to: 'dispatched', p_request_id: null},
+    move_attempt: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_attempt_id: randomUUID(), p_to: 'running', p_reason: null},
+    request_retry: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_job_id: randomUUID(), p_expected_number: 1, p_input_digest: '0'.repeat(64)},
+    read_job: {p_account_id: victim.accountId, p_epoch: 1, p_job_id: randomUUID()},
     resolve_alarm: {p_condition: 'isolation-test', p_subject: null},
     release_staged_pictures: {p_account_id: victim.accountId, p_epoch: 1, p_upload_ids: [randomUUID()]},
     rename_project: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_project_id: randomUUID(), p_expected_revision: 1, p_title: 'Renamed by another Account'},
@@ -700,7 +707,7 @@ describe('composite ownership foreign keys keep a reference inside one Workspace
  */
 async function openings(client: Client): Promise<string[]> {
   const found: string[] = [];
-  const closed = ['identity', 'projects', 'lifecycle', 'artifacts', 'usage'];
+  const closed = ['identity', 'projects', 'lifecycle', 'artifacts', 'usage', 'jobs'];
   const browser = ['anon', 'authenticated'];
 
   const {rows: schemas} = await client.query(`select nspname from pg_namespace where nspname = any($1)`, [[...closed, 'api']]);
@@ -778,11 +785,11 @@ async function openings(client: Client): Promise<string[]> {
   return found.sort();
 }
 
-describe('every table of identity, projects, lifecycle, artifacts and usage is closed to anon and authenticated, table by table, and stays so', () => {
+describe('every table of identity, projects, lifecycle, artifacts, usage and jobs is closed to anon and authenticated, table by table, and stays so', () => {
   it('finds the tables it is meant to check, so an empty list cannot pass for a closed one', async () => {
     const {rows} = await db.query(
       `select n.nspname || '.' || c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace
-        where n.nspname in ('identity', 'projects', 'lifecycle', 'artifacts', 'usage') and c.relkind in ('r', 'p') order by 1`,
+        where n.nspname in ('identity', 'projects', 'lifecycle', 'artifacts', 'usage', 'jobs') and c.relkind in ('r', 'p') order by 1`,
     );
     expect(rows.map((row) => row.name)).toEqual(
       expect.arrayContaining([
@@ -816,6 +823,11 @@ describe('every table of identity, projects, lifecycle, artifacts and usage is c
         'artifacts.transfer_handles',
         'usage.fixture_figures',
         'usage.periods',
+        'jobs.attempts',
+        'jobs.commands',
+        'jobs.jobs',
+        'jobs.operations',
+        'jobs.steps',
       ]),
     );
   });
@@ -824,8 +836,8 @@ describe('every table of identity, projects, lifecycle, artifacts and usage is c
     expect(await openings(db)).toEqual([]);
   });
 
-  it('fails for every kind of opening, in each of the five schemas, so a table added later that is not closed fails this suite', async () => {
-    for (const schema of ['identity', 'projects', 'lifecycle', 'artifacts', 'usage']) {
+  it('fails for every kind of opening, in each of the six schemas, so a table added later that is not closed fails this suite', async () => {
+    for (const schema of ['identity', 'projects', 'lifecycle', 'artifacts', 'usage', 'jobs']) {
       await inTx(async (client) => {
         const leak = async (name: string, ddl: string[]) => {
           await client.query('savepoint leak');
@@ -897,7 +909,7 @@ describe('every table of identity, projects, lifecycle, artifacts and usage is c
     await inTx(async (client) => {
       const {rows} = await client.query(
         `select n.nspname as schema, c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace
-          where n.nspname in ('identity', 'projects', 'lifecycle', 'artifacts', 'usage') and c.relkind in ('r', 'p') order by 1, 2`,
+          where n.nspname in ('identity', 'projects', 'lifecycle', 'artifacts', 'usage', 'jobs') and c.relkind in ('r', 'p') order by 1, 2`,
       );
       for (const {schema, name} of rows) {
         for (const role of ['anon', 'authenticated']) {

@@ -51,12 +51,15 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     artifacts: ['attachment_transforms', 'manifests', 'service_key_revocations', 'staging_leases', 'ticket_redemptions', 'transfer_handles'],
   };
   const apiFunctions = [
+    'accept_job',
     'account_status',
     'adopt_preferences',
+    'advance_operation',
     'alarm_observations',
     'alarms_due_mail',
     'authorize_session',
     'before_user_created',
+    'begin_step',
     'check_picture_retention',
     'check_recovery',
     'claim_job_run',
@@ -85,10 +88,12 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'list_projects',
     'list_usage',
     'lookup_status',
+    'move_attempt',
     'preflight',
     'purge_dormant_identities',
     'raise_alarm',
     'raise_authorization_epoch',
+    'read_job',
     'read_project_request',
     'read_retained_pictures',
     'record_account_refusal',
@@ -103,6 +108,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'register_with_code',
     'release_staged_pictures',
     'rename_project',
+    'request_retry',
     'resolve_alarm',
     'revoke_grants',
     'revoke_invitation',
@@ -164,13 +170,13 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     expect(publicGrants).toEqual([]);
   });
 
-  it('lets only service_role execute an api function (the Auth hook belongs to supabase_auth_admin) and nothing in identity, projects, lifecycle or usage', async () => {
+  it('lets only service_role execute an api function (the Auth hook belongs to supabase_auth_admin) and nothing in identity, projects, lifecycle, usage or jobs', async () => {
     const {rows: functions} = await db.query(
       `select n.nspname as schema, p.proname as name, p.prosecdef as definer, p.proconfig as config, p.proacl is null as default_acl,
               coalesce((select array_agg(case when a.grantee = 0 then 'public' else a.grantee::regrole::text end order by 1)
                           from aclexplode(p.proacl) a where a.privilege_type = 'EXECUTE' and a.grantee <> p.proowner), '{}') as grantees
          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-        where n.nspname in ('api', 'identity', 'projects', 'lifecycle', 'usage') order by 1, 2`,
+        where n.nspname in ('api', 'identity', 'projects', 'lifecycle', 'usage', 'jobs') order by 1, 2`,
     );
     expect(functions.filter((f) => f.schema === 'api').map((f) => f.name)).toEqual(apiFunctions);
     for (const f of functions) {

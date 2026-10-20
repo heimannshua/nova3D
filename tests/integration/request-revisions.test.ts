@@ -1366,8 +1366,8 @@ describe('the preflight carries the Story 2.1 table and functions', () => {
     // The service role can execute all thirty-eight api functions (Story 2.3 added the thirty-sixth, Story 2.12 the last two), these two among them; the bucket check is still the last of all.
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
-    // On purpose changed (Story 2.4): forty-one since it added the three functions of the usage limits.
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(41);
+    // On purpose changed (Story 2.11): forty-seven since it added the six functions of the Job records (it was forty-one after the three functions of the usage limits).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(47);
     expect(executable).toContain(create_);
     expect(executable).toContain(read_);
     expect(definition.indexOf('Story 2.1 migration')).toBeLessThan(check);

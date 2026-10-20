@@ -145,4 +145,75 @@ describe('the local fixture seed', () => {
     expect([await projectsOf(kept), await revisionsOf(kept)]).toEqual([1, 1]);
     expect((await stored(a.accountId)).map((row) => row.title)).toEqual(['The outer altar and ramp (Middot 3)']);
   });
+  it('removes a fixture-titled Project that has a Job, with its attempts, step and operation, keeps the Job of another Project, and leaves the Account\'s command receipts (Story 2.11)', async () => {
+    const a = await account();
+    const digest = 'a'.repeat(64);
+    expect((await run(['--email', a.email])).code).toBe(0);
+    const { rows: fixture } = await db.query('select id from projects.projects where account_id = $1 and title = $2', [a.accountId, projectFixtures[0].title]);
+    const doomed = fixture[0].id as string;
+    const kept = (
+      await db.query(
+        `insert into projects.projects (workspace_id, account_id, title, stage) select w.id, w.account_id, 'My own project', 'generating' from projects.workspaces w where w.account_id = $1 returning id`,
+        [a.accountId],
+      )
+    ).rows[0].id as string;
+
+    // A Job with two attempts (the first failed with a charge still open, the retry waiting), a step and an operation, in each Project: as the service role makes
+    // them, in one transaction, committed.
+    const makeJob = async (projectId: string) => {
+      const call = async (sql: string, params: unknown[]) => (await rows(db, 'service_role', sql, params))[0];
+      const accepted = await call('select * from api.accept_job($1, 1, $2, $3, $4, $5)', [a.accountId, randomUUID(), projectId, 'research', digest]);
+      expect(accepted.outcome).toBe('created');
+      expect((await call('select * from api.move_attempt($1, 1, $2, $3, $4, $5)', [a.accountId, randomUUID(), accepted.attempt_id, 'running', null])).outcome).toBe('moved');
+      const step = await call('select * from api.begin_step($1, 1, $2, $3, $4, $5)', [a.accountId, randomUUID(), accepted.attempt_id, 'search', 1]);
+      expect(step.outcome).toBe('created');
+      expect((await call('select * from api.advance_operation($1, 1, $2, $3, $4, $5)', [a.accountId, randomUUID(), step.operation_id, 'dispatched', null])).outcome).toBe('advanced');
+      expect((await call('select * from api.move_attempt($1, 1, $2, $3, $4, $5)', [a.accountId, randomUUID(), accepted.attempt_id, 'failed', 'step_failed'])).outcome).toBe('moved');
+      expect((await call('select * from api.request_retry($1, 1, $2, $3, 1, $4)', [a.accountId, randomUUID(), accepted.job_id, digest])).outcome).toBe('created');
+      return accepted.job_id as string;
+    };
+    await db.query('begin');
+    try {
+      await makeJob(doomed);
+      await makeJob(kept);
+      await db.query('commit');
+    } catch (error) {
+      await db.query('rollback');
+      throw error;
+    }
+
+    // Every family of the Job records of a Project, by the Project.
+    const familiesOf = async (projectId: string) =>
+      (
+        await db.query(
+          `select (select count(*) from jobs.jobs j where j.project_id = $1)::int as jobs,
+                  (select count(*) from jobs.attempts t join jobs.jobs j on j.id = t.job_id where j.project_id = $1)::int as attempts,
+                  (select count(*) from jobs.steps s join jobs.attempts t on t.id = s.attempt_id join jobs.jobs j on j.id = t.job_id where j.project_id = $1)::int as steps,
+                  (select count(*) from jobs.operations o join jobs.steps s on s.id = o.step_id join jobs.attempts t on t.id = s.attempt_id join jobs.jobs j on j.id = t.job_id where j.project_id = $1)::int as operations`,
+          [projectId],
+        )
+      ).rows[0] as Record<'jobs' | 'attempts' | 'steps' | 'operations', number>;
+    const projectsOf = async (projectId: string) => (await db.query('select count(*)::int as n from projects.projects where id = $1', [projectId])).rows[0].n as number;
+    const receipts = async () => (await db.query('select count(*)::int as n from jobs.commands where account_id = $1', [a.accountId])).rows[0].n as number;
+    expect(await familiesOf(doomed)).toEqual({jobs: 1, attempts: 2, steps: 1, operations: 1});
+    expect(await familiesOf(kept)).toEqual({jobs: 1, attempts: 2, steps: 1, operations: 1});
+    const receiptsBefore = await receipts();
+    expect(receiptsBefore).toBe(2 * 6);
+
+    // A Job restricts its Project (23503 for anyone who tries to delete it directly), so --remove must take the Job records first.
+    const direct = await db.query('delete from projects.projects where id = $1', [doomed]).then(() => 'deleted', (error: {code?: string}) => error.code);
+    expect(direct).toBe('23503');
+
+    const removed = await run(['--remove', '--email', a.email]);
+    expect(removed.code, removed.stderr).toBe(0);
+    expect(removed.stdout).toContain(`Removed ${projectFixtures.length} fixture Project`);
+    // Gone: the Project, and every Job, attempt, step and operation of it.
+    expect(await projectsOf(doomed)).toBe(0);
+    expect(await familiesOf(doomed)).toEqual({jobs: 0, attempts: 0, steps: 0, operations: 0});
+    // Not a fixture by title: the other Project keeps its Job, attempts, step and operation.
+    expect(await projectsOf(kept)).toBe(1);
+    expect(await familiesOf(kept)).toEqual({jobs: 1, attempts: 2, steps: 1, operations: 1});
+    // The receipts of the commands are the Account's, and stay (as the script's comment says).
+    expect(await receipts()).toBe(receiptsBefore);
+  });
 });
