@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-09-2026 11:36
-last_updated: 10-20-2026 04:35
+last_updated: 10-20-2026 12:06
 project: nova3D
 project_key: NOKEY
 tracking_system: file-system
@@ -58,7 +58,7 @@ development_status:
   2-12-retain-confirmed-pictures-as-immutable-project-artifacts: review
   2-4-set-accountable-usage-limits: review
   2-11-create-durable-job-attempt-step-and-operation-identities: review
-  2-6-reserve-bounded-costs-atomically: backlog
+  2-6-reserve-bounded-costs-atomically: in-progress
   2-5-disclose-and-authorize-provider-categories: backlog
   2-7-accept-and-execute-durable-fenced-jobs: backlog
   2-8-reconcile-ambiguous-charges-without-replacement-calls: backlog
