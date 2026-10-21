@@ -399,9 +399,15 @@ describe('the gateway role holds exactly its list and nothing else', () => {
         'select * from projects.request_revisions',
         'select * from lifecycle.instance_identity',
         'select * from lifecycle.tombstones',
-        // Story 2.4: the usage periods and the stand-in for the ledgers are the application's, not the gateway's.
+        // Story 2.4 and 2.6: the usage periods and the rate schedules, reservations, settlements, overrun incidents and receipts are the application's, not the gateway's.
         'select * from usage.periods',
-        'select * from usage.fixture_figures',
+        'select * from usage.rate_schedules',
+        'select * from usage.reservations',
+        'select * from usage.settlements',
+        'select * from usage.overrun_incidents',
+        'select * from usage.commands',
+        `select usage.price(gen_random_uuid(), 1, 1, 1)`,
+        `select * from api.settle_cost(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'unused')`,
         `select usage.ensure_period(gen_random_uuid())`,
         // Story 2.11: the Job records and the gate are the application's, not the gateway's.
         'select * from jobs.jobs',
@@ -1773,7 +1779,8 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
     expect(check).toBeGreaterThan(-1);
     // On purpose changed (Story 2.11): forty-seven since it added the six functions of the Job records (it was forty-one after the three functions of the usage limits).
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(47);
+    // On purpose changed (Story 2.6): fifty since it added the three functions of the cost reservations (it was forty-seven after the six functions of the Job records).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(50);
     for (const signature of ['api.revoke_service_key(text,text,text)', 'api.list_expired_staging(integer)']) {
       expect((await db.query(`select has_function_privilege('service_role', $1, 'execute') as can`, [signature])).rows[0].can).toBe(true);
     }
@@ -1839,7 +1846,7 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
         'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
         'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
         'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
-        'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'usage.fixture_figures', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands',
+        'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands',
         'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
       ];
       await inTx(async (client) => {
@@ -1881,7 +1888,7 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
       'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
       'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
-      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'usage.fixture_figures', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands',
+      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
     ];
     await admin.query('begin');

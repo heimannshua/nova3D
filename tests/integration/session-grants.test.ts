@@ -1197,9 +1197,13 @@ describe('the preflight', () => {
     'lifecycle.alarms',
     'lifecycle.alarm_notices',
     'lifecycle.heartbeats',
-    // Story 2.4: the two tables of the usage schema (one more read each, before the privilege checks).
+    // Story 2.4 and 2.6: the tables of the usage schema (one more read each, before the privilege checks; the stand-in of Story 2.4 is gone).
     'usage.periods',
-    'usage.fixture_figures',
+    'usage.rate_schedules',
+    'usage.reservations',
+    'usage.settlements',
+    'usage.overrun_incidents',
+    'usage.commands',
     // Story 2.11: the five tables of the jobs schema (one more read each, before the privilege checks).
     'jobs.jobs',
     'jobs.attempts',

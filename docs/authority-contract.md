@@ -179,7 +179,7 @@ The code is `workers/files/src/strip.ts`, `workers/files/src/server.ts` (the att
 
 ## Usage periods: the monthly allowance and its limits
 
-Story 2.4 (set accountable usage limits) records what an Account may spend each month, and lets the fresh-authenticated Administrator see and change it. Reservations, settlements, rates, credit and payments are Stories 2.5 to 2.17; this story creates the **allowance period** they reserve against. Money is integer USD **microdollars** (`bigint` in SQL, a safe integer in TypeScript), never a float; dollars appear on screen only through `formatDollars` (`lib/usage-view.ts`: `$25.00`, no `Intl`).
+Story 2.4 (set accountable usage limits) records what an Account may spend each month, and lets the fresh-authenticated Administrator see and change it. The reservations and settlements that count against it came with Story 2.6 ("Reservations and settlements", below); the rate schedules they are priced by are fixtures (the owner's, in the tests) until Story 2.5 writes real ones; credit and payments are Stories 2.14 to 2.17. This story creates the **allowance period** they reserve against. Money is integer USD **microdollars** (`bigint` in SQL, a safe integer in TypeScript), never a float; dollars appear on screen only through `formatDollars` (`lib/usage-view.ts`: `$25.00`, no `Intl`).
 
 ### A period is an immutable row
 
@@ -189,11 +189,11 @@ A new Account gets its `initial` period in the transaction that creates it (`ide
 
 ### Rollover is lazy
 
-`usage.ensure_period(account)` is internal (callable by no API role). When the latest period is of an earlier UTC month it appends a `month` period under the advisory lock **`nova3d:usage:<account>`**: the same limit, settled carry 0, and the reserved carry kept (the previous carry plus the previous period's reserved figure). A second call in the same month appends nothing. Every Usage `api` function calls it first, and nothing is scheduled. **Story 2.6 takes the same advisory lock** to reserve against the current period, and calls `usage.available_microdollars(account)` (the allowance headroom: the limit less settled plus reserved, never below 0; credit joins in Story 2.14).
+`usage.ensure_period(account)` is internal (callable by no API role). When the latest period is of an earlier UTC month it appends a `month` period under the advisory lock **`nova3d:usage:<account>`**: the same limit, settled carry 0, and the reserved carry kept (the previous carry plus the previous period's reserved figure). A second call in the same month appends nothing. Every Usage `api` function calls it first, and nothing is scheduled. **Story 2.6 takes the same advisory lock** to reserve and to settle against the current period (`api.reserve_cost`, `api.settle_cost`), and judges the allowance headroom (the limit less settled plus reserved, never below 0: `usage.available_microdollars(account)` answers it without the lock; credit joins in Story 2.14).
 
-### Figures: one stand-in until Story 2.6
+### Figures: the ledgers' signed deltas (since Story 2.6)
 
-The settled and reserved figures of a period come only from `usage.period_figures(period_id)`. Until Story 2.6 builds the ledgers it reads the owner-written table **`usage.fixture_figures`** (`period_id`, settled, reserved), which is **empty, so every figure is zero, in every real environment**, and is written by no application code and no `api` function (the tests insert `nearly` and `reached` rows as the table owner). Story 2.6 replaces the body of `usage.period_figures` and drops the table; nothing else reads it. Shown settled = carried settled + the figure; shown reserved = carried reserved + the figure; used = settled + reserved; available = max(limit - used, 0); when used exceeds the limit the amount over is shown too, so the amounts always reconcile (settled + reserved + available = limit, or limit + over = used). The **state** is by integer arithmetic only: `under` (used x 5 < limit x 4), `nearly` (used x 5 >= limit x 4 and used < limit), `reached` (used >= limit; a limit of 0 included). `reached` means **new paid work is blocked**; running work finishes, and disabling an Account still cancels it (Account disable and its cancellers are untouched).
+The settled and reserved figures of a period come only from `usage.period_figures(period_id)`. Story 2.4 built it over an owner-written stand-in, the table **`usage.fixture_figures`**, which was empty (so every figure was zero) in every real environment; **Story 2.6 replaced the body of `usage.period_figures` with the ledgers and dropped the table** (the function keeps its signature). The figures are now **signed deltas** (see "Figures and the Job's exposure", below): the period's reserved figure is the reservations made in it less what the settlements made in it released (negative when it releases a reservation of an earlier period, which the successor period's carry still counts), and its settled figure is what the settlements made in it settled. Nothing else changed: shown settled = carried settled + the figure; shown reserved = carried reserved + the figure; used = settled + reserved; available = max(limit - used, 0); when used exceeds the limit the amount over is shown too, so the amounts always reconcile (settled + reserved + available = limit, or limit + over = used). The **state** is by integer arithmetic only: `under` (used x 5 < limit x 4), `nearly` (used x 5 >= limit x 4 and used < limit), `reached` (used >= limit; a limit of 0 included). `reached` means **new paid work is blocked** (`api.reserve_cost` answers `insufficient_allowance`); running work finishes, and disabling an Account still cancels it (Account disable and its cancellers are untouched). The tests make a period `nearly` or `reached` with real ledger rows made by the owner (`tests/support/usage-ledger.ts`), and no real Account has a reservation until Stories 2.5 to 2.8 call the commands.
 
 ### Changing a limit and resetting the count
 
@@ -265,11 +265,110 @@ The digest is SHA-256 over the kind and every argument the caller supplied excep
 
 ### What this leaves to others
 
-Story 2.6 adds the reservation (Usage-owned, keyed to the operation ID) and the receipt pins (provider API version, model, rate schedule) as columns written at `planned`; Story 2.7 wraps `api.accept_job` to commit the reservation and the dispatch outbox together, adds leases, fencing, signing, the worker registry, the cancel and disable recording path (it needs an authority-free internal move) and the Job detail screen with its copy; Story 2.8 reconciles ambiguous charges; Epic 8 purges `jobs` rows (no purge registry exists yet).
+Story 2.6 has added the reservation (Usage-owned, keyed to the operation ID, with the receipt pins: provider API version, requested model and rate schedule), as "Reservations and settlements" (below) says: it is Usage's, so no column was added to the Jobs records. Story 2.7 wraps `api.accept_job` to reserve the Job's planned operations (with `api.reserve_cost`) and commit the reservation and the dispatch outbox together, makes a dispatch need a reservation, adds leases, fencing, signing, the worker registry, the cancel and disable recording path (it needs an authority-free internal move) and the Job detail screen with its copy; Story 2.8 reconciles ambiguous charges; Epic 8 purges `jobs` rows (no purge registry exists yet).
 
 ### Rollout
 
 The migration (`supabase/migrations/20261023120000_job_records.sql`) is additive and goes first; the previous build never calls it and nothing else depends on it yet. `api.preflight` is re-created carrying every earlier probe and the new ones (forty-seven `api` functions in all), so a missing migration fails the build. The code is `lib/job-records.ts`; the behavior is pinned by `tests/integration/job-records.test.ts`, `tests/unit/job-records.test.ts` and `tests/unit/gate-structure.test.ts`.
+
+## Reservations and settlements: bounded costs, reserved atomically
+
+Story 2.6 (reserve bounded costs atomically) bounds what paid work may cost. Before an external operation may go out, its **enforceable maximum** is reserved against the Account's allowance, the Job's $5 cap across all its attempts and the $1 cap of the operation, in one transaction, so concurrent work can neither overspend nor reserve twice; a **settlement** later releases the reservation and records what happened. It is Usage's, in the closed `usage` schema: three `api` functions (`api.quote_cost`, `api.reserve_cost`, `api.settle_cost`, executable by the service role alone), five tables and one calculator, with `lib/usage-reservations.ts` the only caller. **Nothing in the application calls it yet** (as `lib/job-records.ts` has no caller): there is no screen, route, provider adapter, dispatch or worker. Story 2.5 adds the rate schedules, the provider adapters and the permission matching inside this admission; Story 2.7 reserves a Job's planned operations when it accepts the Job (so a running Job finishes under a reached limit), makes a dispatch need a reservation and builds the cancel and disable path; Story 2.8 reconciles, sweeps the deadline and clears incidents; Story 2.14 adds the credit funding split. Money is integer USD **microdollars** (`bigint` in SQL, a safe integer in TypeScript), never a float; a single amount is from 1 to 1e15; every intermediate is an exact `numeric`.
+
+### The calculator: one implementation, rounded up once
+
+`usage.input_bound` and `usage.price` are the **only** arithmetic of cost, and quote, reserve and settle all use them (`usage.bound_cost` is the quote's judgement, shared by the quote and the reservation; the settlement calls `usage.price` on the evidence). Nothing in TypeScript computes a price.
+
+- **Input bound** (tokens) = `ceil((request bytes + 2,000 + 5,000 x images) x 11 / 10)`: the byte length of the serialized request with image data excluded (no token is shorter than a byte), the fixed overhead, the tokens of each image, raised by the 10% margin. A bound equal to the ceiling passes; one above it is refused.
+- **Billed units**: the input bound and the output limit, each rounded up to the schedule's billing increment (1 to 1,000,000 tokens). These are tokens, not money.
+- **Price** = `ceil(((input units x input rate) + (output units x output rate) + (requests x request rate)) x multiplier)`. The rates and the multiplier are rationals (a numerator and a denominator): the three terms are summed over their common denominator and multiplied by the multiplier, all in integers, and the quotient is **rounded up once** per operation, as an integer division of `numeric`. No float, no earlier rounding of money.
+- **Refusals**, judged in this order, each an `unavailable_bound` with its reason: `unknown_rate` (no such schedule), `foreign_rate` (the schedule's provider, model or API version differ from those given), `foreign_currency` (not `USD`), `unsupported_option` (any key in the options object: no option is supported, among them cache, batch, server tools, fallbacks, speed and streaming; `detail` names the first key in byte order), `over_input_ceiling` (the raised bound is above 200,000), `over_output_ceiling` (above 16,000), `over_request_ceiling` (above 20), `overflow` (the price is above 1e15) and `unpriced` (the price is 0).
+- **`api.quote_cost`** (Account, epoch, schedule, provider, model, API version, request bytes, image count, output limit, request count default 1, options default `{}`): arguments (`22023`), authority (`denied`), then the calculator. It answers `quoted` (the input bound, the billed input and output units and the microdollars) or `unavailable_bound`. It is read-only and takes no advisory lock; it does not judge the caps, the allowance or the provider block, and does not roll the month over. An operation is exactly **one provider request**: `request count` exists only on the quote, and a reservation always prices one.
+
+### Rate schedules
+
+`usage.rate_schedules` is **global** (not Account-owned) and **immutable** (update and truncate are refused): a provider and a model (words), a `version` from 1 (unique with them), the provider's `api_version`, the `currency`, the input, output and request rates (each a numerator 0 to 1e12 over a denominator 1 to 1e12, in microdollars per token or request), the two billing increments and the geography multiplier (a rational of at least 1). **No `api` function and no application code writes one**, so a real environment has none until Story 2.5 adds the writer and the real rates; every quote and reservation there is `unavailable_bound` / `unknown_rate`. The tests insert fixture schedules as the owner. A rate that changes is a new version, never an edit.
+
+### The ledgers
+
+| table | one row for | unique by | changes |
+| --- | --- | --- | --- |
+| `usage.reservations` | an external operation: the Account, the period it was made in, the Job, the operation, the pins (rate schedule, provider, requested model, API version), the three calculator inputs (`request_bytes`, `image_count`, `output_limit`), the input bound (checked against the calculator), the reserved amount, the digest of the command | the operation | never edited |
+| `usage.settlements` | a reservation: the `classification`, the period it was made in (the current one, which may be later than the reservation's), the settled amount, the released amount (always the reservation's whole amount) and, for `evidence` only, the input and output tokens and the returned model | the reservation | never edited |
+| `usage.overrun_incidents` | a settlement whose evidence exceeded its reservation: the provider, the reserved and evidence amounts | the reservation and the settlement | only its one clearing (`cleared_at` and `cleared_by`, set together, once); written only by `api.settle_cost`; no function here clears one (Story 2.8) |
+| `usage.commands` | a command that did its work or replayed: (Account, command ID), `reserve` or `settle`, the digest, the reservation or settlement it made or found | (Account, command ID) | never edited |
+
+Every Account-owned row carries its `account_id`, and ownership is by composite foreign keys with `restrict` (to the period, the Job and the operation, which is why the migration adds the unique keys `usage.periods (id, account_id)` and `jobs.operations (id, account_id)`; no Jobs function or row changes). Update and truncate are refused by trigger (`55000`); delete is left for the Epic 8 purge, which will de-link settlements, reservations and incidents from Project, Job and operation while keeping amounts, provider and period (the keys restrict today). The tables are closed like the rest of `usage`: row-level security on, no policy, every privilege revoked.
+
+### Reserving: `api.reserve_cost`
+
+`api.reserve_cost(account, epoch, command ID, operation, rate schedule, provider, model, API version, request bytes, image count, output limit, options)` runs in this order. **A refusal writes no reservation, settlement, incident or receipt**; the month may turn first (`usage.ensure_period`, step 5, runs before the gates, as the story orders it, so a refusal in the first call of a new UTC month can leave the `month` period behind):
+
+1. **the arguments** (a shape the application would never send, such as a negative or fractional size or an options value that is not an object, raises `22023`);
+2. **`identity.assert_operation_authority`**, in `begin/exception when sqlstate 'N3010'` (`denied`);
+3. **the advisory lock `nova3d:usage-command:<account>:<command>`**: one command ID at a time;
+4. **the operation belongs to the Account and its Project row is held `FOR SHARE`** through `jobs.hold_project`, live and without a tombstone (`unavailable`: ONE answer for a foreign, a deleted, an unknown and a tombstoned one; `api.record_tombstone` takes the same row `FOR UPDATE`, so a reservation can never land after a tombstone). The operation's own row is held `FOR SHARE` too, so a move of the operation and the reservation are serial;
+5. **the advisory lock `nova3d:usage:<account>`** (the lock Story 2.4 reserved, which `api.set_usage_limit` takes too) and **`usage.ensure_period`**: the month turns when work is first asked for;
+6. **the receipt** by (Account, command ID): the same digest answers `replayed` with the original reservation, another is `reused` (a command ID that a settlement used is `reused` too);
+7. **the operation already holds a reservation** under another command ID: the same payload is `replayed` (and recorded under this ID too), another is `already_reserved` (it carries the reservation), with no reservation or receipt written;
+8. **the operation is not `planned`**: `not_reservable`, carrying its state (`dispatched`, `completed`, `ambiguous`, `noncharge`, `settled`, `abandoned`);
+9. **the calculator**: `unavailable_bound`, with the reason;
+10. **a provider with an uncleared overrun incident**: `provider_blocked`, for every Account;
+11. **the operation cap**: a reservation above 1,000,000 microdollars ($1) is `over_operation_cap`;
+12. **the Job cap**: the Job's exposure plus this reservation above 5,000,000 ($5) is `over_job_cap`;
+13. **the allowance**: a reservation above `available` is `insufficient_allowance` (exactly equal succeeds; a limit of 0 refuses);
+14. otherwise **one reservation in the current period and a receipt**: `reserved`.
+
+**Replays and gates run before state checks** (steps 6 and 7 before 8), so a lost answer always replays, and an existing reservation still replays when the operation has since moved on. The digest is SHA-256 over the kind and every argument the caller supplied except the Account, the epoch and the command ID (the options object included), each length-prefixed. Several refusals at once are judged in the order above: the bound, then the provider, then the operation cap, then the Job cap, then the allowance.
+
+**The cost block.** Every money refusal (`unavailable_bound`, `provider_blocked`, `over_operation_cap`, `over_job_cap`, `insufficient_allowance`) carries the exact cost block and writes no reservation, settlement, incident or receipt (the month may have turned first, as above), so no external side effect can follow it: `requested` (the amount the request would reserve; null for `unavailable_bound`, where nothing could be priced), the cap or limit that applies (`limit`: the operation cap, the Job cap, or the Account's period limit for the others), what is `used` against it and what is `available` under it. A success carries the reservation and no block.
+
+### Settling: `api.settle_cost`
+
+`api.settle_cost(account, command ID, operation, classification, input tokens, output tokens, returned model)` settles a reservation **once**, releasing its whole amount. It runs: the arguments (`22023`, including evidence fields given for any class but `evidence` or missing for it); the command lock; the operation belongs to the Account (`unavailable`, which hides a foreign or unknown one); the usage lock and `usage.ensure_period`; the receipt (`replayed` or `reused`); no reservation (`not_reserved`); already settled (the same classification and evidence is `replayed` and recorded under this command ID too, another is `already_settled`, carrying the settlement); the operation's state does not fit the class (`not_settleable`, carrying it); a deadline before it is due (`not_due`, carrying the due time); the evidence priced (`invalid_evidence` with the reason `overflow`); then one settlement in the current period and, when the evidence exceeds the reservation, one overrun incident, in the same transaction (`settled`).
+
+| classification | the operation is | settles | released |
+| --- | --- | --- | --- |
+| `evidence` | `completed`, `ambiguous` or `settled` | the provider's usage report priced by the calculator at the pinned schedule (billing increments apply); above the reservation it settles at the evidence, records an incident and the over amount (settled - released) | the reservation |
+| `deadline` | `ambiguous` or `settled`, and 24 hours or more after `outcome_at` | exactly the reservation | the reservation |
+| `noncharge` | `noncharge` (a definitive pre-processing rejection with a request ID) | 0 | the reservation |
+| `unused` | `abandoned` (it never went out) | 0 | the reservation |
+
+**There is no Account epoch, Account status or Project check.** Settling records what already happened or releases what never went out, and refusing it for a disabled, stale or tombstoned Account, or a deleted Project, would strand the money. The only gate is that the operation is the Account's own. An ambiguous charge holds its reservation until usage evidence or the 24-hour deadline; the operation's state and its settlement are separate records (`api.advance_operation` to `settled` needs no settlement, and a settlement does not move the operation), so the reconciliation of Story 2.8 does both.
+
+**Evidence above a reservation** settles at the evidence, counts against the period and against the Job cap (the Job's exposure counts the settled amount, not the reserved one), and writes an overrun incident: **until it is cleared that provider is blocked for every Account** (`provider_blocked`). Listing and clearing incidents, the 24-hour sweep and the alarms are Story 2.8's; no function here clears an incident.
+
+### Figures and the Job's exposure
+
+A period's figures are **signed deltas** from the ledgers (`usage.period_figures`): reserved = the reservations made in the period less the `released` amounts of the settlements made in the period; settled = the `settled` amounts of the settlements made in the period. A reservation made in one month and settled in the next leaves the successor's carry correct without rewriting any row:
+
+```
+limit 25M, reserve 1M (period 1)  -> reserved 1M, available 24M
+month turns                       -> period 2 carries reserved 1M
+settle 400k (period 2)            -> period 2 reserved -1M (shown 0), settled +400k (shown 400k), available 24.6M
+```
+
+A change or a reset in between keeps the same arithmetic (the carry of "Changing a limit and resetting the count"). **The Job's exposure** (`usage.job_exposure`) is, over every reservation of the Job across all attempts, the settled amount where it is settled and the reserved amount where it is not, so an ambiguous or dispatched charge holds its reservation, a later attempt's reservation counts the earlier attempts', and an overrun counts at the evidence.
+
+### The recorded constants
+
+Changeable only by a recorded decision. They live in SQL, as constant functions of `usage` (callable by no API role), and `lib/usage-reservations.ts` mirrors them as `usageConstants`; a test holds the two equal.
+
+| constant | SQL function | value |
+| --- | --- | --- |
+| fixed overhead | `usage.overhead_tokens()` | 2,000 tokens |
+| tokens per image | `usage.image_tokens()` | 5,000 |
+| margin | `usage.margin_percent()` | 10% |
+| input ceiling (the raised bound) | `usage.input_ceiling()` | 200,000 tokens |
+| output ceiling | `usage.output_ceiling()` | 16,000 tokens |
+| request ceiling | `usage.request_ceiling()` | 20 |
+| operation cap | `usage.operation_cap()` | 1,000,000 microdollars ($1) |
+| Job cap | `usage.job_cap()` | 5,000,000 microdollars ($5) |
+| ambiguity deadline | `usage.ambiguity_deadline()` | 24 hours |
+
+### Rollout
+
+The migration (`supabase/migrations/20261024120000_usage_reservations.sql`) is additive except that it **drops `usage.fixture_figures`** (Story 2.4's empty stand-in, read only by `usage.period_figures`) and **re-creates `usage.period_figures` and `api.preflight`** (fifty `api` functions in all, without the fixture probe); the previous build never calls the new functions, so it is unaffected, and the new build's preflight fails with one line if the file is missing. The code is `lib/usage-reservations.ts` (typed calls, the constants, the vocabularies and the cost block); the behavior is pinned by `tests/integration/usage-reservations.test.ts`, `tests/unit/usage-reservations.test.ts` and `tests/unit/gate-structure.test.ts`; `tests/support/usage-ledger.ts` makes real ledger rows as the owner for the tests that need a period in a state.
 
 ## The tombstone guard
 

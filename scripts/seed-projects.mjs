@@ -96,6 +96,12 @@ try {
       // application makes a Job for a fixture Project yet, but a Job can be made for any Project; the receipts of the commands are the Account's and stay.
       // tests/integration/projects-seed.test.ts runs this against a fixture Project that has one.)
       const jobsOf = 'select j.id from jobs.jobs j where j.account_id = $1 and j.project_id = any($2)';
+      // The reservations of those Jobs (Story 2.6) restrict them, and their settlements and incidents restrict the reservations: they go first. (Nothing in the
+      // application makes one for a fixture Project; a reservation can be made for any Project's operation, and a fixture Project is a local stand-in.)
+      const reservationsOf = `select r.id from usage.reservations r where r.account_id = $1 and r.job_id in (${jobsOf})`;
+      await client.query(`delete from usage.overrun_incidents where account_id = $1 and reservation_id in (${reservationsOf})`, [accountId, ids]);
+      await client.query(`delete from usage.settlements where account_id = $1 and reservation_id in (${reservationsOf})`, [accountId, ids]);
+      await client.query(`delete from usage.reservations where account_id = $1 and job_id in (${jobsOf})`, [accountId, ids]);
       const attemptsOf = `select a.id from jobs.attempts a where a.account_id = $1 and a.job_id in (${jobsOf})`;
       const stepsOf = `select s.id from jobs.steps s where s.account_id = $1 and s.attempt_id in (${attemptsOf})`;
       await client.query(`delete from jobs.operations where account_id = $1 and step_id in (${stepsOf})`, [accountId, ids]);

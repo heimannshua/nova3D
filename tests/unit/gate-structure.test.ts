@@ -1034,7 +1034,8 @@ describe('Projects (Story 1.7) are read and renamed through the typed calls, for
     const users = sources.filter((file) => /\b(?:callApi|callRow)\b/.test(withoutComments(read(file)))).sort();
     // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
     // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
-    expect(users).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.6): lib/usage-reservations.ts is the sixth, and the only caller of the three cost functions.
+    expect(users).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
   });
 
   it('is one Server Action behind withActiveAccount, with the Account from the verified access and nothing about it from the form', () => {
@@ -2265,7 +2266,8 @@ describe('Request revisions (Story 2.1) are created and read through two typed c
     // callApi and callRow still have the same three users.
     // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
     // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.6): lib/usage-reservations.ts is the sixth, and the only caller of the three cost functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
   });
 
   it('is two Server Actions behind withActiveAccount in their own file, with the Account from the verified access and nothing about it from the form', () => {
@@ -2589,7 +2591,8 @@ describe('Picture sets (Story 2.2) are recorded through two typed calls, by two 
     }
     // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
     // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.6): lib/usage-reservations.ts is the sixth, and the only caller of the three cost functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
   });
 
   it('is two Server Actions behind withActiveAccount in a file of their own, with the Account from the verified access and only a command, a Project and uploads from the form', () => {
@@ -2962,7 +2965,8 @@ describe('Picture review (Story 2.3) is recorded through one typed call, by one 
     }
     // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
     // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.6): lib/usage-reservations.ts is the sixth, and the only caller of the three cost functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
     // The Project typed calls did not move.
     expect(callers('recordPictureSet')).toEqual(['app/projects/new/pictures/actions.ts', 'lib/projects.ts']);
     expect(callers('readProjectRequest')).toEqual(['lib/project-pages.ts', 'lib/projects.ts']);
@@ -4057,5 +4061,546 @@ describe('Job records (Story 2.11) are written by six commands and read through 
     for (const needle of ['20261023120000_job_records.sql', 'api.accept_job', 'jobs.charge_open', 'forty-seven']) expect(guide, needle).toContain(needle);
     const readme = read('README.md');
     for (const needle of ['Story 2.11', 'job_records', 'lib/job-records.ts']) expect(readme, needle).toContain(needle);
+  });
+});
+
+describe('Usage reservations (Story 2.6) are quoted, reserved and settled by three commands through one typed module that nothing calls yet, with one calculator and one order that lets neither a duplicate nor an overspend through', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+    'next.config.ts',
+  ];
+  const callers = (name: string) => sources.filter((file) => new RegExp(`\\b${name}\\b`).test(withoutComments(read(file)))).sort();
+  const code = (file: string) => withoutComments(read(file));
+  const moduleFile = 'lib/usage-reservations.ts';
+  const migrationFile = 'supabase/migrations/20261024120000_usage_reservations.sql';
+  const migration = read(migrationFile).replace(/^\s*--.*$/gm, '');
+  /** The statements only: the text of a `comment on` statement says things in words ("ceil(...)", "a real environment") that a code pin must not read. */
+  const statements = migration.replace(/^comment on [\s\S]*?';$/gm, '');
+  /** Everything before the preflight, which names the older functions it checks (and so every function of every story). */
+  const own = migration.slice(0, migration.indexOf('create or replace function api.preflight'));
+  const apiNames = ['quote_cost', 'reserve_cost', 'settle_cost'];
+  const tables = ['rate_schedules', 'reservations', 'settlements', 'overrun_incidents', 'commands'];
+  const constants = [
+    // [the SQL function, its value, the name in the module]
+    ['overhead_tokens', 2000, 'overheadTokens'],
+    ['image_tokens', 5000, 'imageTokens'],
+    ['margin_percent', 10, 'marginPercent'],
+    ['input_ceiling', 200000, 'inputCeiling'],
+    ['output_ceiling', 16000, 'outputCeiling'],
+    ['request_ceiling', 20, 'requestCeiling'],
+    ['operation_cap', 1000000, 'operationCap'],
+    ['job_cap', 5000000, 'jobCap'],
+  ] as const;
+  /** The text of one `api` function, from its `create function` to its `comment on function`. */
+  const body = (name: string) => migration.slice(migration.indexOf(`create function api.${name}(`), migration.indexOf(`comment on function api.${name}(`));
+  /** The text of one `usage` function, from its `create function` (or `create or replace function`) to its `comment on function`. */
+  const internal = (name: string) => {
+    const start = migration.search(new RegExp(`create (?:or replace )?function usage\\.${name}\\(`));
+    return migration.slice(start, migration.indexOf(`comment on function usage.${name}(`, start));
+  };
+  /** The text of one table's definition. */
+  const table = (name: string) => migration.slice(migration.indexOf(`create table usage.${name} (`), migration.indexOf('\n);', migration.indexOf(`create table usage.${name} (`)) + 3);
+  /** The position of each needle in the text, which must all be found and must come in this order. */
+  const inOrder = (text: string, needles: string[], label = '') => {
+    const positions = needles.map((needle) => text.indexOf(needle));
+    expect(positions.every((index) => index >= 0), `${label}: ` + needles.filter((needle, index) => positions[index] < 0).join(' | ')).toBe(true);
+    expect([...positions].sort((a, b) => a - b), `${label}: ${needles.join(' < ')}`).toEqual(positions);
+  };
+  /** The same number written the way TypeScript may (200_000 or 200000). */
+  const digits = (value: number) => String(value).split('').join('_?');
+  /** The owner function that holds a position in the migration (the last `create function` before it). */
+  const ownerOf = (index: number) => [...migration.slice(0, index).matchAll(/create (?:or replace )?function ([a-z_.]+)\(/g)].pop()![1];
+
+  it('finds the files it reads', () => {
+    for (const file of [moduleFile, migrationFile]) expect(() => read(file), file).not.toThrow();
+    for (const name of apiNames) expect(body(name).length, name).toBeGreaterThan(200);
+    for (const name of tables) expect(table(name).length, name).toBeGreaterThan(100);
+    for (const name of ['input_bound', 'billed_units', 'price', 'bound_cost', 'job_exposure', 'period_figures', 'cost_digest', 'record_command']) expect(internal(name).length, name).toBeGreaterThan(80);
+  });
+
+  // The module -----------------------------------------------------------------------------------------------------------------------------
+
+  it('reaches the three database functions through lib/usage-reservations.ts and nothing else names them', () => {
+    for (const file of sources.filter((candidate) => candidate !== moduleFile && candidate !== 'lib/accounts.ts')) {
+      expect(code(file), file).not.toMatch(/['"`](?:quote_cost|reserve_cost|settle_cost)['"`]/);
+    }
+    for (const name of apiNames) expect(code(moduleFile), name).toMatch(new RegExp(`callRow\\(\\s*'${name}'`));
+    expect([...code(moduleFile).matchAll(/callRow\(\s*'([a-z_]+)'/g)].map((match) => match[1]).sort()).toEqual([...apiNames].sort());
+    // callApi, the other call helper, is not used at all.
+    expect(code(moduleFile)).not.toMatch(/\bcallApi\b/);
+  });
+
+  it('has no caller yet, as lib/job-records.ts has none: Stories 2.5 to 2.8 are the first', () => {
+    for (const name of ['quoteCost', 'reserveCost', 'settleCost']) expect(callers(name), name).toEqual([moduleFile]);
+    // Nothing in the application, not even a page or a component, imports the module.
+    expect(sources.filter((file) => file !== moduleFile && /lib\/usage-reservations|\.\/usage-reservations/.test(code(file)))).toEqual([]);
+    // Nor do the older Usage modules know it, and the Jobs module does not either.
+    for (const file of ['lib/usage.ts', 'lib/usage-view.ts', 'lib/job-records.ts', 'lib/authority.ts']) expect(code(file), file).not.toMatch(/usage-reservations|reserveCost|settleCost|quoteCost/);
+  });
+
+  it('names no tombstone, reads no environment, prints nothing and imports only the call helpers, the Operation type and the money check', () => {
+    const source = code(moduleFile);
+    expect(source).not.toMatch(/tombstone/i);
+    expect(source).not.toMatch(/process\.env|console\.|node:|next\/|\brequire\(|window|document\.|localStorage|sessionStorage|fetch\(/);
+    expect([...source.matchAll(/^import .* from '([^']+)';$/gm)].map((match) => match[1]).sort()).toEqual(['@/lib/accounts', '@/lib/authority', '@/lib/usage-view']);
+    expect(source).toMatch(/import type \{Operation\} from '@\/lib\/authority';/);
+    expect(source).toMatch(/import \{isMicrodollars\} from '@\/lib\/usage-view';/);
+    // Server-only by reading, like the other typed modules: it sits on lib/accounts.ts, which refuses to load in a browser.
+    expect(read(moduleFile)).toContain('SERVER-ONLY');
+  });
+
+  it('exports the constants, the vocabularies, the cost block and the three calls, and does no price arithmetic of its own', () => {
+    const source = code(moduleFile);
+    for (const exported of [
+      'usageConstants', 'maxAmountMicrodollars', 'unavailableBoundReasons', 'costRefusals', 'settlementClassifications', 'operationStates', 'settleableStates',
+      'wordPattern', 'apiVersionPattern', 'returnedModelPattern', 'quoteCost', 'reserveCost', 'settleCost',
+    ]) {
+      expect(source, exported).toMatch(new RegExp(`export (?:async )?(?:function|const) ${exported}\\b`));
+    }
+    for (const exported of ['CostBlock', 'CostQuote', 'CostReservation', 'CostSettlement', 'Reservation', 'Settlement', 'UnavailableBoundReason', 'CostRefusal', 'SettlementClassification', 'UsageEvidence']) {
+      expect(source, exported).toMatch(new RegExp(`export type ${exported}\\b`));
+    }
+    // The cost block is the four amounts the story names.
+    expect(source).toMatch(/export type CostBlock = \{requested: number \| null; limit: number; used: number; available: number\};/);
+    // There is ONE calculator, in SQL: the module carries the question and checks the answer, it never prices anything.
+    expect(source).not.toMatch(/Math\.(?:ceil|floor|round|trunc)|toFixed|parseFloat|\bIntl\b|\bBigInt\b|toLocale|[0-9a-z)\]] \* [0-9a-z(]|\/ ?(?:10|100|1_?000)\b/);
+    expect(source).not.toMatch(/setTimeout|setInterval|\bsleep\b|while \(|for \(;;|\bdispatch(?:ed)?\(|outbox|fencing/i);
+  });
+
+  it('mirrors the recorded constants of the SQL functions and the vocabularies of the migration', () => {
+    const source = code(moduleFile);
+    for (const [name, value, member] of constants) {
+      expect(migration, name).toMatch(new RegExp(`create function usage\\.${name}\\(\\) returns (?:integer|bigint) language sql immutable set search_path = '' as \\$\\$ select ${value}(?:::bigint)? \\$\\$;`));
+      expect(source, member).toMatch(new RegExp(`\\b${member}: ${digits(value)},`));
+    }
+    expect(migration).toMatch(/create function usage\.ambiguity_deadline\(\) returns interval language sql immutable set search_path = '' as \$\$ select interval '24 hours' \$\$;/);
+    expect(source).toMatch(/\bambiguityDeadlineHours: 24,/);
+    // The reasons a bound is unavailable are the migration's, in the order it checks them.
+    const reasons = [...internal('bound_cost').matchAll(/refusal := '([a-z_]+)'/g)].map((match) => match[1]);
+    expect(reasons).toEqual(['unknown_rate', 'foreign_rate', 'foreign_currency', 'unsupported_option', 'over_input_ceiling', 'over_output_ceiling', 'over_request_ceiling', 'overflow', 'unpriced']);
+    const listed = (name: string) => [...(new RegExp(`export const ${name}(?:: [^=]+)? = \\[([\\s\\S]*?)\\](?: as const)?;`).exec(source)?.[1] ?? '').matchAll(/'([a-z_]+)'/g)].map((match) => match[1]);
+    expect(listed('unavailableBoundReasons')).toEqual(reasons);
+    // The refusals that carry the cost block are the migration's, in the order admission judges them.
+    expect(listed('costRefusals')).toEqual(['unavailable_bound', 'provider_blocked', 'over_operation_cap', 'over_job_cap', 'insufficient_allowance']);
+    // The classifications and the operation states are the tables'.
+    expect(listed('settlementClassifications')).toEqual(['evidence', 'deadline', 'noncharge', 'unused']);
+    expect(table('settlements')).toContain("classification text not null check (classification in ('evidence', 'deadline', 'noncharge', 'unused'))");
+    expect(listed('operationStates')).toEqual([...(/state in \('planned', 'dispatched', 'completed', 'ambiguous', 'noncharge', 'settled', 'abandoned'\)/.exec(read('supabase/migrations/20261023120000_job_records.sql'))?.[0] ?? '').matchAll(/'([a-z]+)'/g)].map((match) => match[1]));
+    // The states each class can settle are the ones the command judges.
+    const settle = body('settle_cost');
+    expect(settle).toContain("when 'evidence' then v_operation.state in ('completed', 'ambiguous', 'settled')");
+    expect(settle).toContain("when 'deadline' then v_operation.state in ('ambiguous', 'settled')");
+    expect(settle).toContain("when 'noncharge' then v_operation.state = 'noncharge'");
+    expect(settle).toContain("else v_operation.state = 'abandoned'");
+    expect(source).toMatch(/evidence: \['completed', 'ambiguous', 'settled'\],\s*deadline: \['ambiguous', 'settled'\],\s*noncharge: \['noncharge'\],\s*unused: \['abandoned'\],/);
+  });
+
+  // The schema -------------------------------------------------------------------------------------------------------------------------------
+
+  it('closes the new tables like the others: row-level security on, no policy, every privilege revoked, nothing granted but the three functions', () => {
+    for (const name of tables) {
+      expect(migration, name).toContain(`alter table usage.${name} enable row level security;`);
+      expect(migration, name).toContain(`revoke all on usage.${name} from public, anon, authenticated, service_role;`);
+    }
+    expect(migration).toMatch(/revoke all on all tables in schema usage from public, anon, authenticated, service_role;/);
+    expect(migration).toMatch(/revoke all on all sequences in schema usage from public, anon, authenticated, service_role;/);
+    expect(migration).toMatch(/revoke all on all functions in schema usage from public, anon, authenticated, service_role;/);
+    expect(migration).not.toMatch(/create policy/i);
+    // The only grants anywhere in the file: execute on the three `api` functions, to the service role.
+    const grants = [...migration.matchAll(/^grant .*;$/gm)].map((match) => match[0]);
+    expect(grants).toHaveLength(3);
+    for (const [index, name] of apiNames.entries()) expect(grants[index], name).toMatch(new RegExp(`^grant execute on function api\\.${name}\\([a-z, ]+\\) to service_role;$`));
+    expect(migration).not.toMatch(/\bgrant\b[^;]*\b(?:anon|authenticated|public|nova3d_gateway)\b/i);
+    // The `usage` functions are granted to nobody, and every function pins its search path.
+    expect(migration).not.toMatch(/grant execute on function usage\./);
+    const functions = [...migration.matchAll(/create (?:or replace )?function ([a-z_.]+)\(/g)];
+    expect(functions.length).toBeGreaterThanOrEqual(25);
+    for (const match of functions) {
+      const definition = migration.slice(match.index, migration.indexOf('$$;', migration.indexOf('$$', match.index) + 2) + 3);
+      expect(definition, match[1]).toContain("set search_path = ''");
+      if (match[1].startsWith('api.') && match[1] !== 'api.preflight') expect(definition, match[1]).toContain('security definer');
+    }
+    // The three `api` functions are the only new ones in `api`, and their result types clash with nothing.
+    expect([...migration.matchAll(/create function (api\.[a-z_]+)\(/g)].map((match) => match[1]).sort()).toEqual(apiNames.map((name) => `api.${name}`).sort());
+    expect([...migration.matchAll(/create type (api\.[a-z_]+) as/g)].map((match) => match[1]).sort()).toEqual(['api.cost_quotation', 'api.cost_reservation', 'api.cost_settlement']);
+  });
+
+  it('gives the rate schedules, the reservations, the settlements, the incidents and the receipts the keys and the shapes the story names', () => {
+    // Rate schedules: global (no Account), unique by (provider, model, version), rationals bounded, increments, a multiplier of at least 1.
+    expect(table('rate_schedules')).not.toContain('account_id');
+    expect(table('rate_schedules')).toContain('constraint rate_schedules_provider_model_version_key unique (provider, model, version)');
+    expect(table('rate_schedules')).toContain('version integer not null check (version >= 1)');
+    expect(table('rate_schedules')).toContain("currency text not null check (currency ~ '^[A-Z]{3}$')");
+    expect(table('rate_schedules')).toContain("api_version text not null check (api_version ~ '^[!-~]{1,100}$')");
+    for (const rate of ['input_rate', 'output_rate', 'request_rate']) {
+      expect(table('rate_schedules'), rate).toContain(`${rate}_num bigint not null check (${rate}_num between 0 and 1000000000000)`);
+      expect(table('rate_schedules'), rate).toContain(`${rate}_den bigint not null check (${rate}_den between 1 and 1000000000000)`);
+    }
+    expect(table('rate_schedules')).toContain('input_increment integer not null check (input_increment between 1 and 1000000)');
+    expect(table('rate_schedules')).toContain('output_increment integer not null check (output_increment between 1 and 1000000)');
+    expect(table('rate_schedules')).toContain('constraint rate_schedules_multiplier_shape check (multiplier_num >= multiplier_den)');
+    // Reservations: one for each operation, owned by composite keys, the pins, the inputs and the amount.
+    expect(table('reservations')).toContain('constraint reservations_operation_key unique (operation_id)');
+    expect(table('reservations')).toContain('constraint reservations_period_fkey foreign key (period_id, account_id) references usage.periods (id, account_id) on delete restrict');
+    expect(table('reservations')).toContain('constraint reservations_job_fkey foreign key (job_id, account_id) references jobs.jobs (id, account_id) on delete restrict');
+    expect(table('reservations')).toContain('constraint reservations_operation_fkey foreign key (operation_id, account_id) references jobs.operations (id, account_id) on delete restrict');
+    expect(table('reservations')).toContain('rate_schedule_id uuid not null references usage.rate_schedules (id) on delete restrict');
+    expect(table('reservations')).toContain('references identity.accounts (id) on delete restrict');
+    expect(table('reservations')).toContain('reserved_microdollars bigint not null check (reserved_microdollars between 1 and 1000000000000000)');
+    expect(table('reservations')).toContain('constraint reservations_bound_shape check (input_bound = usage.input_bound(request_bytes, image_count))');
+    for (const column of ['provider', 'requested_model', 'api_version', 'request_bytes', 'image_count', 'output_limit', 'input_bound', 'digest']) expect(table('reservations'), column).toMatch(new RegExp(`\\b${column} (?:text|bigint|integer) not null`));
+    // Settlements: one for each reservation, in a period, the four classes, the evidence for `evidence` only, deadline and zero shapes.
+    expect(table('settlements')).toContain('constraint settlements_reservation_key unique (reservation_id)');
+    expect(table('settlements')).toContain('constraint settlements_reservation_fkey foreign key (reservation_id, account_id) references usage.reservations (id, account_id) on delete restrict');
+    expect(table('settlements')).toContain('constraint settlements_period_fkey foreign key (period_id, account_id) references usage.periods (id, account_id) on delete restrict');
+    expect(table('settlements')).toContain('settled_microdollars bigint not null check (settled_microdollars between 0 and 1000000000000000)');
+    expect(table('settlements')).toContain('released_microdollars bigint not null check (released_microdollars between 1 and 1000000000000000)');
+    expect(table('settlements')).toContain("when 'evidence' then input_tokens is not null and output_tokens is not null and returned_model is not null");
+    expect(table('settlements')).toContain('else input_tokens is null and output_tokens is null and returned_model is null');
+    expect(table('settlements')).toContain("constraint settlements_zero_shape check (classification not in ('noncharge', 'unused') or settled_microdollars = 0)");
+    expect(table('settlements')).toContain("constraint settlements_deadline_shape check (classification <> 'deadline' or settled_microdollars = released_microdollars)");
+    // Incidents: one for each reservation and settlement, evidence above the reservation, cleared together or not at all.
+    expect(table('overrun_incidents')).toContain('constraint overrun_incidents_reservation_key unique (reservation_id)');
+    expect(table('overrun_incidents')).toContain('constraint overrun_incidents_settlement_key unique (settlement_id)');
+    expect(table('overrun_incidents')).toContain('constraint overrun_incidents_over_shape check (evidence_microdollars > reserved_microdollars)');
+    expect(table('overrun_incidents')).toContain('constraint overrun_incidents_cleared_shape check ((cleared_at is null) = (cleared_by is null))');
+    expect(table('overrun_incidents')).toContain('foreign key (reservation_id, account_id) references usage.reservations (id, account_id) on delete restrict');
+    expect(table('overrun_incidents')).toContain('foreign key (settlement_id, account_id) references usage.settlements (id, account_id) on delete restrict');
+    // Receipts: one for each (Account, command ID), reserve or settle.
+    expect(table('commands')).toContain('primary key (account_id, command_id)');
+    expect(table('commands')).toContain("kind text not null check (kind in ('reserve', 'settle'))");
+    expect(table('commands')).toContain("digest text not null check (digest ~ '^[0-9a-f]{64}$')");
+    // Times are the database clock's, in every table with one.
+    for (const name of tables) expect(table(name), name).toContain('created_at timestamptz not null default clock_timestamp()');
+    expect(migration).not.toMatch(/\bnow\(\)|current_timestamp|statement_timestamp|transaction_timestamp/i);
+    // The two keys the ownership needs are added to the older tables, and nothing else of theirs changes.
+    expect(migration).toContain('alter table usage.periods add constraint periods_id_account_key unique (id, account_id);');
+    expect(migration).toContain('alter table jobs.operations add constraint operations_id_account_key unique (id, account_id);');
+    expect([...migration.matchAll(/alter table ([a-z_.]+) (?!enable row level security)/g)].map((match) => match[1]).sort()).toEqual(['jobs.operations', 'usage.periods']);
+  });
+
+  it('refuses to edit what is never edited, lets an incident change only by its one clearing, and leaves delete for the purge', () => {
+    for (const name of ['rate_schedules', 'reservations', 'settlements', 'commands']) {
+      expect(migration, name).toMatch(new RegExp(`create trigger ${name}_no_update before update on usage\\.${name}\\s+for each row execute function usage\\.refuse_record_change\\(\\);`));
+      expect(migration, name).toMatch(new RegExp(`create trigger ${name}_no_truncate before truncate on usage\\.${name}\\s+for each statement execute function usage\\.refuse_record_change\\(\\);`));
+    }
+    expect(migration).toMatch(/create trigger overrun_incidents_guard before update on usage\.overrun_incidents/);
+    expect(migration).toMatch(/create trigger overrun_incidents_no_truncate before truncate on usage\.overrun_incidents/);
+    expect(migration).toMatch(/create trigger overrun_incidents_check before insert on usage\.overrun_incidents/);
+    expect(migration).toMatch(/create trigger reservations_check before insert on usage\.reservations/);
+    expect(migration).toMatch(/create trigger settlements_check before insert on usage\.settlements/);
+    expect(migration).not.toMatch(/before delete on usage\.|before update or delete on usage\.|(?:^|\s)delete\s+from\s+usage\./im);
+    // The guard of an incident: only the clearing, once, with every other column unchanged.
+    const guard = internal('guard_incident_change');
+    expect(guard).toContain('old.cleared_at is not null');
+    expect(guard).toContain('new.cleared_at is null or new.cleared_by is null');
+    for (const column of ['id', 'account_id', 'reservation_id', 'settlement_id', 'provider', 'reserved_microdollars', 'evidence_microdollars', 'created_at']) expect(guard, column).toContain(`new.${column} is distinct from old.${column}`);
+    // Nothing in the file updates or deletes a ledger row: the ledgers only grow.
+    expect(migration).not.toMatch(/(?:^|\n)\s*update (?:usage|jobs)\./);
+    // A reservation is for an operation of its Job with its schedule's pins; a settlement releases the whole reservation and is not in an earlier period.
+    const reservation = internal('check_reservation');
+    expect(reservation).toContain('v_schedule.provider <> new.provider or v_schedule.model <> new.requested_model or v_schedule.api_version <> new.api_version');
+    expect(reservation).toContain('a.job_id = new.job_id');
+    const settlement = internal('check_settlement');
+    expect(settlement).toContain('new.released_microdollars <> v_reservation.reserved_microdollars');
+    expect(settlement).toContain("new.classification = 'deadline' and new.settled_microdollars <> v_reservation.reserved_microdollars");
+    expect(settlement).toContain('v_seq < v_reserved_seq');
+    // Each ledger is written by one place: the schedules by none, the reservations and settlements and incidents by their command, the receipts by the one writer.
+    const inserts = [...migration.matchAll(/insert into (usage\.[a-z_]+)/g)].map((match) => `${match[1]} in ${ownerOf(match.index)}`);
+    expect(inserts.sort()).toEqual(['usage.commands in usage.record_command', 'usage.overrun_incidents in api.settle_cost', 'usage.reservations in api.reserve_cost', 'usage.settlements in api.settle_cost']);
+    expect(migration).not.toMatch(/insert into usage\.rate_schedules|insert into usage\.periods/);
+    expect([...migration.matchAll(/insert into usage\.overrun_incidents/g)]).toHaveLength(1);
+    expect(body('settle_cost')).toContain('insert into usage.overrun_incidents');
+  });
+
+  // The calculator -----------------------------------------------------------------------------------------------------------------------------
+
+  it('has ONE calculator: the money is rounded up once, in usage.price, with no float and no other rounding', () => {
+    // The only integer divisions in the file: the input bound (tokens), the billed units (tokens) and THE round-up of the money.
+    const divisions = [...migration.matchAll(/\bdiv\(/g)].map((match) => ownerOf(match.index));
+    expect(divisions.sort()).toEqual(['usage.billed_units', 'usage.input_bound', 'usage.price']);
+    expect(internal('price')).toContain('div(v_numerator + v_denominator - 1, v_denominator)');
+    expect([...internal('price').matchAll(/\bdiv\(/g)]).toHaveLength(1);
+    expect(statements).not.toMatch(/\b(?:round|ceil|ceiling|trunc|floor)\s*\(/i);
+    expect(statements).not.toMatch(/\b(?:double precision|float|float4|float8)\b/i);
+    expect(statements).not.toMatch(/\bmoney\b/i);
+    expect(statements).not.toMatch(/\bdecimal\b/i);
+    // The price multiplies the three terms over a common denominator and the multiplier, and only then divides.
+    inOrder(internal('price'), ['v_numerator :=', 'v_denominator := v_schedule.input_rate_den::numeric * v_schedule.output_rate_den * v_schedule.request_rate_den;', 'v_numerator := v_numerator * v_schedule.multiplier_num;', 'v_denominator := v_denominator * v_schedule.multiplier_den;', 'div(']);
+    // The bound takes its numbers from the recorded constants, never from a literal of its own.
+    const bound = internal('input_bound');
+    inOrder(bound, ['usage.overhead_tokens()', 'usage.image_tokens()', '(100 + usage.margin_percent())', '+ 99', '100)']);
+    expect(bound).not.toMatch(/\b(?:2000|5000|11|10)\b/);
+    // Quote, reserve and settle all use it: the quote and the reservation through the one judgement, the settlement through the price.
+    expect([...own.matchAll(/(?<!function )usage\.price\(/g)].map((match) => ownerOf(match.index)).sort()).toEqual(['api.settle_cost', 'usage.bound_cost']);
+    expect([...own.matchAll(/(?<!function )usage\.bound_cost\(/g)].map((match) => ownerOf(match.index)).sort()).toEqual(['api.quote_cost', 'api.reserve_cost']);
+    expect([...own.matchAll(/(?<!function )usage\.input_bound\(/g)].length).toBe(2);
+    expect(internal('bound_cost')).toContain('usage.input_bound(p_request_bytes, p_image_count)');
+    expect(table('reservations')).toContain('usage.input_bound(request_bytes, image_count)');
+    // The reasons are judged in the order the story names, and the overflow is judged on the price after the one round-up.
+    inOrder(internal('bound_cost'), [
+      "refusal := 'unknown_rate'", "refusal := 'foreign_rate'", "refusal := 'foreign_currency'", "refusal := 'unsupported_option'", "refusal := 'over_input_ceiling'",
+      "refusal := 'over_output_ceiling'", "refusal := 'over_request_ceiling'", 'from usage.price(', "refusal := 'overflow'", "refusal := 'unpriced'",
+    ]);
+    expect(internal('bound_cost')).toContain('v_priced.microdollars > 1000000000000000');
+    expect(internal('bound_cost')).toContain('if p_options <> \'{}\'::jsonb then');
+    expect(internal('bound_cost')).toContain("order by k.key collate \"C\" limit 1");
+    // The ceilings are the recorded constants'.
+    expect(internal('bound_cost')).toContain('v_bound > usage.input_ceiling()');
+    expect(internal('bound_cost')).toContain('p_output_limit > usage.output_ceiling()');
+    expect(internal('bound_cost')).toContain('p_request_count > usage.request_ceiling()');
+    // The billed units are rounded up to the increment, and the money is priced from the increments' result.
+    expect(internal('billed_units')).toContain('div(p_tokens + p_increment - 1, p_increment) * p_increment');
+    expect(internal('price')).toContain('usage.billed_units(p_input_tokens, v_schedule.input_increment)');
+    expect(internal('price')).toContain('usage.billed_units(p_output_tokens, v_schedule.output_increment)');
+  });
+
+  // The commands -------------------------------------------------------------------------------------------------------------------------------
+
+  it('reserves in the order the story names: arguments, authority, the command lock, the Project held, the usage lock, the month, the receipt, then the refusals from the bound to the allowance, then the one write', () => {
+    const reserve = body('reserve_cost');
+    inOrder(reserve, [
+      "raise exception 'invalid argument'",
+      'identity.assert_operation_authority(p_account_id, p_epoch)',
+      "exception when sqlstate 'N3010'",
+      "v_result.outcome := 'denied'",
+      "pg_advisory_xact_lock(hashtextextended('nova3d:usage-command:' || p_account_id::text || ':' || p_command_id::text, 0))",
+      'jobs.hold_project(p_account_id, v_project_id)',
+      "v_result.outcome := 'unavailable'",
+      'from jobs.operations o where o.id = p_operation_id for share',
+      "pg_advisory_xact_lock(hashtextextended('nova3d:usage:' || p_account_id::text, 0))",
+      'usage.ensure_period(p_account_id)',
+      "usage.cost_digest('reserve_cost'",
+      'from usage.commands c where c.account_id = p_account_id and c.command_id = p_command_id',
+      "v_result.outcome := 'reused'",
+      "v_result.outcome := 'replayed'",
+      'from usage.reservations r where r.operation_id = p_operation_id',
+      "v_result.outcome := 'already_reserved'",
+      "v_operation.state <> 'planned'",
+      "v_result.outcome := 'not_reservable'",
+      'from usage.period_figures(v_period.id)',
+      'from usage.bound_cost(',
+      "v_result.outcome := 'unavailable_bound'",
+      'from usage.overrun_incidents i where i.provider = p_provider and i.cleared_at is null',
+      "v_result.outcome := 'provider_blocked'",
+      'v_quote.cost > usage.operation_cap()',
+      "v_result.outcome := 'over_operation_cap'",
+      'usage.job_exposure(v_job_id)',
+      'v_exposure + v_quote.cost > usage.job_cap()',
+      "v_result.outcome := 'over_job_cap'",
+      'v_quote.cost > v_available',
+      "v_result.outcome := 'insufficient_allowance'",
+      'insert into usage.reservations (',
+      "v_result.outcome := 'reserved'",
+    ], 'reserve_cost');
+    // The receipt of the work done is the last thing written; a receipt of a replay is written where the replay is found.
+    expect([...reserve.matchAll(/usage\.record_command\(/g)]).toHaveLength(2);
+    expect(reserve.lastIndexOf('usage.record_command(')).toBeGreaterThan(reserve.indexOf('insert into usage.reservations ('));
+    // Exactly the two locks, taken blocking and held to the end of the transaction, and nothing that skips, waits or sleeps.
+    expect([...reserve.matchAll(/pg_advisory_xact_lock\(/g)]).toHaveLength(2);
+    expect(migration).not.toMatch(/pg_advisory_lock\(|pg_try_advisory|\bnowait\b|skip locked|pg_sleep|pg_cron|cron\.schedule/i);
+    // The Project row is held FOR SHARE (never FOR UPDATE) before anything is written, and every lookup of the subject names the Account.
+    expect([...reserve.matchAll(/jobs\.hold_project\(/g)]).toHaveLength(1);
+    expect(reserve).toContain('where o.id = p_operation_id and o.account_id = p_account_id');
+    expect(migration).not.toMatch(/projects\.projects[^;]*for update/i);
+    // A refusal writes nothing: no insert comes before the last refusal, and the cost block is set before the calculator is asked.
+    expect(reserve.indexOf('insert into usage.reservations (')).toBeGreaterThan(reserve.indexOf("v_result.outcome := 'insufficient_allowance'"));
+    expect(reserve.indexOf('v_result.limit_microdollars := v_period.limit_microdollars')).toBeLessThan(reserve.indexOf('from usage.bound_cost('));
+    // The digest covers the kind and every argument the caller supplied (the options object included) except the Account, the epoch and the command ID.
+    const digest = reserve.match(/usage\.cost_digest\('reserve_cost', array\[[^\]]*\]\)/)![0];
+    expect(digest).toContain('p_options::text');
+    for (const argument of ['p_operation_id', 'p_rate_schedule_id', 'p_provider', 'p_model', 'p_api_version', 'p_request_bytes', 'p_image_count', 'p_output_limit']) expect(digest, argument).toContain(argument);
+    expect(digest).not.toMatch(/p_account_id|p_epoch|p_command_id/);
+    // The reservation is the calculator's amount, in the current period, with the Job of the operation.
+    expect(reserve).toMatch(/insert into usage\.reservations \([^)]*\) values \(\s*p_account_id, v_period\.id, v_job_id, p_operation_id, p_rate_schedule_id, p_provider, p_model, p_api_version,\s*p_request_bytes, p_image_count, p_output_limit, v_quote\.bound, v_quote\.cost, v_digest\s*\)/);
+  });
+
+  it('settles in the order the story names, with no check of the Account\'s epoch, status or Project, and one incident only when the evidence is above the reservation', () => {
+    const settle = body('settle_cost');
+    inOrder(settle, [
+      "raise exception 'invalid argument'",
+      "pg_advisory_xact_lock(hashtextextended('nova3d:usage-command:' || p_account_id::text || ':' || p_command_id::text, 0))",
+      'from jobs.operations o where o.id = p_operation_id and o.account_id = p_account_id for share',
+      "v_result.outcome := 'unavailable'",
+      "pg_advisory_xact_lock(hashtextextended('nova3d:usage:' || p_account_id::text, 0))",
+      'usage.ensure_period(p_account_id)',
+      "usage.cost_digest('settle_cost'",
+      'from usage.commands c where c.account_id = p_account_id and c.command_id = p_command_id',
+      "v_result.outcome := 'reused'",
+      "v_result.outcome := 'replayed'",
+      'from usage.reservations r where r.operation_id = p_operation_id',
+      "v_result.outcome := 'not_reserved'",
+      'from usage.settlements s where s.reservation_id = v_reservation.id',
+      "v_result.outcome := 'already_settled'",
+      "v_result.outcome := 'not_settleable'",
+      "v_operation.outcome_at + usage.ambiguity_deadline()",
+      "v_result.outcome := 'not_due'",
+      'from usage.price(v_reservation.rate_schedule_id',
+      "v_result.outcome := 'invalid_evidence'",
+      'insert into usage.settlements (',
+      'if v_settled > v_reservation.reserved_microdollars then',
+      'insert into usage.overrun_incidents (',
+      "v_result.outcome := 'settled'",
+    ], 'settle_cost');
+    expect(settle.lastIndexOf('usage.record_command(')).toBeGreaterThan(settle.indexOf('insert into usage.overrun_incidents ('));
+    expect([...settle.matchAll(/usage\.record_command\(/g)]).toHaveLength(2);
+    expect([...settle.matchAll(/pg_advisory_xact_lock\(/g)]).toHaveLength(2);
+    // No authority: not the Account's, not the epoch's, not the Project's. (The Account's key is its ID alone.)
+    expect(settle).not.toMatch(/assert_operation_authority|hold_project|authorization_epoch|p_epoch|identity\.accounts|projects\.projects|is_tombstoned|\.status\b/);
+    expect(settle).not.toContain("'denied'");
+    // The deadline waits for 24 hours after the outcome, and the evidence is priced by the calculator at the pinned schedule.
+    expect(settle).toContain('if clock_timestamp() < v_due then');
+    expect(settle).toContain('v_settled := v_reservation.reserved_microdollars;');
+    expect(settle).toContain('v_priced.microdollars > 1000000000000000');
+    // The digest covers the class and the evidence, not the Account or the command ID.
+    const digest = settle.match(/usage\.cost_digest\('settle_cost', array\[[^\]]*\]\)/)![0];
+    for (const argument of ['p_operation_id', 'p_classification', 'p_input_tokens', 'p_output_tokens', 'p_returned_model']) expect(digest, argument).toContain(argument);
+    expect(digest).not.toMatch(/p_account_id|p_command_id/);
+    // The settlement is in the current period and releases the whole reservation.
+    expect(settle).toMatch(/insert into usage\.settlements \([^)]*\) values \(\s*p_account_id, v_reservation\.id, v_period\.id, p_classification, v_settled, v_reservation\.reserved_microdollars,/);
+  });
+
+  it('quotes read-only: arguments, authority, then the calculator, with no advisory lock, no row lock, no write and no month turned', () => {
+    const quote = body('quote_cost');
+    inOrder(quote, ["raise exception 'invalid argument'", 'identity.assert_operation_authority(p_account_id, p_epoch)', "exception when sqlstate 'N3010'", "v_result.outcome := 'denied'", 'from usage.bound_cost(', "v_result.outcome := 'unavailable_bound'", "v_result.outcome := 'quoted'"], 'quote_cost');
+    expect(quote).not.toMatch(/pg_advisory|for share|for update|insert into|\bupdate\b|delete from|record_command|ensure_period|hold_project|p_command_id|usage\.reservations|usage\.overrun_incidents/i);
+    // A quote's request count is the only place a count other than one is priced; a reservation prices exactly one request.
+    expect(migration).toContain('p_request_count integer default 1, p_options jsonb default');
+    expect(body('reserve_cost')).not.toContain('p_request_count');
+    expect(body('reserve_cost')).toMatch(/p_output_limit, 1, p_options\)/);
+  });
+
+  it('judges an operation cap, a Job cap and the allowance each by its own number, and the provider block for every Account', () => {
+    const reserve = body('reserve_cost');
+    // The block for the caps is the cap's own: the limit, what is used under it and what is left.
+    expect(reserve).toContain('v_result.limit_microdollars := usage.operation_cap();');
+    expect(reserve).toContain('v_result.available_microdollars := usage.operation_cap();');
+    expect(reserve).toContain('v_result.limit_microdollars := usage.job_cap();');
+    expect(reserve).toContain('v_result.used_microdollars := v_exposure;');
+    expect(reserve).toContain('v_result.available_microdollars := greatest(usage.job_cap() - v_exposure, 0);');
+    // The allowance's block is the period's.
+    expect(reserve).toContain('v_available := greatest(v_period.limit_microdollars - v_used, 0);');
+    expect(reserve).toContain('v_used := v_period.carried_settled_microdollars + v_settled + v_period.carried_reserved_microdollars + v_reserved;');
+    // The block of a provider is not narrowed to the Account: the incident is looked up by provider alone.
+    expect(reserve).not.toMatch(/overrun_incidents i where[^;]*account_id/);
+    // A success carries no cost block.
+    expect(reserve).toMatch(/v_result\.requested_microdollars := null;\s*v_result\.limit_microdollars := null;\s*v_result\.used_microdollars := null;\s*v_result\.available_microdollars := null;/);
+  });
+
+  // The figures --------------------------------------------------------------------------------------------------------------------------------
+
+  it('drops the stand-in, reads the figures from the ledgers as signed deltas, and counts a Job\'s exposure over every reservation', () => {
+    // The stand-in is dropped, and named nowhere else in the file's code.
+    expect(migration).toContain('drop table usage.fixture_figures;');
+    expect([...migration.matchAll(/fixture_figures/g)]).toHaveLength(1);
+    expect(migration.indexOf('drop table usage.fixture_figures;')).toBeGreaterThan(migration.indexOf('create or replace function usage.period_figures'));
+    // Same signature and shape as Story 2.4's, over the ledgers.
+    const figures = internal('period_figures');
+    expect(figures).toContain('create or replace function usage.period_figures(p_period_id uuid)');
+    expect(figures).toContain('returns table (settled_microdollars bigint, reserved_microdollars bigint)');
+    expect(figures).toMatch(/language sql\s+stable/);
+    expect(figures).toContain('select sum(s.settled_microdollars) from usage.settlements s where s.period_id = p_period_id');
+    expect(figures).toContain('select sum(r.reserved_microdollars) from usage.reservations r where r.period_id = p_period_id');
+    expect(figures).toContain('select sum(s.released_microdollars) from usage.settlements s where s.period_id = p_period_id');
+    // The exposure: the settled amount where settled, the reserved amount where not, for every reservation of the Job.
+    const exposure = internal('job_exposure');
+    expect(exposure).toContain('sum(coalesce(s.settled_microdollars, r.reserved_microdollars))');
+    expect(exposure).toContain('left join usage.settlements s on s.reservation_id = r.id');
+    expect(exposure).toContain('where r.job_id = p_job_id');
+    expect([...own.matchAll(/(?<!function )usage\.job_exposure\(/g)].map((match) => ownerOf(match.index))).toEqual(['api.reserve_cost']);
+    // The rollover of Story 2.4 and its available function are not re-created: the carry arithmetic is the same everywhere.
+    expect(migration).not.toMatch(/create or replace function usage\.(?:ensure_period|available_microdollars|append_period)|create function usage\.(?:ensure_period|available_microdollars|append_period)/);
+    expect(migration).not.toMatch(/create or replace function api\.(?:set_usage_limit|list_usage|record_usage_refusal)/);
+  });
+
+  // The preflight ------------------------------------------------------------------------------------------------------------------------------
+
+  it('re-creates the preflight with every earlier probe but the dropped table\'s, a Story 2.6 block, and fifty functions', () => {
+    const preflight = (text: string) => text.slice(text.indexOf('create or replace function api.preflight()'), text.indexOf('$$;', text.indexOf('$$', text.indexOf('create or replace function api.preflight()')) + 2));
+    const current = preflight(migration);
+    const before = preflight(read('supabase/migrations/20261023120000_job_records.sql').replace(/^\s*--.*$/gm, ''));
+    const dropped = 'perform x2.period_id, x2.settled_microdollars, x2.reserved_microdollars from usage.fixture_figures x2 limit 1;';
+    expect(before).toContain(dropped);
+    expect(current).not.toContain('fixture_figures');
+    for (const probe of before.match(/perform [^;]+;/g) ?? []) if (probe !== dropped) expect(current, probe).toContain(probe);
+    for (const signature of before.match(/'(?:api|usage|identity|lifecycle|artifacts|projects|jobs)\.[a-z_]+\([^']*\)'/g) ?? []) expect(current, signature).toContain(signature);
+    for (const probe of [
+      'from usage.rate_schedules rs limit 1', 'from usage.reservations rv limit 1', 'from usage.settlements st limit 1', 'from usage.overrun_incidents oi limit 1', 'from usage.commands uc limit 1',
+    ]) expect(current, probe).toContain(probe);
+    // Every column of the five tables is read.
+    for (const [alias, name] of [['rs', 'rate_schedules'], ['rv', 'reservations'], ['st', 'settlements'], ['oi', 'overrun_incidents'], ['uc', 'commands']] as const) {
+      const probe = current.match(new RegExp(`perform ([^;]+) from usage\\.${name} ${alias} limit 1;`))![1];
+      const columns = [...table(name).matchAll(/^  ([a-z_]+) (?:uuid|text|integer|bigint|date|timestamptz)\b/gm)].map((match) => match[1]);
+      for (const column of columns) expect(probe, `${name}.${column}`).toContain(`${alias}.${column}`);
+    }
+    expect(current).toContain("raise exception 'api.preflight: the Story 2.6 migration is not applied (missing %)', v_missing using errcode = 'N3020';");
+    const block = current.slice(current.indexOf("'api.quote_cost(uuid,bigint,uuid,text,text,text,bigint,integer,integer,integer,jsonb)'"), current.indexOf('the Story 2.6 migration is not applied'));
+    for (const signature of [
+      'api.quote_cost(uuid,bigint,uuid,text,text,text,bigint,integer,integer,integer,jsonb)', 'api.reserve_cost(uuid,bigint,uuid,uuid,uuid,text,text,text,bigint,integer,integer,jsonb)', 'api.settle_cost(uuid,uuid,uuid,text,bigint,bigint,text)',
+      'usage.input_bound(bigint,integer)', 'usage.price(uuid,numeric,numeric,integer)', 'usage.job_exposure(uuid)', 'usage.overhead_tokens()', 'usage.image_tokens()', 'usage.margin_percent()',
+      'usage.input_ceiling()', 'usage.output_ceiling()', 'usage.request_ceiling()', 'usage.operation_cap()', 'usage.job_cap()', 'usage.ambiguity_deadline()',
+    ]) {
+      expect(block, signature).toContain(`'${signature}'`);
+    }
+    const privileges = current.slice(current.lastIndexOf('from unnest(array[', current.indexOf('has_function_privilege')), current.indexOf('has_function_privilege'));
+    expect([...privileges.matchAll(/'api\.[a-z_]+\(/g)]).toHaveLength(50);
+    for (const signature of ['api.quote_cost(uuid,bigint,uuid,text,text,text,bigint,integer,integer,integer,jsonb)', 'api.reserve_cost(uuid,bigint,uuid,uuid,uuid,text,text,text,bigint,integer,integer,jsonb)', 'api.settle_cost(uuid,uuid,uuid,text,bigint,bigint,text)']) {
+      expect(privileges, signature).toContain(`'${signature}'`);
+    }
+    // The bucket check stays last.
+    expect(current.indexOf("b.id = 'private-files'")).toBeGreaterThan(current.indexOf('has_table_privilege'));
+    expect(current.indexOf('v_result.ok := true')).toBeGreaterThan(current.indexOf("b.id = 'private-files'"));
+    // The file ends by having the Data API reload its schema cache.
+    expect(migration.trimEnd().endsWith("notify pgrst, 'reload schema';")).toBe(true);
+  });
+
+  it('adds no route, no dependency, no variable, no screen, no copy and no audit event, and leaves Account disable, the Jobs functions and the limit commands alone', () => {
+    expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).sort()).toEqual([
+      'app/api/health/route.ts',
+      'app/api/heartbeat/route.ts',
+      'app/api/jobs/route.ts',
+      'app/api/kit/mutation/route.ts',
+      'app/api/status/route.ts',
+      'app/api/transfers/tickets/route.ts',
+      'app/auth/callback/route.ts',
+    ]);
+    const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>};
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+    // No page, action or component names a ledger, and `lib/i18n` has no copy for one.
+    for (const file of sources.filter((candidate) => candidate.startsWith('app/') || candidate.startsWith('components/') || candidate.startsWith('lib/i18n'))) {
+      expect(code(file), file).not.toMatch(/usage-reservations|reserveCost|settleCost|quoteCost|\busage\.(?:rate_schedules|reservations|settlements|overrun_incidents|commands)\b|provider_blocked|over_job_cap|over_operation_cap|insufficient_allowance/);
+    }
+    // The module reads no variable and the migration records no audit event, writes no other module's table and re-creates only what the story names.
+    expect(code(moduleFile)).not.toMatch(/process\.env/);
+    expect(own).not.toMatch(/record_audit|audit_events|record_tombstone/);
+    expect(own).not.toMatch(/(?:insert into|update|delete from)\s+(?:lifecycle|identity|projects|artifacts|jobs)\./i);
+    expect([...migration.matchAll(/create or replace function ([a-z_.]+)\(/g)].map((match) => match[1]).sort()).toEqual(['api.preflight', 'usage.period_figures']);
+    expect(own).not.toMatch(/create or replace function (?:jobs|identity|lifecycle|projects)\.|api\.(?:disable_account|enable_account|list_accounts|accept_job|begin_step|advance_operation|move_attempt|request_retry|read_job)\(/);
+    expect(read('supabase/config.toml')).not.toMatch(/^schemas\s*=.*\busage\b/m);
+    // Stories 1.9's tasks and the Jobs module do not know the new ledgers.
+    for (const file of ['lib/jobs.ts', 'lib/job-tasks.ts', 'app/api/jobs/route.ts', 'lib/job-records.ts']) expect(code(file), file).not.toMatch(/usage-reservations|\busage\.(?:rate_schedules|reservations|settlements)\b|reserve_cost|settle_cost/);
+  });
+
+  it('writes the story down: the contract, the staging row, the README and the deferred work', () => {
+    const contract = read('docs/authority-contract.md');
+    for (const needle of [
+      'Reservations and settlements', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands', 'usage.input_bound', 'usage.price', 'usage.job_exposure',
+      'api.quote_cost', 'api.reserve_cost', 'api.settle_cost', 'nova3d:usage-command', 'nova3d:usage:', 'cost block', 'signed deltas', 'rounded up once', 'provider_blocked', 'over_operation_cap',
+      'over_job_cap', 'insufficient_allowance', 'unavailable_bound', 'not_reservable', 'already_reserved', 'not_settleable', 'not_due', 'invalid_evidence', 'FOR SHARE', 'lib/usage-reservations.ts',
+      '20261024120000_usage_reservations.sql', 'usage.ambiguity_deadline', 'Story 2.5', 'Story 2.7', 'Story 2.8', 'Story 2.14',
+    ]) expect(contract, needle).toContain(needle);
+    // The stand-in is told as dropped, not as current.
+    expect(contract).toContain('dropped the table');
+    expect(contract).not.toContain('Figures: one stand-in until Story 2.6');
+    const guide = read('docs/staging.md');
+    for (const needle of ['20261024120000_usage_reservations.sql', 'api.reserve_cost', 'api.settle_cost', 'api.quote_cost', 'usage.fixture_figures', 'usage.rate_schedules', 'fifty']) expect(guide, needle).toContain(needle);
+    const readme = read('README.md');
+    for (const needle of ['Story 2.6', 'usage_reservations', 'lib/usage-reservations.ts', 'api.reserve_cost', 'api.settle_cost', 'usage.rate_schedules', '("Reservations and settlements")']) expect(readme, needle).toContain(needle);
+    expect(readme.split('\n').find((line) => line.startsWith('| Usage')) ?? '').not.toContain('nothing yet');
+    const deferred = read('_bmad-output/implementation-artifacts/deferred-work.md');
+    for (const needle of ['Story 2.6 (reserve bounded costs atomically)', 'rate schedule', 'overrun incident', 'canceller', 'Epic 8', '2.14', '2.7', '2.8', '2.5']) expect(deferred, needle).toContain(needle);
   });
 });

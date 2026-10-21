@@ -4,6 +4,7 @@ import {beforeAll, describe, expect, it} from 'vitest';
 import {acceptJob, advanceOperation, beginStep, moveAttempt, readJob, requestRetry} from '@/lib/job-records';
 import {createHarness, sha, stack} from '../support/accounts-db';
 import {stackEnvironment} from '../support/stack';
+import {truncateGuards} from '../support/truncate-guard';
 
 // Story 2.11 against the Supabase CLI stack: the Jobs-owned closed schema `jobs` (Jobs, attempts, steps, operations and the immutable receipts of their
 // commands), the guarded states, the gate that holds a retry back while an earlier operation is potentially chargeable, the one derived public state, and the six
@@ -1744,13 +1745,25 @@ describe('immutability: a record is not edited, and what finished stays finished
         [`truncate jobs.steps cascade`, []],
         [`truncate jobs.commands`, []],
         [`truncate jobs.attempts cascade`, []],
-        [`truncate jobs.operations`, []],
+        // On purpose changed (Story 2.6): a reservation refers to its operation, so the table is named with CASCADE (as the Jobs and attempts above are) for the trigger, not the foreign key, to answer.
+        [`truncate jobs.operations cascade`, []],
       ] as [string, unknown[]][]) {
         const result = await attempt(client, null, sql, params);
         expect(result.ok, sql).toBe(false);
         if (!result.ok) expect(result.code, sql).toBe('55000');
       }
       expect(await counts(client, a.accountId)).toEqual({jobs: 1, attempts: 1, steps: 1, operations: 1, commands: 3});
+    });
+  });
+
+  it('has, on every one of its tables, an enabled BEFORE TRUNCATE trigger that raises 55000 of its own (a truncate of operations can also be refused by the foreign key of a reservation of Story 2.6)', async () => {
+    const guards = await truncateGuards(db, ['jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands']);
+    for (const [table, found] of Object.entries(guards)) expect(found.length, table).toBeGreaterThanOrEqual(1);
+    // Nothing refers to the receipts, so a plain truncate of them is answered by their own trigger.
+    await inTx(async (client) => {
+      const result = await attempt(client, null, 'truncate jobs.commands');
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.code).toBe('55000');
     });
   });
 
@@ -2159,7 +2172,8 @@ describe('the preflight carries the Story 2.11 tables and functions', () => {
     ]) expect(definition, needle).toContain(needle);
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(47);
+    // On purpose changed (Story 2.6): fifty since it added the three functions of the cost reservations (it was forty-seven after the six functions of the Job records).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(50);
     for (const signature of apiSignatures) expect(executable, signature).toContain(`'${signature}'`);
     // The bucket check stays last.
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));
@@ -2196,8 +2210,9 @@ describe('the preflight carries the Story 2.11 tables and functions', () => {
       'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
       'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
-      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'usage.fixture_figures',
+      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods',
       'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands',
+      'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
     ];
     await inTx(async (client) => {

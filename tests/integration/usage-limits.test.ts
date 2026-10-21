@@ -8,9 +8,12 @@ import {listUsage, recordUsageRefusal, setUsageLimit} from '@/lib/usage';
 import {insertAuthUser} from '../support/accounts-data';
 import {codeHash, createHarness, stack} from '../support/accounts-db';
 import {stackEnvironment} from '../support/stack';
+import {truncateGuards} from '../support/truncate-guard';
+import {setFigures} from '../support/usage-ledger';
 
-// Story 2.4 against the Supabase CLI stack: the Usage-owned allowance periods (usage.periods), their lazy monthly rollover, the owner-written stand-in for the
-// ledgers (usage.fixture_figures), and the three api functions behind the Administrator's Usage and limits page: api.set_usage_limit (change a limit or reset the
+// Story 2.4 against the Supabase CLI stack: the Usage-owned allowance periods (usage.periods), their lazy monthly rollover, the figures of a period (the owner-written
+// stand-in usage.fixture_figures of this story was replaced on purpose by the real ledgers of Story 2.6, which the shared helper tests/support/usage-ledger.ts fills as the
+// owner), and the three api functions behind the Administrator's Usage and limits page: api.set_usage_limit (change a limit or reset the
 // count by appending a successor period that carries the liabilities), api.list_usage (each Account's current period) and api.record_usage_refusal (the audit
 // of a refused change). Most cases run inside a transaction that is rolled back, as the service role. The cases that need several real connections (the same
 // command twice at once, two commands against one period, a disable racing a change, a rollover racing a rollover, refusals arriving together) and the typed
@@ -82,9 +85,8 @@ const periodsOf = async (client: Client, accountId: string) =>
   ).rows as PeriodRow[];
 const currentMonth = async (client: Client) => (await client.query('select usage.current_month()::text as month')).rows[0].month as string;
 
-/** The owner writes the stand-in figures of a period, as the tests (and nobody else) do. */
-const figures = (client: Client, periodId: string, settled: number, reserved: number) =>
-  client.query('insert into usage.fixture_figures (period_id, settled_microdollars, reserved_microdollars) values ($1, $2, $3)', [periodId, settled, reserved]);
+/** The owner puts real ledger rows in a period (a reservation nothing has settled, a reservation a settlement has settled), as the tests (and nobody else) do: Story 2.6 replaced the stand-in table. */
+const figures = (client: Client, periodId: string, settled: number, reserved: number) => setFigures(client, periodId, settled, reserved);
 
 type PeriodSpec = {seq: number; monthsAgo: number; limit: number; settled?: number; reserved?: number; cause: string; previous?: number | null; actor?: string; command?: string | null};
 /**
@@ -167,18 +169,16 @@ describe('access: the usage schema is closed, and only the service role reaches 
     expect(defaults).toEqual([]);
   });
 
-  it('has exactly two tables, both with row-level security on, no policy, and no privilege for any role or PUBLIC', async () => {
+  it('has exactly six tables (the periods of Story 2.4 and the five of Story 2.6), all with row-level security on, no policy, and no privilege for any role or PUBLIC', async () => {
     const {rows: tables} = await db.query(
       `select c.relname as name, c.relrowsecurity as rls, (select count(*) from pg_policy p where p.polrelid = c.oid)::int as policies,
               (select count(*)::int from aclexplode(c.relacl) a where a.grantee <> c.relowner) as other_grants
          from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'usage' and c.relkind in ('r', 'p', 'v', 'm', 'f') order by 1`,
     );
-    expect(tables).toEqual([
-      {name: 'fixture_figures', rls: true, policies: 0, other_grants: 0},
-      {name: 'periods', rls: true, policies: 0, other_grants: 0},
-    ]);
+    // On purpose changed (Story 2.6): the stand-in `fixture_figures` is gone and the ledgers of Story 2.6 are there.
+    expect(tables).toEqual(['commands', 'overrun_incidents', 'periods', 'rate_schedules', 'reservations', 'settlements'].map((name) => ({name, rls: true, policies: 0, other_grants: 0})));
     for (const role of ['anon', 'authenticated', 'service_role']) {
-      for (const table of ['usage.periods', 'usage.fixture_figures']) {
+      for (const table of ['usage.periods', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands']) {
         const {rows: held} = await db.query(`select has_table_privilege($1, $2, 'select,insert,update,delete,truncate,references,trigger') as can, has_any_column_privilege($1, $2, 'select,insert,update,references') as column_can`, [role, table]);
         expect(held[0], `${role} on ${table}`).toEqual({can: false, column_can: false});
       }
@@ -187,12 +187,13 @@ describe('access: the usage schema is closed, and only the service role reaches 
     expect(sequences).toEqual([]);
   });
 
-  it('refuses the service role a direct read or write of either table, and every internal function: it reaches Usage only through the api schema', async () => {
+  it('refuses the service role a direct read or write of any table, and every internal function: it reaches Usage only through the api schema', async () => {
     await inTx(async (client) => {
       for (const sql of [
         'select * from usage.periods',
-        'select * from usage.fixture_figures',
-        'insert into usage.fixture_figures (period_id) values (gen_random_uuid())',
+        'select * from usage.rate_schedules',
+        'select * from usage.reservations',
+        'insert into usage.commands (account_id, command_id, kind, digest, subject_id) values (gen_random_uuid(), gen_random_uuid(), $$reserve$$, repeat($$a$$, 64), gen_random_uuid())',
         'delete from usage.periods',
         'select usage.default_limit($$member$$)',
         'select usage.current_month()',
@@ -215,18 +216,40 @@ describe('access: the usage schema is closed, and only the service role reaches 
               (select count(*)::int from aclexplode(p.proacl) a where a.privilege_type = 'EXECUTE' and a.grantee <> p.proowner) as other_grantees
          from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'usage' order by 1`,
     );
+    // On purpose changed (Story 2.6): the calculator, the constants, the ledger guards and the exposure joined the functions of Story 2.4.
     expect(functions.map((fn) => fn.name)).toEqual([
+      'ambiguity_deadline',
       'append_period',
       'available_microdollars',
+      'billed_units',
+      'bound_cost',
+      'check_incident',
       'check_period',
+      'check_reservation',
+      'check_settlement',
       'command_digest',
+      'cost_digest',
       'create_initial_period',
       'current_month',
       'default_limit',
       'ensure_period',
+      'guard_incident_change',
+      'image_tokens',
+      'input_bound',
+      'input_ceiling',
+      'job_cap',
+      'job_exposure',
+      'margin_percent',
+      'operation_cap',
+      'output_ceiling',
+      'overhead_tokens',
       'period_digest',
       'period_figures',
+      'price',
+      'record_command',
       'refuse_period_change',
+      'refuse_record_change',
+      'request_ceiling',
     ]);
     for (const fn of functions) {
       expect(fn.default_acl, `usage.${fn.name} has an explicit ACL`).toBe(false);
@@ -328,20 +351,29 @@ describe('the periods table: a period is a record, never edited', () => {
         expect(result.ok, sql).toBe(false);
         if (!result.ok) expect(result.code, sql).toBe('55000');
       }
-      // The table cannot be emptied in one statement either (the foreign key of the fixture table has to be named with it for the trigger to be the one to answer).
-      const truncated = await attempt(client, null, 'truncate usage.periods, usage.fixture_figures');
+      // The table cannot be emptied in one statement either (the foreign keys of the ledgers have to be named with it for the trigger to be the one to answer).
+      const truncated = await attempt(client, null, 'truncate usage.periods, usage.reservations, usage.settlements, usage.overrun_incidents');
       expect(truncated.ok).toBe(false);
       if (!truncated.ok) expect(truncated.code).toBe('55000');
       const alone = await attempt(client, null, 'truncate usage.periods');
       expect(alone.ok).toBe(false);
       expect((await periodsOf(client, a.accountId)).map((p) => p.seq)).toEqual([1]);
-      // Delete is left for the Epic 8 purge, and takes the stand-in figures of the period with it.
+      // Delete is left for the Epic 8 purge. On purpose changed (Story 2.6): a period the ledgers refer to restricts it (they go first), and one they do not delete as before.
       const [period] = await periodsOf(client, a.accountId);
       await figures(client, period.id, 1, 1);
-      expect(await count(client, 'select count(*) as n from usage.fixture_figures where period_id = $1', [period.id])).toBe(1);
+      expect(await count(client, 'select count(*) as n from usage.reservations where period_id = $1', [period.id])).toBe(2);
+      const blocked = await attempt(client, null, 'delete from usage.periods where account_id = $1', [a.accountId]);
+      expect(blocked.ok).toBe(false);
+      if (!blocked.ok) expect(blocked.code).toBe('23503');
+      await client.query('delete from usage.settlements where account_id = $1', [a.accountId]);
+      await client.query('delete from usage.reservations where account_id = $1', [a.accountId]);
       expect((await client.query('delete from usage.periods where account_id = $1', [a.accountId])).rowCount).toBe(1);
-      expect(await count(client, 'select count(*) as n from usage.fixture_figures where period_id = $1', [period.id])).toBe(0);
     });
+  });
+
+  it('has its own enabled BEFORE TRUNCATE trigger that raises 55000 (the truncates above can be refused by a foreign key, or by the trigger of another table named with it)', async () => {
+    const guards = await truncateGuards(db, ['usage.periods']);
+    expect(guards['usage.periods'].length).toBeGreaterThanOrEqual(1);
   });
 
   it('keys every period to its Account with ON DELETE RESTRICT: an Account that has periods cannot be deleted by accident', async () => {
@@ -453,19 +485,14 @@ describe('the periods table: a period is a record, never edited', () => {
       });
     });
 
-    it('keeps the figures of the stand-in non-negative, one row for each period', async () => {
+    it('keeps the figures of a period in the ledgers (on purpose changed, Story 2.6): a reservation is from 1 to 1e15 microdollars, and the stand-in table is gone', async () => {
       await inTx(async (client) => {
         const a = await account(client);
         const [period] = await periodsOf(client, a.accountId);
-        for (const [settled, reserved] of [[-1, 0], [0, -1], [1_000_000_000_000_001, 0]]) {
-          const result = await attempt(client, null, 'insert into usage.fixture_figures (period_id, settled_microdollars, reserved_microdollars) values ($1, $2, $3)', [period.id, settled, reserved]);
-          expect(result.ok, `${settled}/${reserved}`).toBe(false);
-          if (!result.ok) expect(result.code).toBe('23514');
-        }
+        expect((await client.query(`select to_regclass('usage.fixture_figures') as name`)).rows[0].name).toBeNull();
         await figures(client, period.id, 5, 6);
-        const twice = await attempt(client, null, 'insert into usage.fixture_figures (period_id) values ($1)', [period.id]);
-        expect(twice.ok).toBe(false);
-        if (!twice.ok) expect(twice.code).toBe('23505');
+        const shown = (await client.query('select settled_microdollars::float8 as settled, reserved_microdollars::float8 as reserved from usage.period_figures($1)', [period.id])).rows[0];
+        expect(shown).toEqual({settled: 5, reserved: 6});
       });
     });
   });
@@ -720,11 +747,12 @@ describe('changing a limit and resetting the count: a successor period that carr
     });
   });
 
-  it('shows no fixture to anyone but the stand-in: with no row in usage.fixture_figures every figure is zero', async () => {
+  it('shows no figure that is not in a ledger (on purpose changed, Story 2.6): with no reservation or settlement every figure is zero', async () => {
     await inTx(async (client) => {
       const admin = await account(client, 'administrator');
       const member = await account(client);
-      expect(await count(client, 'select count(*) as n from usage.fixture_figures f join usage.periods p on p.id = f.period_id where p.account_id = $1', [member.accountId])).toBe(0);
+      expect(await count(client, 'select count(*) as n from usage.reservations where account_id = $1', [member.accountId])).toBe(0);
+      expect(await count(client, 'select count(*) as n from usage.settlements where account_id = $1', [member.accountId])).toBe(0);
       expect(rowOf(await listAs(client, admin), member.accountId)).toMatchObject({settled_microdollars: 0, reserved_microdollars: 0});
       const figuresOf = (await client.query('select settled_microdollars::float8 as settled, reserved_microdollars::float8 as reserved from usage.period_figures($1)', [randomUUID()])).rows[0];
       expect(figuresOf).toEqual({settled: 0, reserved: 0});
@@ -732,19 +760,19 @@ describe('changing a limit and resetting the count: a successor period that carr
     });
   });
 
-  it('never writes the stand-in: no api function adds, changes or deletes a row of usage.fixture_figures', async () => {
+  it('never writes a ledger: no function of the usage limits adds, changes or deletes a reservation, a settlement or an incident', async () => {
     await inTx(async (client) => {
       const admin = await account(client, 'administrator');
       const member = await account(client);
-      const before = await count(client, 'select count(*) as n from usage.fixture_figures');
+      const before = await count(client, 'select (select count(*) from usage.reservations) + (select count(*) from usage.settlements) + (select count(*) from usage.overrun_incidents) as n');
       await setLimit(client, member.accountId, {admin, limit: 40 * M, expectedSeq: 1});
       await setLimit(client, member.accountId, {admin, kind: 'reset', limit: null, expectedSeq: 2});
       await listAs(client, admin);
       await rows(client, 'service_role', 'select * from api.record_usage_refusal($1, $2, $3)', [member.user.id, 'usage.denied', member.accountId]);
-      expect(await count(client, 'select count(*) as n from usage.fixture_figures')).toBe(before);
+      expect(await count(client, 'select (select count(*) from usage.reservations) + (select count(*) from usage.settlements) + (select count(*) from usage.overrun_incidents) as n')).toBe(before);
     });
     const definition = (await db.query(`select string_agg(pg_get_functiondef(p.oid), E'\\n') as text from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'api' and p.proname in ('set_usage_limit', 'list_usage', 'record_usage_refusal')`)).rows[0].text as string;
-    expect(definition).not.toMatch(/(insert\s+into|update|delete\s+from)\s+usage\.fixture_figures/i);
+    expect(definition).not.toMatch(/(insert\s+into|update|delete\s+from)\s+usage\.(?:reservations|settlements|overrun_incidents|fixture_figures)/i);
   });
 });
 
@@ -1631,7 +1659,7 @@ describe('the preflight carries the Story 2.4 tables and functions', () => {
     });
     const definition = (await db.query(`select pg_get_functiondef('api.preflight()'::regprocedure) as text`)).rows[0].text as string;
     for (const needle of [
-      'usage.periods', 'usage.fixture_figures', 'u.carried_settled_microdollars', 'u.command_id', 'u.digest', 'x2.period_id', 'x2.settled_microdollars',
+      'usage.periods', 'u.carried_settled_microdollars', 'u.command_id', 'u.digest',
       ...apiSignatures,
       ...internalSignatures,
       'Story 2.4 migration',
@@ -1641,7 +1669,8 @@ describe('the preflight carries the Story 2.4 tables and functions', () => {
     // The three new `api` functions are among those the service role must be able to execute (forty-one in all; forty-seven since Story 2.11 added six, On purpose changed).
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(47);
+    // On purpose changed (Story 2.6): fifty since it added the three functions of the cost reservations (it was forty-seven after the six functions of the Job records).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(50);
     for (const signature of apiSignatures) expect(executable, signature).toContain(`'${signature}'`);
     // The bucket check stays last.
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));
@@ -1673,12 +1702,12 @@ describe('the preflight carries the Story 2.4 tables and functions', () => {
     });
   });
 
-  it.each(['usage.periods', 'usage.fixture_figures', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands'])('fails, naming a permission and not answering ok, when the role it runs as cannot read %s', async (blocked) => {
+  it.each(['usage.periods', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands'])('fails, naming a permission and not answering ok, when the role it runs as cannot read %s', async (blocked) => {
     const everything = [
       'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
       'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
-      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'usage.fixture_figures', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands',
+      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
     ];
     await inTx(async (client) => {

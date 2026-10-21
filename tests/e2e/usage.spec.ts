@@ -7,12 +7,14 @@ import {addFakeAccount, chooserAccount, chooserUrl, fakeGoogleActive} from '../s
 import {alertOf, announcer, hydrated, label, overflowReport, setFontSize, signIn, variants, violations, watchForProblems} from '../support/e2e-helpers';
 import {endGlobalOutage, endOutage, flakyBaseUrl, startGlobalOutage, startOutage} from '../support/fake-network';
 import {accountsWorld, type AccountsWorld, type ForgedUser} from '../support/forged-session';
+import {removeLedger, setFigures as makeLedgerFigures} from '../support/usage-ledger';
 
 // Story 2.4: the Administrator's Usage and limits page (AD-03), in a real browser against the production build and the local Supabase stack.
 // Each test forges the Administrator's session and, where the flow needs one, the fresh-authentication marker a completed step-up writes
 // (tests/support/forged-session.ts); one test drives the REAL step-up with the fake Google, from the refusal on this page to the change that works.
-// The settled and reserved amounts of an Account come from one stand-in until Story 2.6 (usage.fixture_figures), so the tests that need a state
-// other than "nothing used" put a row there as the table's owner, exactly as the story says. Every flow runs on `desktop` and `phone`.
+// The settled and reserved amounts of an Account come from the Usage ledgers (Story 2.6 replaced the stand-in usage.fixture_figures), so the tests that need a
+// state other than "nothing used" make real ledger rows as the owner (tests/support/usage-ledger.ts: a Job, an operation, a reservation and a settlement of the
+// wanted amounts, bypassing admission). Every flow runs on `desktop` and `phone`.
 //
 // The page lists every Account of a database every test shares, so tests find their own card by the address of the Account they made.
 
@@ -118,14 +120,14 @@ async function periodsOf(user: ForgedUser) {
   }[];
 }
 const currentOf = async (user: ForgedUser) => (await periodsOf(user)).at(-1)!;
-/** The settled and reserved FIGURES of the Account's current period, as the owner writes the stand-in (the page shows carried + figure). */
+/**
+ * The settled and reserved FIGURES of the Account's current period, as real ledger rows made by the owner (the page shows carried + figure). It REPLACES what an earlier
+ * call made, as the stand-in's upsert did: the Account's ledger rows go first.
+ */
 async function setFigures(user: ForgedUser, settled: number, reserved = 0) {
   const period = await currentOf(user);
-  await world.db.query(
-    `insert into usage.fixture_figures (period_id, settled_microdollars, reserved_microdollars) values ($1, $2, $3)
-     on conflict (period_id) do update set settled_microdollars = excluded.settled_microdollars, reserved_microdollars = excluded.reserved_microdollars`,
-    [period.id, settled, reserved],
-  );
+  await removeLedger(world.db, (await world.accountOf(user)).id);
+  await makeLedgerFigures(world.db, period.id, settled, reserved);
 }
 const currentMonth = async () => (await world.db.query(`select to_char(usage.current_month(), 'YYYY-MM') as month`)).rows[0].month as string;
 const actorOf = (user: ForgedUser) => `user:${user.id}`;

@@ -1688,7 +1688,8 @@ describe('the preflight carries the Story 2.2 table and functions', () => {
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
     // On purpose changed (Story 2.11): forty-seven since it added the six functions of the Job records (it was forty-one after the three functions of the usage limits).
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(47);
+    // On purpose changed (Story 2.6): fifty since it added the three functions of the cost reservations (it was forty-seven after the six functions of the Job records).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(50);
     expect(executable).toContain(functions[0]);
     expect(executable).toContain(functions[1]);
     expect(definition.indexOf('Story 2.2 migration')).toBeLessThan(check);

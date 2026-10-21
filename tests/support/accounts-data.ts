@@ -107,14 +107,22 @@ export async function removeAccountData(client: Client, data: CommittedData) {
       [data.users, data.hashes, data.invitationIds, data.users.map((id) => `user:${id}`)],
     );
     await client.query(`delete from identity.preauthorizations where account_id in ${accounts} or email = any($2)`, [data.users, data.emails]);
-    // The Job records (Story 2.11) reference their Project and their Account with ON DELETE RESTRICT, so they go first, children before parents: operations,
+    // The Usage ledgers (Story 2.6) reference the Job records, the periods and the Account with ON DELETE RESTRICT, so they go first, children before parents:
+    // incidents, settlements, reservations and the receipts of their commands. (The fixture rate schedules the ledger helper makes are global: any that no reservation
+    // uses any longer goes with them.)
+    await client.query(`delete from usage.overrun_incidents where account_id in ${accounts}`, [data.users]);
+    await client.query(`delete from usage.settlements where account_id in ${accounts}`, [data.users]);
+    await client.query(`delete from usage.reservations where account_id in ${accounts}`, [data.users]);
+    await client.query(`delete from usage.commands where account_id in ${accounts}`, [data.users]);
+    await client.query(`delete from usage.rate_schedules s where s.provider = 'fixture' and not exists (select 1 from usage.reservations r where r.rate_schedule_id = s.id)`);
+    // The Job records (Story 2.11) reference their Project and their Account with ON DELETE RESTRICT, so they go next, children before parents: operations,
     // steps, attempts (one statement removes a Job's attempts together), Jobs, and the receipts of their commands.
     await client.query(`delete from jobs.operations where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from jobs.steps where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from jobs.attempts where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from jobs.jobs where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from jobs.commands where account_id in ${accounts}`, [data.users]);
-    // The usage periods of an Account (Story 2.4) reference it with ON DELETE RESTRICT (their fixture figures go with them), so they go before the Account does.
+    // The usage periods of an Account (Story 2.4) reference it with ON DELETE RESTRICT (and the ledgers above reference them), so they go before the Account does.
     await client.query(`delete from usage.periods where account_id in ${accounts}`, [data.users]);
     // A Project (Story 1.7) references its Workspace, and a command's receipt and a request revision (Story 2.1) reference their Project (all
     // restrict), and the pictures of a revision (Story 2.2) reference their revision: pictures, revisions and receipts, then Projects, then the Workspace.

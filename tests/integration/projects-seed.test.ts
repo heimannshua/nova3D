@@ -5,6 +5,7 @@ import {describe, expect, it} from 'vitest';
 import {projectFixtures} from '@/lib/project-fixtures';
 import {projectStages} from '@/lib/project-stage';
 import {createHarness, stack, tag} from '../support/accounts-db';
+import {insertIncident, insertReservation, insertSettlement} from '../support/usage-ledger';
 
 // The local fixture seed (scripts/seed-projects.mjs) run against the Supabase CLI stack: one Project for each of the stages (six in Story 1.7, seven since Story 2.1 added request_confirmed, eight since Story 2.2 added request_draft), nothing
 // twice, nothing for an Account that is not active, and removal that takes only the fixtures. Its refusals are in tests/unit/seed-projects.test.ts.
@@ -145,7 +146,7 @@ describe('the local fixture seed', () => {
     expect([await projectsOf(kept), await revisionsOf(kept)]).toEqual([1, 1]);
     expect((await stored(a.accountId)).map((row) => row.title)).toEqual(['The outer altar and ramp (Middot 3)']);
   });
-  it('removes a fixture-titled Project that has a Job, with its attempts, step and operation, keeps the Job of another Project, and leaves the Account\'s command receipts (Story 2.11)', async () => {
+  it('removes a fixture-titled Project that has a Job, with its attempts, step and operation and the reservation, settlement and overrun incident of that operation, keeps the Job and the ledger rows of another Project, and leaves the Account\'s command receipts (Stories 2.11 and 2.6)', async () => {
     const a = await account();
     const digest = 'a'.repeat(64);
     expect((await run(['--email', a.email])).code).toBe(0);
@@ -182,6 +183,32 @@ describe('the local fixture seed', () => {
       throw error;
     }
 
+    // The Usage ledger rows of each Project's operation (Story 2.6): a reservation, a settlement that is above it, and the overrun incident that made, as the owner makes them.
+    const periodId = (await db.query('select id from usage.periods where account_id = $1', [a.accountId])).rows[0].id as string;
+    for (const projectId of [doomed, kept]) {
+      const operation = (
+        await db.query(
+          `select o.id, j.id as job_id from jobs.operations o join jobs.steps s on s.id = o.step_id join jobs.attempts t on t.id = s.attempt_id join jobs.jobs j on j.id = t.job_id where j.project_id = $1`,
+          [projectId],
+        )
+      ).rows[0];
+      const reservationId = await insertReservation(db, {accountId: a.accountId, periodId, jobId: operation.job_id, operationId: operation.id, amount: 1_000_000});
+      const settlementId = await insertSettlement(db, {accountId: a.accountId, reservationId, periodId, classification: 'evidence', settled: 1_500_000});
+      await insertIncident(db, {accountId: a.accountId, reservationId, settlementId});
+    }
+    // The ledger rows of a Project, by the Project (through its Jobs).
+    const ledgerOf = async (projectId: string) =>
+      (
+        await db.query(
+          `select (select count(*) from usage.reservations r join jobs.jobs j on j.id = r.job_id where j.project_id = $1)::int as reservations,
+                  (select count(*) from usage.settlements s join usage.reservations r on r.id = s.reservation_id join jobs.jobs j on j.id = r.job_id where j.project_id = $1)::int as settlements,
+                  (select count(*) from usage.overrun_incidents i join usage.reservations r on r.id = i.reservation_id join jobs.jobs j on j.id = r.job_id where j.project_id = $1)::int as incidents`,
+          [projectId],
+        )
+      ).rows[0] as Record<'reservations' | 'settlements' | 'incidents', number>;
+    expect(await ledgerOf(doomed)).toEqual({reservations: 1, settlements: 1, incidents: 1});
+    expect(await ledgerOf(kept)).toEqual({reservations: 1, settlements: 1, incidents: 1});
+
     // Every family of the Job records of a Project, by the Project.
     const familiesOf = async (projectId: string) =>
       (
@@ -200,9 +227,12 @@ describe('the local fixture seed', () => {
     const receiptsBefore = await receipts();
     expect(receiptsBefore).toBe(2 * 6);
 
-    // A Job restricts its Project (23503 for anyone who tries to delete it directly), so --remove must take the Job records first.
+    // A Job restricts its Project (23503 for anyone who tries to delete it directly), so --remove must take the Job records first. A reservation restricts its Job and
+    // its operation in turn, and its settlement and incident restrict it: the ledger rows go before the Job records.
     const direct = await db.query('delete from projects.projects where id = $1', [doomed]).then(() => 'deleted', (error: {code?: string}) => error.code);
     expect(direct).toBe('23503');
+    const directJob = await db.query('delete from jobs.jobs where project_id = $1', [doomed]).then(() => 'deleted', (error: {code?: string}) => error.code);
+    expect(directJob).toBe('23503');
 
     const removed = await run(['--remove', '--email', a.email]);
     expect(removed.code, removed.stderr).toBe(0);
@@ -210,9 +240,11 @@ describe('the local fixture seed', () => {
     // Gone: the Project, and every Job, attempt, step and operation of it.
     expect(await projectsOf(doomed)).toBe(0);
     expect(await familiesOf(doomed)).toEqual({jobs: 0, attempts: 0, steps: 0, operations: 0});
-    // Not a fixture by title: the other Project keeps its Job, attempts, step and operation.
+    expect(await ledgerOf(doomed)).toEqual({reservations: 0, settlements: 0, incidents: 0});
+    // Not a fixture by title: the other Project keeps its Job, attempts, step and operation, and its reservation, settlement and incident.
     expect(await projectsOf(kept)).toBe(1);
     expect(await familiesOf(kept)).toEqual({jobs: 1, attempts: 2, steps: 1, operations: 1});
+    expect(await ledgerOf(kept)).toEqual({reservations: 1, settlements: 1, incidents: 1});
     // The receipts of the commands are the Account's, and stay (as the script's comment says).
     expect(await receipts()).toBe(receiptsBefore);
   });

@@ -331,13 +331,19 @@ export function accountsWorld() {
     await db.query(`delete from identity.session_grants where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.registration_commands where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.invitations where redeemed_account_id in ${accounts}`, [user.id]);
-    // The Job records (Story 2.11) restrict their Project and the Account: operations, steps, attempts, Jobs and command receipts go first.
+    // The Usage ledgers (Story 2.6) restrict the Job records, the periods and the Account: incidents, settlements, reservations and command receipts go first.
+    await db.query(`delete from usage.overrun_incidents where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from usage.settlements where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from usage.reservations where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from usage.commands where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from usage.rate_schedules s where s.provider = 'fixture' and not exists (select 1 from usage.reservations r where r.rate_schedule_id = s.id)`);
+    // The Job records (Story 2.11) restrict their Project and the Account: operations, steps, attempts, Jobs and command receipts go next.
     await db.query(`delete from jobs.operations where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from jobs.steps where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from jobs.attempts where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from jobs.jobs where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from jobs.commands where account_id in ${accounts}`, [user.id]);
-    // The usage periods (Story 2.4) restrict the Account too; their fixture figures go with them.
+    // The usage periods (Story 2.4) restrict the Account too (and the ledgers above reference them).
     await db.query(`delete from usage.periods where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from projects.request_images where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from projects.request_revisions where account_id in ${accounts}`, [user.id]);

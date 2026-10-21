@@ -2,7 +2,8 @@
 title: 'Story 2.6: Reserve bounded costs atomically'
 type: 'feature'
 created: '2026-10-20'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: 'b9abf33fdca0d57c68d0ba2228ea599bde8449d1'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
@@ -72,12 +73,12 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/20261024120000_usage_reservations.sql`, `docs/staging.md` -- the unique keys, schedules, reservations, settlements, incidents, commands, guards, the calculator and constants, the exposure, the new figures and the drop of the fixture table, three commands, preflight, migration row -- AC-1 to AC-4
-- [ ] `lib/usage-reservations.ts` -- typed calls, constants, vocabularies, the cost block -- AC-1 to AC-4
-- [ ] `tests/` -- every matrix row: integration (the calculator against hand-computed values, each refusal and its precedence, reserve, replay, reuse, duplicate, not reservable, caps, allowance at the edge, provider block and clearing as owner, settle by every class, overrun, deadline, periods with rollover, change and reset, authority, hidden, concurrency including a tombstone, immutability, invalid arguments, closure, fixture retired, preflight), unit (the module: validation, every outcome, shape errors, constants equal the SQL); the shared ledger helper; update the pins above -- all ACs
-- [ ] `tests/support/accounts-data.ts`, `tests/support/forged-session.ts`, `scripts/seed-projects.mjs` -- delete the ledger rows first -- housekeeping
-- [ ] `README.md`, `docs/authority-contract.md` -- the Usage row, the calculator, the ledgers, the admission order, the settle rules, rollout -- housekeeping
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- the up-front reservation of a Job's operations and dispatch needing one (2.7), the credit funding split (2.14), clearing and listing incidents and the deadline sweep (2.8), schedule writer and real rates (2.5), de-link on purge (Epic 8), the global provider block -- housekeeping
+- [x] `supabase/migrations/20261024120000_usage_reservations.sql`, `docs/staging.md` -- the unique keys, schedules, reservations, settlements, incidents, commands, guards, the calculator and constants, the exposure, the new figures and the drop of the fixture table, three commands, preflight, migration row -- AC-1 to AC-4
+- [x] `lib/usage-reservations.ts` -- typed calls, constants, vocabularies, the cost block -- AC-1 to AC-4
+- [x] `tests/` -- every matrix row: integration (the calculator against hand-computed values, each refusal and its precedence, reserve, replay, reuse, duplicate, not reservable, caps, allowance at the edge, provider block and clearing as owner, settle by every class, overrun, deadline, periods with rollover, change and reset, authority, hidden, concurrency including a tombstone, immutability, invalid arguments, closure, fixture retired, preflight), unit (the module: validation, every outcome, shape errors, constants equal the SQL); the shared ledger helper; update the pins above -- all ACs
+- [x] `tests/support/accounts-data.ts`, `tests/support/forged-session.ts`, `scripts/seed-projects.mjs` -- delete the ledger rows first -- housekeeping
+- [x] `README.md`, `docs/authority-contract.md` -- the Usage row, the calculator, the ledgers, the admission order, the settle rules, rollout -- housekeeping
+- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- the up-front reservation of a Job's operations and dispatch needing one (2.7), the credit funding split (2.14), clearing and listing incidents and the deadline sweep (2.8), schedule writer and real rates (2.5), de-link on purge (Epic 8), the global provider block -- housekeeping
 
 **Acceptance Criteria:**
 - Given concurrent operations near the Account allowance, the $5 Job cap or the $1 operation cap, when their maximum costs are reserved, then settled usage plus all outstanding reservations never exceeds any limit and exactly the ones that fit succeed, and a duplicate admission returns its original receipt.
@@ -107,3 +108,69 @@ settle 400k (period 2)            -> period 2 reserved -1M (shown 0), settled +4
 
 **Manual checks (if no CLI):**
 - None: nothing in the application calls the commands yet. Inspect that `\dt usage.*` shows `periods`, `rate_schedules`, `reservations`, `settlements`, `overrun_incidents` and `commands`, and that `select * from api.preflight(...)` as the service role raises nothing.
+
+## Suggested Review Order
+
+**The recorded numbers and the one calculator**
+
+- Every constant lives in SQL: overhead, image tokens, margin, ceilings, the two caps, the deadline.
+  [`usage_reservations.sql:56`](../../supabase/migrations/20261024120000_usage_reservations.sql#L56)
+
+- Exact rational price, rounded up once per operation, overflow and unknown rates refused.
+  [`usage_reservations.sql:429`](../../supabase/migrations/20261024120000_usage_reservations.sql#L429)
+
+- The bound a request is held to, or the reason it has none.
+  [`usage_reservations.sql:467`](../../supabase/migrations/20261024120000_usage_reservations.sql#L467)
+
+**The ledgers and why they cannot be edited**
+
+- Versioned rate schedules: global, immutable, written by no command until Story 2.5.
+  [`usage_reservations.sql:107`](../../supabase/migrations/20261024120000_usage_reservations.sql#L107)
+
+- One reservation per external operation, pinned to the schedule it was priced on.
+  [`usage_reservations.sql:159`](../../supabase/migrations/20261024120000_usage_reservations.sql#L159)
+
+- Settlement releases the whole reservation and books what happened; an overrun adds an incident.
+  [`usage_reservations.sql:231`](../../supabase/migrations/20261024120000_usage_reservations.sql#L231)
+
+- The Job's exposure across every attempt, which the $5 cap is judged against.
+  [`usage_reservations.sql:535`](../../supabase/migrations/20261024120000_usage_reservations.sql#L535)
+
+- The stand-in is gone; period figures are signed deltas read from the ledgers.
+  [`usage_reservations.sql:552`](../../supabase/migrations/20261024120000_usage_reservations.sql#L552)
+
+**Admission and settlement**
+
+- The operation row is held for share, so a dispatch and a reservation are serial.
+  [`usage_reservations.sql:753`](../../supabase/migrations/20261024120000_usage_reservations.sql#L753)
+
+- Refusals in order: provider, operation cap, Job cap, allowance; each carries the cost block.
+  [`usage_reservations.sql:832`](../../supabase/migrations/20261024120000_usage_reservations.sql#L832)
+
+- A replay whose receipt names a missing record fails closed rather than answering empty.
+  [`usage_reservations.sql:771`](../../supabase/migrations/20261024120000_usage_reservations.sql#L771)
+
+- Settlement needs no Account authority; the class must fit the operation's state and the deadline.
+  [`usage_reservations.sql:1020`](../../supabase/migrations/20261024120000_usage_reservations.sql#L1020)
+
+**The typed module**
+
+- The only caller of the three commands, with the same constants and vocabularies.
+  [`usage-reservations.ts:36`](../../lib/usage-reservations.ts#L36)
+
+- Reserve: validated inputs, a closed outcome union, a cost block that must add up.
+  [`usage-reservations.ts:365`](../../lib/usage-reservations.ts#L365)
+
+**Proof**
+
+- A reservation counts what a month turn, a change and a reset carried in.
+  [`usage-reservations.test.ts:1550`](../../tests/integration/usage-reservations.test.ts#L1550)
+
+- A reserve and a dispatch of one operation commit in either order, never both.
+  [`usage-reservations.test.ts:2111`](../../tests/integration/usage-reservations.test.ts#L2111)
+
+- The deadline settles the whole reservation, and only after 24 hours.
+  [`usage-reservations.test.ts:1228`](../../tests/integration/usage-reservations.test.ts#L1228)
+
+- The module's validation, outcomes and shape errors without a database.
+  [`unit/usage-reservations.test.ts:1`](../../tests/unit/usage-reservations.test.ts#L1)
