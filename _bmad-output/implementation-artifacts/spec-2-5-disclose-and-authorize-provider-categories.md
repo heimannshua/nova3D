@@ -2,11 +2,16 @@
 title: 'Story 2.5: Disclose and authorize provider categories'
 type: 'feature'
 created: '2026-10-20'
-status: in-review
+status: awaiting-operator
 review_loop_iteration: 1
 baseline_revision: 8255a3a13a008403d21e8ac0fd23574a5ba190de
 baseline_commit: 8255a3a13a008403d21e8ac0fd23574a5ba190de
 followup_review_recommended: true
+operator_actions:
+  - Verify Anthropic account terms and data retention or deletion terms, then record the approved evidence in the provider provisioning ledger.
+  - Provision Anthropic credentials and a verified rate schedule through the deployment secret manager and controlled usage rate-schedule process.
+  - Review Brave Web Search terms and record the review in the Story 1.10 provisioning ledger before enabling Brave.
+  - Provision Brave Search credentials and a verified rate schedule through the deployment secret manager and controlled usage rate-schedule process.
 context:
   - ../../specs/spec-nova3D-story-2-5/acceptance-criteria.md
   - ../../specs/spec-nova3D-story-2-5/implementation-constraints.md
@@ -101,11 +106,10 @@ Implementation state: local migrations `20261025120000` through `20261029120000`
 
 ## Auto Run Result
 
-Status: in-progress
-Summary: Implemented provider permission persistence, guarded admission, payload-boundary enforcement, image derivatives, provider adapters, and setup documentation. Provider dispatch and grants remain disabled pending a paid Job quote surface and human rate/terms evidence.
-Files changed:
-- `_bmad-output/implementation-artifacts/spec-2-5-disclose-and-authorize-provider-categories.md` — restored actionable scope, tasks, verification, and implementation context.
+Status: awaiting-operator
+Summary: Implemented and committed provider permission persistence, guarded admission, payload-boundary enforcement, image derivatives, provider adapters, and setup documentation. Provider dispatch and grants remain disabled pending a paid Job quote surface and human rate/terms evidence.
+Files changed: permission actions and panel; provider policy, payload, adapter, image, and persistence modules; five SQL migrations; usage reservation integration; setup documentation; focused unit and integration tests; this specification.
 Review findings breakdown: 5 patches applied (2 high, 3 medium); 2 items deferred; 0 items rejected.
 Follow-up review recommendation: true (patched counts: high 2, medium 3, low 0; score 13).
 Verification: `npm run typecheck`; `npm run lint`; 7 focused unit files, 389 tests passed; `tests/integration/usage-reservations.test.ts`, 137 tests passed; `git diff --check`; local migrations through `20261029120000` applied; `supabase db lint --local --schema api,provider_private` completed with existing unrelated warnings.
-Residual risks: human verification and provisioning remain outstanding; Brave stays disabled until its terms review is recorded. The paid Job quote/start UI and cross-connection concurrency qualification remain deferred; permission grants fail closed in their absence.
+Residual risks: human verification and provisioning remain outstanding; Brave stays disabled until its terms review is recorded. The paid Job quote/start UI and cross-connection concurrency qualification remain deferred; permission grants fail closed in their absence. Commit: `adb7250`.
