@@ -76,6 +76,18 @@ export type UnavailableBoundReason = (typeof unavailableBoundReasons)[number];
 /** The refusals that carry the exact cost block, in the order admission judges them (the bound first, the allowance last). */
 export const costRefusals = ['unavailable_bound', 'provider_blocked', 'over_operation_cap', 'over_job_cap', 'insufficient_allowance'] as const;
 export type CostRefusal = (typeof costRefusals)[number];
+export type PermissionAdmissionResult = {outcome: 'permission_required' | 'maximum_exceeded'};
+
+/** Exact persisted permission binding required by the future paid Job admission path. */
+export type ProviderPermissionAdmission = {
+  permissionId: string;
+  provider: 'anthropic' | 'brave';
+  projectId: string;
+  jobId: string;
+  category: 'research_search' | 'synthesis_vision';
+  purpose: string;
+  outboundData: readonly string[];
+};
 
 /** How a reservation is settled. */
 export const settlementClassifications = ['evidence', 'deadline', 'noncharge', 'unused'] as const;
@@ -364,22 +376,28 @@ function costBlockOf(row: Row, outcome: CostRefusal): CostBlock {
  */
 export async function reserveCost(
   operation: Operation,
-  input: Calculation & {commandId: string; operationId: string},
+  input: Calculation & {commandId: string; operationId: string; permission?: ProviderPermissionAdmission},
   options: AccountsOptions = {},
-): Promise<CostReservation> {
+): Promise<CostReservation | PermissionAdmissionResult> {
   const operationId = requireUuid('operationId', input.operationId);
-  const row = await callRow(
-    'reserve_cost',
-    {
+  const args = {
       p_account_id: requireOperation(operation),
       p_epoch: operation.epoch,
       p_command_id: requireUuid('commandId', input.commandId),
       p_operation_id: operationId,
       ...calculationArguments(input),
       p_options: requireOptions(input.options),
-    },
-    options,
-  );
+      ...(input.permission ? {
+        p_permission_id: requireUuid('permissionId', input.permission.permissionId),
+        p_project_id: requireUuid('projectId', input.permission.projectId),
+        p_job_id: requireUuid('jobId', input.permission.jobId),
+        p_category: input.permission.category,
+        p_provider: input.permission.provider,
+        p_purpose: input.permission.purpose,
+        p_outbound_data: [...input.permission.outboundData],
+      } : {}),
+    };
+  const row = await callRow('reserve_cost', args, options);
   const outcome = oneOf(row.outcome, [
     'reserved',
     'replayed',
@@ -389,7 +407,10 @@ export async function reserveCost(
     'unavailable',
     'not_reservable',
     ...costRefusals,
+    'permission_required',
+    'maximum_exceeded',
   ] as const);
+  if (outcome === 'permission_required' || outcome === 'maximum_exceeded') return {outcome};
   switch (outcome) {
     case 'reused':
     case 'denied':

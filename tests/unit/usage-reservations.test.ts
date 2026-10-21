@@ -390,6 +390,17 @@ describe('reserveCost', () => {
     expect(sent[0].headers).toMatchObject({authorization: 'Bearer service-key-for-tests-only', 'content-profile': 'api'});
   });
 
+  it('includes the exact permission binding on permission-aware admission and refuses a missing or over-ceiling grant', async () => {
+    const permission = {permissionId: PERIOD, provider: 'anthropic' as const, projectId: JOB, jobId: OPERATION, category: 'synthesis_vision' as const,
+      purpose: 'identify the subject', outboundData: ['confirmed_project_scope']};
+    const {sent, options} = fake(reservationFields());
+    expect(await reserveCost(operation, {...input, permission}, options)).toMatchObject({outcome: 'reserved'});
+    expect(sent[0].body).toMatchObject({p_permission_id: PERIOD, p_provider: 'anthropic', p_project_id: JOB, p_job_id: OPERATION,
+      p_category: 'synthesis_vision', p_purpose: 'identify the subject', p_outbound_data: ['confirmed_project_scope']});
+    expect(await reserveCost(operation, {...input, permission}, fake({outcome: 'permission_required'}).options)).toEqual({outcome: 'permission_required'});
+    expect(await reserveCost(operation, {...input, permission}, fake({outcome: 'maximum_exceeded'}).options)).toEqual({outcome: 'maximum_exceeded'});
+  });
+
   it('sends the options it was given, and sends no request count (an operation is exactly one provider request)', async () => {
     const {sent, options} = fake(reservationFields());
     await reserveCost(operation, {...input, options: {speed: 'fast'}}, options);

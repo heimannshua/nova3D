@@ -328,24 +328,29 @@ describe('access: the ledgers are closed, and only the service role reaches the 
     });
   });
 
-  it('puts the three api functions in the api schema, running as their owner with an empty search path, executable by the service role alone, with exactly these arguments', async () => {
+  it('puts the api usage functions in the api schema, running as their owner with an empty search path, executable by the service role alone, with exactly these arguments', async () => {
     const {rows: found} = await db.query(
       `select p.proname as name, p.prosecdef as definer, p.proconfig as config, pg_get_function_arguments(p.oid) as args, pg_get_function_result(p.oid) as result,
               coalesce((select array_agg(a.grantee::regrole::text order by 1) from aclexplode(p.proacl) a where a.privilege_type = 'EXECUTE' and a.grantee <> p.proowner), '{}') as grantees
          from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'api' and p.proname in ('quote_cost', 'reserve_cost', 'settle_cost') order by 1`,
     );
-    expect(found.map((fn) => fn.name)).toEqual(['quote_cost', 'reserve_cost', 'settle_cost']);
+    expect(found.map((fn) => fn.name)).toEqual(['quote_cost', 'reserve_cost', 'reserve_cost', 'settle_cost']);
     for (const fn of found) {
       expect(fn.definer, fn.name).toBe(true);
       expect(fn.config, fn.name).toEqual(['search_path=""']);
       expect(fn.grantees, fn.name).toEqual(['service_role']);
     }
-    const byName = Object.fromEntries(found.map((fn) => [fn.name, fn]));
+    const byName = Object.fromEntries(found.filter((fn) => fn.name !== 'reserve_cost').map((fn) => [fn.name, fn]));
+    const legacyReserve = found.find((fn) => fn.name === 'reserve_cost' && !fn.args.includes('p_permission_id'));
+    const permissionReserve = found.find((fn) => fn.name === 'reserve_cost' && fn.args.includes('p_permission_id'));
     expect(byName.quote_cost.args).toBe(
       "p_account_id uuid, p_epoch bigint, p_rate_schedule_id uuid, p_provider text, p_model text, p_api_version text, p_request_bytes bigint, p_image_count integer, p_output_limit integer, p_request_count integer DEFAULT 1, p_options jsonb DEFAULT '{}'::jsonb",
     );
-    expect(byName.reserve_cost.args).toBe(
+    expect(legacyReserve?.args).toBe(
       "p_account_id uuid, p_epoch bigint, p_command_id uuid, p_operation_id uuid, p_rate_schedule_id uuid, p_provider text, p_model text, p_api_version text, p_request_bytes bigint, p_image_count integer, p_output_limit integer, p_options jsonb DEFAULT '{}'::jsonb",
+    );
+    expect(permissionReserve?.args).toBe(
+      'p_account_id uuid, p_epoch bigint, p_command_id uuid, p_operation_id uuid, p_rate_schedule_id uuid, p_provider text, p_model text, p_api_version text, p_request_bytes bigint, p_image_count integer, p_output_limit integer, p_options jsonb, p_permission_id uuid, p_project_id uuid, p_job_id uuid, p_category text, p_purpose text, p_outbound_data text[]',
     );
     expect(byName.settle_cost.args).toBe(
       'p_account_id uuid, p_command_id uuid, p_operation_id uuid, p_classification text, p_input_tokens bigint DEFAULT NULL::bigint, p_output_tokens bigint DEFAULT NULL::bigint, p_returned_model text DEFAULT NULL::text',
@@ -353,7 +358,8 @@ describe('access: the ledgers are closed, and only the service role reaches the 
     // Settling takes no epoch: the argument is not there to be checked.
     expect(byName.settle_cost.args).not.toMatch(/epoch/);
     expect(byName.quote_cost.result).toBe('api.cost_quotation');
-    expect(byName.reserve_cost.result).toBe('api.cost_reservation');
+    expect(legacyReserve?.result).toBe('api.cost_reservation');
+    expect(permissionReserve?.result).toBe('api.cost_reservation');
     expect(byName.settle_cost.result).toBe('api.cost_settlement');
   });
 
@@ -2351,6 +2357,42 @@ describe('the preflight carries the Story 2.6 tables and functions', () => {
         expect(result.code).toBe('42501');
         expect(result.message).toContain(blocked.split('.')[1]);
       }
+    });
+  });
+});
+
+describe('Story 2.5 permission-aware atomic admission', () => {
+  it('reserves only for an exact live grant and refuses scope or disclosed-maximum mismatches', async () => {
+    await inTx(async (client) => {
+      const owner = await account(client);
+      await allowance(client, owner.accountId, 10 * M);
+      const projectId = await project(client, owner);
+      const job = await ledgerJob(client, owner.accountId, 2, projectId);
+      const rate = await schedule(client, {provider: 'anthropic', model: `claude-${tag}-${++sequence}`});
+      expect(await reserve(client, {accountId: owner.accountId, epoch: owner.epoch}, {schedule: rate, operationId: job.operationIds[1], bytes: 100, images: 0, output: 100}))
+        .toMatchObject({outcome: 'permission_required'});
+      const permission = async (purpose: string, maximum: number) => {
+        const result = await client.query(
+          `select api.grant_provider_permission($1,$2,$3,'synthesis_vision','anthropic',$4,$5::text[],$6::bigint) as value`,
+          [owner.accountId, projectId, job.jobId, purpose, ['confirmed_project_scope'], maximum],
+        );
+        return result.rows[0]?.value?.id as string;
+      };
+      const reserveWith = async (operationId: string, permissionId: string, purpose: string) => {
+        const result = await client.query(
+          `select outcome, reservation_id from api.reserve_cost($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+          [owner.accountId, owner.epoch, randomUUID(), operationId, rate.id, rate.provider, rate.model, rate.apiVersion, 100, 0, 100, '{}', permissionId, projectId, job.jobId, 'synthesis_vision', purpose, ['confirmed_project_scope']],
+        );
+        return result.rows[0];
+      };
+      const grant = await permission('identify material', M);
+      expect(await reserveWith(job.operationIds[0], grant, 'identify material')).toMatchObject({outcome: 'reserved'});
+      expect(await reserveWith(job.operationIds[1], grant, 'different purpose')).toMatchObject({outcome: 'permission_required', reservation_id: null});
+
+      const lowGrant = await permission('identify material', 1);
+      expect(await reserveWith(job.operationIds[1], lowGrant, 'identify material')).toMatchObject({outcome: 'maximum_exceeded', reservation_id: null});
+      await client.query(`select api.revoke_provider_permission($1,$2,$3,$4)`, [owner.accountId, projectId, job.jobId, lowGrant]);
+      expect(await reserveWith(job.operationIds[1], lowGrant, 'identify material')).toMatchObject({outcome: 'permission_required', reservation_id: null});
     });
   });
 });
