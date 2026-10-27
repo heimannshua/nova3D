@@ -20,3 +20,10 @@ playwright-report/
 .bmad-loop/cache/
 .bmad-loop/policy.toml
 _bmad/render/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
+*.gate.lock*

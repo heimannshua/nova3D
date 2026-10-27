@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "nova3D",
+  "project_id": "fa6cd66d-76fe-4846-9b10-eed975d0daed"
+}
