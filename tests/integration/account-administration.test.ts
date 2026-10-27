@@ -931,7 +931,7 @@ describe('the preflight probes the Story 1.5 functions and the privilege to end 
   it('fails when the role it runs as may read every table but not end Auth sessions, and says so', async () => {
     await inTx(async (client) => {
       // (`artifacts` since Story 1.12: the preflight reads its tables, its two views, and looks for its function by name.)
-      await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage, jobs to anon');
+      await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage, jobs, provider_private to anon');
       await client.query('grant create on schema api to anon');
       for (const table of [
         'identity.session_grants',
@@ -974,6 +974,8 @@ describe('the preflight probes the Story 1.5 functions and the privilege to end 
         'jobs.steps',
         'jobs.operations',
         'jobs.commands',
+        // Story 2.5: the preflight also reads the provider permissions table (schema provider_private), before the privilege checks.
+        'provider_private.permissions',
         'auth.sessions',
         'auth.identities',
         'auth.mfa_amr_claims',

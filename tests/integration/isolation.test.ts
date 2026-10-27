@@ -231,6 +231,19 @@ describe('through the REST API', () => {
       p_model: 'isolation', p_api_version: '1', p_request_bytes: 100, p_image_count: 0, p_output_limit: 100, p_options: {},
     },
     settle_cost: {p_account_id: victim.accountId, p_command_id: randomUUID(), p_operation_id: randomUUID(), p_classification: 'unused', p_input_tokens: null, p_output_tokens: null, p_returned_model: null},
+    // Story 2.5: the three functions behind provider permissions (grant, read, revoke) and the permissioned form of reserve_cost (the `#` names the overload: PostgREST picks it
+    // by its argument names), with the other Account's IDs.
+    grant_provider_permission: {
+      p_account_id: victim.accountId, p_project_id: randomUUID(), p_job_id: randomUUID(), p_category: 'research_search', p_provider: 'brave', p_purpose: 'isolation',
+      p_outbound_data: ['normalized_public_subject'], p_disclosed_maximum_microdollars: 1,
+    },
+    get_provider_permission: {p_account_id: victim.accountId, p_project_id: randomUUID(), p_job_id: randomUUID(), p_category: 'research_search', p_provider: 'brave'},
+    revoke_provider_permission: {p_account_id: victim.accountId, p_project_id: randomUUID(), p_job_id: randomUUID(), p_permission_id: randomUUID()},
+    'reserve_cost#permissioned': {
+      p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_operation_id: randomUUID(), p_rate_schedule_id: randomUUID(), p_provider: 'brave',
+      p_model: 'isolation', p_api_version: '1', p_request_bytes: 100, p_image_count: 0, p_output_limit: 100, p_options: {}, p_permission_id: randomUUID(),
+      p_project_id: randomUUID(), p_job_id: randomUUID(), p_category: 'research_search', p_purpose: 'isolation', p_outbound_data: ['normalized_public_subject'],
+    },
     resolve_alarm: {p_condition: 'isolation-test', p_subject: null},
     release_staged_pictures: {p_account_id: victim.accountId, p_epoch: 1, p_upload_ids: [randomUUID()]},
     rename_project: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_project_id: randomUUID(), p_expected_revision: 1, p_title: 'Renamed by another Account'},
@@ -249,8 +262,9 @@ describe('through the REST API', () => {
   });
 
   it('has a request body here for every function of the api schema, so a function added later is tried too', async () => {
+    // On purpose changed (Story 2.5): reserve_cost has two overloads, so a name can appear twice in the catalog and twice here (`name#overload`); each name is tried once per overload.
     const {rows} = await db.query(`select p.proname as name from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'api' order by 1`);
-    expect(Object.keys(bodiesAgainst(b)).sort()).toEqual(rows.map((row) => row.name));
+    expect(Object.keys(bodiesAgainst(b)).map((key) => key.split('#')[0]).sort()).toEqual(rows.map((row) => row.name));
   });
 
   it('refuses every api function to the other Account\'s token and to anon, even with the other Account\'s IDs, with a database permission error and no data', async () => {
@@ -258,7 +272,7 @@ describe('through the REST API', () => {
     for (const [attacker, victim] of [[a, b], [b, a]] as const) {
       for (const [label, token] of [['the other Account\'s token', tokenFor(attacker)], ['an anon token', tokenFor(null, 'anon')], ['the anon key', stack.anonKey]] as const) {
         for (const [name, body] of Object.entries(bodiesAgainst(victim))) {
-          const response = await rpc(token, name, body);
+          const response = await rpc(token, name.split('#')[0], body);
           const text = await response.text();
           expect(response.status, `${label} calls api.${name}`).toBeGreaterThanOrEqual(401);
           expect(response.status).toBeLessThan(500);

@@ -1780,7 +1780,8 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
     expect(check).toBeGreaterThan(-1);
     // On purpose changed (Story 2.11): forty-seven since it added the six functions of the Job records (it was forty-one after the three functions of the usage limits).
     // On purpose changed (Story 2.6): fifty since it added the three functions of the cost reservations (it was forty-seven after the six functions of the Job records).
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(50);
+    // On purpose changed (Story 2.5): fifty-four since it added the grant, the read and the revoke of the provider permissions and the permissioned reserve_cost (it was fifty after the three functions of the cost reservations).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(54);
     for (const signature of ['api.revoke_service_key(text,text,text)', 'api.list_expired_staging(integer)']) {
       expect((await db.query(`select has_function_privilege('service_role', $1, 'execute') as can`, [signature])).rows[0].can).toBe(true);
     }
@@ -1842,15 +1843,16 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
   it.each(['artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures'])(
     'fails, naming a permission and not answering ok, when the role it runs as cannot read %s',
     async (blocked) => {
+      // On purpose changed (Story 2.5): the preflight also reads provider_private.permissions, so the probe role gets that schema and that table too.
       const everything = [
         'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
         'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
         'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
-        'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands',
+        'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', 'provider_private.permissions', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands',
         'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
       ];
       await inTx(async (client) => {
-        await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage, jobs to anon');
+        await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage, jobs, provider_private to anon');
         await client.query('grant create on schema api to anon');
         for (const table of everything.filter((name) => name !== blocked)) await client.query(`grant select on ${table} to anon`);
         await client.query('alter function api.preflight() owner to anon');
@@ -1884,17 +1886,18 @@ describe('the preflight carries every earlier probe and the new ones (Story 1.12
         return {ok: false as const, message: (error as Error).message, code: (error as {code?: string}).code};
       }
     };
+    // On purpose changed (Story 2.5): the preflight also reads provider_private.permissions, so the probe role gets that schema and that table too.
     const tables = [
       'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
       'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
-      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands',
+      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', 'provider_private.permissions', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
     ];
     await admin.query('begin');
     try {
       await admin.query('create role preflight_probe_bucket nologin');
-      await admin.query('grant usage on schema api, identity, projects, lifecycle, auth, artifacts, usage, jobs, storage to preflight_probe_bucket');
+      await admin.query('grant usage on schema api, identity, projects, lifecycle, auth, artifacts, usage, jobs, provider_private, storage to preflight_probe_bucket');
       await admin.query('grant create on schema api to preflight_probe_bucket');
       for (const table of tables) await admin.query(`grant select on ${table} to preflight_probe_bucket`);
       await admin.query('grant select on storage.buckets to preflight_probe_bucket');

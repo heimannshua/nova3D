@@ -26,4 +26,30 @@ describe('persisted provider permission decoding', () => {
     const {createPermissionStore} = await import('@/lib/providers/permissions');
     await expect(createPermissionStore().get({accountId: valid.account_id, projectId: valid.project_id, jobId: valid.job_id, category: 'research_search', provider: 'brave'})).rejects.toThrow('unexpected');
   });
+
+  it('maps grant, empty lookup, and revoke arguments at the store boundary', async () => {
+    callApi.mockResolvedValue([valid]);
+    callRow.mockResolvedValue({revoked: true});
+    const {createPermissionStore} = await import('@/lib/providers/permissions');
+    const store = createPermissionStore();
+    await store.grant({accountId: valid.account_id, projectId: valid.project_id, jobId: valid.job_id, category: 'research_search', provider: 'brave', purpose: valid.purpose, outboundData: ['normalized_public_subject'], disclosedMaximumMicrodollars: 100_000});
+    expect(callApi).toHaveBeenCalledWith('grant_provider_permission', expect.objectContaining({p_account_id: valid.account_id, p_project_id: valid.project_id, p_job_id: valid.job_id, p_category: 'research_search', p_provider: 'brave', p_purpose: valid.purpose, p_outbound_data: ['normalized_public_subject'], p_disclosed_maximum_microdollars: 100_000}), {});
+    callApi.mockResolvedValueOnce([]);
+    expect(await store.get({accountId: valid.account_id, projectId: valid.project_id, jobId: valid.job_id, category: 'research_search', provider: 'brave'})).toBeNull();
+    expect(await store.revoke({accountId: valid.account_id, projectId: valid.project_id, jobId: valid.job_id, permissionId: valid.id})).toBe(true);
+    expect(callRow).toHaveBeenCalledWith('revoke_provider_permission', {p_account_id: valid.account_id, p_project_id: valid.project_id, p_job_id: valid.job_id, p_permission_id: valid.id}, {});
+  });
+
+  it('rejects an empty grant result', async () => {
+    const result: unknown[] = [];
+    callApi.mockResolvedValue(result);
+    const {createPermissionStore} = await import('@/lib/providers/permissions');
+    await expect(createPermissionStore().grant({accountId: valid.account_id, projectId: valid.project_id, jobId: valid.job_id, category: 'research_search', provider: 'brave', purpose: valid.purpose, outboundData: ['normalized_public_subject'], disclosedMaximumMicrodollars: 100_000})).rejects.toThrow('unexpected');
+  });
+
+  it.each([{}, {revoked: 'yes'}])('rejects malformed revoke results %o', async (result) => {
+    callRow.mockResolvedValue(result);
+    const {createPermissionStore} = await import('@/lib/providers/permissions');
+    await expect(createPermissionStore().revoke({accountId: valid.account_id, projectId: valid.project_id, jobId: valid.job_id, permissionId: valid.id})).rejects.toThrow('unexpected');
+  });
 });

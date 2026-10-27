@@ -401,6 +401,14 @@ describe('reserveCost', () => {
     expect(await reserveCost(operation, {...input, permission}, fake({outcome: 'maximum_exceeded'}).options)).toEqual({outcome: 'maximum_exceeded'});
   });
 
+  it('refuses a grant for another provider than the request is quoted for, before asking, rather than letting the grant\'s provider override the calculation\'s', async () => {
+    const permission = {permissionId: PERIOD, provider: 'brave' as const, projectId: JOB, jobId: OPERATION, category: 'research_search' as const,
+      purpose: 'search the web', outboundData: ['confirmed_project_scope']};
+    const {fetch, options} = fake(reservationFields());
+    await expect(reserveCost(operation, {...input, permission}, options)).rejects.toThrow(new TypeError('permission.provider must be the provider of the request'));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('sends the options it was given, and sends no request count (an operation is exactly one provider request)', async () => {
     const {sent, options} = fake(reservationFields());
     await reserveCost(operation, {...input, options: {speed: 'fast'}}, options);

@@ -110,6 +110,8 @@ export async function removeAccountData(client: Client, data: CommittedData) {
     // The Usage ledgers (Story 2.6) reference the Job records, the periods and the Account with ON DELETE RESTRICT, so they go first, children before parents:
     // incidents, settlements, reservations and the receipts of their commands. (The fixture rate schedules the ledger helper makes are global: any that no reservation
     // uses any longer goes with them.)
+    // The provider permissions (Story 2.5) refer to no table, so nothing removes them with their Account: a delete is the one thing their guard allows.
+    await client.query(`delete from provider_private.permissions where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from usage.overrun_incidents where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from usage.settlements where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from usage.reservations where account_id in ${accounts}`, [data.users]);

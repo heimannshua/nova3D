@@ -1210,6 +1210,8 @@ describe('the preflight', () => {
     'jobs.steps',
     'jobs.operations',
     'jobs.commands',
+    // Story 2.5: the preflight also reads the provider permissions table (schema provider_private), before the privilege checks.
+    'provider_private.permissions',
     'auth.sessions',
     'auth.identities',
     'auth.mfa_amr_claims',
@@ -1220,7 +1222,7 @@ describe('the preflight', () => {
   // and see what the preflight says. (Everything granted here is undone with the transaction.)
   async function ownedByRoleThatCanRead(client: Client, readable: string[]) {
     // (`artifacts` since Story 1.12: the preflight reads its tables and looks for its function by name.)
-    await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage, jobs to anon');
+    await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage, jobs, provider_private to anon');
     await client.query('grant create on schema api to anon');
     for (const table of readable) await client.query(`grant select on ${table} to anon`);
     await client.query('alter function api.preflight() owner to anon');

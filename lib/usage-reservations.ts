@@ -380,6 +380,8 @@ export async function reserveCost(
   options: AccountsOptions = {},
 ): Promise<CostReservation | PermissionAdmissionResult> {
   const operationId = requireUuid('operationId', input.operationId);
+  // The grant is for one provider; the quote is for the provider of the request. They must be the same one, or the permission binding would override the calculation's.
+  if (input.permission && input.permission.provider !== input.provider) throw new TypeError('permission.provider must be the provider of the request');
   const args = {
       p_account_id: requireOperation(operation),
       p_epoch: operation.epoch,

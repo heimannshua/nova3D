@@ -1011,7 +1011,8 @@ describe('Projects (Story 1.7) are read and renamed through the typed calls, for
 
   it('lists, reads and renames from lib/projects.ts and the few places that need it: the page loaders, the resolver, the one Server Action', () => {
     expect(callers('listProjects')).toEqual(['lib/project-pages.ts', 'lib/projects.ts']);
-    expect(callers('readProject')).toEqual(['lib/project-pages.ts', 'lib/project-target.ts', 'lib/projects.ts']);
+    // On purpose changed (Story 2.5): the provider-permissions Server Action reads the Project before it grants or revokes, so it is a fourth reader of the typed call.
+    expect(callers('readProject')).toEqual(['app/projects/[projectId]/provider-permissions/actions.ts', 'lib/project-pages.ts', 'lib/project-target.ts', 'lib/projects.ts']);
     expect(callers('renameProjectCommand')).toEqual([actions, 'lib/projects.ts']);
   });
 
@@ -1035,7 +1036,8 @@ describe('Projects (Story 1.7) are read and renamed through the typed calls, for
     // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
     // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
     // On purpose changed (Story 2.6): lib/usage-reservations.ts is the sixth, and the only caller of the three cost functions.
-    expect(users).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.5): lib/providers/permissions.ts is the seventh, and the only caller of the three provider-permission functions.
+    expect(users).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/providers/permissions.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
   });
 
   it('is one Server Action behind withActiveAccount, with the Account from the verified access and nothing about it from the form', () => {
@@ -2251,7 +2253,8 @@ describe('Request revisions (Story 2.1) are created and read through two typed c
     expect(callers('readProjectRequest')).toEqual(['lib/project-pages.ts', 'lib/projects.ts']);
     // The Project typed calls did not move.
     expect(callers('renameProjectCommand')).toEqual(['app/projects/actions.ts', 'lib/projects.ts']);
-    expect(callers('readProject')).toEqual(['lib/project-pages.ts', 'lib/project-target.ts', 'lib/projects.ts']);
+    // On purpose changed (Story 2.5): the provider-permissions Server Action is a fourth reader of readProject (see the Story 1.7 block).
+    expect(callers('readProject')).toEqual(['app/projects/[projectId]/provider-permissions/actions.ts', 'lib/project-pages.ts', 'lib/project-target.ts', 'lib/projects.ts']);
   });
 
   it('has no page or component call a typed call or the database, and keeps the database functions behind the typed calls', () => {
@@ -2267,7 +2270,8 @@ describe('Request revisions (Story 2.1) are created and read through two typed c
     // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
     // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
     // On purpose changed (Story 2.6): lib/usage-reservations.ts is the sixth, and the only caller of the three cost functions.
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.5): lib/providers/permissions.ts is the seventh, and the only caller of the three provider-permission functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/providers/permissions.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
   });
 
   it('is two Server Actions behind withActiveAccount in their own file, with the Account from the verified access and nothing about it from the form', () => {
@@ -2359,7 +2363,8 @@ describe('Request revisions (Story 2.1) are created and read through two typed c
 
   it('adds no dependency, no environment variable and no secret', () => {
     const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>; devDependencies: Record<string, string>};
-    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+    // On purpose changed (Story 2.5): sharp is a direct dependency, imported by lib/provider-image.ts alone (the server-side provider image derivative); nothing else is added.
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom', 'sharp']);
     expect(Object.keys(manifest.devDependencies).sort()).toEqual(['@axe-core/playwright', '@playwright/test', '@tailwindcss/postcss', '@types/node', '@types/pg', '@types/react', '@types/react-dom', 'bmad-method', 'eslint', 'eslint-config-next', 'tailwindcss', 'typescript', 'vite', 'vitest', 'yaml']);
   });
 
@@ -2592,7 +2597,8 @@ describe('Picture sets (Story 2.2) are recorded through two typed calls, by two 
     // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
     // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
     // On purpose changed (Story 2.6): lib/usage-reservations.ts is the sixth, and the only caller of the three cost functions.
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.5): lib/providers/permissions.ts is the seventh, and the only caller of the three provider-permission functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/providers/permissions.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
   });
 
   it('is two Server Actions behind withActiveAccount in a file of their own, with the Account from the verified access and only a command, a Project and uploads from the form', () => {
@@ -2791,7 +2797,8 @@ describe('Picture sets (Story 2.2) are recorded through two typed calls, by two 
 
   it('adds no dependency', () => {
     const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>; devDependencies: Record<string, string>};
-    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+    // On purpose changed (Story 2.5): sharp is a direct dependency, imported by lib/provider-image.ts alone (the server-side provider image derivative); nothing else is added.
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom', 'sharp']);
     expect(Object.keys(manifest.devDependencies).sort()).toEqual(['@axe-core/playwright', '@playwright/test', '@tailwindcss/postcss', '@types/node', '@types/pg', '@types/react', '@types/react-dom', 'bmad-method', 'eslint', 'eslint-config-next', 'tailwindcss', 'typescript', 'vite', 'vitest', 'yaml']);
   });
 
@@ -2966,7 +2973,8 @@ describe('Picture review (Story 2.3) is recorded through one typed call, by one 
     // On purpose changed (Story 2.4): lib/usage.ts is the fourth user of the call helpers, and the only caller of the three Usage functions.
     // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
     // On purpose changed (Story 2.6): lib/usage-reservations.ts is the sixth, and the only caller of the three cost functions.
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.5): lib/providers/permissions.ts is the seventh, and the only caller of the three provider-permission functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/providers/permissions.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
     // The Project typed calls did not move.
     expect(callers('recordPictureSet')).toEqual(['app/projects/new/pictures/actions.ts', 'lib/projects.ts']);
     expect(callers('readProjectRequest')).toEqual(['lib/project-pages.ts', 'lib/projects.ts']);
@@ -3144,8 +3152,12 @@ describe('Picture review (Story 2.3) is recorded through one typed call, by one 
     expect(callers('createImageBitmap')).toEqual(['lib/picture-decode.ts']);
     expect(callers('getImageData')).toEqual(['lib/picture-decode.ts']);
     expect(callers('analyze')).toEqual(['lib/picture-decode.ts', 'lib/picture-quality.ts']);
+    // On purpose changed (Story 2.5): the server holds one image library now, sharp, for the transient provider image derivative alone. The files above (every page, action and the picture code) still hold none;
+    // the derivative builder is the one place that names it, and it measures nothing the browser decided.
+    expect(callers('sharp')).toEqual(['lib/provider-image.ts']);
     const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>; devDependencies: Record<string, string>};
-    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+    // On purpose changed (Story 2.5): sharp is a direct dependency, imported by lib/provider-image.ts alone (the server-side provider image derivative); nothing else is added.
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom', 'sharp']);
   });
 
   it('asks for the camera nowhere in the review, and reads no environment variable, adds no route, header or secret', () => {
@@ -3446,7 +3458,8 @@ describe('Retaining the confirmed pictures (Story 2.12) is one module, before th
 
   it('uses no new dependency, variable or secret, and no CSP or header policy', () => {
     const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>; devDependencies: Record<string, string>};
-    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+    // On purpose changed (Story 2.5): sharp is a direct dependency, imported by lib/provider-image.ts alone (the server-side provider image derivative); nothing else is added.
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom', 'sharp']);
     expect(read('next.config.ts')).not.toMatch(/Content-Security-Policy|Permissions-Policy|headers\(/);
   });
 });
@@ -3670,7 +3683,8 @@ describe('Usage limits (Story 2.4) are changed through one typed module and one 
       'app/auth/callback/route.ts',
     ]);
     const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>};
-    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+    // On purpose changed (Story 2.5): sharp is a direct dependency, imported by lib/provider-image.ts alone (the server-side provider image derivative); nothing else is added.
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom', 'sharp']);
     for (const file of ['lib/usage.ts', 'lib/usage-view.ts', actions, page, ...browserPieces]) expect(code(file), file).not.toMatch(/process\.env/);
     // Usage is not on the Accounts list and Account disable is untouched.
     expect(code('lib/account-admin.ts')).not.toMatch(/usage/i);
@@ -3749,10 +3763,14 @@ describe('Job records (Story 2.11) are written by six commands and read through 
   });
 
   it('has no caller yet, as lib/project-target.ts has none: Stories 2.6 to 2.8 are the first', () => {
-    for (const name of ['acceptJob', 'beginStep', 'advanceOperation', 'moveAttempt', 'requestRetry', 'readJob']) expect(callers(name), name).toEqual([moduleFile]);
+    // On purpose changed (Story 2.5): the provider-permissions Server Action is the one caller, and of readJob alone: it checks that the Job is the Project's and not finished before it grants or revokes a consent.
+    // The five commands that write a Job, and isChargeable, still have no caller outside the module.
+    const permissionsAction = 'app/projects/[projectId]/provider-permissions/actions.ts';
+    for (const name of ['acceptJob', 'beginStep', 'advanceOperation', 'moveAttempt', 'requestRetry']) expect(callers(name), name).toEqual([moduleFile]);
+    expect(callers('readJob')).toEqual([permissionsAction, moduleFile]);
     expect(callers('isChargeable')).toEqual([moduleFile]);
-    // Nothing in the application, not even a page or a component, imports the module.
-    expect(sources.filter((file) => file !== moduleFile && /lib\/job-records|\.\/job-records/.test(code(file)))).toEqual([]);
+    // Nothing else in the application, not even a page or a component, imports the module.
+    expect(sources.filter((file) => file !== moduleFile && /lib\/job-records|\.\/job-records/.test(code(file)))).toEqual([permissionsAction]);
   });
 
   it('names no tombstone, reads no environment, prints nothing and imports only the call helpers and the Operation type', () => {
@@ -4041,7 +4059,8 @@ describe('Job records (Story 2.11) are written by six commands and read through 
       'app/auth/callback/route.ts',
     ]);
     const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>};
-    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+    // On purpose changed (Story 2.5): sharp is a direct dependency, imported by lib/provider-image.ts alone (the server-side provider image derivative); nothing else is added.
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom', 'sharp']);
     // No page, action or component names a Job record, and `lib/i18n` has no copy for one.
     for (const file of sources.filter((candidate) => candidate.startsWith('app/') || candidate.startsWith('components/') || candidate.startsWith('lib/i18n'))) {
       expect(code(file), file).not.toMatch(/awaiting_reconciliation|awaiting_dispatch|\bjobs\.(?:jobs|attempts|steps|operations|commands)\b/);
@@ -4568,7 +4587,8 @@ describe('Usage reservations (Story 2.6) are quoted, reserved and settled by thr
       'app/auth/callback/route.ts',
     ]);
     const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>};
-    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom']);
+    // On purpose changed (Story 2.5): sharp is a direct dependency, imported by lib/provider-image.ts alone (the server-side provider image derivative); nothing else is added.
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom', 'sharp']);
     // No page, action or component names a ledger, and `lib/i18n` has no copy for one.
     for (const file of sources.filter((candidate) => candidate.startsWith('app/') || candidate.startsWith('components/') || candidate.startsWith('lib/i18n'))) {
       expect(code(file), file).not.toMatch(/usage-reservations|reserveCost|settleCost|quoteCost|\busage\.(?:rate_schedules|reservations|settlements|overrun_incidents|commands)\b|provider_blocked|over_job_cap|over_operation_cap|insufficient_allowance/);
@@ -4602,5 +4622,128 @@ describe('Usage reservations (Story 2.6) are quoted, reserved and settled by thr
     expect(readme.split('\n').find((line) => line.startsWith('| Usage')) ?? '').not.toContain('nothing yet');
     const deferred = read('_bmad-output/implementation-artifacts/deferred-work.md');
     for (const needle of ['Story 2.6 (reserve bounded costs atomically)', 'rate schedule', 'overrun incident', 'canceller', 'Epic 8', '2.14', '2.7', '2.8', '2.5']) expect(deferred, needle).toContain(needle);
+  });
+});
+
+describe('Provider permissions (Story 2.5) are bound to the operation that spends them, in migrations that apply to a fresh database and to one that ran an earlier text', () => {
+  const directory = 'supabase/migrations';
+  const tableFile = '20261025120000_provider_permissions.sql';
+  const revokeFile = '20261027120000_scope_provider_permission_revoke.sql';
+  const bindFile = '20261030120000_bind_provider_permission_to_operation.sql';
+  const reservationsFile = '20261024120000_usage_reservations.sql';
+  const code = (file: string) => read(`${directory}/${file}`).replace(/^\s*--.*$/gm, '');
+  const preflight = (text: string) => text.slice(text.indexOf('create or replace function api.preflight()'), text.indexOf('$$;', text.indexOf('$$', text.indexOf('create or replace function api.preflight()')) + 2));
+  const migrations = readdirSync(join(root, directory)).sort();
+  const bind = code(bindFile);
+
+  it('finds the files it reads, and applies the revoke scope (27) after the table (25) and before the binding (30)', () => {
+    for (const file of [tableFile, revokeFile, bindFile, reservationsFile]) expect(migrations, file).toContain(file);
+    expect(migrations.indexOf(revokeFile)).toBeGreaterThan(migrations.indexOf(tableFile));
+    expect(migrations.indexOf(bindFile)).toBeGreaterThan(migrations.indexOf(revokeFile));
+    // The preflight that the binding re-creates is the newest one before it: no migration between the two re-creates it, so nothing it checks is lost.
+    for (const file of migrations.slice(migrations.indexOf(reservationsFile) + 1, migrations.indexOf(bindFile))) expect(code(file), file).not.toMatch(/create or replace function api\.preflight\(/);
+  });
+
+  it('has the revoke scope (27) drop what an earlier text of the table migration (25) made only `if exists`, and create only `or replace`, so that a fresh database applies it', () => {
+    // On purpose changed (Story 2.5): the drops of the two-argument functions are `if exists`. The committed 25 already makes only the four-argument functions, so on a fresh
+    // database the drops find nothing; a plain drop stopped `supabase db reset` at this file.
+    const revoke = code(revokeFile);
+    const drops = [...revoke.matchAll(/^\s*drop\s[^;]*;/gim)].map((match) => match[0].trim());
+    expect(drops).toEqual(['drop function if exists api.revoke_provider_permission(uuid,uuid);', 'drop function if exists provider_private.revoke_permission(uuid,uuid);']);
+    for (const drop of drops) expect(drop).toMatch(/^drop function if exists /);
+    expect(revoke).not.toMatch(/create function/);
+    expect([...revoke.matchAll(/create or replace function ([a-z_.]+)\(/g)].map((match) => match[1])).toEqual(['provider_private.revoke_permission', 'api.revoke_provider_permission']);
+    expect(revoke).toContain('create or replace function provider_private.revoke_permission(p_account_id uuid, p_project_id uuid, p_job_id uuid, p_permission_id uuid)');
+    expect(revoke).toContain('create or replace function api.revoke_provider_permission(p_account_id uuid, p_project_id uuid, p_job_id uuid, p_permission_id uuid)');
+    expect(code(tableFile)).not.toMatch(/revoke_provider_permission\(p_account_id uuid, p_permission_id uuid\)|revoke_permission\(p_account_id uuid, p_permission_id uuid\)/);
+  });
+
+  it('re-creates the preflight with every earlier probe, the permissions table with its Attempt column, the Story 2.5 functions, and fifty-four functions the service role must execute', () => {
+    const current = preflight(bind);
+    const before = preflight(code(reservationsFile));
+    expect(before.length).toBeGreaterThan(5000);
+    for (const probe of before.match(/perform [^;]+;/g) ?? []) expect(current, probe).toContain(probe);
+    for (const signature of before.match(/'(?:api|usage|identity|lifecycle|artifacts|projects|jobs)\.[a-z_]+\([^']*\)'/g) ?? []) expect(current, signature).toContain(signature);
+    // Every column of the table is read: the ones the table migration made, and the Attempt the binding adds.
+    const definition = code(tableFile);
+    const tableText = definition.slice(definition.indexOf('create table provider_private.permissions ('), definition.indexOf('\n);', definition.indexOf('create table provider_private.permissions (')) + 3);
+    const columns = [...tableText.matchAll(/^  ([a-z_]+) (?:uuid|text|bigint|timestamptz)\b/gm)].map((match) => match[1]);
+    expect(columns).toHaveLength(12);
+    expect([...bind.matchAll(/add column ([a-z_]+)/g)].map((match) => match[1])).toEqual(['attempt_id']);
+    const probe = current.match(/perform ([^;]+) from provider_private\.permissions pp limit 1;/)![1];
+    expect([...probe.matchAll(/pp\.([a-z_]+)/g)].map((match) => match[1]).sort()).toEqual([...columns, 'attempt_id'].sort());
+    // The internal functions behind the four.
+    const block = current.slice(current.indexOf("'api.grant_provider_permission("), current.indexOf('the Story 2.5 migration is not applied'));
+    for (const signature of [
+      'api.grant_provider_permission(uuid,uuid,uuid,text,text,text,text[],bigint)', 'api.get_provider_permission(uuid,uuid,uuid,text,text)', 'api.revoke_provider_permission(uuid,uuid,uuid,uuid)',
+      'api.reserve_cost(uuid,bigint,uuid,uuid,uuid,text,text,text,bigint,integer,integer,jsonb,uuid,uuid,uuid,text,text,text[])',
+      'provider_private.reserve_cost_unchecked(uuid,bigint,uuid,uuid,uuid,text,text,text,bigint,integer,integer,jsonb)', 'provider_private.revoke_permission(uuid,uuid,uuid,uuid)',
+      'provider_private.valid_outbound(text[])', 'provider_private.refusal(text)', 'provider_private.is_permissioned_provider(text)', 'provider_private.stamp_permission()',
+      'provider_private.supersede_permission()', 'provider_private.guard_permission_change()',
+    ]) expect(block, signature).toContain(`'${signature}'`);
+    expect(current).toContain("raise exception 'api.preflight: the Story 2.5 migration is not applied (missing %)', v_missing using errcode = 'N3020';");
+    // The service role must execute fifty-four `api` functions: the fifty before, and the grant, the read, the revoke and the permissioned reserve_cost.
+    const privileges = current.slice(current.lastIndexOf('from unnest(array[', current.indexOf('has_function_privilege')), current.indexOf('has_function_privilege'));
+    const earlier = before.slice(before.lastIndexOf('from unnest(array[', before.indexOf('has_function_privilege')), before.indexOf('has_function_privilege'));
+    expect([...earlier.matchAll(/'api\.[a-z_]+\(/g)]).toHaveLength(50);
+    expect([...privileges.matchAll(/'api\.[a-z_]+\(/g)]).toHaveLength(54);
+    for (const signature of [
+      'api.grant_provider_permission(uuid,uuid,uuid,text,text,text,text[],bigint)', 'api.get_provider_permission(uuid,uuid,uuid,text,text)', 'api.revoke_provider_permission(uuid,uuid,uuid,uuid)',
+      'api.reserve_cost(uuid,bigint,uuid,uuid,uuid,text,text,text,bigint,integer,integer,jsonb,uuid,uuid,uuid,text,text,text[])',
+    ]) expect(privileges, signature).toContain(`'${signature}'`);
+    // The bucket check stays last, and the file ends by having the Data API reload its schema cache.
+    expect(current.indexOf("b.id = 'private-files'")).toBeGreaterThan(current.indexOf('has_table_privilege'));
+    expect(current.indexOf('v_result.ok := true')).toBeGreaterThan(current.indexOf("b.id = 'private-files'"));
+    expect(bind.trimEnd().endsWith("notify pgrst, 'reload schema';")).toBe(true);
+  });
+
+  it('reserves for a permissioned provider in one order: authority, the operation\'s own Job, the lock, the replay, the live grant, the disclosed maximum, then the reservation', () => {
+    const start = bind.lastIndexOf('create or replace function api.reserve_cost(');
+    const body = bind.slice(start, bind.indexOf('\nend $$;', start));
+    expect(body).toContain('p_permission_id uuid, p_project_id uuid, p_job_id uuid');
+    const positions = [
+      body.indexOf('identity.assert_operation_authority('),
+      body.indexOf("exception when sqlstate 'N3010' then"),
+      body.indexOf('from jobs.operations o'),
+      body.indexOf("pg_advisory_xact_lock(hashtextextended('nova3d:job:'"),
+      body.indexOf('from usage.commands c where c.account_id = p_account_id and c.command_id = p_command_id'),
+      body.indexOf('provider_private.reserve_cost_unchecked('),
+      body.indexOf('from provider_private.permissions p'),
+      body.indexOf('api.quote_cost('),
+      body.indexOf("refusal('maximum_exceeded')"),
+      body.lastIndexOf('provider_private.reserve_cost_unchecked('),
+    ];
+    expect(positions.every((index) => index >= 0), positions.join(',')).toBe(true);
+    expect([...positions].sort((a, b) => a - b), 'the order of the steps').toEqual(positions);
+    expect(new Set(positions).size).toBe(positions.length);
+    // The grant must match on the Attempt, the set of outbound data (both ways) and the live Project; only a quoted price above the maximum is `maximum_exceeded`.
+    for (const needle of ['p.attempt_id = v_attempt_id', 'p.outbound_data @> p_outbound_data and p.outbound_data <@ p_outbound_data', 'pr.deleted_at is null', "v_quote.outcome = 'quoted' and v_quote.microdollars > v_permission.disclosed_maximum_microdollars"]) {
+      expect(body, needle).toContain(needle);
+    }
+    // The generic form refuses a permissioned provider by the request's name and by its rate schedule's, through one gate.
+    const generic = bind.slice(bind.indexOf('create or replace function api.reserve_cost('), start);
+    expect(generic.match(/provider_private\.is_permissioned_provider\(/g)).toHaveLength(2);
+    expect(generic).toContain("return provider_private.refusal('permission_required');");
+  });
+
+  it('guards the grants: stamped once on insert, revoked once and never edited, never emptied', () => {
+    expect(bind).toContain('create trigger provider_permissions_stamp before insert on provider_private.permissions');
+    expect(bind).toContain('create trigger provider_permissions_guard before update on provider_private.permissions');
+    expect(bind).toContain('create trigger provider_permissions_no_truncate before truncate on provider_private.permissions');
+    const guard = bind.slice(bind.indexOf('create function provider_private.guard_permission_change()'), bind.indexOf('create trigger provider_permissions_guard'));
+    expect(guard).toContain("old.revoked_at is null and new.revoked_at is not null");
+    expect(guard).toContain("(to_jsonb(new) - 'revoked_at') = (to_jsonb(old) - 'revoked_at')");
+    expect(guard).toContain("errcode = '55000'");
+    // One clock reading stamps both times, so the seven-day check cannot fail by a microsecond.
+    expect(bind).toContain('alter table provider_private.permissions alter column granted_at drop default, alter column expires_at drop default;');
+    expect(bind.slice(bind.indexOf('create function provider_private.stamp_permission()'), bind.indexOf('create trigger provider_permissions_stamp'))).toContain("new.expires_at := v_now + interval '168 hours';");
+    // Seven days are 168 hours in every time zone, in the stamp and in the constraint that every UPDATE re-checks; and no role needs the table itself.
+    expect(bind).toContain("add constraint provider_permissions_expiry check (expires_at <= granted_at + interval '168 hours');");
+    expect(bind).toContain('revoke all on provider_private.permissions from service_role;');
+    // The migration changes nothing but what it names.
+    expect([...bind.matchAll(/create (?:or replace )?function ([a-z_.]+)\(/g)].map((match) => match[1]).sort()).toEqual([
+      'api.get_provider_permission', 'api.grant_provider_permission', 'api.preflight', 'api.reserve_cost', 'api.reserve_cost',
+      'provider_private.guard_permission_change', 'provider_private.is_permissioned_provider', 'provider_private.refusal', 'provider_private.stamp_permission',
+    ]);
   });
 });

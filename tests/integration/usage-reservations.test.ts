@@ -2294,7 +2294,7 @@ describe('the preflight carries the Story 2.6 tables and functions', () => {
   ];
   const newTables = ['usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands'];
 
-  it('answers ok to the service role, reads the five new tables, no longer reads the stand-in, and looks for the functions (fifty in all)', async () => {
+  it('answers ok to the service role, reads the five new tables, no longer reads the stand-in, and looks for the functions (fifty-four in all)', async () => {
     await inTx(async (client) => {
       expect((await rows(client, 'service_role', 'select ok from api.preflight()'))[0]).toEqual({ok: true});
     });
@@ -2307,7 +2307,8 @@ describe('the preflight carries the Story 2.6 tables and functions', () => {
     expect(definition).not.toContain('fixture_figures');
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(50);
+    // On purpose changed (Story 2.5): fifty-four since it added the grant, the read and the revoke of the provider permissions and the permissioned reserve_cost (it was fifty after the three functions of the cost reservations).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(54);
     for (const signature of apiSignatures) expect(executable, signature).toContain(`'${signature}'`);
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));
   });
@@ -2338,16 +2339,17 @@ describe('the preflight carries the Story 2.6 tables and functions', () => {
     });
   });
 
-  it.each(newTables)('fails, naming a permission and not answering ok, when the role it runs as cannot read %s', async (blocked) => {
+  // On purpose changed (Story 2.5): the provider permissions table (schema provider_private) is probed too, so a role that cannot read it fails the build the same way.
+  it.each([...newTables, 'provider_private.permissions'])('fails, naming a permission and not answering ok, when the role it runs as cannot read %s', async (blocked) => {
     const everything = [
       'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
       'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
-      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', ...newTables,
+      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', ...newTables, 'provider_private.permissions',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
     ];
     await inTx(async (client) => {
-      await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage, jobs to anon');
+      await client.query('grant usage on schema api, identity, projects, lifecycle, artifacts, usage, jobs, provider_private to anon');
       await client.query('grant create on schema api to anon');
       for (const table of everything.filter((name) => name !== blocked)) await client.query(`grant select on ${table} to anon`);
       await client.query('alter function api.preflight() owner to anon');
@@ -2376,24 +2378,94 @@ describe('Story 2.5 permission-aware atomic admission', () => {
           `select api.grant_provider_permission($1,$2,$3,'synthesis_vision','anthropic',$4,$5::text[],$6::bigint) as value`,
           [owner.accountId, projectId, job.jobId, purpose, ['confirmed_project_scope'], maximum],
         );
+        // A grant that was not made would make every refusal below pass for the wrong reason.
+        expect(result.rows[0]?.value?.id, 'the grant was made').toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
         return result.rows[0]?.value?.id as string;
       };
-      const reserveWith = async (operationId: string, permissionId: string, purpose: string) => {
+      const reserveWith = async (operationId: string, permissionId: string, purpose: string, selectedProjectId = projectId, selectedJobId = job.jobId) => {
         const result = await client.query(
           `select outcome, reservation_id from api.reserve_cost($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
-          [owner.accountId, owner.epoch, randomUUID(), operationId, rate.id, rate.provider, rate.model, rate.apiVersion, 100, 0, 100, '{}', permissionId, projectId, job.jobId, 'synthesis_vision', purpose, ['confirmed_project_scope']],
+          [owner.accountId, owner.epoch, randomUUID(), operationId, rate.id, rate.provider, rate.model, rate.apiVersion, 100, 0, 100, '{}', permissionId, selectedProjectId, selectedJobId, 'synthesis_vision', purpose, ['confirmed_project_scope']],
         );
         return result.rows[0];
       };
       const grant = await permission('identify material', M);
       expect(await reserveWith(job.operationIds[0], grant, 'identify material')).toMatchObject({outcome: 'reserved'});
+      const beforeMismatches = await count(client, 'select count(*) from usage.reservations where account_id = $1', [owner.accountId]);
       expect(await reserveWith(job.operationIds[1], grant, 'different purpose')).toMatchObject({outcome: 'permission_required', reservation_id: null});
+      const otherProjectId = await project(client, owner);
+      const scopeJob = await ledgerJob(client, owner.accountId, 1, otherProjectId);
+      expect(await reserveWith(scopeJob.operationIds[0], grant, 'identify material')).toMatchObject({outcome: 'permission_required', reservation_id: null});
+      expect(await reserveWith(job.operationIds[1], grant, 'identify material', otherProjectId)).toMatchObject({outcome: 'permission_required', reservation_id: null});
+      expect(await count(client, 'select count(*) from usage.reservations where account_id = $1', [owner.accountId])).toBe(beforeMismatches);
 
       const lowGrant = await permission('identify material', 1);
       expect(await reserveWith(job.operationIds[1], lowGrant, 'identify material')).toMatchObject({outcome: 'maximum_exceeded', reservation_id: null});
       await client.query(`select api.revoke_provider_permission($1,$2,$3,$4)`, [owner.accountId, projectId, job.jobId, lowGrant]);
       expect(await reserveWith(job.operationIds[1], lowGrant, 'identify material')).toMatchObject({outcome: 'permission_required', reservation_id: null});
+
+      const expired = await permission('identify material', M);
+      // On purpose changed (Story 2.5): the update guard now refuses any edit of a grant but its revocation, so ageing a grant needs the guard off, inside this rolled-back transaction only.
+      await client.query('alter table provider_private.permissions disable trigger provider_permissions_guard');
+      await client.query(`update provider_private.permissions set expires_at = clock_timestamp() - interval '1 second' where id = $1`, [expired]);
+      await client.query('alter table provider_private.permissions enable trigger provider_permissions_guard');
+      expect(await reserveWith(job.operationIds[1], expired, 'identify material')).toMatchObject({outcome: 'permission_required', reservation_id: null});
+      const terminal = await permission('identify material', M);
+      await client.query(`update jobs.attempts set state = 'completed', ended_at = clock_timestamp() where id = $1`, [job.attemptId]);
+      expect(await reserveWith(job.operationIds[1], terminal, 'identify material')).toMatchObject({outcome: 'permission_required', reservation_id: null});
     });
+  });
+
+  it('serializes permission replacement and Job termination against admission on separate connections', async () => {
+    const owner = await committedAccount();
+    await allowance(db, owner.accountId, 10 * M);
+    const projectId = await project(db, owner);
+    const job = await ledgerJob(db, owner.accountId, 3, projectId);
+    const rate = await schedule(db, {provider: 'anthropic', model: `claude-${tag}-${++sequence}`});
+    const grant = async () => {
+      const {rows: made} = await db.query(
+        `select api.grant_provider_permission($1,$2,$3,'synthesis_vision','anthropic','identify material',array['confirmed_project_scope']::text[],$4::bigint) as value`,
+        [owner.accountId, projectId, job.jobId, M],
+      );
+      return made[0].value.id as string;
+    };
+    const reserveWith = async (client: Client, operationId: string, permissionId: string) => (await client.query(
+      `select outcome, reservation_id from api.reserve_cost($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+      [owner.accountId, owner.epoch, randomUUID(), operationId, rate.id, rate.provider, rate.model, rate.apiVersion, 100, 0, 100, '{}', permissionId, projectId, job.jobId, 'synthesis_vision', 'identify material', ['confirmed_project_scope']],
+    )).rows[0];
+    const moveToFailed = async (client: Client) => (await client.query(
+      `select outcome, state from api.move_attempt($1,$2,$3,$4,'failed','step_failed')`,
+      [owner.accountId, owner.epoch, randomUUID(), job.attemptId],
+    )).rows[0];
+    const original = await grant();
+    const holder = await connect();
+    const replacer = await connect();
+    try {
+      await holder.query('begin');
+      expect(await reserveWith(holder, job.operationIds[0], original)).toMatchObject({outcome: 'reserved'});
+      const replacerPid = await pidOf(replacer);
+      const replacement = replacer.query(
+        `select api.grant_provider_permission($1,$2,$3,'synthesis_vision','anthropic','identify material',array['confirmed_project_scope']::text[],$4::bigint) as value`,
+        [owner.accountId, projectId, job.jobId, M],
+      );
+      await untilBlocked(replacerPid);
+      await holder.query('commit');
+      const replaced = (await replacement).rows[0].value.id as string;
+      expect(await reserveWith(db, job.operationIds[1], original)).toMatchObject({outcome: 'permission_required', reservation_id: null});
+
+      await holder.query('begin');
+      expect(await reserveWith(holder, job.operationIds[1], replaced)).toMatchObject({outcome: 'reserved'});
+      const moverPid = await pidOf(replacer);
+      const ending = moveToFailed(replacer);
+      await untilBlocked(moverPid);
+      await holder.query('commit');
+      expect(await ending).toMatchObject({outcome: 'moved', state: 'failed'});
+      expect(await reserveWith(db, job.operationIds[2], replaced)).toMatchObject({outcome: 'permission_required', reservation_id: null});
+    } finally {
+      await holder.query('rollback').catch(() => undefined);
+      await holder.end();
+      await replacer.end();
+    }
   });
 });
 

@@ -1670,7 +1670,8 @@ describe('the preflight carries the Story 2.4 tables and functions', () => {
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
     // On purpose changed (Story 2.6): fifty since it added the three functions of the cost reservations (it was forty-seven after the six functions of the Job records).
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(50);
+    // On purpose changed (Story 2.5): fifty-four since it added the grant, the read and the revoke of the provider permissions and the permissioned reserve_cost (it was fifty after the three functions of the cost reservations).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(54);
     for (const signature of apiSignatures) expect(executable, signature).toContain(`'${signature}'`);
     // The bucket check stays last.
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));

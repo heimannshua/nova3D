@@ -30,7 +30,7 @@ export function PaidPermissionPanel({provider, purpose, data, retention, maximum
       <div><dt>Purpose</dt><dd>{purpose}</dd></div>
       <div><dt>Data sent</dt><dd>{data.join(', ')}</dd></div>
       <div><dt>Retention and deletion</dt><dd>{retention}</dd></div>
-      <div><dt>Maximum charge</dt><dd>{maximum}</dd></div>
+      <div><dt>Highest charge for one request</dt><dd>{maximum}</dd></div>
     </dl>
     <p>Permission is off until you grant it. It applies only to this project and job, and expires when the job ends or after seven days. You can revoke it at any time.</p>
     {error ? <p role="alert">Permission could not be saved. Try again.</p> : null}
