@@ -1,0 +1,16 @@
+project: nova3D
+repository: git@github.com:heimannshua/nova3D.git
+trunk_branch: main
+integration_branch: main
+bead_prefix: nova3D
+coordination_bead: nova3D-cbk
+team_keys:
+  - nova3d
+host_classes:
+  gate: []
+  light:
+    - dev-josh
+admission_caps:
+  memory_floor_gib: 2.0
+  max_runner_online: 8
+  max_creates_per_interval: 1
