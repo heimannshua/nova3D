@@ -2,12 +2,13 @@ import {randomUUID} from 'node:crypto';
 import {describe, expect, it, vi} from 'vitest';
 import {AccountsUnavailableError} from '@/lib/accounts';
 import {GatewayError, GatewayUnavailableError, type GatewayClient} from '@/lib/gateway-client';
-import {configuredLedgerStore, LedgerConflictError, LedgerCorruptError, purgeBatchLimit, relayBatchLimit, relayLeaseSeconds, runTask, stagingCleanupLimit, StagingCleanupIncompleteError, tasks} from '@/lib/job-tasks';
+import {configuredLedgerStore, LedgerConflictError, LedgerCorruptError, OutboxPublishIncompleteError, purgeBatchLimit, relayBatchLimit, relayLeaseSeconds, runTask, stagingCleanupLimit, StagingCleanupIncompleteError, tasks} from '@/lib/job-tasks';
 import {isJobResult} from '@/lib/lifecycle';
 import {verifyChain, type LedgerStore} from '@/lib/ledger';
 import {createFixtureLedgerStore} from '@/lib/ledger-fixture';
 import {scheduledTasks} from '@/lib/schedules';
 import {fakeDatabase as fakeAlarmDatabase, sender as alarmSender} from '../support/alarm-fakes';
+import {fakePublisher} from '../support/job-world';
 
 // The two tasks a schedule fires (Story 1.9, lib/job-tasks.ts) against a stand-in for the database that keeps an outbox and a lease the way
 // api.claim_ledger_events, api.finish_ledger_events and api.ledger_pending do (the real ones are tested in tests/integration/tombstones.test.ts
@@ -421,15 +422,122 @@ describe('alarm-monitor (Story 1.13)', () => {
     database.observed.value.tasks = [];
     database.observed.value.first_receipt_age = 1_000_000;
     const mail = alarmSender();
-    // Three registered tasks are late (the monitor is not one of them): the real registry, the real conditions.
+    // Four registered tasks are late (the monitor is not one of them): the real registry, the real conditions.
     const result = await runTask('alarm-monitor', monitorContext(database, {send: mail.send}));
-    expect(result.result).toMatchObject({raised: 3, mailed: 3});
-    expect(database.alarms.map((alarm) => alarm.subject).sort()).toEqual(['dormant-identity-purge', 'ledger-relay', 'staging-cleanup']);
+    expect(result.result).toMatchObject({raised: 4, mailed: 4});
+    expect(database.alarms.map((alarm) => alarm.subject).sort()).toEqual(['dormant-identity-purge', 'ledger-relay', 'outbox-sweep', 'staging-cleanup']);
     // A registry of one task changes what is late.
     const other = fakeAlarmDatabase();
     other.observed.value.tasks = [];
     other.observed.value.first_receipt_age = 1_000;
     await runTask('alarm-monitor', monitorContext(other, {send: alarmSender().send, registry: [{task: 'outbox-sweep', intervalSeconds: 60}]}));
     expect(other.alarms.map((alarm) => alarm.subject)).toEqual(['outbox-sweep']);
+  });
+});
+
+// outbox-sweep (Story 2.7): the database's sweep, then the publication of the unpublished outbox rows older than 15 seconds. The database is a stand-in that keeps an outbox
+// the way api.claim_outbox and api.mark_published do (the real ones are tested in tests/integration/job-dispatch.test.ts), and the publisher is the queue's stand-in.
+describe('outbox-sweep (Story 2.7)', () => {
+  const row = (index: number) => ({
+    id: `${index}`.padStart(8, '0') + '-0000-4000-8000-000000000000',
+    attempt_id: `${index}`.padStart(8, 'a') + '-0000-4000-8000-000000000000',
+    job_id: `${index}`.padStart(8, 'b') + '-0000-4000-8000-000000000000',
+    kind: 'test_workload',
+    created_at: '2026-10-29T10:00:00.000000+00:00',
+  });
+  function sweepDatabase(unpublished: number, swept = {expired: 0, cancelled: 0, settled: 0}) {
+    const rows = Array.from({length: unpublished}, (_, index) => row(index + 1));
+    const marked: {outbox: string; message: string}[] = [];
+    const claims: Record<string, unknown>[] = [];
+    const fetch = async (input: string, init?: RequestInit): Promise<Response> => {
+      const name = String(input).split('/rpc/')[1];
+      const body = JSON.parse(String(init?.body));
+      if (name === 'sweep_attempts') return json(swept);
+      if (name === 'claim_outbox') {
+        claims.push(body);
+        const leased = rows.filter((item) => !marked.some((m) => m.outbox === item.id)).slice(0, Number(body.p_limit));
+        return json({claimed: leased.length, items: leased});
+      }
+      if (name === 'mark_published') {
+        marked.push({outbox: String(body.p_outbox_id), message: String(body.p_message_id)});
+        return json({outcome: 'marked', message_id: body.p_message_id});
+      }
+      throw new Error(`the test did not expect api.${name}`);
+    };
+    return {fetch, rows, marked, claims};
+  }
+  const sweepContext = (database: {fetch: (input: string, init?: RequestInit) => Promise<Response>}, publishing: ReturnType<ReturnType<typeof fakePublisher>['config']> | null | undefined) => ({
+    instanceId: INSTANCE,
+    accounts: {env, fetch: database.fetch as never},
+    ...(publishing === undefined ? {} : {publishing}),
+  });
+
+  it('is `idle` when there is nothing to end and nothing to publish, and the result is counts only', async () => {
+    const database = sweepDatabase(0);
+    const queue = fakePublisher();
+    const answer = await runTask('outbox-sweep', sweepContext(database, queue.config(INSTANCE)));
+    expect(answer).toEqual({outcome: 'idle', result: {expired: 0, cancelled: 0, settled: 0, claimed: 0, published: 0, publish_failed: 0}});
+    expect(isJobResult(answer.result)).toBe(true);
+    expect(queue.calls).toEqual([]);
+  });
+
+  it('is `ran` when it ended a lease, cancelled an attempt or released a reservation, even with nothing to publish', async () => {
+    const database = sweepDatabase(0, {expired: 1, cancelled: 2, settled: 3});
+    expect(await runTask('outbox-sweep', sweepContext(database, fakePublisher().config(INSTANCE)))).toEqual({
+      outcome: 'ran',
+      result: {expired: 1, cancelled: 2, settled: 3, claimed: 0, published: 0, publish_failed: 0},
+    });
+  });
+
+  it('claims at most 20 rows, publishes each once under its outbox ID, records each message ID and counts them', async () => {
+    const database = sweepDatabase(3);
+    const queue = fakePublisher();
+    const answer = await runTask('outbox-sweep', sweepContext(database, queue.config(INSTANCE)));
+    expect(answer).toEqual({outcome: 'ran', result: {expired: 0, cancelled: 0, settled: 0, claimed: 3, published: 3, publish_failed: 0}});
+    expect(database.claims).toEqual([{p_limit: 20, p_outbox_id: null}]);
+    expect(queue.calls.map((call) => call.deduplicationId)).toEqual(database.rows.map((item) => item.id));
+    expect(queue.calls.map((call) => call.body.attempt)).toEqual(database.rows.map((item) => item.attempt_id));
+    expect(database.marked.map((mark) => mark.outbox)).toEqual(database.rows.map((item) => item.id));
+    expect(database.marked.map((mark) => mark.message)).toEqual(queue.calls.map((call) => call.messageId));
+  });
+
+  it('is `no_store` with no queue configured: the database work is done and the rows are not claimed (claiming them would only hold them for a minute)', async () => {
+    const database = sweepDatabase(2, {expired: 1, cancelled: 0, settled: 0});
+    for (const given of [null, undefined]) {
+      expect(await runTask('outbox-sweep', sweepContext(database, given))).toEqual({
+        outcome: 'no_store',
+        result: {expired: 1, cancelled: 0, settled: 0, claimed: 0, published: 0, publish_failed: 0},
+      });
+    }
+    expect(database.claims).toEqual([]);
+    expect(database.marked).toEqual([]);
+  });
+
+  it('FAILS the run, by class name only, when the queue refuses a publication, after publishing what it could: the row is claimed again after its lease', async () => {
+    const database = sweepDatabase(3);
+    const queue = fakePublisher();
+    queue.failNext(1);
+    const error = await runTask('outbox-sweep', sweepContext(database, queue.config(INSTANCE))).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(OutboxPublishIncompleteError);
+    expect(error).toMatchObject({name: 'OutboxPublishIncompleteError'});
+    expect(/^[A-Z][A-Za-z]{0,47}$/.test((error as Error).name)).toBe(true);
+    // The first was refused, the other two were published, and only those were recorded.
+    expect(queue.asked()).toBe(3);
+    expect(database.marked.map((mark) => mark.outbox)).toEqual([database.rows[1].id, database.rows[2].id]);
+    expect(String((error as Error).message)).not.toMatch(/0000000/);
+  });
+
+  it('throws when the database does not answer the sweep, and publishes nothing', async () => {
+    const queue = fakePublisher();
+    const fetch = async () => json({message: 'down'}, 503);
+    await expect(runTask('outbox-sweep', sweepContext({fetch}, queue.config(INSTANCE)))).rejects.toBeInstanceOf(AccountsUnavailableError);
+    expect(queue.calls).toEqual([]);
+  });
+
+  it('uses the configured queue unless a test gives it one: with nothing configured in the environment it is `no_store`', async () => {
+    const database = sweepDatabase(1);
+    const answer = await runTask('outbox-sweep', {instanceId: INSTANCE, accounts: {env, fetch: database.fetch as never}});
+    expect(answer.outcome).toBe('no_store');
+    expect(database.claims).toEqual([]);
   });
 });

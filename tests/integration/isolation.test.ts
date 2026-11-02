@@ -221,6 +221,27 @@ describe('through the REST API', () => {
     move_attempt: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_attempt_id: randomUUID(), p_to: 'running', p_reason: null},
     request_retry: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_job_id: randomUUID(), p_expected_number: 1, p_input_digest: '0'.repeat(64)},
     read_job: {p_account_id: victim.accountId, p_epoch: 1, p_job_id: randomUUID()},
+    // Story 2.7: the fifteen functions behind durable, fenced Jobs (accept and cancel a Job, list and read Jobs, register a worker, claim an attempt, renew its lease, run its steps,
+    // report its operations, finish it, record a signed worker command, claim and mark the outbox, sweep, cancel an Account's Jobs), with the other Account's IDs.
+    submit_job: {
+      p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_project_id: randomUUID(), p_kind: 'test_workload', p_input_digest: '0'.repeat(64), p_plan: {}, p_worker_version: null,
+    },
+    cancel_job: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_job_id: randomUUID()},
+    list_jobs: {p_account_id: victim.accountId, p_epoch: 1, p_limit: 5},
+    read_job_detail: {p_account_id: victim.accountId, p_epoch: 1, p_job_id: randomUUID()},
+    register_worker: {p_issuer: 'cad-worker', p_worker_kind: 'isolation', p_version: 1, p_image_digest: '0'.repeat(64), p_kinds: ['test_workload']},
+    claim_attempt: {p_attempt_id: randomUUID(), p_worker_id: null, p_issuer: null},
+    renew_lease: {p_attempt_id: randomUUID(), p_fence: randomUUID()},
+    run_step: {p_attempt_id: randomUUID(), p_fence: randomUUID(), p_step_key: 'work', p_ordinal: null},
+    finish_operation: {
+      p_attempt_id: randomUUID(), p_fence: randomUUID(), p_operation_id: randomUUID(), p_outcome: 'noncharge', p_input_tokens: null, p_output_tokens: null, p_returned_model: null, p_request_id: 'isolation',
+    },
+    finish_attempt: {p_attempt_id: randomUUID(), p_fence: randomUUID(), p_to: 'failed', p_result_digest: null, p_revision: null},
+    record_callback: {p_jti: 'AAAAAAAAAAAAAAAAAAAAAA', p_issuer: 'cad-worker', p_kid: 'isolation-test', p_typ: 'worker-command', p_command: 'claim', p_attempt_id: null, p_digest: '0'.repeat(64)},
+    claim_outbox: {p_limit: 1, p_outbox_id: null},
+    mark_published: {p_outbox_id: randomUUID(), p_message_id: 'msg_isolation'},
+    sweep_attempts: {},
+    cancel_account_jobs: {p_account_id: victim.accountId},
     // Story 2.6: the three functions behind the cost reservations (quote what a request may cost, reserve it, settle it), with the other Account's IDs.
     quote_cost: {
       p_account_id: victim.accountId, p_epoch: 1, p_rate_schedule_id: randomUUID(), p_provider: 'isolation', p_model: 'isolation', p_api_version: '1',
@@ -852,10 +873,14 @@ describe('every table of identity, projects, lifecycle, artifacts, usage and job
         'usage.reservations',
         'usage.settlements',
         'jobs.attempts',
+        'jobs.callbacks',
         'jobs.commands',
         'jobs.jobs',
+        'jobs.leases',
         'jobs.operations',
+        'jobs.outbox',
         'jobs.steps',
+        'jobs.workers',
       ]),
     );
   });

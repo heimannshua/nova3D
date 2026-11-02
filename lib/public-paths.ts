@@ -14,7 +14,11 @@
 // /api/heartbeat (Story 1.13) is the second machine path: the Railway cron task posts a signed heartbeat to it (a POST with an `Authorization: Heartbeat <token>`
 // header and no meaningful body), so the same rule holds: no session, no CSRF cookie, no browser Origin check by the proxy, and the signed token, verified by the
 // route (lib/heartbeat.ts), is the only authentication. The route itself refuses a request that carries an `Origin` header, which a worker never sends.
-export const machinePaths = ['/api/jobs', '/api/heartbeat'];
+//
+// /api/dispatch and /api/workers (Story 2.7) are the third and fourth: the queue delivers a dispatch to /api/dispatch (a POST with a body signed by the queue), and a worker posts
+// its signed command to /api/workers (a POST with an `Authorization: Bearer <token>` header). The same rule holds for both: no session, no CSRF cookie, no browser Origin check by
+// the proxy, and the signature or the token, verified by the route (lib/job-dispatch.ts, lib/worker-commands.ts), is the only authentication.
+export const machinePaths = ['/api/jobs', '/api/heartbeat', '/api/dispatch', '/api/workers'];
 export const publicPaths = ['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm', ...machinePaths];
 
 /**

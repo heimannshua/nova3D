@@ -8,8 +8,8 @@ afterEach(() => vi.unstubAllEnvs());
 // The design kit is the only route that is public because of a flag. It lets tests reach the shell
 // without a sign-in, so it must never be public unless synthetic data is on (production forbids that).
 describe('public paths (Story 1.2)', () => {
-  it('keeps the sign-in, callback, health, status, scheduled-job and heartbeat routes public', () => {
-    expect(publicPaths).toEqual(['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm', '/api/jobs', '/api/heartbeat']);
+  it('keeps the sign-in, callback, health, status, scheduled-job, heartbeat, dispatch and worker routes public', () => {
+    expect(publicPaths).toEqual(['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm', '/api/jobs', '/api/heartbeat', '/api/dispatch', '/api/workers']);
     for (const path of publicPaths) expect(isPublicPath(path, {})).toBe(true);
   });
 
@@ -28,7 +28,7 @@ describe('public paths (Story 1.2)', () => {
   });
 
   it('makes the scheduled-job route (Story 1.9) public at its one path, a machine path, and nothing beneath or beside it', () => {
-    expect(machinePaths).toEqual(['/api/jobs', '/api/heartbeat']);
+    expect(machinePaths).toEqual(['/api/jobs', '/api/heartbeat', '/api/dispatch', '/api/workers']);
     expect(isPublicPath('/api/jobs', {})).toBe(true);
     expect(isMachinePath('/api/jobs')).toBe(true);
     for (const path of ['/api/jobs/', '/api/jobs/extra', '/api/job', '/api/Jobs', '/api/jobs.json', '/jobs', '/api', '/api/jobs?x=1']) {
@@ -41,6 +41,24 @@ describe('public paths (Story 1.2)', () => {
     expect(isPublicPath('/api/heartbeat', {})).toBe(true);
     expect(isMachinePath('/api/heartbeat')).toBe(true);
     for (const path of ['/api/heartbeat/', '/api/heartbeat/extra', '/api/heartbeats', '/api/Heartbeat', '/api/heartbeat.json', '/heartbeat', '/api/heartbeat?x=1']) {
+      expect(isPublicPath(path, {SYNTHETIC_DATA_ENABLED: 'true'}), path).toBe(false);
+      expect(isMachinePath(path), path).toBe(false);
+    }
+  });
+
+  it('makes the dispatch route (Story 2.7) public at its one path, the third machine path, and nothing beneath or beside it', () => {
+    expect(isPublicPath('/api/dispatch', {})).toBe(true);
+    expect(isMachinePath('/api/dispatch')).toBe(true);
+    for (const path of ['/api/dispatch/', '/api/dispatch/extra', '/api/dispatches', '/api/Dispatch', '/api/dispatch.json', '/dispatch', '/api/dispatch?x=1']) {
+      expect(isPublicPath(path, {SYNTHETIC_DATA_ENABLED: 'true'}), path).toBe(false);
+      expect(isMachinePath(path), path).toBe(false);
+    }
+  });
+
+  it('makes the worker route (Story 2.7) public at its one path, the fourth machine path, and nothing beneath or beside it', () => {
+    expect(isPublicPath('/api/workers', {})).toBe(true);
+    expect(isMachinePath('/api/workers')).toBe(true);
+    for (const path of ['/api/workers/', '/api/workers/extra', '/api/worker', '/api/Workers', '/api/workers.json', '/workers', '/api/workers?x=1']) {
       expect(isPublicPath(path, {SYNTHETIC_DATA_ENABLED: 'true'}), path).toBe(false);
       expect(isMachinePath(path), path).toBe(false);
     }

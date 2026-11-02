@@ -974,6 +974,11 @@ describe('the preflight probes the Story 1.5 functions and the privilege to end 
         'jobs.steps',
         'jobs.operations',
         'jobs.commands',
+        // Story 2.7: the four tables of the durable dispatch (one more read each, before the privilege checks).
+        'jobs.outbox',
+        'jobs.workers',
+        'jobs.leases',
+        'jobs.callbacks',
         // Story 2.5: the preflight also reads the provider permissions table (schema provider_private), before the privilege checks.
         'provider_private.permissions',
         'auth.sessions',

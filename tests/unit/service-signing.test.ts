@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import {
+  bodyDigest,
   commandClaimsOf,
   commandNames,
   defaultLifetimeSeconds,
@@ -11,6 +12,7 @@ import {
   isTransferTargetKind,
   isUploadTicket,
   isUuid,
+  isWorkerIssuer,
   keySetVariable,
   loadSigner,
   maxLifetimeSeconds,
@@ -24,6 +26,7 @@ import {
   signHeartbeat,
   signToken,
   signTicket,
+  signWorkerCommand,
   signingKeyVariable,
   tokenLabel,
   transferLimits,
@@ -31,12 +34,16 @@ import {
   ticketClaimsOf,
   uploadProblem,
   verifyToken,
+  workerCommandClaimsOf,
+  workerCommandNames,
+  workerIssuers,
   type CommandClaims,
   type ParsedKeySet,
   type Signer,
   type TicketClaims,
   type TokenPayload,
   type VerifyOptions,
+  type WorkerCommandClaims,
 } from '@/lib/service-signing';
 import {testKeyPair, testKeys, testSigner} from '../support/service-keys';
 
@@ -1036,5 +1043,139 @@ describe('heartbeats (Story 1.13)', () => {
     expect((await verifyHeartbeat(value, {keySet: testSigner({issuer: 'application'}).keySet})).ok).toBe(false);
     expect(keySetVariable('heartbeat')).toBe('SERVICE_KEYS_HEARTBEAT');
     expect(signingKeyVariable('heartbeat')).toBe('SERVICE_SIGNING_KEY_HEARTBEAT');
+  });
+});
+
+// Worker commands (Story 2.7). A worker signs as its own issuer (`cad-worker` or `engine-worker`) with its own key, for the application, and the claims it carries are exactly the
+// ones its command needs. The route that verifies them is tested in tests/unit/worker-commands.test.ts; the order of the checks of verifyToken is above.
+describe('worker commands (Story 2.7)', () => {
+  const cad = testSigner({issuer: 'cad-worker', active: 'cad-worker-1'});
+  const engine = testSigner({issuer: 'engine-worker', active: 'engine-worker-1'});
+  const ATTEMPT = 'bb8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6c';
+  const WORKER = '1a8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b61';
+  const FENCE = '2b8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b62';
+  const DIG = bodyDigest('{}');
+  const every: WorkerCommandClaims[] = [
+    {cmd: 'register', dig: DIG},
+    {cmd: 'claim', dig: DIG, att: ATTEMPT, wid: WORKER},
+    {cmd: 'renew', dig: DIG, att: ATTEMPT, fence: FENCE},
+    {cmd: 'step', dig: DIG, att: ATTEMPT, fence: FENCE},
+    {cmd: 'operation', dig: DIG, att: ATTEMPT, fence: FENCE},
+    {cmd: 'finish', dig: DIG, att: ATTEMPT, fence: FENCE, rev: 7},
+  ];
+  const verifyWorker = (value: string, using = cad, change: Partial<VerifyOptions> = {}) =>
+    verifyToken(value, {issuer: using.signer.issuer, audience: 'application', environment: ENV, keySet: using.keySet, now: NOW, type: 'worker-command', ...change});
+  // (Through JSON, as a payload comes out of a token: a member that is undefined is not there.)
+  const payloadOf = (change: Record<string, unknown> = {}) =>
+    JSON.parse(JSON.stringify({iss: 'cad-worker', aud: 'application', env: ENV, jti: newJti(), iat: NOW, exp: NOW + 300, typ: 'worker-command', cmd: 'claim', dig: DIG, att: ATTEMPT, wid: WORKER, ...change})) as TokenPayload;
+
+  it('names the two worker issuers, which are issuers of the contract with key sets of their own, and the six commands', () => {
+    expect([...workerIssuers]).toEqual(['cad-worker', 'engine-worker']);
+    for (const issuer of workerIssuers) {
+      expect(isServiceIssuer(issuer)).toBe(true);
+      expect(isWorkerIssuer(issuer)).toBe(true);
+    }
+    for (const value of ['application', 'gateway', 'heartbeat', 'backup-service', '', 'Cad-Worker', undefined, null, 7]) expect(isWorkerIssuer(value), String(value)).toBe(false);
+    expect([...workerCommandNames]).toEqual(['register', 'claim', 'renew', 'step', 'operation', 'finish']);
+    expect(keySetVariable('cad-worker')).toBe('SERVICE_KEYS_CAD_WORKER');
+    expect(keySetVariable('engine-worker')).toBe('SERVICE_KEYS_ENGINE_WORKER');
+    expect(signingKeyVariable('engine-worker')).toBe('SERVICE_SIGNING_KEY_ENGINE_WORKER');
+  });
+
+  it('digests the raw bytes of a body: the SHA-256 in lower-case hex, the same for the text and for its bytes', () => {
+    expect(bodyDigest('')).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+    expect(bodyDigest('{}')).toBe('44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a');
+    expect(bodyDigest(new TextEncoder().encode('{}'))).toBe(bodyDigest('{}'));
+    expect(bodyDigest('{ }')).not.toBe(bodyDigest('{}'));
+    expect(bodyDigest('é')).toBe(bodyDigest(new Uint8Array([0xc3, 0xa9])));
+  });
+
+  it.each(every.map((claims) => [claims.cmd, claims] as const))('signs %s as the worker, for the application, with exactly the claims of the command, valid for five minutes, and it verifies and reads back', async (_cmd, claims) => {
+    const value = signWorkerCommand(cad.signer, ENV, claims, {now: NOW});
+    const verified = await verifyWorker(value);
+    expect(verified.ok).toBe(true);
+    if (!verified.ok) return;
+    expect(verified.kid).toBe('test-cad-worker-1');
+    expect(verified.payload).toMatchObject({iss: 'cad-worker', aud: 'application', env: ENV, typ: 'worker-command', iat: NOW, exp: NOW + defaultLifetimeSeconds});
+    expect(Object.keys(verified.payload).filter((name) => !['iss', 'aud', 'env', 'jti', 'iat', 'exp', 'typ'].includes(name)).sort()).toEqual(Object.keys(claims).sort());
+    expect(workerCommandClaimsOf(verified.payload)).toEqual(claims);
+  });
+
+  it('signs as either worker with its own key: the engine worker\'s token verifies under the engine key set and under no other', async () => {
+    const value = signWorkerCommand(engine.signer, ENV, every[3], {now: NOW});
+    expect((await verifyWorker(value, engine)).ok).toBe(true);
+    expect((await verifyWorker(value, cad, {issuer: 'engine-worker'})).ok).toBe(false);
+    expect((await verifyWorker(value, cad)).ok).toBe(false);
+    expect(workerCommandClaimsOf((await verifyWorker(value, engine) as {payload: TokenPayload}).payload)).toEqual(every[3]);
+  });
+
+  it('is a different token each time (a fresh jti), and can be signed for less than five minutes, never for more', () => {
+    expect(signWorkerCommand(cad.signer, ENV, every[1], {now: NOW})).not.toBe(signWorkerCommand(cad.signer, ENV, every[1], {now: NOW}));
+    expect(() => signWorkerCommand(cad.signer, ENV, every[1], {now: NOW, lifetimeSeconds: 301})).toThrow(TypeError);
+    expect(() => signWorkerCommand(cad.signer, ENV, every[1], {now: NOW, lifetimeSeconds: 0})).toThrow(TypeError);
+    expect(() => signWorkerCommand(cad.signer, '', every[1], {now: NOW})).toThrow(TypeError);
+    expect(() => signWorkerCommand(cad.signer, ENV, every[1], {now: NOW, lifetimeSeconds: 60})).not.toThrow();
+  });
+
+  it('is signed by a worker alone: the application, the gateway and the heartbeat issuer sign no worker command', () => {
+    for (const issuer of ['application', 'gateway', 'heartbeat'] as const) {
+      expect(() => signWorkerCommand(testSigner({issuer, active: `${issuer}-1`}).signer, ENV, every[0], {now: NOW})).toThrow(TypeError);
+    }
+  });
+
+  it.each([
+    ['an attempt that is not an ID', {cmd: 'renew', dig: DIG, att: 'nope', fence: FENCE}],
+    ['a fence that is not an ID', {cmd: 'renew', dig: DIG, att: ATTEMPT, fence: 'nope'}],
+    ['a worker that is not an ID', {cmd: 'claim', dig: DIG, att: ATTEMPT, wid: 'nope'}],
+    ['a digest in upper case', {cmd: 'register', dig: DIG.toUpperCase()}],
+    ['a digest that is short', {cmd: 'register', dig: 'abc'}],
+    ['a revision of 0', {cmd: 'finish', dig: DIG, att: ATTEMPT, fence: FENCE, rev: 0}],
+    ['a fractional revision', {cmd: 'finish', dig: DIG, att: ATTEMPT, fence: FENCE, rev: 1.5}],
+    ['a finish with no revision', {cmd: 'finish', dig: DIG, att: ATTEMPT, fence: FENCE}],
+    ['a claim with no worker', {cmd: 'claim', dig: DIG, att: ATTEMPT}],
+    ['a renewal with a worker as well', {cmd: 'renew', dig: DIG, att: ATTEMPT, fence: FENCE, wid: WORKER}],
+    ['a registration with an attempt', {cmd: 'register', dig: DIG, att: ATTEMPT}],
+    ['a step with a revision', {cmd: 'step', dig: DIG, att: ATTEMPT, fence: FENCE, rev: 1}],
+    ['an unknown command', {cmd: 'delete', dig: DIG}],
+  ])('refuses to make a token with %s', (_label, claims) => {
+    expect(() => signWorkerCommand(cad.signer, ENV, claims as WorkerCommandClaims, {now: NOW})).toThrow(TypeError);
+  });
+
+  it('reads exactly a worker command: another type, issuer or audience is not one', () => {
+    expect(workerCommandClaimsOf(payloadOf())).toEqual({cmd: 'claim', dig: DIG, att: ATTEMPT, wid: WORKER});
+    expect(workerCommandClaimsOf(payloadOf({iss: 'engine-worker'}))).not.toBeNull();
+    for (const change of [{typ: 'ticket'}, {typ: 'heartbeat'}, {typ: 'command'}, {iss: 'application'}, {iss: 'gateway'}, {iss: 'heartbeat'}, {aud: 'gateway'}, {aud: 'cad-worker'}]) {
+      expect(workerCommandClaimsOf(payloadOf(change)), JSON.stringify(change)).toBeNull();
+    }
+  });
+
+  it('refuses a claim that is missing, one too many and one of the wrong kind, command by command', () => {
+    expect(workerCommandClaimsOf(payloadOf({cmd: 'delete'}))).toBeNull();
+    expect(workerCommandClaimsOf(payloadOf({cmd: 7}))).toBeNull();
+    expect(workerCommandClaimsOf(payloadOf({cmd: undefined}))).toBeNull();
+    expect(workerCommandClaimsOf(payloadOf({dig: undefined}))).toBeNull();
+    expect(workerCommandClaimsOf(payloadOf({dig: DIG.toUpperCase()}))).toBeNull();
+    expect(workerCommandClaimsOf(payloadOf({att: undefined}))).toBeNull();
+    expect(workerCommandClaimsOf(payloadOf({att: 'nope'}))).toBeNull();
+    expect(workerCommandClaimsOf(payloadOf({wid: undefined}))).toBeNull();
+    expect(workerCommandClaimsOf(payloadOf({fence: FENCE}))).toBeNull();
+    expect(workerCommandClaimsOf(payloadOf({rev: 3}))).toBeNull();
+    expect(workerCommandClaimsOf(payloadOf({extra: 'x'}))).toBeNull();
+    expect(workerCommandClaimsOf(payloadOf({cmd: 'register', att: undefined, wid: undefined}))).toEqual({cmd: 'register', dig: DIG});
+    expect(workerCommandClaimsOf(payloadOf({cmd: 'register'}))).toBeNull();
+    expect(workerCommandClaimsOf(payloadOf({cmd: 'renew', wid: undefined, fence: FENCE}))).toEqual({cmd: 'renew', dig: DIG, att: ATTEMPT, fence: FENCE});
+    expect(workerCommandClaimsOf(payloadOf({cmd: 'renew', wid: undefined}))).toBeNull();
+    expect(workerCommandClaimsOf(payloadOf({cmd: 'finish', wid: undefined, fence: FENCE, rev: 7}))).toEqual({cmd: 'finish', dig: DIG, att: ATTEMPT, fence: FENCE, rev: 7});
+    for (const rev of [0, -1, 1.5, '7', null]) expect(workerCommandClaimsOf(payloadOf({cmd: 'finish', wid: undefined, fence: FENCE, rev})), String(rev)).toBeNull();
+  });
+
+  it('is verified as the contract says, with the one refusal that names no reason: for another environment, another audience, a key that is not the issuer\'s, a lifetime over five minutes and a skew over a minute', async () => {
+    const value = signWorkerCommand(cad.signer, ENV, every[2], {now: NOW});
+    expect((await verifyWorker(value, cad, {environment: '3f1c8a5e-7b2d-4c6a-9e0f-1a2b3c4d5e6f'})).ok).toBe(false);
+    expect((await verifyWorker(value, cad, {audience: 'gateway'})).ok).toBe(false);
+    expect((await verifyWorker(value, cad, {type: 'ticket'})).ok).toBe(false);
+    expect((await verifyWorker(value, cad, {now: NOW + 301})).ok).toBe(false);
+    expect((await verifyWorker(signWorkerCommand(cad.signer, ENV, every[2], {now: NOW + 61}))).ok).toBe(false);
+    expect((await verifyWorker(signWorkerCommand(cad.signer, ENV, every[2], {now: NOW + 60}))).ok).toBe(true);
   });
 });

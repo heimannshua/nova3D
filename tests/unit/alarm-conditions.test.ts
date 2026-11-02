@@ -7,8 +7,12 @@ import {
   identitiesUnaccountedCondition,
   lateFactor,
   ledgerPendingCondition,
+  leaseExpiredSeconds,
+  leaseExpiredUnclaimedCondition,
   monitorLateCondition,
   ledgerPendingSeconds,
+  outboxAgeCondition,
+  outboxAgeSeconds,
   qstashStaleCondition,
   schedulerStaleSeconds,
   taskLateCondition,
@@ -40,6 +44,8 @@ function calm(change: Partial<Observations> = {}): Observations {
     ledgerOldest: null,
     unaccounted: 0,
     tasks: scheduleRegistry.map((entry) => receipt(entry.task, 60)),
+    outboxOldest: null,
+    leaseExpiredOldest: null,
     heartbeatConfigured: true,
     ...change,
   };
@@ -54,7 +60,7 @@ const without = (observations: Observations, task: string): Observations => ({..
 const withReceipt = (observations: Observations, replacement: TaskReceipt): Observations => ({...observations, tasks: [...observations.tasks.filter((candidate) => candidate.task !== replacement.task), replacement]});
 
 describe('the registry', () => {
-  it('holds the six conditions this story can observe, each with an ID the database accepts and who evaluates it', () => {
+  it('holds the eight conditions of Stories 1.13 and 2.7, each with an ID the database accepts and who evaluates it', () => {
     expect(alarmConditions.map((condition) => [condition.id, condition.evaluatedBy])).toEqual([
       ['task-late', 'monitor'],
       ['ledger-pending', 'monitor'],
@@ -62,13 +68,15 @@ describe('the registry', () => {
       ['heartbeat-stale', 'monitor'],
       ['qstash-stale', 'heartbeat'],
       ['monitor-late', 'heartbeat'],
+      ['outbox-age', 'monitor'],
+      ['lease-expired-unclaimed', 'monitor'],
     ]);
     expect(new Set(alarmConditions.map((condition) => condition.id)).size).toBe(alarmConditions.length);
     for (const condition of alarmConditions) expect(condition.id).toMatch(/^[a-z][a-z0-9-]{0,47}$/);
   });
 
-  it('states its thresholds once: twice the interval, 15 minutes, 25 identities, two hours', () => {
-    expect([lateFactor, ledgerPendingSeconds, unaccountedLimit, schedulerStaleSeconds]).toEqual([2, 900, 25, 7200]);
+  it('states its thresholds once: twice the interval, 15 minutes, 25 identities, two hours, 120 seconds of outbox age, 300 seconds of expired lease', () => {
+    expect([lateFactor, ledgerPendingSeconds, unaccountedLimit, schedulerStaleSeconds, outboxAgeSeconds, leaseExpiredSeconds]).toEqual([2, 900, 25, 7200, 120, 300]);
   });
 
   it('finds nothing when nothing is wrong', () => {
@@ -86,11 +94,13 @@ describe('the registry', () => {
       ledgerWaiting: 4,
       ledgerOldest: 2_000,
       unaccounted: 40,
+      outboxOldest: 400,
+      leaseExpiredOldest: 900,
       tasks: [],
     });
     const findings = alarmConditions.flatMap((condition) => found(condition, trouble).map((finding) => ({condition: condition.id, ...finding})));
-    // task-late for the two tasks older than twice their interval, then one finding for each of the five other conditions.
-    expect(findings).toHaveLength(7);
+    // task-late for the three tasks older than twice their interval (the relay, the cleanup and, since Story 2.7, the minute sweep), then one finding for each of the seven other conditions.
+    expect(findings).toHaveLength(10);
     for (const finding of findings) {
       expect(isAlarmDetail(finding.detail), `${finding.condition}: ${JSON.stringify(finding.detail)}`).toBe(true);
       if (finding.subject !== null) expect(finding.subject).toMatch(/^[A-Za-z0-9._:-]{1,64}$/);
@@ -132,7 +142,7 @@ describe('task-late', () => {
   it('leaves the monitor out: it is what evaluates this, so it cannot report on itself', () => {
     const silent = calm({firstReceiptAge: 1_000_000});
     const findings = found(taskLateCondition, {...silent, tasks: []}, scheduleRegistry);
-    expect(findings.map((finding) => finding.subject)).toEqual(['dormant-identity-purge', 'ledger-relay', 'staging-cleanup']);
+    expect(findings.map((finding) => finding.subject)).toEqual(['dormant-identity-purge', 'ledger-relay', 'staging-cleanup', 'outbox-sweep']);
     expect(findings.map((finding) => finding.subject)).not.toContain('alarm-monitor');
   });
 
@@ -275,6 +285,49 @@ describe('monitor-late (evaluated by the application when the Railway heartbeat 
   });
 });
 
+describe('outbox-age (Story 2.7)', () => {
+  it('is a threshold condition of the monitor with no subject, and raises when the oldest unpublished outbox row is older than 120 seconds, not at exactly 120', () => {
+    expect(outboxAgeCondition.evaluatedBy).toBe('monitor');
+    expect(found(outboxAgeCondition, calm({outboxOldest: 120}))).toEqual([]);
+    expect(found(outboxAgeCondition, calm({outboxOldest: 121}))).toEqual([{subject: null, detail: {age_seconds: 121}}]);
+    expect(found(outboxAgeCondition, calm({outboxOldest: 86_400}))).toEqual([{subject: null, detail: {age_seconds: 86_400}}]);
+  });
+
+  it('finds nothing when no row is unpublished (null), and a young row is not a finding', () => {
+    expect(found(outboxAgeCondition, calm({outboxOldest: null}))).toEqual([]);
+    expect(found(outboxAgeCondition, calm({outboxOldest: 0}))).toEqual([]);
+    expect(found(outboxAgeCondition, calm({outboxOldest: 15}))).toEqual([]);
+  });
+
+  it('does not depend on anything else it is given: the receipts, the heartbeat and the ledger do not change the answer', () => {
+    const noisy = calm({outboxOldest: 500, firstReceiptAge: null, latestReceiptAge: null, heartbeatConfigured: false, ledgerWaiting: 9, ledgerOldest: 9_999, unaccounted: 90, tasks: []});
+    expect(found(outboxAgeCondition, noisy)).toEqual([{subject: null, detail: {age_seconds: 500}}]);
+  });
+});
+
+describe('lease-expired-unclaimed (Story 2.7)', () => {
+  it('is a threshold condition of the monitor with no subject, and raises when a live lease expired more than 300 seconds ago, not at exactly 300', () => {
+    expect(leaseExpiredUnclaimedCondition.evaluatedBy).toBe('monitor');
+    expect(found(leaseExpiredUnclaimedCondition, calm({leaseExpiredOldest: 300}))).toEqual([]);
+    expect(found(leaseExpiredUnclaimedCondition, calm({leaseExpiredOldest: 301}))).toEqual([{subject: null, detail: {age_seconds: 301}}]);
+    expect(found(leaseExpiredUnclaimedCondition, calm({leaseExpiredOldest: 7_200}))).toEqual([{subject: null, detail: {age_seconds: 7_200}}]);
+  });
+
+  it('finds nothing when no live lease has expired (null), and a lease that has only just run out is not a finding: the sweep ends it within a minute', () => {
+    expect(found(leaseExpiredUnclaimedCondition, calm({leaseExpiredOldest: null}))).toEqual([]);
+    expect(found(leaseExpiredUnclaimedCondition, calm({leaseExpiredOldest: 0}))).toEqual([]);
+    expect(found(leaseExpiredUnclaimedCondition, calm({leaseExpiredOldest: 60}))).toEqual([]);
+  });
+
+  it('is independent of the outbox: each raises and clears on its own observation', () => {
+    const both = calm({outboxOldest: 200, leaseExpiredOldest: 400});
+    expect(found(outboxAgeCondition, both)).toHaveLength(1);
+    expect(found(leaseExpiredUnclaimedCondition, both)).toHaveLength(1);
+    expect(found(outboxAgeCondition, calm({leaseExpiredOldest: 400}))).toEqual([]);
+    expect(found(leaseExpiredUnclaimedCondition, calm({outboxOldest: 200}))).toEqual([]);
+  });
+});
+
 describe('unobservable', () => {
   it('is the answer of exactly the two conditions that have a precondition, and of no other, whatever the observations', () => {
     const states = [calm(), calm({heartbeatConfigured: false}), withReceipt(calm(), receipt('ledger-relay', 10, 'no_store')), calm({firstReceiptAge: 1_000_000, latestReceiptAge: 9_999, unaccounted: 99, ledgerWaiting: 9, ledgerOldest: 9_999})];
@@ -296,7 +349,15 @@ describe('evaluateConditions', () => {
 
   it('evaluates only the conditions one evaluator owns', () => {
     const conditions = [...alarmConditions, fixture, pushedByHeartbeat];
-    expect(evaluateConditions(conditions, 'monitor', calm(), scheduleRegistry).map((one) => one.id)).toEqual(['task-late', 'ledger-pending', 'identities-unaccounted', 'heartbeat-stale', 'fixture-threshold']);
+    expect(evaluateConditions(conditions, 'monitor', calm(), scheduleRegistry).map((one) => one.id)).toEqual([
+      'task-late',
+      'ledger-pending',
+      'identities-unaccounted',
+      'heartbeat-stale',
+      'outbox-age',
+      'lease-expired-unclaimed',
+      'fixture-threshold',
+    ]);
     expect(evaluateConditions(conditions, 'heartbeat', calm(), scheduleRegistry).map((one) => one.id)).toEqual(['qstash-stale', 'monitor-late', 'fixture-heartbeat']);
   });
 

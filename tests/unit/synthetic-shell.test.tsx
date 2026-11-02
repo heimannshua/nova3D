@@ -1,5 +1,9 @@
 import {renderToStaticMarkup} from 'react-dom/server';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
+
+// The refresh button of In Progress (Story 2.7) asks the router to refresh; there is no app router to mount here.
+vi.mock('next/navigation', async (importOriginal) => ({...(await importOriginal<typeof import('next/navigation')>()), useRouter: () => ({refresh: () => undefined})}));
+
 import {KitContent} from '@/components/kit/kit-content';
 import {NovaDashboard} from '@/components/nova-dashboard';
 import {Shell} from '@/components/shell/shell';

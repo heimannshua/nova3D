@@ -117,8 +117,13 @@ export async function removeAccountData(client: Client, data: CommittedData) {
     await client.query(`delete from usage.reservations where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from usage.commands where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from usage.rate_schedules s where s.provider = 'fixture' and not exists (select 1 from usage.reservations r where r.rate_schedule_id = s.id)`);
-    // The Job records (Story 2.11) reference their Project and their Account with ON DELETE RESTRICT, so they go next, children before parents: operations,
+    // The Job records (Story 2.11) reference their Project and their Account with ON DELETE RESTRICT, so they go next, children before parents: the callbacks that name their
+    // attempts, the leases and the outbox rows (Story 2.7) and the workers the tests registered, then operations,
     // steps, attempts (one statement removes a Job's attempts together), Jobs, and the receipts of their commands.
+    await client.query(`delete from jobs.callbacks where attempt_id in (select id from jobs.attempts where account_id in ${accounts})`, [data.users]);
+    await client.query(`delete from jobs.leases where account_id in ${accounts}`, [data.users]);
+    await client.query(`delete from jobs.outbox where account_id in ${accounts}`, [data.users]);
+    await client.query(`delete from jobs.workers w where w.worker_kind ~ '^(itest|etest|test)_' and not exists (select 1 from jobs.leases l where l.worker_id = w.id)`);
     await client.query(`delete from jobs.operations where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from jobs.steps where account_id in ${accounts}`, [data.users]);
     await client.query(`delete from jobs.attempts where account_id in ${accounts}`, [data.users]);

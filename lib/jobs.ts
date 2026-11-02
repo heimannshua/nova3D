@@ -71,8 +71,8 @@ export type JobRequestOptions = {
   accounts?: Omit<AccountsOptions, 'env'>;
   /** Runs the task; the tasks of lib/job-tasks.ts by default. The tests pass their own to make one fail. */
   run?: typeof runTask;
-  /** What the task needs besides the environment (the ledger store, the file gateway's client, the alarm monitor's sender and registry); the configured ones by default. */
-  task?: Pick<TaskContext, 'ledgerStore' | 'gateway' | 'alarms'>;
+  /** What the task needs besides the environment (the ledger store, the file gateway's client, the alarm monitor's sender and registry, the dispatch queue's publisher); the configured ones by default. */
+  task?: Pick<TaskContext, 'ledgerStore' | 'gateway' | 'alarms' | 'publishing'>;
 };
 
 /** The signing keys, or null when either is not set (a placeholder is not a key). */

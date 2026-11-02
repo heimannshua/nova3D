@@ -1,6 +1,6 @@
 import {createHmac, randomBytes, randomUUID} from 'node:crypto';
 import type {Client} from 'pg';
-import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import {afterAll, afterEach, beforeAll, describe, expect, it} from 'vitest';
 import {quoteCost, reserveCost, settleCost, usageConstants} from '@/lib/usage-reservations';
 import {createHarness, sha, stack} from '../support/accounts-db';
 import {jwtSecretOf, stackEnvironment} from '../support/stack';
@@ -17,12 +17,19 @@ import {insertReservation, ledgerJob, setFigures} from '../support/usage-ledger'
 const {db, connect: openConnection, committed, cleanup, inTx, addUser, attempt, rows, count} = createHarness();
 
 /** Another connection, for the cases that need two sessions at once. A test that fails while it holds a lock must not leave the rest of the file waiting for it: the session gives up. */
+const borrowed: Client[] = [];
 async function connect() {
   const client = await openConnection();
+  borrowed.push(client);
   await client.query(`set idle_in_transaction_session_timeout = '40s'`);
   await client.query(`set lock_timeout = '40s'`);
   return client;
 }
+// The database has a limited number of connections and the files of the suite run side by side: the sessions a test borrowed are given back when it ends (the harness would
+// keep them all until the file is done, and this file alone would hold about seventy).
+afterEach(async () => {
+  await Promise.all(borrowed.splice(0).map((client) => client.end().catch(() => undefined)));
+});
 
 const tag = randomBytes(3).toString('hex');
 const provider = `t26-${tag}`;
@@ -2308,7 +2315,8 @@ describe('the preflight carries the Story 2.6 tables and functions', () => {
     const check = definition.indexOf('where not has_function_privilege');
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
     // On purpose changed (Story 2.5): fifty-four since it added the grant, the read and the revoke of the provider permissions and the permissioned reserve_cost (it was fifty after the three functions of the cost reservations).
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(54);
+    // On purpose changed (Story 2.7): sixty-nine since it added the fifteen functions of the durable dispatch (it was fifty-four after the provider permissions).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(69);
     for (const signature of apiSignatures) expect(executable, signature).toContain(`'${signature}'`);
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));
   });
@@ -2345,7 +2353,7 @@ describe('the preflight carries the Story 2.6 tables and functions', () => {
       'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
       'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
-      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', ...newTables, 'provider_private.permissions',
+      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', 'jobs.outbox', 'jobs.workers', 'jobs.leases', 'jobs.callbacks', ...newTables, 'provider_private.permissions',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
     ];
     await inTx(async (client) => {

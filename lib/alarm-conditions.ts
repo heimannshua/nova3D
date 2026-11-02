@@ -15,8 +15,8 @@
 // adds a condition by adding an entry to `alarmConditions` and nothing else (a condition whose subject-keyed alarms are PUSHED, such as a payment
 // exception, raises through lib/alarms.ts `raiseAlarm` and has no entry here: nothing evaluates it, so nothing resolves it by absence).
 //
-// The conditions of the other stories (outbox age and expired leases 2.7, unknown cost 2.8, storage integrity 4.1, missed purge 8.3, backup snapshot
-// age 8.9, payment exceptions) are theirs to add; this story registers the six it can observe.
+// The conditions of the other stories (unknown cost 2.8, storage integrity 4.1, missed purge 8.3, backup snapshot age 8.9, payment exceptions) are theirs to add; Story 1.13
+// registered the six it can observe and Story 2.7 adds the outbox age and the expired lease nobody has cleaned up.
 //
 // Erasable TypeScript syntax and relative `.ts` imports, like the modules it serves.
 import {monitorTask} from './schedules.ts';
@@ -44,6 +44,9 @@ export type Observations = {
   /** How many Auth identities have no Account. */
   unaccounted: number;
   tasks: TaskReceipt[];
+  /** The age of the oldest dispatch outbox row that is still unpublished (null when none), and how long ago the oldest live lease (one nobody has ended) expired, among those that expired more than 300 seconds ago (null when none has). */
+  outboxOldest: number | null;
+  leaseExpiredOldest: number | null;
   /** Whether the Railway heartbeat is configured for this deployment (`SERVICE_KEYS_HEARTBEAT` is set): without it there is no heartbeat to be late. */
   heartbeatConfigured: boolean;
 };
@@ -73,6 +76,10 @@ export const lateFactor = 2;
 export const ledgerPendingSeconds = 900;
 /** More Auth identities than this with no Account is an alarm. */
 export const unaccountedLimit = 25;
+/** A dispatch is stuck when the oldest unpublished outbox row is older than this, in seconds (two minutes; the sweep publishes a row older than 15). */
+export const outboxAgeSeconds = 120;
+/** A worker lease is abandoned when a live one has been expired longer than this, in seconds (five minutes; the sweep ends an expired lease every minute). */
+export const leaseExpiredSeconds = 300;
 /** A scheduler is stale when the other platform's latest receipt is older than this, in seconds (two hours). */
 export const schedulerStaleSeconds = 7200;
 
@@ -182,8 +189,41 @@ export const monitorLateCondition: AlarmCondition = {
   },
 };
 
+/**
+ * `outbox-age` (Story 2.7): the oldest dispatch outbox row that is still unpublished is over 120 seconds old, so an accepted Job's dispatch is not reaching the queue. A threshold
+ * condition. The minute sweep publishes every row older than 15 seconds, so a row this old means the sweep is not running or the queue is refusing.
+ */
+export const outboxAgeCondition: AlarmCondition = {
+  id: 'outbox-age',
+  evaluatedBy: 'monitor',
+  evaluate(observations) {
+    return observations.outboxOldest !== null && observations.outboxOldest > outboxAgeSeconds ? [{subject: null, detail: {age_seconds: observations.outboxOldest}}] : [];
+  },
+};
+
+/**
+ * `lease-expired-unclaimed` (Story 2.7): a live lease (one nobody has ended) expired over 300 seconds ago, so the minute sweep has not ended it and failed its attempt. A threshold
+ * condition.
+ */
+export const leaseExpiredUnclaimedCondition: AlarmCondition = {
+  id: 'lease-expired-unclaimed',
+  evaluatedBy: 'monitor',
+  evaluate(observations) {
+    return observations.leaseExpiredOldest !== null && observations.leaseExpiredOldest > leaseExpiredSeconds ? [{subject: null, detail: {age_seconds: observations.leaseExpiredOldest}}] : [];
+  },
+};
+
 /** Every registered condition. A later story adds its entry here and nothing else. */
-export const alarmConditions: readonly AlarmCondition[] = [taskLateCondition, ledgerPendingCondition, identitiesUnaccountedCondition, heartbeatStaleCondition, qstashStaleCondition, monitorLateCondition];
+export const alarmConditions: readonly AlarmCondition[] = [
+  taskLateCondition,
+  ledgerPendingCondition,
+  identitiesUnaccountedCondition,
+  heartbeatStaleCondition,
+  qstashStaleCondition,
+  monitorLateCondition,
+  outboxAgeCondition,
+  leaseExpiredUnclaimedCondition,
+];
 
 /**
  * What one condition found: its ID and its findings (none when it holds nothing); `'unobservable'` when a precondition of it is missing now (nothing is raised and

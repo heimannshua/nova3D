@@ -138,6 +138,9 @@ describe('every route handler answers only an active Account, and every one that
     'app/api/status/route.ts': 'the status route (Story 1.8) is public (lib/public-paths.ts): a device whose Account may be gone asks what became of a handle it holds',
     'app/api/jobs/route.ts': 'the scheduled-job route (Story 1.9) is a machine path (lib/public-paths.ts): a scheduler calls it with no session and no browser Origin, and the signature over the raw body, checked in lib/jobs.ts, is its only authentication',
     'app/api/heartbeat/route.ts': 'the heartbeat route (Story 1.13) is the second machine path (lib/public-paths.ts): the Railway cron task calls it with no session and no browser Origin, and the signed heartbeat token, verified in lib/heartbeat.ts, is its only authentication',
+    // On purpose added (Story 2.7): the dispatch and worker routes are the third and fourth machine paths.
+    'app/api/dispatch/route.ts': 'the dispatch route (Story 2.7) is the third machine path (lib/public-paths.ts): the queue calls it with no session and no browser Origin, and the queue\'s signature over the raw body, checked in lib/job-dispatch.ts, is its only authentication',
+    'app/api/workers/route.ts': 'the worker route (Story 2.7) is the fourth machine path (lib/public-paths.ts): a worker calls it with no session and no browser Origin, and the signed worker command, verified in lib/worker-commands.ts, is its only authentication',
   };
   // The public routes that take a POST, and why it changes nothing a caller could use: a lookup reads, and the database counts it (a
   // rate-limit counter is all it writes). The proxy still refuses it from another site, and the database rate limits it.
@@ -145,6 +148,8 @@ describe('every route handler answers only an active Account, and every one that
     'app/api/status/route.ts': 'a lookup of a status handle: it changes nothing but its own rate-limit counter',
     'app/api/jobs/route.ts': 'a signed call of a registered task: nothing runs and nothing is written until the signature, the body and the instance are right, and then only that task and its own receipt',
     'app/api/heartbeat/route.ts': 'a signed heartbeat: nothing is recorded or evaluated until the token verifies for this environment, and then only one heartbeat row, the alarm records its evaluation opens or resolves, and the mail that is due',
+    'app/api/dispatch/route.ts': 'a signed dispatch: nothing is claimed until the signature, the body and the instance are right, and then only that attempt is claimed as the built-in step and its test workload run',
+    'app/api/workers/route.ts': 'a signed worker command: nothing is recorded or run until the token verifies for this environment and its digest is the body\'s, and then only that command and its own callback record',
   };
   // Routes that may put the synthetic check (and nothing else) ahead of their guard.
   const syntheticOnly: Record<string, string> = {
@@ -1037,7 +1042,8 @@ describe('Projects (Story 1.7) are read and renamed through the typed calls, for
     // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
     // On purpose changed (Story 2.6): lib/usage-reservations.ts is the sixth, and the only caller of the three cost functions.
     // On purpose changed (Story 2.5): lib/providers/permissions.ts is the seventh, and the only caller of the three provider-permission functions.
-    expect(users).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/providers/permissions.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.7): lib/job-commands.ts is the eighth, and the only caller of the fifteen dispatch functions.
+    expect(users).toEqual(['lib/accounts.ts', 'lib/job-commands.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/providers/permissions.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
   });
 
   it('is one Server Action behind withActiveAccount, with the Account from the verified access and nothing about it from the form', () => {
@@ -1137,7 +1143,8 @@ describe('Projects (Story 1.7) are read and renamed through the typed calls, for
     expect(files('app', (name) => /^route\.(ts|js)$/.test(name)).filter((file) => /project/i.test(file))).toEqual([]);
     for (const file of sources) expect(withoutComments(read(file)), file).not.toMatch(/registerResolver|registerTarget|statusRoute/i);
     // Story 1.8 wires the tombstone in the database and in three places in the application; nothing else names a tombstone in code.
-    expect(sources.filter((file) => /tombstone/i.test(withoutComments(read(file)))).sort()).toEqual(['lib/accounts.ts', 'lib/authority.ts', 'lib/lifecycle.ts']);
+    // On purpose changed (Story 2.7): the word is also the name of one way a lease can end (the cause `tombstoned`), in the Jobs vocabulary (lib/job-view.ts) and its typed module.
+    expect(sources.filter((file) => /tombstone/i.test(withoutComments(read(file)))).sort()).toEqual(['lib/accounts.ts', 'lib/authority.ts', 'lib/job-commands.ts', 'lib/job-view.ts', 'lib/lifecycle.ts']);
   });
 
   it('writes the resolver down for the people who write the gateway and the status route', () => {
@@ -1370,9 +1377,9 @@ describe('Scheduled jobs (Story 1.9) have one route, one verifier, three tasks (
     expect(code).toMatch(/import \{handleJobRequest\} from '@\/lib\/jobs';/);
     expect(code).toMatch(/export async function POST\(request: Request\) \{\s*return handleJobRequest\(request\);\s*\}/);
     expect(code).not.toMatch(/console\.|\blog\(|process\.env|request\.url|nextUrl|searchParams|cookies\(|headers\(\)/);
-    // The paths are the machine paths and the only ones (Story 1.13 added the heartbeat), written once in the one list the proxy reads.
+    // The paths are the machine paths and the only ones (Story 1.13 added the heartbeat, Story 2.7 the dispatch and the worker routes), written once in the one list the proxy reads.
     const publicPaths = withoutComments(read('lib/public-paths.ts'));
-    expect(publicPaths).toMatch(/export const machinePaths = \['\/api\/jobs', '\/api\/heartbeat'\];/);
+    expect(publicPaths).toMatch(/export const machinePaths = \['\/api\/jobs', '\/api\/heartbeat', '\/api\/dispatch', '\/api\/workers'\];/);
     expect(publicPaths).toMatch(/export const publicPaths = \[[^\]]*\.\.\.machinePaths\];/);
     expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).filter((file) => file.startsWith('app/api/jobs'))).toEqual([route]);
   });
@@ -1384,16 +1391,25 @@ describe('Scheduled jobs (Story 1.9) have one route, one verifier, three tasks (
     expect(callers('isMachinePath')).toEqual(['lib/public-paths.ts', 'proxy.ts']);
   });
 
-  it('keeps the provider\'s name and every signature check in lib/jobs.ts: nothing under app/ or components/ names it, and one file builds a Receiver', () => {
+  it('keeps the provider\'s name and every signature check in lib/jobs.ts and, since Story 2.7, lib/job-dispatch.ts: nothing under app/ or components/ names it, and those two files build a Receiver', () => {
     for (const file of sources.filter((candidate) => /^(?:app|components)\//.test(candidate))) {
       expect(withoutComments(read(file)), file).not.toMatch(/upstash|qstash|redis/i);
     }
-    expect(callers('Receiver')).toEqual(['lib/jobs.ts']);
-    expect(sources.filter((file) => /@upstash\//.test(withoutComments(read(file))))).toEqual(['lib/jobs.ts']);
-    const jobs = withoutComments(read('lib/jobs.ts'));
-    // The SDK's development mode (published signing keys, switched on by an environment variable) is never on, and the check is over the raw body.
-    expect(jobs).toMatch(/new Receiver\(\{[^}]*devMode: false[^}]*\}\)/);
-    expect(jobs).toMatch(/receiver\.verify\(\{signature, body, clockTolerance/);
+    // On purpose changed (Story 2.7): lib/job-dispatch.ts is the second file that builds a Receiver (it verifies the dispatch the queue delivers) and the only one that
+    // publishes with the queue's Client.
+    expect(callers('Receiver')).toEqual(['lib/job-dispatch.ts', 'lib/jobs.ts']);
+    expect(sources.filter((file) => /@upstash\//.test(withoutComments(read(file))))).toEqual(['lib/job-dispatch.ts', 'lib/jobs.ts']);
+    for (const file of ['lib/jobs.ts', 'lib/job-dispatch.ts']) {
+      const verifier = withoutComments(read(file));
+      // The SDK's development mode (published signing keys, switched on by an environment variable) is never on, and the check is over the raw body.
+      expect(verifier, file).toMatch(/new Receiver\(\{[^}]*devMode: false[^}]*\}\)/);
+      expect(verifier, file).toMatch(/receiver\.verify\(\{signature, body, clockTolerance/);
+    }
+    expect(sources.filter((file) => /@upstash\/qstash/.test(withoutComments(read(file))) && /\bnew Client\(/.test(withoutComments(read(file))))).toEqual(['lib/job-dispatch.ts']);
+    const dispatch = withoutComments(read('lib/job-dispatch.ts'));
+    // A dispatch is published with no retry by the queue and under the outbox row's ID, and the SDK's development mode is off for the publisher too.
+    expect(dispatch).toMatch(/new Client\(\{token, baseUrl, devMode: false\}\)/);
+    expect(dispatch).toMatch(/publishJSON\(\{url, body, retries: 0, deduplicationId\}\)/);
   });
 
   it('checks in the order the contract says, and each check returns before the next one starts', () => {
@@ -1440,14 +1456,14 @@ describe('Scheduled jobs (Story 1.9) have one route, one verifier, three tasks (
     expect(environment).toMatch(/const previewForbiddenName = [^\n]*QSTASH_/);
   });
 
-  it('registers exactly four tasks, each run by one function, and no cleanup beyond them (the third is Story 1.12\'s staging cleanup, the fourth Story 1.13\'s alarm monitor)', () => {
+  it('registers exactly five tasks, each run by one function, and no cleanup beyond them (the third is Story 1.12\'s staging cleanup, the fourth Story 1.13\'s alarm monitor, the fifth Story 2.7\'s outbox sweep)', () => {
     const registry = withoutComments(read('lib/schedules.ts'));
-    expect([...registry.matchAll(/task: '([a-z-]+)'/g)].map((match) => match[1])).toEqual(['dormant-identity-purge', 'ledger-relay', 'staging-cleanup', 'alarm-monitor']);
+    expect([...registry.matchAll(/task: '([a-z-]+)'/g)].map((match) => match[1])).toEqual(['dormant-identity-purge', 'ledger-relay', 'staging-cleanup', 'alarm-monitor', 'outbox-sweep']);
     expect(registry).not.toMatch(/^import\s|\bfrom\s+['"]/m);
     // Every entry says how often it fires, in whole seconds (Story 1.13: the alarm condition `task-late` reads it).
-    expect([...registry.matchAll(/intervalSeconds: (\d+),/g)].map((match) => Number(match[1]))).toEqual([86400, 300, 3600, 300]);
+    expect([...registry.matchAll(/intervalSeconds: (\d+),/g)].map((match) => Number(match[1]))).toEqual([86400, 300, 3600, 300, 60]);
     const tasks = withoutComments(read('lib/job-tasks.ts'));
-    expect([...tasks.matchAll(/^  '([a-z-]+)': \w+,$/gm)].map((match) => match[1])).toEqual(['ledger-relay', 'dormant-identity-purge', 'staging-cleanup', 'alarm-monitor']);
+    expect([...tasks.matchAll(/^  '([a-z-]+)': \w+,$/gm)].map((match) => match[1])).toEqual(['ledger-relay', 'dormant-identity-purge', 'staging-cleanup', 'alarm-monitor', 'outbox-sweep']);
     for (const deferred of ['session_grants', 'step_up_nonces', 'recovery_tokens', 'ledger_outbox']) expect(tasks, deferred).not.toContain(deferred);
   });
 
@@ -1636,7 +1652,9 @@ describe('The file gateway (Story 1.12): no file through a Vercel function, one 
   it('reads the signing configuration in one module: the keys, the gateway address and the instance are read from the environment by lib/gateway-client.ts alone', () => {
     const readers = sources.filter((file) => /SERVICE_SIGNING_KEY_|SERVICE_KEYS_|FILE_GATEWAY_URL|signingKeyVariable|keySetVariable/.test(withoutComments(read(file)))).sort();
     // (Story 1.13 adds lib/heartbeat.ts, which reads the heartbeat issuer's PUBLIC key set (SERVICE_KEYS_HEARTBEAT) to verify the Railway task's token, and no private key.)
-    expect(readers).toEqual(['lib/environment.ts', 'lib/gateway-client.ts', 'lib/heartbeat.ts', 'lib/service-signing.ts']);
+    // On purpose changed (Story 2.7): lib/worker-commands.ts is the fifth reader, of the two worker issuers' PUBLIC key sets (SERVICE_KEYS_CAD_WORKER and SERVICE_KEYS_ENGINE_WORKER),
+    // which it verifies a worker's signed command with, and no private key.
+    expect(readers).toEqual(['lib/environment.ts', 'lib/gateway-client.ts', 'lib/heartbeat.ts', 'lib/service-signing.ts', 'lib/worker-commands.ts']);
     for (const file of ['lib/transfer-tickets.ts', 'lib/job-tasks.ts', 'lib/schedules.ts', 'lib/service-signing.ts', 'lib/canonical-json.ts']) {
       expect(withoutComments(read(file)), file).not.toMatch(/process\.env|\benv\.[A-Z]/);
     }
@@ -2018,7 +2036,7 @@ describe('Operational alarms (Story 1.13) have one channel, one evaluator for ea
     expect(routeCode).toMatch(/export async function POST\(request: Request\) \{\s*return handleHeartbeatRequest\(request\);\s*\}/);
     expect(routeCode).not.toMatch(/console\.|\blog\(|process\.env|request\.url|nextUrl|searchParams|cookies\(|headers\(\)/);
     expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).filter((file) => file.startsWith('app/api/heartbeat'))).toEqual([route]);
-    expect(code('lib/public-paths.ts')).toMatch(/export const machinePaths = \['\/api\/jobs', '\/api\/heartbeat'\];/);
+    expect(code('lib/public-paths.ts')).toMatch(/export const machinePaths = \['\/api\/jobs', '\/api\/heartbeat', '\/api\/dispatch', '\/api\/workers'\];/);
   });
 
   it('checks in the order the contract says, and each check returns before the next one starts', () => {
@@ -2062,11 +2080,12 @@ describe('Operational alarms (Story 1.13) have one channel, one evaluator for ea
     expect(code('lib/jobs.ts')).toMatch(/isHeartbeatConfigured\(env\)/);
   });
 
-  it('registers exactly the six conditions this story can observe, and none of another story\'s', () => {
+  it('registers exactly the six conditions this story can observe, and (Story 2.7) the two of the dispatch outbox, and none of another story\'s', () => {
     const conditions = code('lib/alarm-conditions.ts');
-    expect([...conditions.matchAll(/^\s+id: '([a-z0-9-]+)',$/gm)].map((match) => match[1])).toEqual(['task-late', 'ledger-pending', 'identities-unaccounted', 'heartbeat-stale', 'qstash-stale', 'monitor-late']);
-    expect([...conditions.matchAll(/evaluatedBy: '(monitor|heartbeat)',/g)].map((match) => match[1])).toEqual(['monitor', 'monitor', 'monitor', 'monitor', 'heartbeat', 'heartbeat']);
-    expect(conditions).toMatch(/export const alarmConditions: readonly AlarmCondition\[\] = \[taskLateCondition, ledgerPendingCondition, identitiesUnaccountedCondition, heartbeatStaleCondition, qstashStaleCondition, monitorLateCondition\];/);
+    // On purpose changed (Story 2.7): `outbox-age` and `lease-expired-unclaimed` are registered after the six of Story 1.13, both evaluated by the monitor.
+    expect([...conditions.matchAll(/^\s+id: '([a-z0-9-]+)',$/gm)].map((match) => match[1])).toEqual(['task-late', 'ledger-pending', 'identities-unaccounted', 'heartbeat-stale', 'qstash-stale', 'monitor-late', 'outbox-age', 'lease-expired-unclaimed']);
+    expect([...conditions.matchAll(/evaluatedBy: '(monitor|heartbeat)',/g)].map((match) => match[1])).toEqual(['monitor', 'monitor', 'monitor', 'monitor', 'heartbeat', 'heartbeat', 'monitor', 'monitor']);
+    expect(conditions).toMatch(/export const alarmConditions: readonly AlarmCondition\[\] = \[\s*taskLateCondition,\s*ledgerPendingCondition,\s*identitiesUnaccountedCondition,\s*heartbeatStaleCondition,\s*qstashStaleCondition,\s*monitorLateCondition,\s*outboxAgeCondition,\s*leaseExpiredUnclaimedCondition,?\s*\];/);
     // F4: two conditions have a precondition and answer `unobservable` without it, and no other does; F3: the monitor is the heartbeat's to watch, and task-late still skips it.
     expect([...conditions.matchAll(/return unobservable;/g)]).toHaveLength(2);
     expect(conditions).toMatch(/if \(relay\?\.outcome === 'no_store'\) return unobservable;/);
@@ -2077,6 +2096,9 @@ describe('Operational alarms (Story 1.13) have one channel, one evaluator for ea
     expect(conditions).toMatch(/export const ledgerPendingSeconds = 900;/);
     expect(conditions).toMatch(/export const unaccountedLimit = 25;/);
     expect(conditions).toMatch(/export const schedulerStaleSeconds = 7200;/);
+    // Story 2.7's thresholds: a dispatch is stuck after 120 seconds unpublished, a lease is abandoned 300 seconds after it expired.
+    expect(conditions).toMatch(/export const outboxAgeSeconds = 120;/);
+    expect(conditions).toMatch(/export const leaseExpiredSeconds = 300;/);
     // A failed run and a damaged relay chain stay deferred: nothing here looks at a `failed` or a `conflict` receipt as a reason to alarm.
     expect(conditions).not.toMatch(/outcome === 'failed'|conflict|corrupt/);
   });
@@ -2271,7 +2293,8 @@ describe('Request revisions (Story 2.1) are created and read through two typed c
     // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
     // On purpose changed (Story 2.6): lib/usage-reservations.ts is the sixth, and the only caller of the three cost functions.
     // On purpose changed (Story 2.5): lib/providers/permissions.ts is the seventh, and the only caller of the three provider-permission functions.
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/providers/permissions.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.7): lib/job-commands.ts is the eighth, and the only caller of the fifteen dispatch functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-commands.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/providers/permissions.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
   });
 
   it('is two Server Actions behind withActiveAccount in their own file, with the Account from the verified access and nothing about it from the form', () => {
@@ -2598,7 +2621,8 @@ describe('Picture sets (Story 2.2) are recorded through two typed calls, by two 
     // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
     // On purpose changed (Story 2.6): lib/usage-reservations.ts is the sixth, and the only caller of the three cost functions.
     // On purpose changed (Story 2.5): lib/providers/permissions.ts is the seventh, and the only caller of the three provider-permission functions.
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/providers/permissions.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.7): lib/job-commands.ts is the eighth, and the only caller of the fifteen dispatch functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-commands.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/providers/permissions.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
   });
 
   it('is two Server Actions behind withActiveAccount in a file of their own, with the Account from the verified access and only a command, a Project and uploads from the form', () => {
@@ -2618,12 +2642,14 @@ describe('Picture sets (Story 2.2) are recorded through two typed calls, by two 
 
   it('adds no route: the application\'s routes are the ones it had', () => {
     expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).sort()).toEqual([
+      'app/api/dispatch/route.ts',
       'app/api/health/route.ts',
       'app/api/heartbeat/route.ts',
       'app/api/jobs/route.ts',
       'app/api/kit/mutation/route.ts',
       'app/api/status/route.ts',
       'app/api/transfers/tickets/route.ts',
+      'app/api/workers/route.ts',
       'app/auth/callback/route.ts',
     ]);
   });
@@ -2804,11 +2830,12 @@ describe('Picture sets (Story 2.2) are recorded through two typed calls, by two 
 
   it('still reads the signing variables and the gateway\'s address in the four files that read them, and the picture code reads none', () => {
     const readers = sources.filter((file) => /SERVICE_SIGNING_KEY_|SERVICE_KEYS_|FILE_GATEWAY_URL|signingKeyVariable|keySetVariable/.test(code(file))).sort();
-    expect(readers).toEqual(['lib/environment.ts', 'lib/gateway-client.ts', 'lib/heartbeat.ts', 'lib/service-signing.ts']);
+    // On purpose changed (Story 2.7): lib/worker-commands.ts is the fifth reader (the worker issuers' PUBLIC key sets).
+    expect(readers).toEqual(['lib/environment.ts', 'lib/gateway-client.ts', 'lib/heartbeat.ts', 'lib/service-signing.ts', 'lib/worker-commands.ts']);
   });
 
-  it('keeps the word the Spine reserves for Story 1.8 out of the application code outside the three modules that name it', () => {
-    expect(sources.filter((file) => /tombstone/i.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/authority.ts', 'lib/lifecycle.ts']);
+  it('keeps the word the Spine reserves for Story 1.8 out of the application code outside the three modules that name it (and, since Story 2.7, the Jobs vocabulary of the lease cause `tombstoned`)', () => {
+    expect(sources.filter((file) => /tombstone/i.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/authority.ts', 'lib/job-commands.ts', 'lib/job-view.ts', 'lib/lifecycle.ts']);
   });
 
   it('adds one closed table, three helpers, two functions, two types, and widens two checks, in a migration that creates no role, secret or policy', () => {
@@ -2974,7 +3001,8 @@ describe('Picture review (Story 2.3) is recorded through one typed call, by one 
     // On purpose changed (Story 2.11): lib/job-records.ts is the fifth, and the only caller of the six Job functions.
     // On purpose changed (Story 2.6): lib/usage-reservations.ts is the sixth, and the only caller of the three cost functions.
     // On purpose changed (Story 2.5): lib/providers/permissions.ts is the seventh, and the only caller of the three provider-permission functions.
-    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/providers/permissions.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
+    // On purpose changed (Story 2.7): lib/job-commands.ts is the eighth, and the only caller of the fifteen dispatch functions.
+    expect(sources.filter((file) => /\b(?:callApi|callRow)\b/.test(code(file))).sort()).toEqual(['lib/accounts.ts', 'lib/job-commands.ts', 'lib/job-records.ts', 'lib/lifecycle.ts', 'lib/projects.ts', 'lib/providers/permissions.ts', 'lib/usage-reservations.ts', 'lib/usage.ts']);
     // The Project typed calls did not move.
     expect(callers('recordPictureSet')).toEqual(['app/projects/new/pictures/actions.ts', 'lib/projects.ts']);
     expect(callers('readProjectRequest')).toEqual(['lib/project-pages.ts', 'lib/projects.ts']);
@@ -3163,12 +3191,14 @@ describe('Picture review (Story 2.3) is recorded through one typed call, by one 
   it('asks for the camera nowhere in the review, and reads no environment variable, adds no route, header or secret', () => {
     expect(callers('getUserMedia')).toEqual(['lib/picture-camera.ts']);
     expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).sort()).toEqual([
+      'app/api/dispatch/route.ts',
       'app/api/health/route.ts',
       'app/api/heartbeat/route.ts',
       'app/api/jobs/route.ts',
       'app/api/kit/mutation/route.ts',
       'app/api/status/route.ts',
       'app/api/transfers/tickets/route.ts',
+      'app/api/workers/route.ts',
       'app/auth/callback/route.ts',
     ]);
     for (const file of sources) expect(code(file), file).not.toMatch(/content-security-policy|permissions-policy|feature-policy/i);
@@ -3555,7 +3585,11 @@ describe('Usage limits (Story 2.4) are changed through one typed module and one 
     for (const file of [actions, ...browserPieces.filter((candidate) => candidate.startsWith('components/')), page]) {
       expect(code(file), file).not.toMatch(/\/ ?1_?000_?000\b|\* ?1_?000_?000\b|\b10_?000\b|\bmicrodollarsPerCent\b/);
     }
-    expect(callers('formatDollars')).toEqual(['components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'lib/usage-view.ts']);
+    // On purpose changed (Story 2.7): the Job screens show what a Job holds, settled and released, and write it with the same function (lib/job-view.ts, which the Job
+    // components read); no other caller joins the three.
+    const formatters = callers('formatDollars');
+    expect(formatters).toEqual(expect.arrayContaining(['components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'lib/usage-view.ts']));
+    expect(formatters.filter((file) => !['components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'lib/usage-view.ts', 'lib/job-view.ts'].includes(file) && !file.startsWith('components/jobs/') && !file.startsWith('app/progress/'))).toEqual([]);
     expect(callers('parseDollars')).toEqual([actions, 'components/admin/usage-list.tsx', 'lib/usage-view.ts']);
   });
 
@@ -3674,12 +3708,14 @@ describe('Usage limits (Story 2.4) are changed through one typed module and one 
 
   it('adds no route, no dependency, no variable and no secret, and leaves the Accounts list and Account disable alone', () => {
     expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).sort()).toEqual([
+      'app/api/dispatch/route.ts',
       'app/api/health/route.ts',
       'app/api/heartbeat/route.ts',
       'app/api/jobs/route.ts',
       'app/api/kit/mutation/route.ts',
       'app/api/status/route.ts',
       'app/api/transfers/tickets/route.ts',
+      'app/api/workers/route.ts',
       'app/auth/callback/route.ts',
     ]);
     const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>};
@@ -4050,20 +4086,24 @@ describe('Job records (Story 2.11) are written by six commands and read through 
 
   it('adds no route, no dependency, no variable, no screen and no copy, and leaves the scheduled tasks of Story 1.9 alone', () => {
     expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).sort()).toEqual([
+      'app/api/dispatch/route.ts',
       'app/api/health/route.ts',
       'app/api/heartbeat/route.ts',
       'app/api/jobs/route.ts',
       'app/api/kit/mutation/route.ts',
       'app/api/status/route.ts',
       'app/api/transfers/tickets/route.ts',
+      'app/api/workers/route.ts',
       'app/auth/callback/route.ts',
     ]);
     const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>};
     // On purpose changed (Story 2.5): sharp is a direct dependency, imported by lib/provider-image.ts alone (the server-side provider image derivative); nothing else is added.
     expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom', 'sharp']);
     // No page, action or component names a Job record, and `lib/i18n` has no copy for one.
+    // On purpose changed (Story 2.7): the Job screens (J-01, J-02) and their copy say why a Job waits (`awaiting_reconciliation`, `awaiting_dispatch`, `awaiting_worker`), so the reasons
+    // may be named under app/, components/ and lib/i18n; the TABLES still may not: a screen reads a Job only through the typed module's commands.
     for (const file of sources.filter((candidate) => candidate.startsWith('app/') || candidate.startsWith('components/') || candidate.startsWith('lib/i18n'))) {
-      expect(code(file), file).not.toMatch(/awaiting_reconciliation|awaiting_dispatch|\bjobs\.(?:jobs|attempts|steps|operations|commands)\b/);
+      expect(code(file), file).not.toMatch(/\bjobs\.(?:jobs|attempts|steps|operations|commands)\b/);
     }
     // Stories 1.9's tasks are untouched: lib/jobs.ts and lib/job-tasks.ts do not know the new module or its schema.
     for (const file of ['lib/jobs.ts', 'lib/job-tasks.ts', 'app/api/jobs/route.ts']) expect(code(file), file).not.toMatch(/job-records|\bjobs\.(?:jobs|attempts|steps|operations|commands)\b|accept_job|read_job/);
@@ -4578,12 +4618,14 @@ describe('Usage reservations (Story 2.6) are quoted, reserved and settled by thr
 
   it('adds no route, no dependency, no variable, no screen, no copy and no audit event, and leaves Account disable, the Jobs functions and the limit commands alone', () => {
     expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).sort()).toEqual([
+      'app/api/dispatch/route.ts',
       'app/api/health/route.ts',
       'app/api/heartbeat/route.ts',
       'app/api/jobs/route.ts',
       'app/api/kit/mutation/route.ts',
       'app/api/status/route.ts',
       'app/api/transfers/tickets/route.ts',
+      'app/api/workers/route.ts',
       'app/auth/callback/route.ts',
     ]);
     const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>};
@@ -4745,5 +4787,334 @@ describe('Provider permissions (Story 2.5) are bound to the operation that spend
       'api.get_provider_permission', 'api.grant_provider_permission', 'api.preflight', 'api.reserve_cost', 'api.reserve_cost',
       'provider_private.guard_permission_change', 'provider_private.is_permissioned_provider', 'provider_private.refusal', 'provider_private.stamp_permission',
     ]);
+  });
+});
+
+describe('Durable fenced Jobs (Story 2.7) are accepted, dispatched, claimed under a lease and fenced by fifteen commands through one typed module, in an order that lets neither a late result nor a duplicate through', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+    'instrumentation.ts',
+    'instrumentation-node.ts',
+  ];
+  const code = (file: string) => withoutComments(read(file));
+  const moduleFile = 'lib/job-commands.ts';
+  const migrationFile = 'supabase/migrations/20261031120000_durable_dispatch.sql';
+  const migration = read(migrationFile).replace(/^\s*--.*$/gm, '');
+  /** Everything before the preflight, which names the older functions it checks (and so every function of every story). */
+  const own = migration.slice(0, migration.indexOf('create or replace function api.preflight'));
+  const apiNames = [
+    'submit_job', 'cancel_job', 'list_jobs', 'read_job_detail', 'register_worker', 'claim_attempt', 'renew_lease', 'run_step', 'finish_operation', 'finish_attempt',
+    'record_callback', 'claim_outbox', 'mark_published', 'sweep_attempts', 'cancel_account_jobs',
+  ];
+  const tables = ['workers', 'outbox', 'leases', 'callbacks'];
+  /** The text of one function of the migration, from its `create function` to its `comment on function` (or its closing `$$;`). */
+  const bodyOf = (schema: 'api' | 'jobs', name: string) => {
+    const start = own.search(new RegExp(`create (?:or replace )?function ${schema}\\.${name}\\(`));
+    expect(start, `${schema}.${name}`).toBeGreaterThan(-1);
+    const end = own.indexOf(`comment on function ${schema}.${name}(`, start);
+    return own.slice(start, end > -1 ? end : own.indexOf('$$;', own.indexOf('$$', start) + 2));
+  };
+  /** The position of each needle in the text, which must all be found and must come in this order. */
+  const inOrder = (text: string, needles: string[], label = '') => {
+    const positions = needles.map((needle) => text.indexOf(needle));
+    expect(positions.every((index) => index >= 0), `${label}: ` + needles.filter((needle, index) => positions[index] < 0).join(' | ')).toBe(true);
+    expect([...positions].sort((a, b) => a - b), `${label}: ${needles.join(' < ')}`).toEqual(positions);
+  };
+
+  it('finds the files it reads', () => {
+    for (const file of [moduleFile, migrationFile, 'lib/job-view.ts', 'lib/job-dispatch.ts', 'lib/worker-commands.ts', 'lib/job-cancellation.ts']) expect(() => read(file), file).not.toThrow();
+    for (const name of apiNames) expect(bodyOf('api', name).length, name).toBeGreaterThan(200);
+    for (const name of tables) expect(own, name).toContain(`create table jobs.${name} (`);
+  });
+
+  // The modules ----------------------------------------------------------------------------------------------------------------------------
+
+  it('reaches the fifteen database functions through lib/job-commands.ts and nothing else names them', () => {
+    for (const file of sources.filter((candidate) => candidate !== moduleFile && candidate !== 'lib/accounts.ts')) {
+      expect(code(file), file).not.toMatch(new RegExp(`['"\`](?:${apiNames.join('|')})['"\`]`));
+    }
+    for (const name of apiNames) expect(code(moduleFile), name).toMatch(new RegExp(`callRow\\(\\s*'${name}'`));
+  });
+
+  it('is called by the dispatch, worker and cancellation modules, and by no component', () => {
+    const importers = sources.filter((file) => file !== moduleFile && /lib\/job-commands|\.\/job-commands/.test(code(file)));
+    expect(importers).toEqual(expect.arrayContaining(['lib/job-cancellation.ts', 'lib/job-dispatch.ts', 'lib/worker-commands.ts']));
+    // A component is client code: it reads the client-safe half (lib/job-view.ts) and is handed what a page read.
+    expect(importers.filter((file) => file.startsWith('components/'))).toEqual([]);
+    for (const file of sources.filter((candidate) => candidate.startsWith('components/'))) expect(code(file), file).not.toMatch(/\b(?:callApi|callRow)\b|job-dispatch|worker-commands|job-cancellation/);
+  });
+
+  it('keeps the typed module server-only, silent and on the call helpers, and its client-safe half free of the server', () => {
+    const source = code(moduleFile);
+    expect(source).not.toMatch(/process\.env|console\.|node:|next\/|\brequire\(|window|document\.|localStorage|sessionStorage|fetch\(/);
+    expect([...source.matchAll(/^import [\s\S]*? from '([^']+)';$/gm)].map((match) => match[1]).sort()).toEqual(['@/lib/accounts', '@/lib/authority', '@/lib/job-view']);
+    expect(read(moduleFile)).toContain('SERVER-ONLY');
+    // lib/job-view.ts is read by client components: it reaches no server-only module (the Jobs commands, the database helpers, the Account's authority) and no Node module.
+    const view = code('lib/job-view.ts');
+    expect(view).not.toMatch(/from '@\/lib\/(?:accounts|access|auth|authority|lifecycle|job-commands|job-dispatch|worker-commands|job-cancellation|job-records|usage-reservations)'|from '\.\/(?:accounts|authority|job-commands)(?:\.ts)?'/);
+    expect(view).not.toMatch(/process\.env|console\.|node:|next\/headers|next\/cache|\brequire\(|callRow|callApi/);
+  });
+
+  it('leaves the scheduled-job route and its tasks knowing neither the Job records nor the ledgers', () => {
+    for (const file of ['lib/jobs.ts', 'lib/job-tasks.ts', 'app/api/jobs/route.ts']) {
+      expect(code(file), file).not.toMatch(/job-records|usage-reservations|\busage\.(?:rate_schedules|reservations|settlements)\b|\bjobs\.(?:jobs|attempts|steps|operations|commands)\b|reserve_cost|settle_cost|accept_job|read_job/);
+    }
+    // The sweep reaches the dispatch through the one module, and the module through the tasks' own import.
+    expect(code('lib/job-tasks.ts')).toMatch(/from '\.\/job-dispatch\.ts'/);
+  });
+
+  it('registers the canceller from the Node runtime only, and once', () => {
+    expect(code('instrumentation.ts')).toMatch(/await import\('\.\/lib\/job-cancellation'\);/);
+    expect(sources.filter((file) => /job-cancellation/.test(code(file)))).toEqual(['instrumentation.ts']);
+    const canceller = code('lib/job-cancellation.ts');
+    expect(canceller).toMatch(/registerCanceller\(\{\s*name: jobCancellerName,/);
+    expect(canceller).toMatch(/cancelAccountJobs\(\{accountId\}\)\)\.cancelled/);
+    expect(canceller).toMatch(/cancellerNames\(\)\.includes\(jobCancellerName\)/);
+  });
+
+  it('adds two machine paths, each a one-line caller of its handler, never static, and the dispatch and worker modules hold the only checks', () => {
+    for (const [route, handler, module] of [
+      ['app/api/dispatch/route.ts', 'handleDispatchRequest', '@/lib/job-dispatch'],
+      ['app/api/workers/route.ts', 'handleWorkerRequest', '@/lib/worker-commands'],
+    ] as const) {
+      expect(handlersOf(read(route)).map((candidate) => candidate.method), route).toEqual(['POST']);
+      const routeCode = code(route);
+      expect(routeCode, route).toMatch(/export const dynamic = 'force-dynamic';/);
+      expect(routeCode, route).toContain(`import {${handler}} from '${module}';`);
+      expect(routeCode, route).toMatch(new RegExp(`export async function POST\\(request: Request\\) \\{\\s*return ${handler}\\(request\\);\\s*\\}`));
+      expect(routeCode, route).not.toMatch(/console\.|\blog\(|process\.env|request\.url|nextUrl|searchParams|cookies\(|headers\(\)|upstash|qstash/i);
+    }
+    expect(code('lib/public-paths.ts')).toMatch(/export const machinePaths = \['\/api\/jobs', '\/api\/heartbeat', '\/api\/dispatch', '\/api\/workers'\];/);
+    expect(code('lib/job-dispatch.ts')).toMatch(/export const dispatchPath = '\/api\/dispatch';/);
+  });
+
+  it('verifies a worker command in the order the contract says, and each check returns before the next one starts', () => {
+    const workers = code('lib/worker-commands.ts');
+    const handler = workers.slice(workers.indexOf('export async function handleWorkerRequest'));
+    inOrder(
+      handler,
+      [
+        "request.method !== 'POST'",
+        "request.headers.get('origin')",
+        'env.INSTANCE_ID',
+        'readBody(request)',
+        'tokenOf(request)',
+        'claimedIssuer(token)',
+        'keySetOf(env, issuer)',
+        'verifyToken(token',
+        'workerCommandClaimsOf(verified.payload)',
+        'bodyDigest(raw.bytes)',
+        'recordCallback(',
+        'parseJson(raw.bytes)',
+        'run(command, accounts, issuer)',
+      ],
+      'worker route',
+    );
+    // A failed verification is ONE answer, and nothing of the request is logged or reflected.
+    expect([...workers.matchAll(/console\.\w+\(([^;]*)\);/g)].map((match) => match[1])).toEqual(["'A worker command could not be recorded.'", "'A worker command could not be run.'"]);
+  });
+
+  it('claims a dispatch as the built-in step after the signature, the body and the environment, and runs the workload under the fence', () => {
+    const dispatch = code('lib/job-dispatch.ts');
+    const handler = dispatch.slice(dispatch.indexOf('export async function handleDispatchRequest'));
+    inOrder(
+      handler,
+      ["request.method !== 'POST'", 'signingKeys(env)', 'request.headers.get(signatureHeader)', 'readRawBody(request)', 'isSigned(signature, raw.text, keys)', 'parseBody(raw.text)', 'checkInstanceIdentity(', 'claimAttempt({attemptId: body.attempt}', 'runTestWorkload('],
+      'dispatch route',
+    );
+    // The built-in step names no worker and the workload presents the fence on every call after the claim.
+    expect(dispatch).not.toMatch(/workerId:/);
+    expect(dispatch).toContain('nova3d-test-workload:v1:');
+  });
+
+  // The migration ----------------------------------------------------------------------------------------------------------------------------
+
+  it('adds four closed tables and closes them: row-level security on, every privilege revoked, delete left for the purge, truncate refused', () => {
+    for (const name of tables) {
+      expect(own, name).toContain(`alter table jobs.${name} enable row level security;`);
+      expect(own, name).toContain(`revoke all on jobs.${name} from public, anon, authenticated, service_role;`);
+      expect(own, name).toMatch(new RegExp(`create trigger ${name}_no_truncate before truncate on jobs\\.${name}\\s+for each statement execute function jobs\\.refuse_change\\(\\);`));
+      expect(own, name).not.toMatch(new RegExp(`create trigger \\w+ before delete on jobs\\.${name}`));
+    }
+    expect(migration).toContain('revoke all on all tables in schema jobs from public, anon, authenticated, service_role;');
+    expect(migration).toContain('revoke all on all functions in schema jobs from public, anon, authenticated, service_role;');
+    // Only the service role is let in, by name, and only to the fifteen.
+    const grants = [...migration.matchAll(/grant execute on function api\.([a-z_]+)\([^)]*\) to ([a-z_]+);/g)].map((match) => [match[1], match[2]]);
+    expect(grants.map(([name]) => name)).toEqual(apiNames);
+    for (const [, role] of grants) expect(role).toBe('service_role');
+    expect(migration).toMatch(/notify pgrst, 'reload schema';\s*$/);
+  });
+
+  it('re-creates only what it names, changes no stored state, move or reason, and leaves the Story 2.11 reads and the gate alone', () => {
+    expect([...own.matchAll(/create or replace function ([a-z_.]+)\(/g)].map((match) => match[1]).sort()).toEqual(['api.alarm_observations', 'jobs.check_operation', 'jobs.check_step']);
+    expect(migration).toMatch(/create or replace function api\.preflight\(\)/);
+    expect(migration).not.toMatch(/alter table jobs\.(?:jobs|attempts|steps|operations)\b|drop (?:function|table|trigger)\b/i);
+    expect(own).not.toMatch(/create (?:or replace )?function (?:api\.(?:accept_job|begin_step|advance_operation|move_attempt|request_retry|read_job)|jobs\.(?:derived_reason|charge_open|public_state))\(/);
+    // The worker's step and operation commands are the Story 2.11 commands, run under derived command IDs: it makes no step or operation of its own.
+    expect(bodyOf('api', 'run_step')).toContain('api.begin_step(');
+    expect(bodyOf('api', 'run_step')).toContain('api.advance_operation(');
+    expect(bodyOf('api', 'finish_operation')).toContain('api.advance_operation(');
+    expect(bodyOf('api', 'run_step')).not.toMatch(/insert into jobs\.(?:steps|operations)/);
+    expect(migration).toContain("alter table jobs.commands drop constraint commands_kind_check;");
+    expect(own).not.toMatch(/record_tombstone|create (?:or replace )?function (?:identity|lifecycle|projects|artifacts|usage)\./);
+    // Exactly one audit event is written, and only by the cancellation (shared by the sweep and the Account's canceller).
+    expect([...own.matchAll(/identity\.record_audit\(([^)]*)\)/g)].map((match) => match[1])).toEqual(["'system:jobs', 'jobs.cancelled', 'account:' || v_account::text"]);
+  });
+
+  it('records the numbers once, in SQL, and the module mirrors every one', () => {
+    const constants = [
+      ['lease_seconds', 120, 'leaseSeconds'],
+      ['renewal_seconds', 30, 'renewalSeconds'],
+      ['publish_grace_seconds', 15, 'publishGraceSeconds'],
+      ['publish_lease_seconds', 60, 'publishLeaseSeconds'],
+      ['open_job_limit', 3, 'openJobLimit'],
+      ['outbox_alarm_seconds', 120, 'outboxAlarmSeconds'],
+      ['lease_alarm_seconds', 300, 'leaseAlarmSeconds'],
+      ['builtin_version', 1, 'builtinVersion'],
+    ] as const;
+    const dispatch = code('lib/job-dispatch.ts');
+    for (const [sql, value, name] of constants) {
+      expect(own, sql).toContain(`create function jobs.${sql}() returns integer language sql immutable set search_path = '' as $$ select ${value} $$;`);
+      expect(dispatch, name).toMatch(new RegExp(`\\b${name}: ${value},`));
+    }
+    expect(own).toContain("create function jobs.builtin_kind() returns text language sql immutable set search_path = '' as $$ select 'test_workload'::text $$;");
+    expect(dispatch).toMatch(/\bbuiltinKind: 'test_workload',/);
+    // The alarm thresholds are the same two numbers, written once in the conditions' file.
+    expect(code('lib/alarm-conditions.ts')).toMatch(/outboxAgeSeconds = 120;/);
+    expect(code('lib/alarm-conditions.ts')).toMatch(/leaseExpiredSeconds = 300;/);
+  });
+
+  it('writes an outbox row with every attempt, in the transaction of the attempt, from a trigger', () => {
+    expect(own).toMatch(/create trigger attempts_outbox after insert on jobs\.attempts\s+for each row execute function jobs\.create_outbox\(\);/);
+    const trigger = bodyOf('jobs', 'create_outbox');
+    expect(trigger).toContain("current_setting('nova3d.job_plan', true)");
+    expect(trigger).toContain("current_setting('nova3d.job_worker_version', true)");
+    expect(trigger).toContain('authorization_epoch');
+    expect(trigger).toContain('p.revision');
+    // The settings are set by api.submit_job alone, are local to its transaction, and are cleared as soon as its attempt is inserted.
+    expect([...own.matchAll(/set_config\('nova3d\.job_(?:plan|worker_version)'/g)]).toHaveLength(4);
+    expect(bodyOf('api', 'submit_job').match(/set_config\('nova3d\.job_(?:plan|worker_version)', [^;]*, true\)/g)).toHaveLength(4);
+    // The row refuses every change but the publisher's lease and the one-time publication.
+    const guard = bodyOf('jobs', 'guard_outbox_change');
+    expect(guard).toContain("(to_jsonb(new) - 'publish_until' - 'published_at' - 'message_id') is distinct from (to_jsonb(old) - 'publish_until' - 'published_at' - 'message_id')");
+  });
+
+  it('accepts a Job in an order that writes nothing before every check has passed, and reserves through one function', () => {
+    const submit = bodyOf('api', 'submit_job');
+    inOrder(
+      submit,
+      [
+        "p_kind <> jobs.builtin_kind()",
+        'identity.assert_operation_authority(',
+        "'nova3d:jobs-command:'",
+        'jobs.hold_project(',
+        'jobs.command_digest(',
+        "'nova3d:jobs-open:'",
+        'jobs.open_job_limit()',
+        'insert into jobs.jobs',
+        'insert into jobs.attempts',
+        'jobs.reserve_planned(',
+        "raise exception using errcode = 'N3050'",
+        "jobs.record_command(p_account_id, p_command_id, 'submit_job'",
+      ],
+      'submit_job',
+    );
+    // A refusal rolls the whole block back: nothing is written, and the refusal is answered with the cost block.
+    expect(submit).toContain("exception when sqlstate 'N3050' then");
+    expect(submit).not.toMatch(/api\.reserve_cost\(/);
+    // The twelve-argument reservation is asked in ONE place (Story 2.5 adds its permission argument there).
+    expect([...own.matchAll(/[^'.\w]api\.reserve_cost\(/g)]).toHaveLength(1);
+    expect(bodyOf('jobs', 'reserve_planned')).toMatch(/api\.reserve_cost\(/);
+  });
+
+  it('ends a lease before anything else when an attempt ends, and releases what never went out after every Job lock is taken', () => {
+    inOrder(bodyOf('jobs', 'end_attempt'), ['update jobs.leases l', 'update jobs.operations o', 'update jobs.attempts a'], 'end_attempt');
+    inOrder(bodyOf('api', 'cancel_job'), ["'nova3d:jobs-command:'", 'jobs.hold_project(', "'nova3d:job:'", 'jobs.command_digest(', "'not_cancellable'", 'jobs.end_attempt(', 'jobs.settle_abandoned('], 'cancel_job');
+    inOrder(bodyOf('api', 'sweep_attempts'), ["'nova3d:jobs-sweep'", 'jobs.cancel_attempts(null, 100)', "'lease_lost'", 'jobs.settle_abandoned(null, null, 100)'], 'sweep_attempts');
+    inOrder(bodyOf('api', 'cancel_account_jobs'), ["'nova3d:jobs-sweep'", 'jobs.cancel_attempts(p_account_id', 'jobs.settle_abandoned(null, p_account_id'], 'cancel_account_jobs');
+    // Settling needs no authority: it records what happened, so a disabled Account's money is never stranded.
+    expect(bodyOf('jobs', 'settle_abandoned')).toContain('api.settle_cost(');
+  });
+
+  it('checks every fenced command in the order the story fixes: the lease, its ending, its expiry, the attempt, the authority, the Project', () => {
+    inOrder(
+      bodyOf('jobs', 'check_fence'),
+      [
+        'identity.assert_operation_authority(',
+        'jobs.hold_project(',
+        "pg_advisory_xact_lock(hashtextextended('nova3d:job:'",
+        'l.fence = p_fence',
+        'v_lease.ended_at is not null',
+        'v_lease.expires_at <= clock_timestamp()',
+        "v_attempt.state <> 'running'",
+        'if not v_authority then',
+        "jobs.end_attempt(p_attempt_id, 'cancelled', 'account_disabled', 'revoked'",
+        'if not v_held then',
+      ],
+      'check_fence',
+    );
+    for (const name of ['renew_lease', 'run_step', 'finish_operation', 'finish_attempt']) expect(bodyOf('api', name), name).toContain('jobs.check_fence(p_attempt_id, p_fence)');
+    // A result of stale inputs is refused before it is published; the claim is once.
+    // The signed `rev` claim means something: a completion naming another revision than the one the attempt is bound to is as stale as one whose Project moved on.
+    inOrder(bodyOf('api', 'finish_attempt'), ['jobs.check_fence(', 'select p.revision', 'p_revision <> v_check.project_revision', "'stale_revision'", "'open_operations'", "end_reason = 'completed'"], 'finish_attempt');
+    // A worker is bound to the issuer that signed for it, before anything else is judged (a replay below would hand its fence out); the built-in step names no issuer.
+    inOrder(bodyOf('api', 'claim_attempt'), ['w.issuer <> p_issuer', "'already_claimed'", "'not_waiting'", 'if not v_authority then', 'jobs.charge_open(', 'jobs.executable(', 'v_worker.retired_at is not null', 'insert into jobs.leases'], 'claim_attempt');
+    expect(bodyOf('api', 'claim_attempt')).toContain('p_worker_id is not null and p_issuer is not null');
+    // The cancellation of one Account and the sweep use ONE predicate, so a late canceller never cancels the healthy Jobs of a re-enabled Account.
+    expect(bodyOf('jobs', 'cancel_attempts')).toContain("(acc.status <> 'active' or acc.authorization_epoch <> ob.account_epoch)");
+    expect(bodyOf('jobs', 'cancel_attempts')).not.toMatch(/p_account_id is not null and a\.account_id = p_account_id\)\s*or/);
+    // The sweep ends an expired live lease whatever became of its attempt.
+    expect(bodyOf('api', 'sweep_attempts')).toMatch(/where l\.attempt_id = r\.attempt_id and l\.ended_at is null;/);
+    expect(own).toContain('constraint leases_attempt_key unique (attempt_id),');
+    expect(own).toContain('constraint leases_fence_key unique (fence),');
+  });
+
+  it('publishes an outbox row once: leased for 60 seconds without waiting on a row another publisher holds, and the message ID is recorded once', () => {
+    const claim = bodyOf('api', 'claim_outbox');
+    expect(claim).toContain('for update skip locked');
+    expect(claim).toContain('jobs.publish_grace_seconds()');
+    expect(claim).toContain('jobs.publish_lease_seconds()');
+    expect(claim).toContain('o.published_at is null');
+    const mark = bodyOf('api', 'mark_published');
+    expect(mark).toContain('for update');
+    expect(mark).toContain("when v_row.message_id = p_message_id then 'replayed' else 'conflict'");
+    // A signed command's jti is recorded under the shared key lock, so a revoked key is refused and a replay is a duplicate.
+    const callback = bodyOf('api', 'record_callback');
+    inOrder(callback, ["pg_advisory_xact_lock_shared(hashtextextended('nova3d:service-key:' || p_issuer || ':' || p_kid", 'artifacts.service_key_revocations', 'on conflict (jti) do nothing'], 'record_callback');
+  });
+
+  it('keeps the Job screens bidi-safe and announced in the page\'s language: the Project\'s title in an isolating element, every announcement given the locale', () => {
+    expect(code('components/jobs/job-card.tsx')).toMatch(/<bdi>\{job\.projectTitle\}<\/bdi>/);
+    for (const file of ['components/jobs/job-detail.tsx', 'components/jobs/jobs-overview.tsx']) {
+      const announced = [...code(file).matchAll(/\bannounce\(([^;]*)\);/g)].map((match) => match[1]);
+      expect(announced.length, file).toBeGreaterThan(0);
+      for (const call of announced) expect(call, `${file}: announce(${call})`).toMatch(/,\s*locale\)?$/);
+    }
+  });
+
+  it('describes the issuer a claim is bound to, the revision a finish names, the one predicate of the cancellation and the lease the sweep ends, where the contract describes the claim and the finish', () => {
+    const contract = read('docs/authority-contract.md');
+    for (const needle of [
+      'api.claim_attempt(attempt, worker default null, issuer default null)',
+      'A worker is bound to the issuer that signed for it',
+      'api.finish_attempt(attempt, fence, to, result digest, revision default null)',
+      'a signed command with a stale revision is rejected',
+      'the sweep\'s own predicate',
+      'a lease whose attempt is no longer running',
+      'jsonb text',
+    ]) expect(contract, needle).toContain(needle);
+    const staging = read('docs/staging.md');
+    for (const needle of ['the issuer of the token that signed the claim', 'the signed `rev` claim', 'the sweep\'s own rule']) expect(staging, needle).toContain(needle);
+  });
+
+  it('lets a failed database sweep stop nothing: the publication runs and the run fails after it', () => {
+    const sweep = code('lib/job-dispatch.ts');
+    const body = sweep.slice(sweep.indexOf('export async function runOutboxSweep'));
+    expect(body).toMatch(/catch \(error\) \{\s*sweepFailure = \{error\};/);
+    expect(body.indexOf('claimOutbox(')).toBeGreaterThan(body.indexOf('sweepFailure = {error}'));
+    expect(body.indexOf('throw sweepFailure.error')).toBeGreaterThan(body.indexOf('claimOutbox('));
   });
 });

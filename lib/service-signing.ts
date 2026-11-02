@@ -1,13 +1,15 @@
 // Story 1.12. The service-signing contract: how one part of the system proves to another that it made a request. The file gateway uses it
-// now (the application signs transfer tickets and delete commands, the gateway verifies them); Story 2.7 reuses it for the workers' callbacks.
+// (the application signs transfer tickets and delete commands, the gateway verifies them), the Railway heartbeat uses it (Story 1.13), and since Story 2.7 the workers
+// do: a signed worker command (`typ: "worker-command"`, issued by `cad-worker` or `engine-worker` to the application) registers a worker and claims, renews, steps and finishes work.
 //
 // This file imports `node:crypto` and NOTHING else, so the gateway (workers/files, which Node runs through type stripping and which cannot
 // reach the application's modules) and the application and the tests all read the one definition. Erasable TypeScript syntax only.
 // It reads no environment variable and logs nothing: callers pass the key text in, and a refusal names no reason.
 //
 // ISSUERS. `application`, `gateway`, `cad-worker`, `engine-worker`, `backup-service`, `heartbeat`. Each issuer has one Ed25519 key pair at a time
-// (plus at most one RETIRING key while a rotation settles). `application` issues the gateway's tickets and commands (Story 1.12) and `heartbeat` issues the Railway
-// cron task's heartbeat to the application (Story 1.13); the others issue nothing yet.
+// (plus at most one RETIRING key while a rotation settles). `application` issues the gateway's tickets and commands (Story 1.12), `heartbeat` issues the Railway
+// cron task's heartbeat to the application (Story 1.13), and `cad-worker` and `engine-worker` each issue the signed commands of their own kind of worker (Story 2.7); the
+// others issue nothing yet.
 //
 // KEY SET (public, not secret; `SERVICE_KEYS_<ISSUER>`): JSON
 //     {"issuer": "application", "active": "<kid>", "retiring": {"kid": "<kid>", "until": "<ISO 8601 UTC>"} | null, "keys": {"<kid>": "<base64 SPKI>"}}
@@ -32,7 +34,7 @@
 //   9. issued          iat is at most 60 seconds ahead of now
 //  10. expiry          now is not after exp
 // and then the type. A reason is never returned: not in a result, not in an error, not in a log.
-import {createPrivateKey, createPublicKey, randomBytes, sign, verify, type KeyObject} from 'node:crypto';
+import {createHash, createPrivateKey, createPublicKey, randomBytes, sign, verify, type KeyObject} from 'node:crypto';
 
 // Issuers, keys, tokens ----------------------------------------------------------------------------------------------------------
 
@@ -472,5 +474,78 @@ export function signHeartbeat(signer: Signer, environment: string, options: {now
   const token = signToken(signer, {audience: 'application', environment, type: 'heartbeat', claims: {}, ...options});
   const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8')) as TokenPayload;
   if (heartbeatClaimsOf(payload) === null) throw new TypeError('the claims are not those of a heartbeat');
+  return token;
+}
+
+// Worker commands (Story 2.7) -----------------------------------------------------------------------------------------------------------------
+
+/** The two issuers that sign for workers: each worker type signs with its own key, so a compromised worker can sign only as itself. */
+export const workerIssuers = ['cad-worker', 'engine-worker'] as const;
+export type WorkerIssuer = (typeof workerIssuers)[number];
+
+export function isWorkerIssuer(value: unknown): value is WorkerIssuer {
+  return typeof value === 'string' && (workerIssuers as readonly string[]).includes(value);
+}
+
+/** What a worker can ask: register itself, claim an attempt, renew its lease, begin a step, report an operation's outcome, finish the attempt. */
+export const workerCommandNames = ['register', 'claim', 'renew', 'step', 'operation', 'finish'] as const;
+export type WorkerCommandName = (typeof workerCommandNames)[number];
+
+/**
+ * The claims of a worker command (`typ: "worker-command"`, `iss: "cad-worker" | "engine-worker"`, `aud: "application"`). `dig` is the SHA-256 (hex) of the raw body
+ * of the request, so the token vouches for exactly those bytes; `att` is the attempt, `fence` the fencing token the claim handed out, `rev` the Project revision the result
+ * was computed from and `wid` the registered worker that claims. Each command carries exactly its own: an unknown claim is as bad as a missing one.
+ */
+export type WorkerCommandClaims =
+  | {cmd: 'register'; dig: string}
+  | {cmd: 'claim'; dig: string; att: string; wid: string}
+  | {cmd: 'renew' | 'step' | 'operation'; dig: string; att: string; fence: string}
+  | {cmd: 'finish'; dig: string; att: string; fence: string; rev: number};
+
+const workerClaimNames: Readonly<Record<WorkerCommandName, readonly string[]>> = {
+  register: ['cmd', 'dig'],
+  claim: ['att', 'cmd', 'dig', 'wid'],
+  renew: ['att', 'cmd', 'dig', 'fence'],
+  step: ['att', 'cmd', 'dig', 'fence'],
+  operation: ['att', 'cmd', 'dig', 'fence'],
+  finish: ['att', 'cmd', 'dig', 'fence', 'rev'],
+};
+
+/** The SHA-256 (hex) of the raw bytes of a request body: the `dig` a worker command binds. */
+export function bodyDigest(body: string | Uint8Array): string {
+  return createHash('sha256').update(typeof body === 'string' ? Buffer.from(body, 'utf8') : body).digest('hex');
+}
+
+/** The worker command claims of a verified payload, or null when it is not exactly a worker command. */
+export function workerCommandClaimsOf(payload: TokenPayload): WorkerCommandClaims | null {
+  if (payload.typ !== 'worker-command' || !isWorkerIssuer(payload.iss) || payload.aud !== 'application') return null;
+  const {cmd, dig} = payload;
+  if (typeof cmd !== 'string' || !(workerCommandNames as readonly string[]).includes(cmd) || !isSha256Hex(dig)) return null;
+  const name = cmd as WorkerCommandName;
+  const own = Object.keys(payload).filter((claim) => !reserved.includes(claim)).sort().join();
+  if (own !== [...workerClaimNames[name]].sort().join()) return null;
+  if (name === 'register') return {cmd: 'register', dig};
+  const {att} = payload;
+  if (!isUuid(att)) return null;
+  if (name === 'claim') {
+    const {wid} = payload;
+    return isUuid(wid) ? {cmd: 'claim', dig, att, wid} : null;
+  }
+  const {fence} = payload;
+  if (!isUuid(fence)) return null;
+  if (name === 'finish') {
+    const {rev} = payload;
+    return typeof rev === 'number' && Number.isSafeInteger(rev) && rev >= 1 ? {cmd: 'finish', dig, att, fence, rev} : null;
+  }
+  return {cmd: name, dig, att, fence};
+}
+
+/** Signs a worker command for the application. The claims are checked as the application will check them, so a command it would refuse is never made. */
+export function signWorkerCommand(signer: Signer, environment: string, claims: WorkerCommandClaims, options: {now?: number; lifetimeSeconds?: number; jti?: string} = {}): string {
+  if (!isWorkerIssuer(signer.issuer)) throw new TypeError('only a worker signs a worker command');
+  const record: Record<string, string | number> = {...claims};
+  const token = signToken(signer, {audience: 'application', environment, type: 'worker-command', claims: record, ...options});
+  const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8')) as TokenPayload;
+  if (workerCommandClaimsOf(payload) === null) throw new TypeError('the claims are not those of a worker command');
   return token;
 }

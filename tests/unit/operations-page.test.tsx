@@ -250,6 +250,16 @@ describe.each(locales)('the detail of an open alarm on the page in %s', (locale)
     expect(labels(resolvedCard)).not.toContain(t(locale, 'operations.detail.count'));
   });
 
+  it.each([
+    ['outbox-age', 200],
+    ['lease-expired-unclaimed', 640],
+  ])('labels the %s card (Story 2.7) with its own title, and its age', (condition, age) => {
+    const stuck = view(condition, null, {age_seconds: age}, 6);
+    const card = cards(render(locale, [stuck]))[0];
+    expect(text(/<h3\b[^>]*>([\s\S]*?)<\/h3>/.exec(card)![1]).trim()).toBe(t(locale, `operations.condition.${condition}` as never));
+    expect(rowsOf(card)).toContainEqual([t(locale, 'operations.detail.age_seconds'), String(age)]);
+  });
+
   it('labels the monitor-late card with its own title, and its age', () => {
     const late = view('monitor-late', null, {receipt_task: 'alarm-monitor', receipt_outcome: 'never', receipt_at: 'never', age_seconds: 5000}, 5);
     const card = cards(render(locale, [late]))[0];

@@ -136,7 +136,12 @@ export async function setFigures(client: Client, periodId: string, settled: numb
     ids.reservationIds.push(reservation);
     ids.settlementIds.push(await insertSettlement(client, {accountId, reservationId: reservation, periodId, classification: 'deadline'}));
   }
-  if (reserved > 0) ids.reservationIds.push(await insertReservation(client, {accountId, periodId, jobId: job.jobId, operationId: job.operationIds[1], amount: reserved}));
+  if (reserved > 0) {
+    ids.reservationIds.push(await insertReservation(client, {accountId, periodId, jobId: job.jobId, operationId: job.operationIds[1], amount: reserved}));
+    // What is still reserved is held by a request that went out (a `dispatched` operation), as it is in life: a reservation of an operation that never went out is released when
+    // its Job is cancelled (Story 2.7, e.g. when the Account is disabled), and a fixture that stands for money held must not be undone by that.
+    await client.query(`update jobs.operations set state = 'dispatched', dispatched_at = clock_timestamp() where id = $1`, [job.operationIds[1]]);
+  }
   return ids;
 }
 

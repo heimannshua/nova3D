@@ -323,6 +323,58 @@ describe('the conditions the monitor evaluates', () => {
     expect(database.openAlarms()).toHaveLength(2);
   });
 
+  it('raises outbox-age (Story 2.7) for a dispatch that has waited over 120 seconds to be published, emails it, refreshes it while it lasts, and resolves it once the sweep has published the row', async () => {
+    const database = fakeDatabase();
+    const mail = sender();
+    const options = deps(database, mail);
+    database.observed.value.outbox_oldest = 120;
+    expect(await runAlarmMonitor(options)).toEqual({raised: 0, resolved: 0, mailed: 0, mailFailed: 0});
+    database.observed.value.outbox_oldest = 121;
+    expect(await runAlarmMonitor(options)).toEqual({raised: 1, resolved: 0, mailed: 1, mailFailed: 0});
+    expect(database.alarms).toEqual([expect.objectContaining({condition: 'outbox-age', subject: null, detail: {age_seconds: 121}})]);
+    expect(mail.mails[0]).toMatchObject({condition: 'outbox-age', subject: null});
+    database.advance(60_000);
+    database.observed.value.outbox_oldest = 181;
+    expect(await runAlarmMonitor(options)).toEqual({raised: 1, resolved: 0, mailed: 0, mailFailed: 0});
+    expect(database.alarms).toHaveLength(1);
+    expect(database.alarms[0].detail).toEqual({age_seconds: 181});
+    // The sweep published the row: nothing is unpublished.
+    database.advance(60_000);
+    database.observed.value.outbox_oldest = null;
+    expect(await runAlarmMonitor(options)).toEqual({raised: 0, resolved: 1, mailed: 0, mailFailed: 0});
+    expect(database.alarms[0].resolvedAt).toBe(START + 120_000);
+  });
+
+  it('raises lease-expired-unclaimed (Story 2.7) for a live lease that expired over 300 seconds ago, and resolves it once the sweep has ended the lease', async () => {
+    const database = fakeDatabase();
+    const mail = sender();
+    const options = deps(database, mail);
+    database.observed.value.lease_expired_oldest = 300;
+    expect(await runAlarmMonitor(options)).toEqual({raised: 0, resolved: 0, mailed: 0, mailFailed: 0});
+    database.observed.value.lease_expired_oldest = 301;
+    expect(await runAlarmMonitor(options)).toEqual({raised: 1, resolved: 0, mailed: 1, mailFailed: 0});
+    expect(database.alarms).toEqual([expect.objectContaining({condition: 'lease-expired-unclaimed', subject: null, detail: {age_seconds: 301}})]);
+    database.advance(60_000);
+    database.observed.value.lease_expired_oldest = null;
+    expect(await runAlarmMonitor(options)).toEqual({raised: 0, resolved: 1, mailed: 0, mailFailed: 0});
+  });
+
+  it('keeps the two Story 2.7 alarms apart from each other and from the rest: each is a threshold alarm of its own, and neither is the heartbeat\'s to raise or resolve', async () => {
+    const database = fakeDatabase();
+    const mail = sender();
+    database.observed.value.outbox_oldest = 500;
+    database.observed.value.lease_expired_oldest = 900;
+    expect(await runAlarmMonitor(deps(database, mail))).toEqual({raised: 2, resolved: 0, mailed: 2, mailFailed: 0});
+    expect(database.alarms.map((alarm) => alarm.condition).sort()).toEqual(['lease-expired-unclaimed', 'outbox-age']);
+    // The heartbeat's evaluation raises neither and resolves neither.
+    database.advance(60_000);
+    database.observed.value.outbox_oldest = null;
+    database.observed.value.lease_expired_oldest = null;
+    const report = await runHeartbeatEvaluation(deps(database, mail, {heartbeatConfigured: true}));
+    expect(report.raised).toBe(0);
+    expect(database.openAlarms().map((alarm) => alarm.condition).sort()).toEqual(['lease-expired-unclaimed', 'outbox-age']);
+  });
+
   it('evaluates the real registry against calm observations and finds nothing', async () => {
     const database = fakeDatabase();
     const mail = sender();
@@ -399,8 +451,8 @@ describe('the heartbeat route\'s evaluation', () => {
     database.observed.value.first_receipt_age = 100_000;
     const report = await runAlarmMonitor(deps(database, sender()));
     expect(database.alarms.map((alarm) => alarm.condition)).not.toContain('monitor-late');
-    // (Two tasks are late; the monitor itself is left out, and the third task has not had two of its intervals yet.)
-    expect(report.raised).toBe(2);
+    // (Three tasks are late: the relay, the cleanup and, since Story 2.7, the minute sweep. The monitor itself is left out, and the daily purge has not had two of its intervals yet.)
+    expect(report.raised).toBe(3);
   });
 });
 

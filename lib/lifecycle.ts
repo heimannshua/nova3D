@@ -591,7 +591,8 @@ const optionalAge = (value: unknown): number | null => {
 /**
  * api.alarm_observations: every number the registry of conditions looks at, as AGES IN SECONDS on the database clock (the application never compares its
  * own clock with the database's), the ledger backlog, how many Auth identities have no Account (the one place they are counted: the application never
- * names `auth.users`) and each task's newest finished receipt. Read-only.
+ * names `auth.users`), each task's newest finished receipt and (Story 2.7) the age of the oldest unpublished dispatch outbox row and how long ago the oldest live lease
+ * expired (of those that expired more than 300 seconds ago). Read-only.
  */
 export async function alarmObservations(options: AccountsOptions = {}): Promise<DatabaseObservations> {
   const row = await callRow('alarm_observations', {}, options);
@@ -617,6 +618,8 @@ export async function alarmObservations(options: AccountsOptions = {}): Promise<
     ledgerOldest,
     unaccounted,
     tasks,
+    outboxOldest: optionalAge(row.outbox_oldest),
+    leaseExpiredOldest: optionalAge(row.lease_expired_oldest),
   };
 }
 

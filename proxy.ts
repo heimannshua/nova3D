@@ -17,6 +17,7 @@ import {
   type ApiDenial,
 } from '@/lib/access';
 import {hasSupabaseConfig} from '@/lib/auth-config';
+import {hasUndecodableJobId, undecodableJobPath} from '@/lib/job-paths';
 import {recordFromCookies} from '@/lib/preferences';
 import {hasUndecodableProjectId, undecodableProjectPath} from '@/lib/project-paths';
 import {isMachinePath, isPublicPath} from '@/lib/public-paths';
@@ -184,6 +185,10 @@ export async function proxy(request: NextRequest) {
       // response is built the way every page response is (the refreshed session, the CSRF cookie, the adoption above).
       if (!api && hasUndecodableProjectId(pathname)) {
         return clearLegacyCookie(request, client.rewrite(new URL(undecodableProjectPath, request.url), csrfCookie));
+      }
+      // The same for a Job link (Story 2.7): an ID that does not decode is the one unavailable page, not a 500.
+      if (!api && hasUndecodableJobId(pathname)) {
+        return clearLegacyCookie(request, client.rewrite(new URL(undecodableJobPath, request.url), csrfCookie));
       }
       return clearLegacyCookie(request, client.next(csrfCookie));
     }

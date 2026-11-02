@@ -16,6 +16,11 @@
 //                          `kept`). The result is counts only. A gateway that is down or refuses a command FAILS the run (the class of the error is recorded)
 //                          and the scheduler retries it: the list is read afresh and the commands are idempotent.
 //
+//   outbox-sweep          Story 2.7. Every minute: the database's sweep (leases past their expiry end and their attempts fail as `lease_lost`; the attempts of a disabled
+//                         Account or a moved epoch are cancelled; what never went out is released), then the publication of the unpublished outbox rows older than 15 seconds
+//                         (lib/job-dispatch.ts `runOutboxSweep`). With no queue configured (`configuredPublishing`: the queue's token and endpoint, the application's origin and instance)
+//                         the rows are left alone and the run is `no_store`; nothing to do is `idle`. A publication the queue refuses FAILS the run, after the rest was done: the row is
+//                         claimed again after its 60-second lease. The result is counts only.
 //   alarm-monitor         Story 1.13. Evaluates the registry of alarm conditions (lib/alarm-conditions.ts) against the observations the database reports
 //                         (lib/alarms.ts `runAlarmMonitor`): raises an alarm for each finding, resolves the open alarms of its conditions that cleared, and
 //                         emails the Administrator what is due. The result is counts only: `raised`, `resolved`, `mailed`, `mail_failed`. A condition that
@@ -28,6 +33,7 @@
 import type {AccountsOptions} from './accounts.ts';
 import {runAlarmMonitor, type MonitorDeps} from './alarms.ts';
 import {configuredGatewayClient, GatewayError, GatewayUnavailableError, type GatewayClient} from './gateway-client.ts';
+import {runOutboxSweep, type PublishingConfig} from './job-dispatch.ts';
 import {relayLedger, type LedgerStore} from './ledger.ts';
 import {isJobResult, ledgerPending, listExpiredStaging, purgeDormantIdentities, type JobOutcome, type JobResult} from './lifecycle.ts';
 import type {ScheduledTask} from './schedules.ts';
@@ -69,6 +75,17 @@ export class StagingCleanupIncompleteError extends Error {
   }
 }
 
+/**
+ * The sweep could not publish every outbox row it claimed (the queue refused a publication). Thrown, not returned, so the receipt says `failed` with this class name only and the
+ * scheduler retries; the message holds no ID. The rows are claimed again after their 60-second lease.
+ */
+export class OutboxPublishIncompleteError extends Error {
+  constructor() {
+    super('the outbox sweep left some rows unpublished');
+    this.name = 'OutboxPublishIncompleteError';
+  }
+}
+
 /** What a task answers: how the run went (never `failed`: a task that cannot finish throws) and what it counted. */
 export type TaskResult = {outcome: Exclude<JobOutcome, 'failed'>; result: JobResult};
 
@@ -92,6 +109,11 @@ export type TaskContext = {
    * Left out, the registered conditions and the real sender are used. The tests pass a fixture condition and a fake sender.
    */
   alarms?: Omit<MonitorDeps, 'accounts'>;
+  /**
+   * The dispatch queue's publisher (Story 2.7). Left out, the configured one is used (`configuredPublishing`: none unless the queue's token and endpoint, the application's origin
+   * and its instance are set, so the sweep answers `no_store`). The tests pass a fake, or `null` for none.
+   */
+  publishing?: PublishingConfig | null;
 };
 
 /**
@@ -155,12 +177,30 @@ async function alarmMonitorTask(context: TaskContext): Promise<TaskResult> {
   return {outcome: 'ran', result: {raised: report.raised, resolved: report.resolved, mailed: report.mailed, mail_failed: report.mailFailed}};
 }
 
+async function outboxSweepTask(context: TaskContext): Promise<TaskResult> {
+  const report = await runOutboxSweep({accounts: context.accounts ?? {}, config: context.publishing, env: context.accounts?.env});
+  const result = {
+    expired: report.expired,
+    cancelled: report.cancelled,
+    settled: report.settled,
+    claimed: report.claimed,
+    published: report.published,
+    publish_failed: report.publishFailed,
+  };
+  // The queue refused a publication: the run fails (the receipt records the class), after everything else was done.
+  if (report.publishFailed > 0) throw new OutboxPublishIncompleteError();
+  if (!report.configured) return {outcome: 'no_store', result};
+  const idle = Object.values(result).every((count) => count === 0);
+  return {outcome: idle ? 'idle' : 'ran', result};
+}
+
 /** Every registered task, by ID. A task added to lib/schedules.ts must be added here: the compiler and a test both insist. */
 export const tasks: Record<ScheduledTask, (context: TaskContext) => Promise<TaskResult>> = {
   'ledger-relay': ledgerRelayTask,
   'dormant-identity-purge': dormantIdentityPurgeTask,
   'staging-cleanup': stagingCleanupTask,
   'alarm-monitor': alarmMonitorTask,
+  'outbox-sweep': outboxSweepTask,
 };
 
 /**

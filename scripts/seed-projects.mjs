@@ -103,6 +103,12 @@ try {
       await client.query(`delete from usage.settlements where account_id = $1 and reservation_id in (${reservationsOf})`, [accountId, ids]);
       await client.query(`delete from usage.reservations where account_id = $1 and job_id in (${jobsOf})`, [accountId, ids]);
       const attemptsOf = `select a.id from jobs.attempts a where a.account_id = $1 and a.job_id in (${jobsOf})`;
+      // The leases and the outbox rows of those attempts (Story 2.7) restrict them (foreign keys), so they go before the attempts do. The callbacks (the signed worker commands that were
+      // accepted) are NOT a foreign key: jobs.callbacks.attempt_id is only a record of what was presented, so nothing restricts the attempts. They are deleted by the attempt IDs all
+      // the same, so no trace of the Project's attempts is left; the callbacks with no attempt (a worker's registration) belong to no Project and stay.
+      await client.query(`delete from jobs.callbacks where attempt_id in (${attemptsOf})`, [accountId, ids]);
+      await client.query(`delete from jobs.leases where account_id = $1 and attempt_id in (${attemptsOf})`, [accountId, ids]);
+      await client.query(`delete from jobs.outbox where account_id = $1 and attempt_id in (${attemptsOf})`, [accountId, ids]);
       const stepsOf = `select s.id from jobs.steps s where s.account_id = $1 and s.attempt_id in (${attemptsOf})`;
       await client.query(`delete from jobs.operations where account_id = $1 and step_id in (${stepsOf})`, [accountId, ids]);
       await client.query(`delete from jobs.steps where account_id = $1 and attempt_id in (${attemptsOf})`, [accountId, ids]);

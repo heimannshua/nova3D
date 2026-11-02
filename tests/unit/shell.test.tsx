@@ -12,6 +12,9 @@ vi.mock('next/headers', () => ({
   headers: async () => ({get: (name: string) => (name.toLowerCase() === 'accept-language' ? request.acceptLanguage : null)}),
 }));
 
+// The refresh button of In Progress (Story 2.7) asks the router to refresh; there is no app router to mount here.
+vi.mock('next/navigation', async (importOriginal) => ({...(await importOriginal<typeof import('next/navigation')>()), useRouter: () => ({refresh: () => undefined})}));
+
 import RootLayout, {generateMetadata, viewport} from '@/app/layout';
 import KitPage from '@/app/kit/page';
 import RouteError from '@/app/error';

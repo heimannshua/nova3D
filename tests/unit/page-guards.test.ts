@@ -44,7 +44,7 @@ const callsRequireAdministrator = (text: string) => /^[^/\n]*\bawait\s+requireAd
 
 describe('page guards', () => {
   it('finds the pages', () => {
-    expect(files).toEqual(expect.arrayContaining(['app/page.tsx', 'app/projects/page.tsx', 'app/projects/new/page.tsx', 'app/projects/new/pictures/page.tsx', 'app/projects/[projectId]/page.tsx', 'app/projects/[projectId]/sources/page.tsx', 'app/projects/[projectId]/pictures/page.tsx', 'app/progress/page.tsx', 'app/settings/page.tsx', registration, ...Object.keys(exempt)]));
+    expect(files).toEqual(expect.arrayContaining(['app/page.tsx', 'app/projects/page.tsx', 'app/projects/new/page.tsx', 'app/projects/new/pictures/page.tsx', 'app/projects/[projectId]/page.tsx', 'app/projects/[projectId]/sources/page.tsx', 'app/projects/[projectId]/pictures/page.tsx', 'app/progress/page.tsx', 'app/progress/[jobId]/page.tsx', 'app/settings/page.tsx', registration, ...Object.keys(exempt)]));
   });
 
   it('only exempts pages that exist', () => {
@@ -79,6 +79,19 @@ describe('page guards', () => {
       // The Project is read for the verified Account and epoch, never for anything the URL named but the Project itself.
       expect(page, file).toMatch(/loadProject\(access\.account\.accountId, access\.account\.epoch, projectId\)/);
     }
+  });
+
+  it('asks for the Account before it reads a Job (Story 2.7), for the Account and epoch of the verified access and for the Job the URL named and nothing else', () => {
+    const file = 'app/progress/[jobId]/page.tsx';
+    const code = source(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    const page = code.slice(code.indexOf('export default async function'));
+    expect(page.indexOf('await requireActiveAccount()'), file).toBeGreaterThan(-1);
+    expect(page.indexOf('await requireActiveAccount()'), file).toBeLessThan(page.indexOf('loadJob('));
+    expect(page, file).toMatch(/loadJob\(access\.account\.accountId, access\.account\.epoch, jobId\)/);
+    // The list of In Progress is read for the verified access, too.
+    const list = source('app/progress/page.tsx').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    expect(list.indexOf('await requireActiveAccount()')).toBeLessThan(list.indexOf('loadJobList('));
+    expect(list).toMatch(/loadJobList\(access\)/);
   });
 
   it('has requireAdministrator start from requireActiveAccount and answer 404, not a redirect, to an Account that is not the Administrator', () => {

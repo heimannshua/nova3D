@@ -337,7 +337,12 @@ export function accountsWorld() {
     await db.query(`delete from usage.reservations where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from usage.commands where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from usage.rate_schedules s where s.provider = 'fixture' and not exists (select 1 from usage.reservations r where r.rate_schedule_id = s.id)`);
-    // The Job records (Story 2.11) restrict their Project and the Account: operations, steps, attempts, Jobs and command receipts go next.
+    // The Job records (Story 2.11) restrict their Project and the Account: the callbacks of their attempts, their leases and outbox rows (Story 2.7), then operations, steps,
+    // attempts, Jobs and command receipts go next.
+    await db.query(`delete from jobs.callbacks where attempt_id in (select id from jobs.attempts where account_id in ${accounts})`, [user.id]);
+    await db.query(`delete from jobs.leases where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from jobs.outbox where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from jobs.workers w where w.worker_kind ~ '^(itest|etest|test)_' and not exists (select 1 from jobs.leases l where l.worker_id = w.id)`);
     await db.query(`delete from jobs.operations where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from jobs.steps where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from jobs.attempts where account_id in ${accounts}`, [user.id]);

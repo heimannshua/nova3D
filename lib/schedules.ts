@@ -9,8 +9,9 @@
 //
 // Story 1.12 added the staging cleanup (hourly). Story 1.13 gives every entry an `intervalSeconds` (how often the cron expression fires it, in seconds:
 // plain data, which the alarm condition `task-late` reads: a task whose latest finished receipt is older than twice its interval is late) and adds the
-// monitor itself, `alarm-monitor`, the task that evaluates the alarm conditions. Later stories add their tasks HERE and in lib/job-tasks.ts, and nowhere else:
-//   Story 2.7  the outbox sweep with lease and deadline expiry (every minute)
+// monitor itself, `alarm-monitor`, the task that evaluates the alarm conditions. Story 2.7 adds `outbox-sweep` (every minute): it publishes the unpublished dispatch
+// outbox rows older than 15 seconds, ends the leases that ran out and cancels the attempts of a disabled Account. Later stories add their tasks HERE and in lib/job-tasks.ts, and nowhere else:
+//   Story 2.8  settles ambiguous charges past 24 hours in the same sweep
 //   Story 8.3  purge deadlines (hourly)
 //   Story 8.9  the backup monitor (every 30 minutes)
 // The cleanups this story leaves deferred (session grants, step-up nonces, recovery tokens, outbox retention) are not registered.
@@ -46,6 +47,13 @@ export const scheduleRegistry = [
     cron: '*/5 * * * *',
     intervalSeconds: 300,
     description: 'Evaluates the operational alarm conditions: raises an alarm for each finding, resolves the ones that cleared, and emails the Administrator the alarms that are due (Story 1.13).',
+  },
+  {
+    task: 'outbox-sweep',
+    // Every minute, UTC.
+    cron: '* * * * *',
+    intervalSeconds: 60,
+    description: 'Publishes the dispatch outbox rows still unpublished after 15 seconds (at most 20), ends the leases that ran out (their attempts fail as lease_lost) and cancels the attempts of a disabled Account (Story 2.7).',
   },
 ] as const;
 

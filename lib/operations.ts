@@ -28,6 +28,8 @@ export const conditionTitleKeys: Readonly<Record<string, MessageKey>> = {
   'heartbeat-stale': 'operations.condition.heartbeat-stale',
   'qstash-stale': 'operations.condition.qstash-stale',
   'monitor-late': 'operations.condition.monitor-late',
+  'outbox-age': 'operations.condition.outbox-age',
+  'lease-expired-unclaimed': 'operations.condition.lease-expired-unclaimed',
 };
 
 /** The catalog key for a condition's title, or null for a condition the catalog does not know (own entries only: `constructor` is not a condition). */

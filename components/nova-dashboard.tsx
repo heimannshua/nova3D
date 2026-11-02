@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import {useI18n} from '@/lib/i18n/react';
 import {projectPath, projectsPath, type ProjectRow} from '@/lib/project-view';
-import {Button, LinkButton} from './ui/button';
+import {Button} from './ui/button';
 import {GuidanceCard} from './ui/guidance-card';
 import {Icon, type IconName} from './ui/icon';
 import {EmptyState} from './ui/states';
-import {StatusBadge} from './ui/status-badge';
+import type {JobsListing} from '@/lib/job-view';
+import {JobsOverview} from './jobs/jobs-overview';
 import {Unreadable} from './projects/unreadable';
 import {ProjectCard} from './projects/project-card';
 import {ProjectsList} from './projects/projects-list';
@@ -109,54 +110,16 @@ function Projects({listing}: {listing: ProjectsListing}) {
 }
 
 /**
- * In Progress (H-05): there are no Jobs yet, so it says so, and says what will appear here. "Prints in Progress" is a future
- * capability and is shown as one.
- */
-function InProgress() {
-  const {t} = useI18n();
-  return (
-    <>
-      <div className="page-title-row">
-        <div>
-          <p className="eyebrow">{t('nav.workspace')}</p>
-          <h1>{t('nav.progress')}</h1>
-          <p className="lede">{t('progress.lede')}</p>
-        </div>
-      </div>
-      <div className="section">
-        <EmptyState
-          icon="activity"
-          title={t('progress.noneTitle')}
-          action={<LinkButton variant="secondary" href={projectsPath} iconAfter="arrow">{t('progress.seeProjects')}</LinkButton>}
-        >
-          {t('progress.noneBody')}
-        </EmptyState>
-      </div>
-      <ul className="job-list">
-        <li className="coming-card">
-          <span className="job-icon"><Icon name="spark"/></span>
-          <div className="coming-main">
-            <p className="eyebrow">{t('progress.futureKind')}</p>
-            <h2>{t('progress.printsTitle')}</h2>
-            <p>{t('progress.printsBody')}</p>
-          </div>
-          <StatusBadge tone="neutral">{t('progress.comingLater')}</StatusBadge>
-        </li>
-      </ul>
-    </>
-  );
-}
-
-/**
  * The content of Home, My Projects and In Progress. The shell around it (navigation, Create dialog) comes from the layout, so the
- * same chrome frames every page. The Projects come from the page, which read them from the database for the verified Account.
+ * same chrome frames every page. The Projects and the Jobs come from the page, which read them from the database for the verified Account. In Progress (J-01) is
+ * components/jobs/jobs-overview.tsx; with no Jobs given it shows the honest empty state.
  */
-export function NovaDashboard(props: {view: 'home' | 'projects'; listing: ProjectsListing} | {view: 'progress'; listing?: undefined}) {
+export function NovaDashboard(props: {view: 'home' | 'projects'; listing: ProjectsListing} | {view: 'progress'; jobs?: JobsListing}) {
   return (
     <div className="page">
       {props.view === 'home' ? <Home listing={props.listing}/> : null}
       {props.view === 'projects' ? <Projects listing={props.listing}/> : null}
-      {props.view === 'progress' ? <InProgress/> : null}
+      {props.view === 'progress' ? <JobsOverview listing={props.jobs ?? {state: 'listed', jobs: []}}/> : null}
     </div>
   );
 }

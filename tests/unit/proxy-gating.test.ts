@@ -212,37 +212,42 @@ describe('an active Account', () => {
   });
 });
 
-describe('a Project link whose ID does not decode (Story 1.7)', () => {
+// A link whose ID does not decode is the one unavailable page, not a 500: for a Project (Story 1.7) and, with the same rules, for a Job (Story 2.7). Nothing here is special to one of them.
+describe.each([
+  {name: 'a Project link whose ID does not decode (Story 1.7)', base: '/projects', target: '/projects/not-a-project-id', apiBase: '/api/projects', unchanged: ['/projects/%E0%A4%A4', '/projects/%41', '/projects/9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a', '/projects/not-an-id', '/projects/x/y', '/projects', '/settings/%E0%A4%A', '/nope/%zz'], sub: '/sources'},
+  {name: 'a Job link whose ID does not decode (Story 2.7)', base: '/progress', target: '/progress/not-a-job-id', apiBase: '/api/progress', unchanged: ['/progress/%E0%A4%A4', '/progress/%41', '/progress/3b71d3c8-f723-44a3-b9f6-0229053dd41b', '/progress/not-an-id', '/progress/x/y', '/progress', '/settings/%E0%A4%A', '/nope/%zz', '/projects/%E0%A4%A4'], sub: ''},
+])('$name', ({base, target, apiBase, unchanged, sub}) => {
   const rewrite = (response: Response) => {
     const to = response.headers.get('x-middleware-rewrite');
     return to ? new URL(to).pathname : null;
   };
 
-  it.each(['/projects/%E0%A4%A', '/projects/%E0%A4%A/sources', '/projects/%zz', '/projects/%/', '/projects/%C3%28/sources'])('shows an active Account the unavailable page for %s, by rewriting to an ID no Project has', async (path) => {
+  it.each(['/%E0%A4%A', '/%zz', '/%/', ...(sub ? [`/%E0%A4%A${sub}`, `/%C3%28${sub}`] : [])])('shows an active Account the unavailable page for %s, by rewriting to an ID nothing has', async (suffix) => {
+    const path = `${base}${suffix}`;
     const response = await run(path);
     expect(response.status).toBe(200);
-    expect(rewrite(response)).toBe('/projects/not-a-project-id');
+    expect(rewrite(response)).toBe(target);
     expect(response.headers.get('location')).toBeNull();
   });
 
   it('rewrites a navigation payload (a refresh of the page) and a Server Action POST to that address too, because the page sends its own requests there', async () => {
-    const payload = await run('/projects/%E0%A4%A', {headers: {rsc: '1', accept: 'text/x-component'}});
-    expect(rewrite(payload)).toBe('/projects/not-a-project-id');
-    const prefetch = await run('/projects/%E0%A4%A', {headers: {rsc: '1', 'next-router-prefetch': '1'}});
-    expect(rewrite(prefetch)).toBe('/projects/not-a-project-id');
-    const action = await run('/projects/%E0%A4%A/sources', {method: 'POST', headers: {'next-action': 'abc123'}});
+    const payload = await run(`${base}/%E0%A4%A`, {headers: {rsc: '1', accept: 'text/x-component'}});
+    expect(rewrite(payload)).toBe(target);
+    const prefetch = await run(`${base}/%E0%A4%A`, {headers: {rsc: '1', 'next-router-prefetch': '1'}});
+    expect(rewrite(prefetch)).toBe(target);
+    const action = await run(`${base}/%E0%A4%A${sub}`, {method: 'POST', headers: {'next-action': 'abc123'}});
     expect(action.status).toBe(200);
-    expect(rewrite(action)).toBe('/projects/not-a-project-id');
-    const head = await run('/projects/%zz', {method: 'HEAD'});
-    expect(rewrite(head)).toBe('/projects/not-a-project-id');
+    expect(rewrite(action)).toBe(target);
+    const head = await run(`${base}/%zz`, {method: 'HEAD'});
+    expect(rewrite(head)).toBe(target);
   });
 
-  it.each(['/projects/%E0%A4%A4', '/projects/%41', '/projects/9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a', '/projects/not-an-id', '/projects/x/y', '/projects', '/settings/%E0%A4%A', '/nope/%zz'])('leaves %s as it is', async (path) => {
-    expect(rewrite(await run(path))).toBeNull();
+  it('leaves an ID that decodes, a path with more segments, and every other path as it is', async () => {
+    for (const path of unchanged) expect(rewrite(await run(path)), path).toBeNull();
   });
 
   it('never rewrites an /api path', async () => {
-    for (const path of ['/api/projects/%E0%A4%A', '/api/projects/%zz']) {
+    for (const path of [`${apiBase}/%E0%A4%A`, `${apiBase}/%zz`]) {
       const response = await run(path);
       expect(rewrite(response), path).toBeNull();
     }
@@ -250,8 +255,8 @@ describe('a Project link whose ID does not decode (Story 1.7)', () => {
 
   it('builds the rewritten response as every page response is: the CSRF cookie of a first page request, and the device\'s choices adopted', async () => {
     net.preferences = 'none';
-    const response = await run('/projects/%E0%A4%A', {navigation: true, headers: {cookie: `${cookieName}=${session()}; nova3d-locale=he; nova3d-theme=dark`}});
-    expect(rewrite(response)).toBe('/projects/not-a-project-id');
+    const response = await run(`${base}/%E0%A4%A`, {navigation: true, headers: {cookie: `${cookieName}=${session()}; nova3d-locale=he; nova3d-theme=dark`}});
+    expect(rewrite(response)).toBe(target);
     const csrf = setCookies(response).find((value) => value.startsWith(`${csrfCookieName}=`));
     expect(csrf).toBeTruthy();
     expect(response.headers.get('cache-control')).toBe('private, no-store');
@@ -262,25 +267,25 @@ describe('a Project link whose ID does not decode (Story 1.7)', () => {
 
   it('does the same for the rewritten address as for the address itself: a page with no CSRF to issue gets none, and one that already holds a token is left alone', async () => {
     net.csrf = 'exists';
-    const response = await run('/projects/%E0%A4%A', {navigation: true});
-    expect(rewrite(response)).toBe('/projects/not-a-project-id');
+    const response = await run(`${base}/%E0%A4%A`, {navigation: true});
+    expect(rewrite(response)).toBe(target);
     expect(setCookies(response).some((value) => value.startsWith(`${csrfCookieName}=`))).toBe(false);
-    const held = await run('/projects/%E0%A4%A', {navigation: true, csrf: 'a'.repeat(43)});
+    const held = await run(`${base}/%E0%A4%A`, {navigation: true, csrf: 'a'.repeat(43)});
     expect(setCookies(held).some((value) => value.startsWith(`${csrfCookieName}=`))).toBe(false);
   });
 
   it('keeps the refreshed session cookies on the rewritten response, and asks the database the same single question', async () => {
-    const response = await run('/projects/%E0%A4%A', {cookie: `${cookieName}=${session({issuedAt: Math.floor(Date.now() / 1000) - 7200})}`});
-    expect(rewrite(response)).toBe('/projects/not-a-project-id');
+    const response = await run(`${base}/%E0%A4%A`, {cookie: `${cookieName}=${session({issuedAt: Math.floor(Date.now() / 1000) - 7200})}`});
+    expect(rewrite(response)).toBe(target);
     expect(calls.some((call) => call.path === '/auth/v1/token')).toBe(true);
     expect(setCookies(response).some((value) => value.startsWith(`${cookieName}=`))).toBe(true);
     expect(rpcs().map((call) => call.path)).toEqual(['/rest/v1/rpc/authorize_session']);
   });
 
   it('is decided after access: a signed-out visitor goes to sign-in, a disabled Account is signed out, and a session without a grant signs in again', async () => {
-    expect(destination(await run('/projects/%E0%A4%A', {cookie: null}))).toBe('/login?error=not_signed_in');
+    expect(destination(await run(`${base}/%E0%A4%A`, {cookie: null}))).toBe('/login?error=not_signed_in');
     net.authorization = 'disabled';
-    const disabled = await run('/projects/%E0%A4%A');
+    const disabled = await run(`${base}/%E0%A4%A`);
     expect(destination(disabled)).toBe('/login?error=account_disabled');
     expect(rewrite(disabled)).toBeNull();
     net.authorization = 'no_grant';
@@ -288,10 +293,10 @@ describe('a Project link whose ID does not decode (Story 1.7)', () => {
   });
 
   it('refuses a request from another site before it rewrites anything', async () => {
-    const crossSite = await run('/projects/%E0%A4%A', {method: 'POST', origin: 'https://evil.example'});
+    const crossSite = await run(`${base}/%E0%A4%A`, {method: 'POST', origin: 'https://evil.example'});
     expect(crossSite.status).toBe(403);
     expect(rewrite(crossSite)).toBeNull();
-    const noOrigin = await run('/projects/%E0%A4%A', {method: 'POST', origin: null});
+    const noOrigin = await run(`${base}/%E0%A4%A`, {method: 'POST', origin: null});
     expect(noOrigin.status).toBe(403);
     expect(rewrite(noOrigin)).toBeNull();
   });
@@ -422,7 +427,7 @@ describe('a failure while deciding denies access (fail closed)', () => {
 });
 
 describe('public paths are not gated', () => {
-  it.each(['/login', '/auth/callback', '/api/health', '/api/status', '/api/jobs', '/api/heartbeat'])('lets %s through without asking anyone', async (path) => {
+  it.each(['/login', '/auth/callback', '/api/health', '/api/status', '/api/jobs', '/api/heartbeat', '/api/dispatch', '/api/workers'])('lets %s through without asking anyone', async (path) => {
     const response = await run(path, {cookie: null});
     expect(passes(response)).toBe(true);
     expect(calls).toEqual([]);
@@ -956,6 +961,24 @@ describe('origin checks (Story 1.4c)', () => {
     }
   });
 
+  it.each([
+    ['/api/dispatch', 'the third machine path, /api/dispatch (Story 2.7): the queue has no browser Origin, and its signature is the route\'s authentication', ['/api/dispatch/', '/api/dispatch/extra', '/api/dispatches']],
+    ['/api/workers', 'the fourth machine path, /api/workers (Story 2.7): a worker has no browser Origin, and its signed token is the route\'s authentication', ['/api/workers/', '/api/workers/extra', '/api/worker']],
+  ])('skips ONLY the origin rule for %s: %s', async (machine, _why, neighbours) => {
+    for (const headers of [{}, {origin: 'https://evil.example'}, {origin: 'null'}, {'sec-fetch-site': 'cross-site'}] as Record<string, string>[]) {
+      const response = await run(machine, {cookie: null, method: 'POST', origin: null, headers});
+      expect(passes(response), JSON.stringify(headers)).toBe(true);
+    }
+    expect(passes(await run(machine, {cookie: null, method: 'POST'}))).toBe(true);
+    // No session is asked for and no Account state is read.
+    expect(calls).toEqual([]);
+    // Nothing beside it is a machine path.
+    for (const path of neighbours) {
+      const response = await run(path, {cookie: null, method: 'POST', origin: null});
+      expect(passes(response), path).toBe(false);
+    }
+  });
+
   it('applies to the synthetic design kit when it is public', async () => {
     vi.stubEnv('SYNTHETIC_DATA_ENABLED', 'true');
     expect((await run('/kit', {cookie: null, method: 'POST', origin: 'https://evil.example'})).status).toBe(403);
@@ -1225,7 +1248,7 @@ describe('the CSRF cookie (Story 1.4c)', () => {
 
   it('is not issued by a public path, which has no session to give it to', async () => {
     vi.stubEnv('SYNTHETIC_DATA_ENABLED', 'true');
-    for (const path of ['/login', '/auth/callback', '/api/health', '/api/status', '/api/jobs', '/api/heartbeat', '/kit']) {
+    for (const path of ['/login', '/auth/callback', '/api/health', '/api/status', '/api/jobs', '/api/heartbeat', '/api/dispatch', '/api/workers', '/kit']) {
       const response = await run(path, {navigation: true});
       expect(csrfSetCookie(response), path).toBeUndefined();
     }

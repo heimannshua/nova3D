@@ -248,4 +248,62 @@ describe('the local fixture seed', () => {
     // The receipts of the commands are the Account's, and stay (as the script's comment says).
     expect(await receipts()).toBe(receiptsBefore);
   });
+
+  it('--remove also takes the dispatch records of a fixture Project: the lease of a claimed attempt, its outbox row and the callbacks that name it (which restrict nothing), and leaves another Project\'s and a registration\'s', async () => {
+    const a = await account();
+    expect((await run(['--email', a.email])).code).toBe(0);
+    const { rows: fixture } = await db.query('select id from projects.projects where account_id = $1 and title = $2', [a.accountId, projectFixtures[0].title]);
+    const doomed = fixture[0].id as string;
+    const kept = (
+      await db.query(
+        `insert into projects.projects (workspace_id, account_id, title, stage) select w.id, w.account_id, 'My own project', 'generating' from projects.workspaces w where w.account_id = $1 returning id`,
+        [a.accountId],
+      )
+    ).rows[0].id as string;
+    const kid = `seed-${tag()}`;
+    const jti = () => randomUUID().replaceAll('-', '').slice(0, 22);
+    const digest = 'c'.repeat(64);
+    // A Job in each Project, accepted by the new command (so each attempt has its outbox row), claimed (so each has a lease), with a callback that names the attempt, as the signed
+    // worker endpoint records one. One more callback names no attempt (a worker's registration): it belongs to no Project.
+    const job = async (projectId: string) => {
+      const submitted = (await db.query('select * from api.submit_job($1, 1, $2, $3, $4, $5, $6::jsonb, null)', [a.accountId, randomUUID(), projectId, 'test_workload', digest, '{}'])).rows[0];
+      expect(submitted.outcome).toBe('accepted');
+      expect((await db.query('select * from api.claim_attempt($1, null, null)', [submitted.attempt_id])).rows[0].outcome).toBe('claimed');
+      expect((await db.query(`select * from api.record_callback($1, 'cad-worker', $2, 'worker-command', 'renew', $3, $4)`, [jti(), kid, submitted.attempt_id, digest])).rows[0].outcome).toBe('recorded');
+      return submitted.attempt_id as string;
+    };
+    const doomedAttempt = await job(doomed);
+    const keptAttempt = await job(kept);
+    expect((await db.query(`select * from api.record_callback($1, 'cad-worker', $2, 'worker-command', 'register', null, $3)`, [jti(), kid, digest])).rows[0].outcome).toBe('recorded');
+    const dispatchOf = async (attemptId: string) =>
+      (
+        await db.query(
+          `select (select count(*) from jobs.leases where attempt_id = $1)::int as leases,
+                  (select count(*) from jobs.outbox where attempt_id = $1)::int as outbox,
+                  (select count(*) from jobs.callbacks where attempt_id = $1)::int as callbacks`,
+          [attemptId],
+        )
+      ).rows[0] as Record<'leases' | 'outbox' | 'callbacks', number>;
+    const registrations = async () => (await db.query('select count(*)::int as n from jobs.callbacks where kid = $1 and attempt_id is null', [kid])).rows[0].n as number;
+    try {
+      expect(await dispatchOf(doomedAttempt)).toEqual({leases: 1, outbox: 1, callbacks: 1});
+      expect(await dispatchOf(keptAttempt)).toEqual({leases: 1, outbox: 1, callbacks: 1});
+
+      // The attempts are restricted by their lease and their outbox row (foreign keys), so no direct delete gets by; the callback restricts nothing.
+      const directAttempt = await db.query('delete from jobs.attempts where id = $1', [doomedAttempt]).then(() => 'deleted', (error: {code?: string}) => error.code);
+      expect(directAttempt).toBe('23503');
+
+      const removed = await run(['--remove', '--email', a.email]);
+      expect(removed.code, removed.stderr).toBe(0);
+      expect(removed.stdout).toContain(`Removed ${projectFixtures.length} fixture Project`);
+      // Gone with the Project: its lease, its outbox row and the callback that named its attempt. The attempt itself is gone too.
+      expect(await dispatchOf(doomedAttempt)).toEqual({leases: 0, outbox: 0, callbacks: 0});
+      expect((await db.query('select count(*)::int as n from jobs.attempts where id = $1', [doomedAttempt])).rows[0].n).toBe(0);
+      // Kept: the other Project's, whole, and the registration (no Project's).
+      expect(await dispatchOf(keptAttempt)).toEqual({leases: 1, outbox: 1, callbacks: 1});
+      expect(await registrations()).toBe(1);
+    } finally {
+      await db.query('delete from jobs.callbacks where kid = $1', [kid]);
+    }
+  });
 });

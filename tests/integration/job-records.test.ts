@@ -1,6 +1,6 @@
 import {createHash, randomUUID} from 'node:crypto';
 import type {Client} from 'pg';
-import {beforeAll, describe, expect, it} from 'vitest';
+import {afterEach, beforeAll, describe, expect, it} from 'vitest';
 import {acceptJob, advanceOperation, beginStep, moveAttempt, readJob, requestRetry} from '@/lib/job-records';
 import {createHarness, sha, stack} from '../support/accounts-db';
 import {stackEnvironment} from '../support/stack';
@@ -12,7 +12,18 @@ import {truncateGuards} from '../support/truncate-guard';
 // service role. The cases that need several real connections (the same command twice at once, a retry racing a reconcile, a step racing a tombstone) and the typed
 // calls the application will make commit data that is removed afterwards (tests/support/accounts-data.ts deletes the jobs rows first).
 
-const {db, connect, committed, inTx, addUser, attempt, rows, count} = createHarness();
+const {db, connect: openConnection, committed, inTx, addUser, attempt, rows, count} = createHarness();
+
+/** Another connection, for the cases that need two sessions at once. The database has a limited number of connections and the files of the suite run side by side: the sessions a test borrowed are given back when it ends. */
+const borrowed: Client[] = [];
+async function connect() {
+  const client = await openConnection();
+  borrowed.push(client);
+  return client;
+}
+afterEach(async () => {
+  await Promise.all(borrowed.splice(0).map((client) => client.end().catch(() => undefined)));
+});
 
 let env: Record<string, string>;
 beforeAll(async () => {
@@ -164,15 +175,16 @@ describe('access: the jobs schema is closed, and only the service role reaches t
     expect(defaults).toEqual([]);
   });
 
-  it('has exactly five tables, all with row-level security on, no policy, and no privilege for any role or PUBLIC', async () => {
+  // On purpose changed (Story 2.7): nine tables since it added the outbox, the worker registry, the leases and the callbacks (they have their own checks in job-dispatch.test.ts too).
+  it('has exactly nine tables, all with row-level security on, no policy, and no privilege for any role or PUBLIC', async () => {
     const {rows: found} = await db.query(
       `select c.relname as name, c.relrowsecurity as rls, (select count(*) from pg_policy p where p.polrelid = c.oid)::int as policies,
               (select count(*)::int from aclexplode(c.relacl) a where a.grantee <> c.relowner) as other_grants
          from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'jobs' and c.relkind in ('r', 'p', 'v', 'm', 'f') order by 1`,
     );
-    expect(found).toEqual(['attempts', 'commands', 'jobs', 'operations', 'steps'].map((name) => ({name, rls: true, policies: 0, other_grants: 0})));
+    expect(found).toEqual(['attempts', 'callbacks', 'commands', 'jobs', 'leases', 'operations', 'outbox', 'steps', 'workers'].map((name) => ({name, rls: true, policies: 0, other_grants: 0})));
     for (const role of ['anon', 'authenticated', 'service_role', 'nova3d_gateway']) {
-      for (const table of ['jobs', 'attempts', 'steps', 'operations', 'commands']) {
+      for (const table of ['jobs', 'attempts', 'steps', 'operations', 'commands', 'outbox', 'workers', 'leases', 'callbacks']) {
         const {rows: held} = await db.query(
           `select has_table_privilege($1, $2, 'select,insert,update,delete,truncate,references,trigger') as can, has_any_column_privilege($1, $2, 'select,insert,update,references') as column_can`,
           [role, `jobs.${table}`],
@@ -215,19 +227,44 @@ describe('access: the jobs schema is closed, and only the service role reaches t
               (select count(*)::int from aclexplode(p.proacl) a where a.privilege_type = 'EXECUTE' and a.grantee <> p.proowner) as other_grantees
          from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'jobs' order by 1`,
     );
+    // On purpose changed (Story 2.7): the constants, the checks and guards of the four new tables, the outbox trigger and the internal helpers of the dispatch join the Story 2.11 functions.
     expect(functions.map((fn) => fn.name)).toEqual([
+      'authority_detail',
+      'builtin_kind',
+      'builtin_version',
+      'cancel_attempts',
       'charge_open',
       'check_attempt',
+      'check_fence',
       'check_operation',
       'check_step',
       'command_digest',
+      'create_outbox',
+      'derived_id',
       'derived_reason',
+      'end_attempt',
+      'executable',
       'guard_attempt_change',
+      'guard_lease_change',
       'guard_operation_change',
+      'guard_outbox_change',
+      'guard_worker_change',
       'hold_project',
+      'kinds_valid',
+      'lease_alarm_seconds',
+      'lease_seconds',
+      'open_job_limit',
+      'outbox_alarm_seconds',
+      'plan_valid',
       'public_state',
+      'publish_grace_seconds',
+      'publish_lease_seconds',
       'record_command',
       'refuse_change',
+      'renewal_seconds',
+      'reserve_planned',
+      'settle_abandoned',
+      'shown_reason',
     ]);
     for (const fn of functions) {
       expect(fn.default_acl, `jobs.${fn.name} has an explicit ACL`).toBe(false);
@@ -496,12 +533,22 @@ describe('the tables: ownership, shape and uniqueness', () => {
     });
   });
 
-  it('adds a step and an operation to a running attempt only, whoever writes it', async () => {
+  // On purpose changed (Story 2.7): a step and a PLANNED operation may be added to a waiting attempt too (api.submit_job plans them when it accepts the Job, so a reservation can
+  // be made against them in the same transaction); api.begin_step still answers `not_running` for a waiting attempt, and a finished attempt is still not extended.
+  it('adds a step and an operation to a waiting or running attempt only, whoever writes it, and api.begin_step still starts a step in a running attempt only', async () => {
     await inTx(async (client) => {
       const a = await account(client);
       const waiting = await commands(client, a).accept(await project(client, a));
-      const toWaiting = await attempt(client, null, `insert into jobs.steps (account_id, attempt_id, step_key) values ($1, $2, 'search')`, [a.accountId, waiting.attempt_id]);
-      expect(toWaiting.ok).toBe(false);
+      const toWaiting = await attempt(client, null, `insert into jobs.steps (account_id, attempt_id, step_key) values ($1, $2, 'search') returning id`, [a.accountId, waiting.attempt_id]);
+      expect(toWaiting.ok).toBe(true);
+      const plannedStep = toWaiting.ok ? (toWaiting.rows[0].id as string) : '';
+      // An operation is created planned, even for a waiting attempt.
+      expect((await attempt(client, null, `insert into jobs.operations (account_id, step_id, ordinal, state) values ($1, $2, 1, 'dispatched')`, [a.accountId, plannedStep])).ok).toBe(false);
+      expect((await attempt(client, null, `insert into jobs.operations (account_id, step_id, ordinal, state) values ($1, $2, 1, 'planned')`, [a.accountId, plannedStep])).ok).toBe(true);
+      // ... but the command that begins a step answers not_running for a step that does not exist, and replays the one that does.
+      const commandsOfWaiting = commands(client, a);
+      expect(await commandsOfWaiting.begin(waiting.attempt_id, 'other')).toMatchObject({outcome: 'not_running', attempt_state: 'waiting'});
+      expect(await commandsOfWaiting.begin(waiting.attempt_id, 'search', 1)).toMatchObject({outcome: 'replayed', step_id: plannedStep, attempt_state: 'waiting'});
       const job = await started(client, a);
       const step = await stepWithOperation(job.c, job.attemptId);
       expect((await attempt(client, null, `insert into jobs.operations (account_id, step_id, ordinal, state) values ($1, $2, 2, 'dispatched')`, [a.accountId, step.stepId])).ok).toBe(false);
@@ -1556,7 +1603,11 @@ describe('the retry and its gate: a new attempt does not start while an earlier 
            ) f where pg_get_functiondef(f.oid) ~* 'insert into jobs\\.attempts'`,
         )
       ).rows.map((row) => row.signature);
-      expect(definitions.sort()).toEqual(['api.accept_job(uuid,bigint,uuid,uuid,text,text)', 'api.request_retry(uuid,bigint,uuid,uuid,integer,text)']);
+      // On purpose changed (Story 2.7): api.submit_job accepts a Job the way api.accept_job does (the Job and its attempt 1, with its plan and reservations), so it inserts attempts too,
+      // and only ever attempt 1; the way to a later attempt is still api.request_retry alone.
+      expect(definitions.sort()).toEqual(['api.accept_job(uuid,bigint,uuid,uuid,text,text)', 'api.request_retry(uuid,bigint,uuid,uuid,integer,text)', 'api.submit_job(uuid,bigint,uuid,uuid,text,text,jsonb,integer)']);
+      const submit = (await client.query(`select pg_get_functiondef('api.submit_job(uuid,bigint,uuid,uuid,text,text,jsonb,integer)'::regprocedure) as def`)).rows[0].def as string;
+      expect(submit).toMatch(/insert into jobs\.attempts \(account_id, job_id, number, previous_attempt_id, input_digest, state, stage\)\s+values \(p_account_id, v_job\.id, 1, null, p_input_digest, 'waiting', 'accepted'\)/);
     });
   });
 
@@ -1757,7 +1808,8 @@ describe('immutability: a record is not edited, and what finished stays finished
   });
 
   it('has, on every one of its tables, an enabled BEFORE TRUNCATE trigger that raises 55000 of its own (a truncate of operations can also be refused by the foreign key of a reservation of Story 2.6)', async () => {
-    const guards = await truncateGuards(db, ['jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands']);
+    // (Story 2.7: and on its four tables.)
+    const guards = await truncateGuards(db, ['jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', 'jobs.outbox', 'jobs.workers', 'jobs.leases', 'jobs.callbacks']);
     for (const [table, found] of Object.entries(guards)) expect(found.length, table).toBeGreaterThanOrEqual(1);
     // Nothing refers to the receipts, so a plain truncate of them is answered by their own trigger.
     await inTx(async (client) => {
@@ -1848,7 +1900,14 @@ describe('immutability: a record is not edited, and what finished stays finished
         expect(result.ok, sql).toBe(false);
         if (!result.ok) expect(result.code, sql).toBe('23503');
       }
-      for (const table of ['operations', 'steps', 'attempts', 'jobs', 'commands']) {
+      for (const table of ['operations', 'steps']) {
+        expect((await attempt(client, null, `delete from jobs.${table} where account_id = $1`, [a.accountId])).ok, table).toBe(true);
+      }
+      // On purpose changed (Story 2.7): every attempt has an outbox row (and may have a lease), which restricts it: they go before the attempts do.
+      const heldByOutbox = await attempt(client, null, `delete from jobs.attempts where account_id = $1`, [a.accountId]);
+      expect(heldByOutbox.ok).toBe(false);
+      if (!heldByOutbox.ok) expect(heldByOutbox.code).toBe('23503');
+      for (const table of ['outbox', 'attempts', 'jobs', 'commands']) {
         expect((await attempt(client, null, `delete from jobs.${table} where account_id = $1`, [a.accountId])).ok, table).toBe(true);
       }
       expect(await counts(client, a.accountId)).toEqual({jobs: 0, attempts: 0, steps: 0, operations: 0, commands: 0});
@@ -2174,7 +2233,8 @@ describe('the preflight carries the Story 2.11 tables and functions', () => {
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
     // On purpose changed (Story 2.6): fifty since it added the three functions of the cost reservations (it was forty-seven after the six functions of the Job records).
     // On purpose changed (Story 2.5): fifty-four since it added the grant, the read and the revoke of the provider permissions and the permissioned reserve_cost (it was fifty after the three functions of the cost reservations).
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(54);
+    // On purpose changed (Story 2.7): sixty-nine since it added the fifteen functions of the durable dispatch (it was fifty-four after the provider permissions).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(69);
     for (const signature of apiSignatures) expect(executable, signature).toContain(`'${signature}'`);
     // The bucket check stays last.
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));

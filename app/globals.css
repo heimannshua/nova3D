@@ -802,6 +802,36 @@ main { flex: 1; min-inline-size: 0; }
 .job-progress strong { color: var(--text-accent); font-size: var(--text-sm); }
 .job-meta { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin-block-start: var(--space-3); color: var(--text-muted); font-size: var(--text-xs); }
 .job-meta span:first-child { display: inline-flex; align-items: center; gap: 0.375rem; }
+/* Story 2.7: In progress (J-01) and a Job (J-02). A card is the target of its title link, like a Project card; the icon follows the state, and the state is also a word and a shape. */
+.job-card { position: relative; box-shadow: var(--elevation-1); }
+.job-card:hover { box-shadow: var(--elevation-2); }
+.job-card .job-icon { background: var(--status-neutral-bg); color: var(--status-neutral-fg); }
+.job-card[data-state="running"] .job-icon { background: var(--status-info-bg); color: var(--status-info-fg); }
+.job-card[data-state="completed"] .job-icon { background: var(--status-success-bg); color: var(--status-success-fg); }
+.job-card[data-state="failed"] .job-icon { background: var(--status-danger-bg); color: var(--status-danger-fg); }
+.job-card .job-heading h3 { min-inline-size: 0; flex: 1 1 12rem; font-size: var(--text-lg); letter-spacing: -0.02em; }
+.job-card .job-body { margin-block: var(--space-2) 0; }
+.job-card .job-meta { margin-block-start: var(--space-2); }
+.job-section h2 { font-size: var(--text-xl); }
+.job-section > * + * { margin-block-start: var(--space-3); }
+.job-reason { margin: var(--space-2) 0 0; color: var(--text-muted); font-size: var(--text-sm); }
+.job-actions { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: var(--space-3); min-inline-size: 0; }
+.job-refresh { display: grid; justify-items: start; gap: var(--space-1); min-inline-size: 0; max-inline-size: 18rem; }
+.job-refresh .auth-hint, .job-refresh .auth-status { margin: 0; }
+.job-refresh-hint:empty { display: none; }
+.job-facts dd { overflow-wrap: anywhere; }
+.job-progress-words { color: var(--text-muted); font-size: var(--text-sm); }
+.job-outcome { padding: var(--pad); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-card); }
+.job-outcome[data-variant="failed"], .job-outcome[data-variant="rejected"] { border-color: var(--status-danger-fg); }
+.job-explained { display: grid; gap: var(--space-3); margin: 0; }
+.job-explained > div { min-inline-size: 0; }
+.job-explained dt { color: var(--text-muted); font-size: var(--text-xs); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.job-explained dd { margin: var(--space-1) 0 0; overflow-wrap: anywhere; color: var(--text-strong); }
+.job-impact { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.job-attempt { padding: var(--pad); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-card); }
+.job-attempt h3 { font-size: var(--text-lg); }
+.job-cancel-form { margin-block-start: var(--space-3); }
+.job-cancel-form .dialog-actions { margin-block-start: var(--space-2); }
 
 /* ---------- First-use guidance ---------- */
 .guidance-card { margin-block-start: var(--space-5); padding: var(--pad); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--action-soft); color: var(--action-soft-text); }

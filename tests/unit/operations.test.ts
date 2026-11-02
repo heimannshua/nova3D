@@ -57,6 +57,20 @@ describe('the title of a condition', () => {
     expect(Object.keys(conditionTitleKeys).sort()).toEqual(alarmConditions.map((condition) => condition.id).sort());
   });
 
+  it('has its own words for the two conditions Story 2.7 adds, different from every other title', () => {
+    for (const condition of ['outbox-age', 'lease-expired-unclaimed']) {
+      const key = conditionTitleKey(condition)!;
+      expect(key, condition).toBe(`operations.condition.${condition}`);
+      expect(en[key], condition).toBeTruthy();
+      expect(he[key], condition).toBeTruthy();
+      expect(he[key], condition).not.toBe(en[key]);
+      // Hebrew holds no Latin word (copy rule); a name that would need one is a {placeholder}.
+      expect(he[key], condition).not.toMatch(/[A-Za-z]/);
+    }
+    const titles = alarmConditions.map((condition) => en[conditionTitleKey(condition.id)!]);
+    expect(new Set(titles).size).toBe(titles.length);
+  });
+
   it('knows no other: an unknown condition, and a name that only an object would have, have no title', () => {
     for (const condition of ['payment-exception', '', 'constructor', '__proto__', 'toString', 'hasOwnProperty']) expect(conditionTitleKey(condition), condition).toBeNull();
   });
@@ -159,7 +173,7 @@ describe('the values of an alarm\'s detail', () => {
     }
   });
 
-  it('are labelled for every integer and boolean the six conditions put in a detail: a condition that adds one without words fails here, not on the page', () => {
+  it('are labelled for every integer and boolean the eight conditions put in a detail: a condition that adds one without words fails here, not on the page', () => {
     const keys = new Set<string>();
     for (const condition of alarmConditions) {
       const findings = condition.evaluate(everythingWrong(), scheduleRegistry);
@@ -167,7 +181,8 @@ describe('the values of an alarm\'s detail', () => {
       expect((findings as unknown[]).length, `${condition.id} finds something in the worst case`).toBeGreaterThan(0);
       for (const finding of findings as {detail: Record<string, number | boolean | string>}[]) for (const {key} of detailValuesOf(finding.detail)) keys.add(key);
     }
-    // monitor-late's `age_seconds`, task-late's and the two stale conditions', ledger-pending's two numbers and identities-unaccounted's count.
+    // monitor-late's `age_seconds`, task-late's and the two stale conditions', ledger-pending's two numbers, identities-unaccounted's count and (Story 2.7) the age
+    // of the oldest unpublished dispatch and of the oldest lease that ran out.
     expect([...keys].sort()).toEqual(['age_seconds', 'count', 'oldest_seconds', 'pending']);
     for (const key of keys) expect(detailLabelKey(key), key).not.toBeNull();
   });

@@ -833,11 +833,13 @@ describe('alarmObservations', () => {
     ledger_oldest: null,
     unaccounted: 3,
     tasks: [{task: 'ledger-relay', outcome: 'ran', at: AT, age: 61}],
+    outbox_oldest: null,
+    lease_expired_oldest: null,
     ...change,
   });
 
   it('asks for nothing and reads every age as seconds, with null for never', async () => {
-    const {sent, options} = fake(observed({first_heartbeat_age: 3000, latest_heartbeat_age: 100, ledger_pending: 2, ledger_oldest: 950}));
+    const {sent, options} = fake(observed({first_heartbeat_age: 3000, latest_heartbeat_age: 100, ledger_pending: 2, ledger_oldest: 950, outbox_oldest: 130, lease_expired_oldest: 410}));
     expect(await alarmObservations(options)).toEqual({
       firstReceiptAge: 50000,
       latestReceiptAge: 60,
@@ -847,9 +849,18 @@ describe('alarmObservations', () => {
       ledgerOldest: 950,
       unaccounted: 3,
       tasks: [{task: 'ledger-relay', outcome: 'ran', at: AT, age: 61}],
+      outboxOldest: 130,
+      leaseExpiredOldest: 410,
     });
     expect(sent).toEqual([expect.objectContaining({name: 'alarm_observations', body: {}})]);
     expect(await alarmObservations(fake(observed({first_receipt_age: null, latest_receipt_age: null, tasks: []})).options)).toMatchObject({firstReceiptAge: null, latestReceiptAge: null, tasks: []});
+  });
+
+  it('reads the outbox age and the expired-lease age (Story 2.7) as seconds, null for none, and treats an answer without them as none (an older database)', async () => {
+    expect(await alarmObservations(fake(observed()).options)).toMatchObject({outboxOldest: null, leaseExpiredOldest: null});
+    expect(await alarmObservations(fake(observed({outbox_oldest: 0, lease_expired_oldest: 301})).options)).toMatchObject({outboxOldest: 0, leaseExpiredOldest: 301});
+    const {outbox_oldest: _a, lease_expired_oldest: _b, ...older} = observed();
+    expect(await alarmObservations(fake(older).options)).toMatchObject({outboxOldest: null, leaseExpiredOldest: null});
   });
 
   it.each([
@@ -862,6 +873,11 @@ describe('alarmObservations', () => {
     ['nothing pending with an oldest', observed({ledger_pending: 0, ledger_oldest: 5})],
     ['no count of identities', observed({unaccounted: null})],
     ['a negative count of identities', observed({unaccounted: -1})],
+    ['an outbox age that is negative', observed({outbox_oldest: -1})],
+    ['an outbox age that is a fraction', observed({outbox_oldest: 1.5})],
+    ['an outbox age that is text', observed({outbox_oldest: 'old'})],
+    ['an expired-lease age that is negative', observed({lease_expired_oldest: -5})],
+    ['an expired-lease age that is text', observed({lease_expired_oldest: 'old'})],
     ['tasks that are not a list', observed({tasks: {}})],
     ['a task with a name that is not one', observed({tasks: [{task: 'Ledger Relay', outcome: 'ran', at: AT, age: 1}]})],
     ['a task with an outcome it does not know', observed({tasks: [{task: 'ledger-relay', outcome: 'done', at: AT, age: 1}]})],
