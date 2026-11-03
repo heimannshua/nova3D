@@ -181,11 +181,25 @@ export async function submitAndPublish(
 }
 
 /** What one run of the minute sweep did. */
-export type OutboxSweepReport = {expired: number; cancelled: number; settled: number; claimed: number; published: number; publishFailed: number; configured: boolean};
+export type OutboxSweepReport = {
+  expired: number;
+  cancelled: number;
+  settled: number;
+  /** Dispatched operations of ended attempts the sweep marked `ambiguous` (the 24-hour clock started). */
+  marked: number;
+  /** Ambiguous operations the sweep settled at their 24-hour deadline. */
+  reconciled: number;
+  /** Operations the sweep could not move or settle and skipped (each runs in its own sub-block). */
+  failed: number;
+  claimed: number;
+  published: number;
+  publishFailed: number;
+  configured: boolean;
+};
 
 /**
  * The minute task `outbox-sweep`: the database's sweep (leases past their expiry end and their attempts fail as `lease_lost`; the attempts of a disabled Account or a moved epoch are
- * cancelled; what never went out is released), then the publication of the unpublished rows older than 15 seconds. With no queue configured the rows are left alone (claiming them
+ * cancelled; what never went out is released; a dispatched operation of an ended attempt becomes ambiguous; an ambiguous one past 24 hours is settled at its reservation), then the publication of the unpublished rows older than 15 seconds. With no queue configured the rows are left alone (claiming them
  * would only hold them for a minute). A publication the queue refuses is counted and the row is claimed again after its 60-second lease. A database sweep that fails does not stop
  * the publication; it is thrown after it.
  */
@@ -194,7 +208,7 @@ export async function runOutboxSweep(options: {config?: PublishingConfig | null;
   // The two halves are independent: a dispatch must not wait for a lease to be cleaned up. If the database's sweep fails, the rows are still claimed and published, and the run
   // fails at the end (the error is thrown as it was, so the receipt records its class), so the task is visibly failed and the scheduler retries it.
   let sweepFailure: { error: unknown } | null = null;
-  let swept: AttemptSweep = {expired: 0, cancelled: 0, settled: 0};
+  let swept: AttemptSweep = {expired: 0, cancelled: 0, settled: 0, marked: 0, reconciled: 0, failed: 0};
   try {
     swept = await sweepAttempts(accounts);
   } catch (error) {

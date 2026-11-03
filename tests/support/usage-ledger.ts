@@ -145,9 +145,29 @@ export async function setFigures(client: Client, periodId: string, settled: numb
   return ids;
 }
 
-/** Deletes every ledger row of the Account in the order they restrict one another (incidents, settlements, reservations, receipts), as the cleanup does. */
+/**
+ * A correction of the deadline settlement of a reservation, inserted directly (Story 2.8: the evidence that arrived after the booking, with its signed settled delta, that is the
+ * evidence minus the reserved amount). The guard trigger judges that it is what it says: the settlement is the reservation's `deadline` one, the corrected amount is from 0 to 1e15,
+ * and the period is the settlement's or a later one. One for a reservation.
+ */
+export async function insertCorrection(
+  client: Client,
+  spec: {accountId: string; reservationId: string; settlementId: string; periodId: string; delta: number; inputTokens?: number; outputTokens?: number; model?: string},
+): Promise<string> {
+  const {rows} = await client.query(
+    `insert into usage.corrections (account_id, reservation_id, settlement_id, period_id, settled_delta_microdollars, input_tokens, output_tokens, returned_model, digest)
+     select r.account_id, r.id, $2, $3, $4, $5, $6, coalesce($7, r.requested_model), $8 from usage.reservations r where r.id = $1 and r.account_id = $9
+     returning id`,
+    [spec.reservationId, spec.settlementId, spec.periodId, spec.delta, spec.inputTokens ?? 1, spec.outputTokens ?? 1, spec.model ?? null, randomUUID().replaceAll('-', '').repeat(2), spec.accountId],
+  );
+  return rows[0].id as string;
+}
+
+/** Deletes every ledger row of the Account in the order they restrict one another (incidents, corrections, settlements, reservations, receipts), as the cleanup does. */
 export async function removeLedger(client: Client, accountId: string) {
+  // An incident can name a correction (Story 2.8) and a correction names its settlement, so: incidents, then corrections, then settlements.
   await client.query('delete from usage.overrun_incidents where account_id = $1', [accountId]);
+  await client.query('delete from usage.corrections where account_id = $1', [accountId]);
   await client.query('delete from usage.settlements where account_id = $1', [accountId]);
   await client.query('delete from usage.reservations where account_id = $1', [accountId]);
   await client.query('delete from usage.commands where account_id = $1', [accountId]);

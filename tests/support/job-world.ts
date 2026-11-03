@@ -177,11 +177,15 @@ export const workerCommands = (client: Client) => {
     claim: (attemptId: string, workerId: string | null = null, issuer: WorkerIssuer | null = null) => one('select * from api.claim_attempt($1, $2, $3)', [attemptId, workerId, issuer]),
     renew: (attemptId: string, fence: string) => one('select * from api.renew_lease($1, $2)', [attemptId, fence]),
     step: (attemptId: string, fence: string, key: string, ordinal: number | null = null) => one('select * from api.run_step($1, $2, $3, $4)', [attemptId, fence, key, ordinal]),
-    operation: (attemptId: string, fence: string, operationId: string, outcome: 'completed' | 'noncharge', o: {input?: number; output?: number; model?: string; requestId?: string} = {}) =>
-      one('select * from api.finish_operation($1, $2, $3, $4, $5, $6, $7, $8)', [
-        attemptId, fence, operationId, outcome, outcome === 'completed' ? (o.input ?? 1) : null, outcome === 'completed' ? (o.output ?? 1) : null, outcome === 'completed' ? (o.model ?? 'fixture-model') : null,
+    // On purpose changed (Story 2.8): evidence must carry the model the operation's reservation pinned, so a completed operation that names no model reports that one
+    // (`fixture-model` for an operation with no reservation, which the command then refuses or settles as `not_reserved` whatever the model).
+    operation: async (attemptId: string, fence: string, operationId: string, outcome: 'completed' | 'noncharge', o: {input?: number; output?: number; model?: string; requestId?: string} = {}) => {
+      const pinned = outcome === 'completed' && o.model === undefined ? (await client.query('select requested_model from usage.reservations where operation_id = $1', [operationId])).rows[0]?.requested_model : undefined;
+      return one('select * from api.finish_operation($1, $2, $3, $4, $5, $6, $7, $8)', [
+        attemptId, fence, operationId, outcome, outcome === 'completed' ? (o.input ?? 1) : null, outcome === 'completed' ? (o.output ?? 1) : null, outcome === 'completed' ? (o.model ?? pinned ?? 'fixture-model') : null,
         outcome === 'noncharge' ? (o.requestId ?? 'req_noncharge_1') : null,
-      ]),
+      ]);
+    },
     finish: (attemptId: string, fence: string, to: 'completed' | 'failed', digest: string | null = to === 'completed' ? 'b'.repeat(64) : null, revision: number | null = null) =>
       one('select * from api.finish_attempt($1, $2, $3, $4, $5)', [attemptId, fence, to, digest, revision]),
     sweep: () => one('select * from api.sweep_attempts()', []),

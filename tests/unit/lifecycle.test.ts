@@ -835,11 +835,12 @@ describe('alarmObservations', () => {
     tasks: [{task: 'ledger-relay', outcome: 'ran', at: AT, age: 61}],
     outbox_oldest: null,
     lease_expired_oldest: null,
+    unknown_cost_oldest: null,
     ...change,
   });
 
   it('asks for nothing and reads every age as seconds, with null for never', async () => {
-    const {sent, options} = fake(observed({first_heartbeat_age: 3000, latest_heartbeat_age: 100, ledger_pending: 2, ledger_oldest: 950, outbox_oldest: 130, lease_expired_oldest: 410}));
+    const {sent, options} = fake(observed({first_heartbeat_age: 3000, latest_heartbeat_age: 100, ledger_pending: 2, ledger_oldest: 950, outbox_oldest: 130, lease_expired_oldest: 410, unknown_cost_oldest: 87_500}));
     expect(await alarmObservations(options)).toEqual({
       firstReceiptAge: 50000,
       latestReceiptAge: 60,
@@ -851,6 +852,7 @@ describe('alarmObservations', () => {
       tasks: [{task: 'ledger-relay', outcome: 'ran', at: AT, age: 61}],
       outboxOldest: 130,
       leaseExpiredOldest: 410,
+      unknownCostOldest: 87_500,
     });
     expect(sent).toEqual([expect.objectContaining({name: 'alarm_observations', body: {}})]);
     expect(await alarmObservations(fake(observed({first_receipt_age: null, latest_receipt_age: null, tasks: []})).options)).toMatchObject({firstReceiptAge: null, latestReceiptAge: null, tasks: []});
@@ -863,8 +865,19 @@ describe('alarmObservations', () => {
     expect(await alarmObservations(fake(older).options)).toMatchObject({outboxOldest: null, leaseExpiredOldest: null});
   });
 
+  it('reads the age of the oldest operation of unknown cost (Story 2.8) as seconds, null for none, and treats an answer without it as none (an older database)', async () => {
+    expect(await alarmObservations(fake(observed()).options)).toMatchObject({unknownCostOldest: null});
+    expect(await alarmObservations(fake(observed({unknown_cost_oldest: 0})).options)).toMatchObject({unknownCostOldest: 0});
+    expect(await alarmObservations(fake(observed({unknown_cost_oldest: 87_001})).options)).toMatchObject({unknownCostOldest: 87_001});
+    const {unknown_cost_oldest: _unknown, ...older} = observed();
+    expect(await alarmObservations(fake(older).options)).toMatchObject({unknownCostOldest: null});
+  });
+
   it.each([
     ['text', 'observed'],
+    ['an unknown-cost age that is negative', observed({unknown_cost_oldest: -1})],
+    ['an unknown-cost age that is a fraction', observed({unknown_cost_oldest: 1.5})],
+    ['an unknown-cost age that is text', observed({unknown_cost_oldest: 'old'})],
     ['an age that is negative', observed({latest_receipt_age: -1})],
     ['an age that is a fraction', observed({latest_receipt_age: 1.5})],
     ['an age that is text', observed({first_receipt_age: 'old'})],

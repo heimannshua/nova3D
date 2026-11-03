@@ -265,6 +265,12 @@ describe('through the REST API', () => {
       p_model: 'isolation', p_api_version: '1', p_request_bytes: 100, p_image_count: 0, p_output_limit: 100, p_options: {}, p_permission_id: randomUUID(),
       p_project_id: randomUUID(), p_job_id: randomUUID(), p_category: 'research_search', p_purpose: 'isolation', p_outbound_data: ['normalized_public_subject'],
     },
+    // Story 2.8: the three functions behind the reconciliation of ambiguous charges (reconcile an operation's outcome, list the overrun incidents, clear one), with the other Account's IDs.
+    reconcile_operation: {
+      p_operation_id: randomUUID(), p_outcome: 'evidence', p_input_tokens: 1, p_output_tokens: 1, p_returned_model: 'isolation', p_request_id: 'isolation',
+    },
+    list_overrun_incidents: {p_account_id: victim.accountId, p_epoch: 1, p_limit: 5},
+    clear_overrun_incident: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_incident_id: randomUUID()},
     resolve_alarm: {p_condition: 'isolation-test', p_subject: null},
     release_staged_pictures: {p_account_id: victim.accountId, p_epoch: 1, p_upload_ids: [randomUUID()]},
     rename_project: {p_account_id: victim.accountId, p_epoch: 1, p_command_id: randomUUID(), p_project_id: randomUUID(), p_expected_revision: 1, p_title: 'Renamed by another Account'},
@@ -867,6 +873,7 @@ describe('every table of identity, projects, lifecycle, artifacts, usage and job
         'artifacts.ticket_redemptions',
         'artifacts.transfer_handles',
         'usage.commands',
+        'usage.corrections',
         'usage.overrun_incidents',
         'usage.periods',
         'usage.rate_schedules',

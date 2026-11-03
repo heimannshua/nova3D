@@ -1,3 +1,5 @@
+import {readdirSync, readFileSync} from 'node:fs';
+import {join} from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {
   alarmConditions,
@@ -17,6 +19,8 @@ import {
   schedulerStaleSeconds,
   taskLateCondition,
   unaccountedLimit,
+  unknownCostCondition,
+  unknownCostSeconds,
   unobservable,
   type AlarmCondition,
   type Finding,
@@ -26,6 +30,7 @@ import {
 } from '@/lib/alarm-conditions';
 import {isAlarmDetail} from '@/lib/lifecycle';
 import {scheduleRegistry} from '@/lib/schedules';
+import {usageConstants} from '@/lib/usage-reservations';
 
 // The registry of alarm conditions (Story 1.13, lib/alarm-conditions.ts): every condition is a pure function of the observations the database reports (ages in
 // seconds), so each is tested with the observations as data. Nothing here touches a database, a clock or the environment.
@@ -46,10 +51,12 @@ function calm(change: Partial<Observations> = {}): Observations {
     tasks: scheduleRegistry.map((entry) => receipt(entry.task, 60)),
     outboxOldest: null,
     leaseExpiredOldest: null,
+    unknownCostOldest: null,
     heartbeatConfigured: true,
     ...change,
   };
 }
+const readdirMigrations = (directory: string) => readdirSync(directory).filter((file) => file.endsWith('.sql')).sort();
 /** The findings of a condition that is observable (a test of what it does not find uses `toEqual([])`; one of what it cannot observe checks for `unobservable`). */
 const found = (condition: AlarmCondition, observations: Observations, registry: readonly ScheduleLike[] = scheduleRegistry): Finding[] => {
   const answer = condition.evaluate(observations, registry);
@@ -60,7 +67,7 @@ const without = (observations: Observations, task: string): Observations => ({..
 const withReceipt = (observations: Observations, replacement: TaskReceipt): Observations => ({...observations, tasks: [...observations.tasks.filter((candidate) => candidate.task !== replacement.task), replacement]});
 
 describe('the registry', () => {
-  it('holds the eight conditions of Stories 1.13 and 2.7, each with an ID the database accepts and who evaluates it', () => {
+  it('holds the nine conditions of Stories 1.13, 2.7 and 2.8, each with an ID the database accepts and who evaluates it', () => {
     expect(alarmConditions.map((condition) => [condition.id, condition.evaluatedBy])).toEqual([
       ['task-late', 'monitor'],
       ['ledger-pending', 'monitor'],
@@ -70,13 +77,14 @@ describe('the registry', () => {
       ['monitor-late', 'heartbeat'],
       ['outbox-age', 'monitor'],
       ['lease-expired-unclaimed', 'monitor'],
+      ['unknown-cost', 'monitor'],
     ]);
     expect(new Set(alarmConditions.map((condition) => condition.id)).size).toBe(alarmConditions.length);
     for (const condition of alarmConditions) expect(condition.id).toMatch(/^[a-z][a-z0-9-]{0,47}$/);
   });
 
-  it('states its thresholds once: twice the interval, 15 minutes, 25 identities, two hours, 120 seconds of outbox age, 300 seconds of expired lease', () => {
-    expect([lateFactor, ledgerPendingSeconds, unaccountedLimit, schedulerStaleSeconds, outboxAgeSeconds, leaseExpiredSeconds]).toEqual([2, 900, 25, 7200, 120, 300]);
+  it('states its thresholds once: twice the interval, 15 minutes, 25 identities, two hours, 120 seconds of outbox age, 300 seconds of expired lease, 87,000 seconds of unknown cost', () => {
+    expect([lateFactor, ledgerPendingSeconds, unaccountedLimit, schedulerStaleSeconds, outboxAgeSeconds, leaseExpiredSeconds, unknownCostSeconds]).toEqual([2, 900, 25, 7200, 120, 300, 87_000]);
   });
 
   it('finds nothing when nothing is wrong', () => {
@@ -96,11 +104,12 @@ describe('the registry', () => {
       unaccounted: 40,
       outboxOldest: 400,
       leaseExpiredOldest: 900,
+      unknownCostOldest: 90_000,
       tasks: [],
     });
     const findings = alarmConditions.flatMap((condition) => found(condition, trouble).map((finding) => ({condition: condition.id, ...finding})));
-    // task-late for the three tasks older than twice their interval (the relay, the cleanup and, since Story 2.7, the minute sweep), then one finding for each of the seven other conditions.
-    expect(findings).toHaveLength(10);
+    // task-late for the three tasks older than twice their interval (the relay, the cleanup and, since Story 2.7, the minute sweep), then one finding for each of the eight other conditions.
+    expect(findings).toHaveLength(11);
     for (const finding of findings) {
       expect(isAlarmDetail(finding.detail), `${finding.condition}: ${JSON.stringify(finding.detail)}`).toBe(true);
       if (finding.subject !== null) expect(finding.subject).toMatch(/^[A-Za-z0-9._:-]{1,64}$/);
@@ -328,6 +337,72 @@ describe('lease-expired-unclaimed (Story 2.7)', () => {
   });
 });
 
+describe('unknown-cost (Story 2.8)', () => {
+  it('is a threshold condition of the monitor with no subject, and raises when the oldest unsettled operation of unknown cost is older than 87,000 seconds, not at exactly 87,000', () => {
+    expect(unknownCostCondition.id).toBe('unknown-cost');
+    expect(unknownCostCondition.evaluatedBy).toBe('monitor');
+    expect(found(unknownCostCondition, calm({unknownCostOldest: 87_000}))).toEqual([]);
+    expect(found(unknownCostCondition, calm({unknownCostOldest: 87_001}))).toEqual([{subject: null, detail: {age_seconds: 87_001}}]);
+    expect(found(unknownCostCondition, calm({unknownCostOldest: 400_000}))).toEqual([{subject: null, detail: {age_seconds: 400_000}}]);
+  });
+
+  it('finds nothing when no operation is of unknown cost (null), and an operation inside its 24 hours is not a finding', () => {
+    expect(found(unknownCostCondition, calm({unknownCostOldest: null}))).toEqual([]);
+    expect(found(unknownCostCondition, calm({unknownCostOldest: 0}))).toEqual([]);
+    expect(found(unknownCostCondition, calm({unknownCostOldest: 3_600}))).toEqual([]);
+    expect(found(unknownCostCondition, calm({unknownCostOldest: 86_400}))).toEqual([]);
+    // 24 hours exactly is the sweep's moment to settle it; the alarm waits 10 minutes more.
+    expect(found(unknownCostCondition, calm({unknownCostOldest: 86_400 + 599}))).toEqual([]);
+  });
+
+  it('clears when the operation is settled: the observation is null again and the same condition finds nothing', () => {
+    expect(found(unknownCostCondition, calm({unknownCostOldest: 90_000}))).toHaveLength(1);
+    expect(found(unknownCostCondition, calm({unknownCostOldest: null}))).toEqual([]);
+    // Or when what is left is younger than the threshold: the oldest one is the one observed.
+    expect(found(unknownCostCondition, calm({unknownCostOldest: 600}))).toEqual([]);
+  });
+
+  it('is observable whatever the other preconditions are (it never answers unobservable), and does not depend on anything else it is given', () => {
+    const noisy = calm({unknownCostOldest: 100_000, firstReceiptAge: null, latestReceiptAge: null, heartbeatConfigured: false, ledgerWaiting: 9, ledgerOldest: 9_999, unaccounted: 90, tasks: []});
+    expect(unknownCostCondition.evaluate(noisy, scheduleRegistry)).toEqual([{subject: null, detail: {age_seconds: 100_000}}]);
+    expect(unknownCostCondition.evaluate(calm({heartbeatConfigured: false}), scheduleRegistry)).toEqual([]);
+  });
+
+  it('is independent of the outbox and the lease: each raises and clears on its own observation', () => {
+    const all = calm({outboxOldest: 200, leaseExpiredOldest: 400, unknownCostOldest: 90_000});
+    expect(found(unknownCostCondition, all)).toHaveLength(1);
+    expect(found(outboxAgeCondition, calm({unknownCostOldest: 90_000}))).toEqual([]);
+    expect(found(leaseExpiredUnclaimedCondition, calm({unknownCostOldest: 90_000}))).toEqual([]);
+    expect(found(unknownCostCondition, calm({outboxOldest: 200, leaseExpiredOldest: 400}))).toEqual([]);
+  });
+
+  it('produces a detail the database accepts (flat, a whole number of seconds)', () => {
+    const [finding] = found(unknownCostCondition, calm({unknownCostOldest: 90_000}));
+    expect(isAlarmDetail(finding.detail)).toBe(true);
+    expect(Object.keys(finding.detail)).toEqual(['age_seconds']);
+  });
+
+  describe('the threshold is the one the database records', () => {
+    const migrations = join(process.cwd(), 'supabase', 'migrations');
+    const definition = /create (?:or replace )?function usage\.unknown_cost_alarm_seconds\(\) returns integer language sql immutable set search_path = '' as \$\$ select (\d+) \$\$;/;
+    // The newest migration that defines the function is the one in force.
+    const defining = readdirMigrations(migrations)
+      .filter((file) => definition.test(readFileSync(join(migrations, file), 'utf8').replace(/\s+/g, ' ')))
+      .at(-1);
+
+    it('equals the SQL constant usage.unknown_cost_alarm_seconds() the migrations define', () => {
+      expect(defining, 'a migration defines usage.unknown_cost_alarm_seconds()').toBe('20261101120000_reconcile_ambiguous_charges.sql');
+      const match = definition.exec(readFileSync(join(migrations, defining!), 'utf8').replace(/\s+/g, ' '));
+      expect(Number(match![1])).toBe(unknownCostSeconds);
+    });
+
+    it('is the 24-hour reconciliation deadline plus 10 minutes of sweep slack', () => {
+      expect(unknownCostSeconds).toBe(usageConstants.ambiguityDeadlineHours * 3600 + 10 * 60);
+      expect(unknownCostSeconds).toBe(87_000);
+    });
+  });
+});
+
 describe('unobservable', () => {
   it('is the answer of exactly the two conditions that have a precondition, and of no other, whatever the observations', () => {
     const states = [calm(), calm({heartbeatConfigured: false}), withReceipt(calm(), receipt('ledger-relay', 10, 'no_store')), calm({firstReceiptAge: 1_000_000, latestReceiptAge: 9_999, unaccounted: 99, ledgerWaiting: 9, ledgerOldest: 9_999})];
@@ -356,6 +431,7 @@ describe('evaluateConditions', () => {
       'heartbeat-stale',
       'outbox-age',
       'lease-expired-unclaimed',
+      'unknown-cost',
       'fixture-threshold',
     ]);
     expect(evaluateConditions(conditions, 'heartbeat', calm(), scheduleRegistry).map((one) => one.id)).toEqual(['qstash-stale', 'monitor-late', 'fixture-heartbeat']);

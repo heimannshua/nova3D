@@ -1,5 +1,6 @@
 // Story 2.4. The application side of Usage: typed calls to the three `api` functions of the usage limits (list, change or reset a limit, record a
-// refused change) with the service role. This is the ONLY module that calls them (tests/unit/gate-structure.test.ts pins it), and it is
+// refused change) with the service role. Story 2.8 adds two more: the list of overrun incidents and the clearing of one (list_overrun_incidents, clear_overrun_incident), and a
+// third action for a refused clearing (`usage.incident_refused`). This is the ONLY module that calls them (tests/unit/gate-structure.test.ts pins it), and it is
 // one of the few that use the call helpers of lib/accounts.ts.
 //
 // SERVER-ONLY (it imports lib/accounts.ts, which holds the service-role key and refuses to load in a browser). A client component takes a row from
@@ -16,9 +17,9 @@
 // Nothing here logs. An error that comes out of the database layer names the call and the HTTP status, never an amount or an ID.
 import {callRow, oneOf, requireUuid, unexpected, type AccountsOptions, type Row} from '@/lib/accounts';
 import type {Operation} from '@/lib/authority';
-import {isLimit, isMicrodollars, usageCauses, type UsageCause, type UsageRow} from '@/lib/usage-view';
+import {isLimit, isMicrodollars, usageCauses, type UsageCause, type UsageIncident, type UsageRow} from '@/lib/usage-view';
 
-export type {UsageRow};
+export type {UsageIncident, UsageRow};
 
 /** The most Accounts a read carries: the 200 newest, as in the Accounts list. */
 export const maxUsageListed = 200;
@@ -166,10 +167,10 @@ export async function setUsageLimit(
 // Refusals -------------------------------------------------------------------------------------------------------------------------------
 
 /**
- * The refusals of a usage-limit change that api.record_usage_refusal records: an Administrator who tried to change or reset a limit without a valid
- * fresh administration marker, and an Account that is not an Administrator who tried either.
+ * The refusals that api.record_usage_refusal records: an Administrator who tried to change or reset a limit without a valid fresh administration marker, an Account that is not
+ * an Administrator who tried either, and (Story 2.8) an Administrator who tried to clear an overrun incident without a valid marker.
  */
-export const usageRefusalActions = ['usage.limit_refused', 'usage.denied'] as const;
+export const usageRefusalActions = ['usage.limit_refused', 'usage.denied', 'usage.incident_refused'] as const;
 export type UsageRefusalAction = (typeof usageRefusalActions)[number];
 /** `recorded` (a new audit event) or `repeated` (the same refusal was recorded in the last hour; nothing was written). */
 export const usageRefusalOutcomes = ['recorded', 'repeated'] as const;
@@ -196,4 +197,110 @@ export async function recordUsageRefusal(
     options,
   );
   return oneOf(row.outcome, usageRefusalOutcomes);
+}
+
+// Overrun incidents (Story 2.8) ---------------------------------------------------------------------------------------------------------------
+
+/** The most incidents a read carries. */
+export const maxIncidentsListed = 200;
+
+const timePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}(?::?\d{2})?)$/;
+const clearedByPattern = /^user:[A-Za-z0-9_-]{1,64}$/;
+
+function timeOf(value: unknown): string {
+  const time = text(value);
+  if (time === null || !timePattern.test(time) || Number.isNaN(Date.parse(time))) throw unexpected();
+  return time;
+}
+
+function idOf(value: unknown): string {
+  const id = text(value);
+  if (id === null || !idPattern.test(id)) throw unexpected();
+  return id.toLowerCase();
+}
+
+function incidentOf(value: unknown): UsageIncident {
+  const row = (typeof value === 'object' && value !== null && !Array.isArray(value) ? value : {}) as Row;
+  const reserved = row.reserved_microdollars;
+  const evidence = row.evidence_microdollars;
+  const over = row.over_microdollars;
+  // The evidence is above the reservation, and `over` is exactly the difference.
+  if (!isMicrodollars(reserved) || !isMicrodollars(evidence) || !isMicrodollars(over) || reserved < 1 || evidence <= reserved || over !== evidence - reserved) throw unexpected();
+  const clearedAt = row.cleared_at === null || row.cleared_at === undefined ? null : timeOf(row.cleared_at);
+  const clearedBy = row.cleared_by === null || row.cleared_by === undefined ? null : text(row.cleared_by);
+  // Cleared at and cleared by come together, or not at all.
+  if ((clearedAt === null) !== (clearedBy === null) || (clearedBy !== null && !clearedByPattern.test(clearedBy))) throw unexpected();
+  const email = row.cleared_by_email === null || row.cleared_by_email === undefined ? null : text(row.cleared_by_email);
+  if (row.cleared_by_email !== null && row.cleared_by_email !== undefined && email === null) throw unexpected();
+  if (clearedBy === null && email !== null) throw unexpected();
+  const provider = text(row.provider);
+  if (provider === null || !/^[a-z][a-z0-9._-]{0,79}$/.test(provider)) throw unexpected();
+  return {
+    id: idOf(row.incident_id),
+    accountId: idOf(row.account_id),
+    provider,
+    operationId: idOf(row.operation_id),
+    jobId: idOf(row.job_id),
+    reserved,
+    evidence,
+    over,
+    createdAt: timeOf(row.created_at),
+    clearedAt,
+    clearedBy,
+    clearedByEmail: email,
+  };
+}
+
+/** `listed`: the overrun incidents of every Account, open first and then the newest. `denied`: the caller is not an active Administrator; nothing is listed. */
+export type IncidentList = {outcome: 'listed'; incidents: UsageIncident[]} | {outcome: 'denied'};
+
+/**
+ * The overrun incidents of every Account, for the Administrator: provider, operation, Job, the reserved and evidence amounts, the amount over, when, and whether and by whom it was
+ * cleared. Open ones come first (a provider with an open incident is blocked for every Account). Fails closed like `listUsage`: an answer that is not shaped like a list throws,
+ * and the page says it could not load; it never shows an empty list in place of one it could not read.
+ */
+export async function listOverrunIncidents(operation: Operation, input: {limit?: number} = {}, options: AccountsOptions = {}): Promise<IncidentList> {
+  const limit = input.limit ?? 50;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > maxIncidentsListed) throw new TypeError(`limit must be a whole number from 1 to ${maxIncidentsListed}`);
+  const row = await callRow('list_overrun_incidents', {p_account_id: requireOperation(operation), p_epoch: operation.epoch, p_limit: limit}, options);
+  const outcome = oneOf(row.outcome, ['listed', 'denied'] as const);
+  if (outcome === 'denied') return {outcome};
+  if (!Array.isArray(row.incidents) || row.incidents.length > limit) throw unexpected();
+  const incidents = row.incidents.map(incidentOf);
+  if (new Set(incidents.map((incident) => incident.id)).size !== incidents.length) throw unexpected();
+  // Open before cleared: an open incident after a cleared one is not the order the database lists them in.
+  const firstCleared = incidents.findIndex((incident) => incident.clearedAt !== null);
+  if (firstCleared !== -1 && incidents.slice(firstCleared).some((incident) => incident.clearedAt === null)) throw unexpected();
+  return {outcome, incidents};
+}
+
+/**
+ * What api.clear_overrun_incident answers. `cleared`: the incident is cleared now (audited in the same transaction), and the provider's admissions resume when its last
+ * incident is cleared. `already_cleared`: it was cleared before (by this command or another). `unavailable`: no such incident. `denied`: the caller is not an active
+ * Administrator under the epoch.
+ */
+export type IncidentClearing =
+  | {outcome: 'cleared' | 'already_cleared'; incidentId: string; clearedAt: string; clearedBy: string}
+  | {outcome: 'unavailable' | 'denied'};
+
+/**
+ * Clears an overrun incident, once, for the Administrator. The caller (the Server Action, behind `administered`) has checked the fresh administration marker; this checks nothing
+ * of it, and the database still begins with the Administrator's authority and role. A clearing is audited as `usage.incident_cleared` in the same transaction.
+ */
+export async function clearOverrunIncident(
+  operation: Operation,
+  input: {commandId: string; incidentId: string},
+  options: AccountsOptions = {},
+): Promise<IncidentClearing> {
+  const incidentId = requireUuid('incidentId', input.incidentId);
+  const row = await callRow(
+    'clear_overrun_incident',
+    {p_account_id: requireOperation(operation), p_epoch: operation.epoch, p_command_id: requireUuid('commandId', input.commandId), p_incident_id: incidentId},
+    options,
+  );
+  const outcome = oneOf(row.outcome, ['cleared', 'already_cleared', 'unavailable', 'denied'] as const);
+  if (outcome === 'unavailable' || outcome === 'denied') return {outcome};
+  const clearedBy = text(row.cleared_by);
+  if (idOf(row.incident_id) !== incidentId || clearedBy === null || !clearedByPattern.test(clearedBy)) throw unexpected();
+  return {outcome, incidentId, clearedAt: timeOf(row.cleared_at), clearedBy};
 }

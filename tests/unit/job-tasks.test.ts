@@ -445,14 +445,14 @@ describe('outbox-sweep (Story 2.7)', () => {
     kind: 'test_workload',
     created_at: '2026-10-29T10:00:00.000000+00:00',
   });
-  function sweepDatabase(unpublished: number, swept = {expired: 0, cancelled: 0, settled: 0}) {
+  function sweepDatabase(unpublished: number, swept: Partial<Record<'expired' | 'cancelled' | 'settled' | 'marked' | 'reconciled' | 'failed', number>> = {}) {
     const rows = Array.from({length: unpublished}, (_, index) => row(index + 1));
     const marked: {outbox: string; message: string}[] = [];
     const claims: Record<string, unknown>[] = [];
     const fetch = async (input: string, init?: RequestInit): Promise<Response> => {
       const name = String(input).split('/rpc/')[1];
       const body = JSON.parse(String(init?.body));
-      if (name === 'sweep_attempts') return json(swept);
+      if (name === 'sweep_attempts') return json({expired: 0, cancelled: 0, settled: 0, marked: 0, reconciled: 0, failed: 0, ...swept});
       if (name === 'claim_outbox') {
         claims.push(body);
         const leased = rows.filter((item) => !marked.some((m) => m.outbox === item.id)).slice(0, Number(body.p_limit));
@@ -476,7 +476,7 @@ describe('outbox-sweep (Story 2.7)', () => {
     const database = sweepDatabase(0);
     const queue = fakePublisher();
     const answer = await runTask('outbox-sweep', sweepContext(database, queue.config(INSTANCE)));
-    expect(answer).toEqual({outcome: 'idle', result: {expired: 0, cancelled: 0, settled: 0, claimed: 0, published: 0, publish_failed: 0}});
+    expect(answer).toEqual({outcome: 'idle', result: {expired: 0, cancelled: 0, settled: 0, marked: 0, reconciled: 0, failed: 0, claimed: 0, published: 0, publish_failed: 0}});
     expect(isJobResult(answer.result)).toBe(true);
     expect(queue.calls).toEqual([]);
   });
@@ -485,7 +485,36 @@ describe('outbox-sweep (Story 2.7)', () => {
     const database = sweepDatabase(0, {expired: 1, cancelled: 2, settled: 3});
     expect(await runTask('outbox-sweep', sweepContext(database, fakePublisher().config(INSTANCE)))).toEqual({
       outcome: 'ran',
-      result: {expired: 1, cancelled: 2, settled: 3, claimed: 0, published: 0, publish_failed: 0},
+      result: {expired: 1, cancelled: 2, settled: 3, marked: 0, reconciled: 0, failed: 0, claimed: 0, published: 0, publish_failed: 0},
+    });
+  });
+
+  // Story 2.8: the database's sweep also marks the dispatched operations of ended attempts ambiguous, settles the ambiguous ones past their 24-hour deadline, and counts the
+  // operations it had to skip. The three counts are reported under their own keys (and nothing else: no ID, no amount).
+  it('reports what the sweep marked, reconciled and failed under the keys marked, reconciled and failed', async () => {
+    const database = sweepDatabase(0, {expired: 1, cancelled: 2, settled: 3, marked: 4, reconciled: 5, failed: 6});
+    const answer = await runTask('outbox-sweep', sweepContext(database, fakePublisher().config(INSTANCE)));
+    expect(answer).toEqual({
+      outcome: 'ran',
+      result: {expired: 1, cancelled: 2, settled: 3, marked: 4, reconciled: 5, failed: 6, claimed: 0, published: 0, publish_failed: 0},
+    });
+    expect(Object.keys((answer as {result: object}).result)).toEqual(['expired', 'cancelled', 'settled', 'marked', 'reconciled', 'failed', 'claimed', 'published', 'publish_failed']);
+    expect(isJobResult(answer.result)).toBe(true);
+  });
+
+  it.each(['marked', 'reconciled', 'failed'] as const)('is `ran` when the only thing the sweep did was count %s (the run is not idle)', async (key) => {
+    const database = sweepDatabase(0, {[key]: 2});
+    const answer = await runTask('outbox-sweep', sweepContext(database, fakePublisher().config(INSTANCE)));
+    expect(answer.outcome).toBe('ran');
+    expect((answer.result as Record<string, number>)[key]).toBe(2);
+    expect(isJobResult(answer.result)).toBe(true);
+  });
+
+  it('reports the three counts with no queue configured too (the database work is done)', async () => {
+    const database = sweepDatabase(0, {marked: 1, reconciled: 2, failed: 3});
+    expect(await runTask('outbox-sweep', sweepContext(database, null))).toEqual({
+      outcome: 'no_store',
+      result: {expired: 0, cancelled: 0, settled: 0, marked: 1, reconciled: 2, failed: 3, claimed: 0, published: 0, publish_failed: 0},
     });
   });
 
@@ -493,7 +522,7 @@ describe('outbox-sweep (Story 2.7)', () => {
     const database = sweepDatabase(3);
     const queue = fakePublisher();
     const answer = await runTask('outbox-sweep', sweepContext(database, queue.config(INSTANCE)));
-    expect(answer).toEqual({outcome: 'ran', result: {expired: 0, cancelled: 0, settled: 0, claimed: 3, published: 3, publish_failed: 0}});
+    expect(answer).toEqual({outcome: 'ran', result: {expired: 0, cancelled: 0, settled: 0, marked: 0, reconciled: 0, failed: 0, claimed: 3, published: 3, publish_failed: 0}});
     expect(database.claims).toEqual([{p_limit: 20, p_outbox_id: null}]);
     expect(queue.calls.map((call) => call.deduplicationId)).toEqual(database.rows.map((item) => item.id));
     expect(queue.calls.map((call) => call.body.attempt)).toEqual(database.rows.map((item) => item.attempt_id));
@@ -506,7 +535,7 @@ describe('outbox-sweep (Story 2.7)', () => {
     for (const given of [null, undefined]) {
       expect(await runTask('outbox-sweep', sweepContext(database, given))).toEqual({
         outcome: 'no_store',
-        result: {expired: 1, cancelled: 0, settled: 0, claimed: 0, published: 0, publish_failed: 0},
+        result: {expired: 1, cancelled: 0, settled: 0, marked: 0, reconciled: 0, failed: 0, claimed: 0, published: 0, publish_failed: 0},
       });
     }
     expect(database.claims).toEqual([]);

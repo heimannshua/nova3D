@@ -15,8 +15,8 @@
 // adds a condition by adding an entry to `alarmConditions` and nothing else (a condition whose subject-keyed alarms are PUSHED, such as a payment
 // exception, raises through lib/alarms.ts `raiseAlarm` and has no entry here: nothing evaluates it, so nothing resolves it by absence).
 //
-// The conditions of the other stories (unknown cost 2.8, storage integrity 4.1, missed purge 8.3, backup snapshot age 8.9, payment exceptions) are theirs to add; Story 1.13
-// registered the six it can observe and Story 2.7 adds the outbox age and the expired lease nobody has cleaned up.
+// The conditions of the other stories (storage integrity 4.1, missed purge 8.3, backup snapshot age 8.9, payment exceptions) are theirs to add; Story 1.13
+// registered the six it can observe, Story 2.7 adds the outbox age and the expired lease nobody has cleaned up, and Story 2.8 adds an operation of unknown cost.
 //
 // Erasable TypeScript syntax and relative `.ts` imports, like the modules it serves.
 import {monitorTask} from './schedules.ts';
@@ -47,6 +47,11 @@ export type Observations = {
   /** The age of the oldest dispatch outbox row that is still unpublished (null when none), and how long ago the oldest live lease (one nobody has ended) expired, among those that expired more than 300 seconds ago (null when none has). */
   outboxOldest: number | null;
   leaseExpiredOldest: number | null;
+  /**
+   * The age of the oldest operation of unknown cost (null when none): dispatched or ambiguous, with a reservation and no settlement, measured from the time its outcome was
+   * recorded (a dispatched one from its dispatch). The minute sweep settles an ambiguous one at 24 hours, so one still here past 24 hours plus 10 minutes is stuck (Story 2.8).
+   */
+  unknownCostOldest: number | null;
   /** Whether the Railway heartbeat is configured for this deployment (`SERVICE_KEYS_HEARTBEAT` is set): without it there is no heartbeat to be late. */
   heartbeatConfigured: boolean;
 };
@@ -80,6 +85,11 @@ export const unaccountedLimit = 25;
 export const outboxAgeSeconds = 120;
 /** A worker lease is abandoned when a live one has been expired longer than this, in seconds (five minutes; the sweep ends an expired lease every minute). */
 export const leaseExpiredSeconds = 300;
+/**
+ * An operation of unknown cost (dispatched or ambiguous, reserved and unsettled) is stuck when it is older than this, in seconds: the 24-hour reconciliation deadline plus 10
+ * minutes of slack for the minute sweep that settles it (87,000). Mirrors the SQL constant `usage.unknown_cost_alarm_seconds()`; a test holds the two equal.
+ */
+export const unknownCostSeconds = 87_000;
 /** A scheduler is stale when the other platform's latest receipt is older than this, in seconds (two hours). */
 export const schedulerStaleSeconds = 7200;
 
@@ -213,6 +223,19 @@ export const leaseExpiredUnclaimedCondition: AlarmCondition = {
   },
 };
 
+/**
+ * `unknown-cost` (Story 2.8): an operation of unknown cost has gone unsettled over 24 hours plus 10 minutes. The 24-hour deadline settles it at its reservation in the minute sweep,
+ * so one this old means the sweep is not running, or cannot settle it (a settlement that would overflow the period's bound, say). A threshold condition: it clears when the
+ * operation is settled.
+ */
+export const unknownCostCondition: AlarmCondition = {
+  id: 'unknown-cost',
+  evaluatedBy: 'monitor',
+  evaluate(observations) {
+    return observations.unknownCostOldest !== null && observations.unknownCostOldest > unknownCostSeconds ? [{subject: null, detail: {age_seconds: observations.unknownCostOldest}}] : [];
+  },
+};
+
 /** Every registered condition. A later story adds its entry here and nothing else. */
 export const alarmConditions: readonly AlarmCondition[] = [
   taskLateCondition,
@@ -223,6 +246,7 @@ export const alarmConditions: readonly AlarmCondition[] = [
   monitorLateCondition,
   outboxAgeCondition,
   leaseExpiredUnclaimedCondition,
+  unknownCostCondition,
 ];
 
 /**

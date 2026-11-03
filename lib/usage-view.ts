@@ -1,4 +1,4 @@
-// Story 2.4. What the Administrator's Usage and limits page (app/admin/usage), its two Server Actions (actions.ts beside it) and the
+// Story 2.4. What the Administrator's Usage and limits page (app/admin/usage), its three Server Actions (actions.ts beside it: change the limit, reset the count and, Story 2.8, clear an overrun incident) and the
 // components under components/admin agree on, with nothing that reaches the server: a row, the money (parsed and written by one
 // deterministic pair of functions), the state of a limit by integer arithmetic only, the figures that must reconcile, the meter, the
 // state an action answers with, how a call that did not answer is read, and the words for each answer. A client component imports this
@@ -12,7 +12,7 @@
 // the page receives the shown amounts). Used = settled + reserved. Available = the limit less what is used, never below 0. When used
 // exceeds the limit the amount over is shown too, so the amounts always reconcile: settled + reserved + available = limit, or
 // limit + over = used.
-import {attemptAdministeredAction} from '@/lib/administration';
+import {attemptAdministeredAction, isoOf} from '@/lib/administration';
 import {isolateLtr, type MessageKey} from '@/lib/i18n';
 import {reloadHere} from '@/lib/session-actions';
 
@@ -56,6 +56,54 @@ export function formatDollars(microdollars: number): string {
   decimals = fraction % microdollarsPerCent === 0 ? decimals.slice(0, 2) : decimals.replace(/0+$/, '');
   return `${sign}$${groupThousands(String(whole))}.${decimals}`;
 }
+
+// Overrun incidents (Story 2.8) ---------------------------------------------------------------------------------------------------------------
+
+/**
+ * An overrun incident as the Administrator's page shows it: usage evidence above an operation's reservation. Until it is cleared its provider is blocked for every Account.
+ * `clearedAt` is null while it is open; `clearedBy` is `user:<Auth user ID>` and `clearedByEmail` the verified address of the Account that cleared it (null when Auth no longer
+ * vouches for one). Every amount is integer microdollars; `over` is the evidence less the reservation.
+ */
+export type UsageIncident = {
+  id: string;
+  accountId: string;
+  provider: string;
+  operationId: string;
+  jobId: string;
+  reserved: number;
+  evidence: number;
+  over: number;
+  createdAt: string;
+  clearedAt: string | null;
+  clearedBy: string | null;
+  clearedByEmail: string | null;
+};
+
+/** `open` (its provider is blocked for every Account) or `cleared` (an Administrator reviewed it; it stays in the record). */
+export type IncidentState = 'open' | 'cleared';
+
+export const incidentStateOf = (incident: Pick<UsageIncident, 'clearedAt'>): IncidentState => (incident.clearedAt === null ? 'open' : 'cleared');
+
+/** The catalog keys of an incident's state: its word, and what it means for the provider. The note names the provider ({provider}). */
+export const incidentStateKeys = {
+  open: {label: 'usage.incident.state.open', note: 'usage.incident.state.open.note'},
+  cleared: {label: 'usage.incident.state.cleared', note: 'usage.incident.state.cleared.note'},
+} as const satisfies Record<IncidentState, {label: MessageKey; note: MessageKey}>;
+
+/** The tone of the state's badge; the badge also carries its word and its own shape. */
+export const incidentStateTones = {open: 'danger', cleared: 'success'} as const satisfies Record<IncidentState, 'danger' | 'success'>;
+
+/**
+ * An incident's time as `2026-10-12 00:24`: the same text on the server and in the browser (no locale, no time zone of the machine), always UTC (the labels say so in words).
+ * A time that cannot be read is an empty string, never an exception.
+ */
+export function formatIncidentTime(value: string): string {
+  const moment = new Date(value);
+  return Number.isNaN(moment.getTime()) ? '' : moment.toISOString().slice(0, 16).replace('T', ' ');
+}
+
+/** The time as an attribute for <time>, or undefined when it cannot be read. */
+export const incidentTimeIso = (value: string): string | undefined => isoOf(value);
 
 /** Why a typed limit is not a limit; each has its own message and its own remedy. */
 export type LimitProblem = 'empty' | 'format' | 'negative' | 'cents' | 'range';
@@ -220,19 +268,21 @@ export function meterOf(figures: UsageFigures): Meter {
 // What the actions answer -----------------------------------------------------------------------------------------------------------------
 
 /**
- * What the two Server Actions (change the limit, reset the count) answer, and what the controls keep.
+ * What the three Server Actions (change the limit, reset the count, clear an overrun incident) answer, and what the controls keep.
  *
  *  - `changed` carries the new limit; `reset` is a count that was reset; `replayed` is the same command arriving again (nothing changed now).
  *  - `unchanged` is a limit typed that is the limit already.
  *  - `stale` is "the page was out of date" (another window, or the month turned): nothing was changed, and the list is read again.
  *  - `reused` is a command ID the database already used for another payload. The form cannot normally cause it: a command ID belongs to a command (the Account, the
- *    period the person saw, the kind and the amount, `useCommandIds` in components/admin/usage-list.tsx), so another amount, another period or another kind gets another ID.
+ *    period the person saw, the kind and the amount, `useCommandIds` in components/use-usage-action.ts), so another amount, another period or another kind gets another ID.
  *    It is the answer to a request that was not made by this form, and nothing was changed.
  *  - `invalid` is a typed limit that is not one (a message in the form, nothing sent); `invalid_limit` is the database refusing one anyway.
  *  - `disabled` is an Account that is disabled: its limit is not changed until it is enabled again.
  *  - `not_found` is an ID that names no Account (or one that was deleted).
  *  - `refused` is "no valid fresh sign-in": nothing was changed. `stepUp` says whether to offer the sign-in (there was none or it ran out).
  *  - `denied` is an Account that is not the Administrator.
+ *  - `cleared` is an overrun incident that was cleared now (Story 2.8); `already_cleared` is one that was cleared before (by this command or another window). An incident that
+ *    does not exist is `not_found`, and a form that is not one this page makes is `stale`.
  *  - `unavailable` is a service that did not answer. `unknown` is true when the change may have been made anyway: the person is told to
  *    check the list before trying again.
  */
@@ -240,6 +290,8 @@ export type UsageActionState =
   | {outcome: 'idle'}
   | {outcome: 'changed'; limit: number}
   | {outcome: 'reset'}
+  | {outcome: 'cleared'}
+  | {outcome: 'already_cleared'}
   | {outcome: 'replayed'}
   | {outcome: 'unchanged'; limit: number}
   | {outcome: 'stale'}
@@ -281,6 +333,20 @@ export const usageMessageKeys = {
 export function usageFailureKey(state: Extract<UsageActionState, {outcome: 'refused' | 'unavailable'}>): MessageKey {
   if (state.outcome === 'refused') return state.stepUp ? 'usage.error.needsConfirm' : 'usage.error.refused';
   return state.unknown ? 'usage.error.unknown' : 'usage.error.unavailable';
+}
+
+/** The catalog key for an answer about an overrun incident that is one fixed message; each names the incident's provider ({provider}). */
+export const incidentMessageKeys = {
+  cleared: 'usage.incident.done',
+  already_cleared: 'usage.incident.alreadyCleared',
+  stale: 'usage.incident.error.stale',
+  not_found: 'usage.incident.error.notFound',
+} as const satisfies Partial<Record<UsageActionState['outcome'], MessageKey>>;
+
+/** The failure notice of a clearing that changed nothing: as `usageFailureKey`, with the words of an incident (an unknown outcome points at the incidents, not at a card). */
+export function incidentFailureKey(state: Extract<UsageActionState, {outcome: 'refused' | 'unavailable'}>): MessageKey {
+  if (state.outcome === 'refused') return state.stepUp ? 'usage.error.needsConfirm' : 'usage.error.refused';
+  return state.unknown ? 'usage.incident.error.unknown' : 'usage.error.unavailable';
 }
 
 /** The name an Account goes by in the list and in a sentence: its Google address, or a stand-in when Auth no longer vouches for one. */

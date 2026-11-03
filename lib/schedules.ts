@@ -10,8 +10,9 @@
 // Story 1.12 added the staging cleanup (hourly). Story 1.13 gives every entry an `intervalSeconds` (how often the cron expression fires it, in seconds:
 // plain data, which the alarm condition `task-late` reads: a task whose latest finished receipt is older than twice its interval is late) and adds the
 // monitor itself, `alarm-monitor`, the task that evaluates the alarm conditions. Story 2.7 adds `outbox-sweep` (every minute): it publishes the unpublished dispatch
-// outbox rows older than 15 seconds, ends the leases that ran out and cancels the attempts of a disabled Account. Later stories add their tasks HERE and in lib/job-tasks.ts, and nowhere else:
-//   Story 2.8  settles ambiguous charges past 24 hours in the same sweep
+// outbox rows older than 15 seconds, ends the leases that ran out and cancels the attempts of a disabled Account. Story 2.8 gives the same sweep two more stages (no new
+// schedule): the dispatched operations of ended attempts become ambiguous, and each ambiguous charge past its 24 hours is settled once at its reservation; its result keys
+// `marked`, `reconciled` and `failed` join the existing counts. Later stories add their tasks HERE and in lib/job-tasks.ts, and nowhere else:
 //   Story 8.3  purge deadlines (hourly)
 //   Story 8.9  the backup monitor (every 30 minutes)
 // The cleanups this story leaves deferred (session grants, step-up nonces, recovery tokens, outbox retention) are not registered.

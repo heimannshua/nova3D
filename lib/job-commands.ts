@@ -1,7 +1,8 @@
 // Story 2.7. The application side of durable, fenced Jobs: typed calls to the fifteen `api` functions that accept a Job, cancel it, list and read it, register a worker, claim an
 // attempt, renew its lease, run its steps, report its operations, finish it, record a signed worker command, publish the dispatch outbox, sweep, and cancel an Account's Jobs when
 // it is disabled (submit_job, cancel_job, list_jobs, read_job_detail, register_worker, claim_attempt, renew_lease, run_step, finish_operation, finish_attempt, record_callback,
-// claim_outbox, mark_published, sweep_attempts, cancel_account_jobs) with the service role. This is the ONLY module that calls them (tests/unit/gate-structure.test.ts pins
+// claim_outbox, mark_published, sweep_attempts, cancel_account_jobs) with the service role. Story 2.8 adds a sixteenth, reconcile_operation (late evidence or a proven noncharge for an
+// operation whose outcome was unknown), and lets finish_operation report an `ambiguous` outcome and sweep_attempts count what it marked, reconciled and failed. This is the ONLY module that calls them (tests/unit/gate-structure.test.ts pins
 // it), and it is one of the few that use the call helpers of lib/accounts.ts. lib/job-dispatch.ts, lib/worker-commands.ts and lib/job-cancellation.ts call it; lib/job-view.ts is
 // the client-safe half (the vocabularies and the shapes the screens read).
 //
@@ -52,6 +53,7 @@ const wordPattern = /^[a-z][a-z0-9._-]{0,79}$/;
 const apiVersionPattern = /^[!-~]{1,100}$/;
 const returnedModelPattern = /^[!-~]{1,200}$/;
 const requestIdPattern = /^[!-~]{1,200}$/;
+const operationStateWords: readonly string[] = ['planned', 'dispatched', 'completed', 'ambiguous', 'noncharge', 'settled', 'abandoned'];
 const jtiPattern = /^[A-Za-z0-9_-]{22}$/;
 const kidPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const messageIdPattern = /^[!-~]{1,200}$/;
@@ -747,23 +749,29 @@ export async function runStep(input: {attemptId: string; fence: string; stepKey:
 export type OperationSettlement = {settledMicrodollars: number; releasedMicrodollars: number; overMicrodollars: number} | null;
 
 /**
- * What api.finish_operation answers: `finished` (the outcome is recorded and, when the operation holds a reservation, settled), `not_found` (not an operation of this attempt),
- * `not_dispatched` (it is still planned), `invalid_transition` (it is in a state that cannot take this outcome), `already_settled` and `invalid_evidence` (the settlement was
- * refused and the outcome undone), or a fence refusal.
+ * What api.finish_operation answers: `finished` (the outcome is recorded and, when the operation holds a reservation, settled; an `ambiguous` outcome settles nothing and keeps the
+ * whole reservation held), `not_found` (not an operation of this attempt), `not_dispatched` (it is still planned), `invalid_transition` (it is in a state that cannot take this
+ * outcome), `already_settled`, `invalid_evidence` and `overflow` (the settlement was refused and the outcome undone: the caller reports the operation `ambiguous` instead), or a fence
+ * refusal. A second report for an operation that has finished answers one of these words; it never raises.
  */
 export type OperationFinish =
   | {outcome: 'finished'; operationId: string; state: string; settlement: OperationSettlement}
-  | {outcome: 'not_found' | 'not_dispatched' | 'invalid_transition' | 'already_settled' | 'invalid_evidence' | FenceRefusal};
+  | {outcome: 'not_found' | 'not_dispatched' | 'invalid_transition' | 'already_settled' | 'invalid_evidence' | 'overflow' | FenceRefusal};
 
 /** A completed operation's usage, as the provider reported it. */
 export type OperationUsage = {inputTokens: number; outputTokens: number; returnedModel: string};
 
 /**
  * Records the outcome of a dispatched operation under the attempt's fence. `completed` (with the usage) moves the operation and settles it as evidence: the calculator prices the
- * usage and the unused remainder of the reservation is released. `noncharge` (with the provider's request ID) moves it and settles it noncharge. An ambiguous outcome is Story 2.8's.
+ * usage and the unused remainder of the reservation is released. `noncharge` (with the provider's request ID) moves it and settles it noncharge. `ambiguous` (the provider's request
+ * ID is optional) moves it to `ambiguous`, settles nothing and keeps the whole reservation held until evidence, a proven noncharge or the 24-hour deadline (Story 2.8).
  */
 export async function finishOperation(
-  input: {attemptId: string; fence: string; operationId: string} & ({outcome: 'completed'; usage: OperationUsage} | {outcome: 'noncharge'; requestId: string}),
+  input: {attemptId: string; fence: string; operationId: string} & (
+    | {outcome: 'completed'; usage: OperationUsage}
+    | {outcome: 'noncharge'; requestId: string}
+    | {outcome: 'ambiguous'; requestId?: string | null}
+  ),
   options: AccountsOptions = {},
 ): Promise<OperationFinish> {
   const operationId = requireUuid('operationId', input.operationId);
@@ -774,14 +782,21 @@ export async function finishOperation(
   } else if (input.outcome === 'noncharge') {
     if (typeof input.requestId !== 'string' || !requestIdPattern.test(input.requestId)) throw new TypeError('requestId must be 1 to 200 printable ASCII characters without spaces');
     usage = {...usage, p_request_id: input.requestId};
+  } else if (input.outcome === 'ambiguous') {
+    const requestId = input.requestId ?? null;
+    if (requestId !== null && (typeof requestId !== 'string' || !requestIdPattern.test(requestId))) throw new TypeError('requestId must be 1 to 200 printable ASCII characters without spaces');
+    usage = {...usage, p_request_id: requestId};
   } else {
-    throw new TypeError('outcome must be completed or noncharge');
+    throw new TypeError('outcome must be completed, noncharge or ambiguous');
   }
   const row = await callRow('finish_operation', {...fencedBody(input), p_operation_id: operationId, p_outcome: input.outcome, ...usage}, options);
-  const outcome = oneOf(row.outcome, ['finished', 'not_found', 'not_dispatched', 'invalid_transition', 'already_settled', 'invalid_evidence', ...fenceRefusals] as const);
+  const outcome = oneOf(row.outcome, ['finished', 'not_found', 'not_dispatched', 'invalid_transition', 'already_settled', 'invalid_evidence', 'overflow', ...fenceRefusals] as const);
   if (outcome !== 'finished') return {outcome};
   const state = text(row.state);
-  if (state === null || uuidOf(row.operation_id) !== operationId || state !== input.outcome) throw unexpected();
+  if (state === null || uuidOf(row.operation_id) !== operationId) throw unexpected();
+  // The operation is in the state that was reported, except that a report sent again after the operation has been reconciled finds it `settled` (an ambiguous one) and the like.
+  if (input.outcome !== 'ambiguous' && state !== input.outcome) throw unexpected();
+  if (input.outcome === 'ambiguous' && !operationStateWords.includes(state)) throw unexpected();
   const settled = row.settled_microdollars;
   let settlement: OperationSettlement = null;
   if (settled !== null && settled !== undefined) {
@@ -790,6 +805,124 @@ export async function finishOperation(
     throw unexpected();
   }
   return {outcome, operationId, state, settlement};
+}
+
+// Reconciling an operation whose outcome was unknown (Story 2.8) ---------------------------------------------------------------------------------------
+
+/** The words a refused settlement answers inside a reconciliation. */
+export const reconcileRefusals = ['already_settled', 'invalid_evidence', 'overflow', 'not_reserved', 'not_settleable', 'not_due', 'reused'] as const;
+export type ReconcileRefusal = (typeof reconcileRefusals)[number];
+
+/** Why evidence was refused as `invalid_evidence`: it prices above the largest amount (`overflow`), or it names a model other than the one the reservation pinned (`model_mismatch`). */
+export const reconcileReasons = ['overflow', 'model_mismatch'] as const;
+export type ReconcileReason = (typeof reconcileReasons)[number];
+
+/** The evidence that reconciles an operation, or the proof that it was never charged. */
+export type ReconcileInput = {operationId: string} & (
+  | {outcome: 'evidence'; usage: OperationUsage; requestId?: string | null}
+  | {outcome: 'noncharge'; requestId: string}
+);
+
+/** What a reconciliation booked: the settlement (or, for late evidence, the correction) and what it changed. */
+export type ReconcileBooking = {
+  settlementId: string;
+  classification: 'evidence' | 'deadline' | 'noncharge';
+  settledMicrodollars: number;
+  releasedMicrodollars: number;
+  /** How far the evidence was above the reservation (an incident was opened), else 0. */
+  overMicrodollars: number;
+  incidentId: string | null;
+  /** The correction a late evidence appended, with its signed settled delta (evidence minus the amount the deadline settled); null for a first settlement. */
+  correctionId: string | null;
+  deltaMicrodollars: number | null;
+};
+
+/**
+ * What api.reconcile_operation answers.
+ *  - `reconciled`: an ambiguous operation was settled at the evidence (or as a proven noncharge) and moved to `settled` (or `noncharge`), which opens the gate for a waiting retry.
+ *  - `corrected`: late evidence after a deadline booking appended ONE correction; the settlement was not edited.
+ *  - `replayed`: the same report again.
+ *  - `not_reconcilable`: the operation is planned, dispatched or abandoned, or is past an outcome this report cannot change (it carries the state).
+ *  - `unavailable`: no such operation. Or the refusal of the settlement (the operation stays as it was): see `reconcileRefusals`. A refusal carries the state the operation is in
+ *    and, for `invalid_evidence`, the database's `reason` (see `reconcileReasons`); it is null for every other word.
+ */
+export type OperationReconciliation =
+  | ({outcome: 'reconciled' | 'corrected' | 'replayed'; operationId: string; state: string} & ReconcileBooking)
+  | {outcome: 'not_reconcilable'; operationId: string; state: string}
+  | {outcome: 'unavailable'}
+  | {outcome: ReconcileRefusal; operationId: string; state: string; reason: ReconcileReason | null};
+
+const isReconcileRefusal = (word: string): word is ReconcileRefusal => (reconcileRefusals as readonly string[]).includes(word);
+
+function signedAmountOf(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) throw unexpected();
+  return value;
+}
+
+/**
+ * Reconciles an operation that went out with an unknown outcome, with no Account authority (it records what already happened): an `ambiguous` operation with `evidence` settles at
+ * the evidence (the remainder released) and becomes `settled`; with a proven `noncharge` (the provider's request ID is required) it becomes `noncharge` and settles 0; an
+ * operation the deadline settled that gets `evidence` appends one correction. The same report again is `replayed`. It makes no request of any kind to a provider.
+ */
+export async function reconcileOperation(input: ReconcileInput, options: AccountsOptions = {}): Promise<OperationReconciliation> {
+  const operationId = requireUuid('operationId', input.operationId);
+  let body: Row;
+  if (input.outcome === 'evidence') {
+    if (!input.usage || typeof input.usage.returnedModel !== 'string' || !returnedModelPattern.test(input.usage.returnedModel)) throw new TypeError('returnedModel must be 1 to 200 printable ASCII characters without spaces');
+    const requestId = input.requestId ?? null;
+    if (requestId !== null && (typeof requestId !== 'string' || !requestIdPattern.test(requestId))) throw new TypeError('requestId must be 1 to 200 printable ASCII characters without spaces');
+    body = {
+      p_input_tokens: requireSize('inputTokens', input.usage.inputTokens, maxBigint),
+      p_output_tokens: requireSize('outputTokens', input.usage.outputTokens, maxBigint),
+      p_returned_model: input.usage.returnedModel,
+      p_request_id: requestId,
+    };
+  } else if (input.outcome === 'noncharge') {
+    if (typeof input.requestId !== 'string' || !requestIdPattern.test(input.requestId)) throw new TypeError('requestId must be 1 to 200 printable ASCII characters without spaces');
+    body = {p_input_tokens: null, p_output_tokens: null, p_returned_model: null, p_request_id: input.requestId};
+  } else {
+    throw new TypeError('outcome must be evidence or noncharge');
+  }
+  const row = await callRow('reconcile_operation', {p_operation_id: operationId, p_outcome: input.outcome, ...body}, options);
+  const outcome = oneOf(row.outcome, ['reconciled', 'corrected', 'replayed', 'not_reconcilable', 'unavailable', ...reconcileRefusals] as const);
+  if (outcome === 'unavailable') return {outcome};
+  const state = text(row.state);
+  if (state === null || !operationStateWords.includes(state) || uuidOf(row.operation_id) !== operationId) throw unexpected();
+  // The database's reason travels with the word: only an `invalid_evidence` has one, and it is one of the two it knows.
+  const reason = row.reason === null || row.reason === undefined ? null : oneOf(row.reason, reconcileReasons);
+  if (reason !== null && outcome !== 'invalid_evidence') throw unexpected();
+  if (outcome === 'not_reconcilable') return {outcome, operationId, state};
+  if (isReconcileRefusal(outcome)) return {outcome, operationId, state, reason};
+  const classification = oneOf(row.classification, ['evidence', 'deadline', 'noncharge'] as const);
+  const settled = amountOf(row.settled_microdollars);
+  const released = amountOf(row.released_microdollars);
+  const over = amountOf(row.over_microdollars);
+  const incidentId = optionalUuidOf(row.incident_id);
+  const correctionId = optionalUuidOf(row.correction_id);
+  const delta = row.delta_microdollars === null || row.delta_microdollars === undefined ? null : signedAmountOf(row.delta_microdollars);
+  if ((correctionId === null) !== (delta === null)) throw unexpected();
+  if (correctionId === null) {
+    // A settlement: the over amount is exactly what it is above the whole reservation it released, and it is the only thing that makes an incident.
+    if (over !== Math.max(settled - released, 0) || (over > 0) !== (incidentId !== null)) throw unexpected();
+  } else {
+    // A correction of a deadline booking: the booking is untouched, the delta is the evidence minus it, and only a positive delta makes an incident.
+    if (classification !== 'deadline' || settled !== released || over !== Math.max(delta!, 0) || (over > 0) !== (incidentId !== null)) throw unexpected();
+  }
+  if (outcome === 'corrected' && correctionId === null) throw unexpected();
+  if (outcome === 'reconciled' && correctionId !== null) throw unexpected();
+  return {
+    outcome,
+    operationId,
+    state,
+    settlementId: uuidOf(row.settlement_id),
+    classification,
+    settledMicrodollars: settled,
+    releasedMicrodollars: released,
+    overMicrodollars: over,
+    incidentId,
+    correctionId,
+    deltaMicrodollars: delta,
+  };
 }
 
 /**
@@ -904,13 +1037,24 @@ export async function markPublished(input: {outboxId: string; messageId: string}
 
 // The sweep and the cancellation on disable ------------------------------------------------------------------------------------------------------------
 
-/** What one sweep did: leases it ended (their attempts failed as `lease_lost`), attempts it cancelled (a disabled Account or a moved epoch) and reservations it released. */
-export type AttemptSweep = {expired: number; cancelled: number; settled: number};
+/**
+ * What one sweep did: leases it ended (their attempts failed as `lease_lost`), attempts it cancelled (a disabled Account or a moved epoch), reservations it released, dispatched
+ * operations of ended attempts it marked `ambiguous` (the 24-hour clock started), ambiguous operations it settled at their deadline (and moved to `settled`), and operations it
+ * could not move or settle and skipped (`failed`: each in its own sub-block, so the others still went on). Story 2.8 added the last three.
+ */
+export type AttemptSweep = {expired: number; cancelled: number; settled: number; marked: number; reconciled: number; failed: number};
 
-/** The database half of the minute sweep. Safe to run twice or at once: each lease is ended once, each attempt cancelled once, each reservation released once. */
+/** The database half of the minute sweep. Safe to run twice or at once: each lease is ended once, each attempt cancelled once, each reservation released once, each deadline settled once. */
 export async function sweepAttempts(options: AccountsOptions = {}): Promise<AttemptSweep> {
   const row = await callRow('sweep_attempts', {}, options);
-  return {expired: numberOf(row.expired, 0), cancelled: numberOf(row.cancelled, 0), settled: numberOf(row.settled, 0)};
+  return {
+    expired: numberOf(row.expired, 0),
+    cancelled: numberOf(row.cancelled, 0),
+    settled: numberOf(row.settled, 0),
+    marked: numberOf(row.marked, 0),
+    reconciled: numberOf(row.reconciled, 0),
+    failed: numberOf(row.failed, 0),
+  };
 }
 
 /** How many open attempts of the Account were cancelled and how many reservations were released. A second call finds nothing and cancels nothing. */

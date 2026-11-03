@@ -228,6 +228,7 @@ describe('access: the jobs schema is closed, and only the service role reaches t
          from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'jobs' order by 1`,
     );
     // On purpose changed (Story 2.7): the constants, the checks and guards of the four new tables, the outbox trigger and the internal helpers of the dispatch join the Story 2.11 functions.
+    // On purpose changed (Story 2.8): the authority-free move to `ambiguous` (mark_ambiguous) and the isolated, counted release of abandoned operations (settle_abandoned_counted) join them.
     expect(functions.map((fn) => fn.name)).toEqual([
       'authority_detail',
       'builtin_kind',
@@ -253,6 +254,7 @@ describe('access: the jobs schema is closed, and only the service role reaches t
       'kinds_valid',
       'lease_alarm_seconds',
       'lease_seconds',
+      'mark_ambiguous',
       'open_job_limit',
       'outbox_alarm_seconds',
       'plan_valid',
@@ -264,6 +266,7 @@ describe('access: the jobs schema is closed, and only the service role reaches t
       'renewal_seconds',
       'reserve_planned',
       'settle_abandoned',
+      'settle_abandoned_counted',
       'shown_reason',
     ]);
     for (const fn of functions) {
@@ -2234,7 +2237,8 @@ describe('the preflight carries the Story 2.11 tables and functions', () => {
     // On purpose changed (Story 2.6): fifty since it added the three functions of the cost reservations (it was forty-seven after the six functions of the Job records).
     // On purpose changed (Story 2.5): fifty-four since it added the grant, the read and the revoke of the provider permissions and the permissioned reserve_cost (it was fifty after the three functions of the cost reservations).
     // On purpose changed (Story 2.7): sixty-nine since it added the fifteen functions of the durable dispatch (it was fifty-four after the provider permissions).
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(69);
+    // On purpose changed (Story 2.8): seventy-two since it added the three functions of the reconciliation, `reconcile_operation`, `list_overrun_incidents` and `clear_overrun_incident` (it was sixty-nine after the durable dispatch).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(72);
     for (const signature of apiSignatures) expect(executable, signature).toContain(`'${signature}'`);
     // The bucket check stays last.
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));
@@ -2273,7 +2277,7 @@ describe('the preflight carries the Story 2.11 tables and functions', () => {
       'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
       'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods',
       'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands',
-      'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands',
+      'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.corrections', 'usage.commands',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
     ];
     await inTx(async (client) => {

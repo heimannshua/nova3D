@@ -2080,12 +2080,13 @@ describe('Operational alarms (Story 1.13) have one channel, one evaluator for ea
     expect(code('lib/jobs.ts')).toMatch(/isHeartbeatConfigured\(env\)/);
   });
 
-  it('registers exactly the six conditions this story can observe, and (Story 2.7) the two of the dispatch outbox, and none of another story\'s', () => {
+  it('registers exactly the six conditions this story can observe, (Story 2.7) the two of the dispatch outbox and (Story 2.8) the one of unknown cost, and none of another story\'s', () => {
     const conditions = code('lib/alarm-conditions.ts');
-    // On purpose changed (Story 2.7): `outbox-age` and `lease-expired-unclaimed` are registered after the six of Story 1.13, both evaluated by the monitor.
-    expect([...conditions.matchAll(/^\s+id: '([a-z0-9-]+)',$/gm)].map((match) => match[1])).toEqual(['task-late', 'ledger-pending', 'identities-unaccounted', 'heartbeat-stale', 'qstash-stale', 'monitor-late', 'outbox-age', 'lease-expired-unclaimed']);
-    expect([...conditions.matchAll(/evaluatedBy: '(monitor|heartbeat)',/g)].map((match) => match[1])).toEqual(['monitor', 'monitor', 'monitor', 'monitor', 'heartbeat', 'heartbeat', 'monitor', 'monitor']);
-    expect(conditions).toMatch(/export const alarmConditions: readonly AlarmCondition\[\] = \[\s*taskLateCondition,\s*ledgerPendingCondition,\s*identitiesUnaccountedCondition,\s*heartbeatStaleCondition,\s*qstashStaleCondition,\s*monitorLateCondition,\s*outboxAgeCondition,\s*leaseExpiredUnclaimedCondition,?\s*\];/);
+    // On purpose changed (Story 2.7): `outbox-age` and `lease-expired-unclaimed` are registered after the six of Story 1.13, both evaluated by the monitor. On purpose changed again
+    // (Story 2.8): `unknown-cost` follows them, also evaluated by the monitor.
+    expect([...conditions.matchAll(/^\s+id: '([a-z0-9-]+)',$/gm)].map((match) => match[1])).toEqual(['task-late', 'ledger-pending', 'identities-unaccounted', 'heartbeat-stale', 'qstash-stale', 'monitor-late', 'outbox-age', 'lease-expired-unclaimed', 'unknown-cost']);
+    expect([...conditions.matchAll(/evaluatedBy: '(monitor|heartbeat)',/g)].map((match) => match[1])).toEqual(['monitor', 'monitor', 'monitor', 'monitor', 'heartbeat', 'heartbeat', 'monitor', 'monitor', 'monitor']);
+    expect(conditions).toMatch(/export const alarmConditions: readonly AlarmCondition\[\] = \[\s*taskLateCondition,\s*ledgerPendingCondition,\s*identitiesUnaccountedCondition,\s*heartbeatStaleCondition,\s*qstashStaleCondition,\s*monitorLateCondition,\s*outboxAgeCondition,\s*leaseExpiredUnclaimedCondition,\s*unknownCostCondition,?\s*\];/);
     // F4: two conditions have a precondition and answer `unobservable` without it, and no other does; F3: the monitor is the heartbeat's to watch, and task-late still skips it.
     expect([...conditions.matchAll(/return unobservable;/g)]).toHaveLength(2);
     expect(conditions).toMatch(/if \(relay\?\.outcome === 'no_store'\) return unobservable;/);
@@ -2099,6 +2100,8 @@ describe('Operational alarms (Story 1.13) have one channel, one evaluator for ea
     // Story 2.7's thresholds: a dispatch is stuck after 120 seconds unpublished, a lease is abandoned 300 seconds after it expired.
     expect(conditions).toMatch(/export const outboxAgeSeconds = 120;/);
     expect(conditions).toMatch(/export const leaseExpiredSeconds = 300;/);
+    // Story 2.8's: a charge of unknown cost is stuck after 24 hours plus 10 minutes of sweep slack (the SQL constant usage.unknown_cost_alarm_seconds(), held equal by a test).
+    expect(conditions).toMatch(/export const unknownCostSeconds = 87_000;/);
     // A failed run and a damaged relay chain stay deferred: nothing here looks at a `failed` or a `conflict` receipt as a reason to alarm.
     expect(conditions).not.toMatch(/outcome === 'failed'|conflict|corrupt/);
   });
@@ -3511,42 +3514,58 @@ describe('Usage limits (Story 2.4) are changed through one typed module and one 
   const browserPieces = ['lib/usage-view.ts', 'components/use-usage-action.ts', ...files('components/admin', (name) => /^usage-.*\.tsx$/.test(name))];
 
   it('finds the files it reads', () => {
-    for (const file of [actions, page, 'lib/usage.ts', 'lib/usage-view.ts', 'components/admin/usage-content.tsx', 'components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'components/admin/usage-failure-notice.tsx', migrationFile]) {
+    for (const file of [actions, page, 'lib/usage.ts', 'lib/usage-view.ts', 'components/admin/usage-content.tsx', 'components/admin/usage-incidents.tsx', 'components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'components/admin/usage-failure-notice.tsx', migrationFile]) {
       expect(() => read(file), file).not.toThrow();
     }
-    expect(browserPieces.sort()).toEqual(['components/admin/usage-content.tsx', 'components/admin/usage-failure-notice.tsx', 'components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'components/use-usage-action.ts', 'lib/usage-view.ts']);
+    // On purpose changed (Story 2.8): the overrun incidents are a card list of their own, beside the Accounts', in the same family of files.
+    expect(browserPieces.sort()).toEqual(['components/admin/usage-content.tsx', 'components/admin/usage-failure-notice.tsx', 'components/admin/usage-incidents.tsx', 'components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'components/use-usage-action.ts', 'lib/usage-view.ts']);
   });
 
-  it('reaches the three database functions through lib/usage.ts and nothing else names them', () => {
+  it('reaches the database functions through lib/usage.ts and nothing else names them', () => {
+    // On purpose changed (Story 2.8): the list and the clearing of overrun incidents are two more, in the same module (and not in lib/usage-reservations.ts, which the Usage modules do not import).
     for (const file of sources.filter((candidate) => candidate !== 'lib/usage.ts' && candidate !== 'lib/accounts.ts')) {
-      expect(code(file), file).not.toMatch(/['"`](?:set_usage_limit|list_usage|record_usage_refusal)['"`]/);
+      expect(code(file), file).not.toMatch(/['"`](?:set_usage_limit|list_usage|record_usage_refusal|list_overrun_incidents|clear_overrun_incident)['"`]/);
     }
     expect(code('lib/usage.ts')).toMatch(/callRow\(\s*'list_usage'/);
     expect(code('lib/usage.ts')).toMatch(/callRow\(\s*'set_usage_limit'/);
     expect(code('lib/usage.ts')).toMatch(/callRow\(\s*'record_usage_refusal'/);
+    expect(code('lib/usage.ts')).toMatch(/callRow\(\s*'list_overrun_incidents'/);
+    expect(code('lib/usage.ts')).toMatch(/callRow\(\s*'clear_overrun_incident'/);
+    expect([...code('lib/usage.ts').matchAll(/callRow\(\s*'([a-z_]+)'/g)].map((match) => match[1]).sort()).toEqual(['clear_overrun_incident', 'list_overrun_incidents', 'list_usage', 'record_usage_refusal', 'set_usage_limit']);
     expect(callers('setUsageLimit')).toEqual([actions, 'lib/usage.ts']);
     expect(callers('listUsage')).toEqual([page, 'lib/usage.ts']);
     expect(callers('recordUsageRefusal')).toEqual([actions, 'lib/usage.ts']);
+    expect(callers('listOverrunIncidents')).toEqual([page, 'lib/usage.ts']);
+    expect(callers('clearOverrunIncident')).toEqual([actions, 'lib/usage.ts']);
     for (const file of sources.filter((candidate) => /^(?:app\/.*page\.tsx|components\/.*)$/.test(candidate))) {
-      expect(code(file), file).not.toMatch(/\b(?:setUsageLimit|recordUsageRefusal|callApi|callRow)\b/);
+      expect(code(file), file).not.toMatch(/\b(?:setUsageLimit|recordUsageRefusal|clearOverrunIncident|callApi|callRow)\b/);
     }
   });
 
-  it('is the third user of the administrator wrapper: two Server Actions behind it, the Account only from the verified access, and the rest of the form only after the role and the marker', () => {
+  it('is the third user of the administrator wrapper: three Server Actions behind it, the Account only from the verified access, and the rest of the form only after the role and the marker', () => {
     expect(read(actions).trimStart()).toMatch(/^'use server';/);
     const body = code(actions);
-    expect([...body.matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)].map((match) => match[1])).toEqual(['changeUsageLimit', 'resetUsageCount']);
-    expect([...body.matchAll(/^export\s/gm)]).toHaveLength(2);
-    // One wrapper call, in the one function both actions share; the file never names the marker itself (the wrapper is the only gate).
-    expect([...body.matchAll(/\badministered\(/g)]).toHaveLength(1);
+    // On purpose changed (Story 2.8): the clearing of an overrun incident is the third action of the page, behind the same wrapper.
+    expect([...body.matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)].map((match) => match[1])).toEqual(['changeUsageLimit', 'resetUsageCount', 'clearUsageIncident']);
+    expect([...body.matchAll(/^export\s/gm)]).toHaveLength(3);
+    // Two wrapper calls: the one function the limit actions share, and the clearing; the file never names the marker itself (the wrapper is the only gate).
+    expect([...body.matchAll(/\badministered\(/g)]).toHaveLength(2);
     expect(body).not.toMatch(/\bcheckMarker\b|\bwithActiveAccount\b|startedAfter/);
     const wrapped = body.slice(body.indexOf('return administered('));
-    // Only the Account is read before the wrapper (the refusal is audited against it); the command, the period and the limit only inside its callback.
-    expect([...body.matchAll(/formData\.get\(['"](\w+)['"]\)/g)].map((match) => match[1])).toEqual(['commandId', 'expectedSeq', 'limit', 'accountId', 'accountId']);
+    // Only the Account is read before the wrapper (the refusal is audited against it); the command, the period and the limit (for the clearing, the incident and the command) only inside its callback.
+    expect([...body.matchAll(/formData\.get\(['"](\w+)['"]\)/g)].map((match) => match[1])).toEqual(['commandId', 'expectedSeq', 'limit', 'accountId', 'accountId', 'accountId', 'incidentId', 'commandId']);
     expect(wrapped).toContain('commandOf(formData)');
     expect(wrapped).toContain("parseDollars(formData.get('limit'))");
     expect(body.slice(0, body.indexOf('return administered(')).replace(/function commandOf[\s\S]*?\n\}\n/, '')).not.toMatch(/commandOf\(formData\)|parseDollars\(/);
-    expect([...body.matchAll(/accountIdOf\(formData\.get\('accountId'\)\)/g)]).toHaveLength(2);
+    expect([...body.matchAll(/accountIdOf\(formData\.get\('accountId'\)\)/g)]).toHaveLength(3);
+    // The clearing reads its incident and its command only inside the wrapper's callback, and the Account (for the audit of a refusal) in its argument; it audits a refusal as its own action.
+    const clearing = body.slice(body.indexOf('export async function clearUsageIncident'));
+    expect(clearing.indexOf("formData.get('incidentId')")).toBeGreaterThan(clearing.indexOf('async ({'));
+    expect(clearing.indexOf("formData.get('commandId')")).toBeGreaterThan(clearing.indexOf('async ({'));
+    expect(clearing.indexOf("formData.get('accountId')")).toBeLessThan(clearing.indexOf('async ({'));
+    expect(clearing).toContain("'usage.incident_refused'");
+    expect(clearing.indexOf('clearOverrunIncident(')).toBeGreaterThan(clearing.indexOf('administered('));
+    expect(clearing).toMatch(/clearOverrunIncident\(operationOf\(access\.account\)/);
     // The Administrator's Account and epoch come from the verified access, never from the form.
     expect(wrapped).toMatch(/operationOf\(access\.account\)/);
     for (const forbidden of [/\baccountId\s*:\s*(?:formData|String\()/, /\bepoch\s*:\s*(?:formData|Number\()/, /\bsearchParams\b/, /\bheaders\(\)/, /\brequest\.url\b/, /cookies\(/, /formData\.get\(['"](?:actor|userId|epoch|adminAccountId|role)/]) {
@@ -3557,6 +3576,7 @@ describe('Usage limits (Story 2.4) are changed through one typed module and one 
     // The refusals are the Usage ones, recorded through the Usage module (not by widening the Accounts recorder).
     expect(body).toContain("'usage.denied'");
     expect(body).toContain("'usage.limit_refused'");
+    expect(body).toContain("'usage.incident_refused'");
     expect(body).not.toMatch(/recordAccountRefusal|recordInvitationRefusal|account\.denied/);
   });
 
@@ -3570,6 +3590,10 @@ describe('Usage limits (Story 2.4) are changed through one typed module and one 
     expect(body).toMatch(/readConfirmation\(access\.user\)/);
     // A read that fails is a page that says so: rows are null, and no number is made up.
     expect(body).toMatch(/rows=\{list \? list\.rows : null\}/);
+    // On purpose changed (Story 2.8): the overrun incidents are another read of the same page, with the same 404 and the same failing closed (null, never an empty list).
+    expect(body).toMatch(/incidents\?\.outcome === 'denied'\) return notFound\(\)/);
+    expect(body).toMatch(/incidents=\{incidents \? incidents\.incidents : null\}/);
+    expect(body).toMatch(/listOverrunIncidents\(operationOf\(access\.account\)/);
     // The page reads the confirmation to decide whether to offer the step-up beforehand, and returns nowhere of its own.
     expect(body).not.toMatch(/['"`]\/step-up|returnTo|stepUpReturnPaths/);
     expect(code('lib/step-up.ts')).toMatch(/administration: '\/admin',/);
@@ -3588,8 +3612,9 @@ describe('Usage limits (Story 2.4) are changed through one typed module and one 
     // On purpose changed (Story 2.7): the Job screens show what a Job holds, settled and released, and write it with the same function (lib/job-view.ts, which the Job
     // components read); no other caller joins the three.
     const formatters = callers('formatDollars');
-    expect(formatters).toEqual(expect.arrayContaining(['components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'lib/usage-view.ts']));
-    expect(formatters.filter((file) => !['components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'lib/usage-view.ts', 'lib/job-view.ts'].includes(file) && !file.startsWith('components/jobs/') && !file.startsWith('app/progress/'))).toEqual([]);
+    // On purpose changed (Story 2.8): the overrun incidents show the reserved, reported and over amounts with the same function.
+    expect(formatters).toEqual(expect.arrayContaining(['components/admin/usage-incidents.tsx', 'components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'lib/usage-view.ts']));
+    expect(formatters.filter((file) => !['components/admin/usage-incidents.tsx', 'components/admin/usage-list.tsx', 'components/admin/usage-meter.tsx', 'lib/usage-view.ts', 'lib/job-view.ts'].includes(file) && !file.startsWith('components/jobs/') && !file.startsWith('app/progress/'))).toEqual([]);
     expect(callers('parseDollars')).toEqual([actions, 'components/admin/usage-list.tsx', 'lib/usage-view.ts']);
   });
 
@@ -5116,5 +5141,499 @@ describe('Durable fenced Jobs (Story 2.7) are accepted, dispatched, claimed unde
     expect(body).toMatch(/catch \(error\) \{\s*sweepFailure = \{error\};/);
     expect(body.indexOf('claimOutbox(')).toBeGreaterThan(body.indexOf('sweepFailure = {error}'));
     expect(body.indexOf('throw sweepFailure.error')).toBeGreaterThan(body.indexOf('claimOutbox('));
+  });
+});
+
+describe('Reconciling ambiguous charges (Story 2.8) is one additive migration, one pure classifier, one module around the single request, and a sweep that settles each operation once, in an order that lets neither a late result nor a duplicate through', () => {
+  const sources = [
+    ...files('app', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('components', (name) => /\.(ts|tsx)$/.test(name)),
+    ...files('lib', (name) => /\.(ts|tsx)$/.test(name)),
+    'proxy.ts',
+    'instrumentation.ts',
+    'instrumentation-node.ts',
+  ];
+  const code = (file: string) => withoutComments(read(file));
+  const migrationFile = 'supabase/migrations/20261101120000_reconcile_ambiguous_charges.sql';
+  const migration = read(migrationFile).replace(/^\s*--.*$/gm, '');
+  /** Everything before the preflight, which names the older functions it checks (and so every function of every story). */
+  const own = migration.slice(0, migration.indexOf('create or replace function api.preflight'));
+  const preflight = (text: string) => text.slice(text.indexOf('create or replace function api.preflight()'), text.indexOf('$$;', text.indexOf('$$', text.indexOf('create or replace function api.preflight()')) + 2));
+  const newApi = ['reconcile_operation', 'list_overrun_incidents', 'clear_overrun_incident'];
+  /** The text of one function of the migration, from its `create function` to its `comment on function` (or its closing `$$;`). */
+  const bodyOf = (schema: 'api' | 'jobs' | 'usage', name: string) => {
+    const start = own.search(new RegExp(`create (?:or replace )?function ${schema}\\.${name}\\(`));
+    expect(start, `${schema}.${name}`).toBeGreaterThan(-1);
+    const end = own.indexOf(`comment on function ${schema}.${name}(`, start);
+    return own.slice(start, end > -1 ? end : own.indexOf('$$;', own.indexOf('$$', start) + 2));
+  };
+  /** The position of each needle in the text, which must all be found and must come in this order. */
+  const inOrder = (text: string, needles: string[], label = '') => {
+    const positions = needles.map((needle) => text.indexOf(needle));
+    expect(positions.every((index) => index >= 0), `${label}: ` + needles.filter((needle, index) => positions[index] < 0).join(' | ')).toBe(true);
+    expect([...positions].sort((a, b) => a - b), `${label}: ${needles.join(' < ')}`).toEqual(positions);
+  };
+
+  it('finds the files it reads', () => {
+    for (const file of [migrationFile, 'lib/providers/outcome.ts', 'lib/providers/adapters.ts', 'lib/operation-outcome.ts', 'lib/job-commands.ts', 'lib/worker-commands.ts']) expect(() => read(file), file).not.toThrow();
+    for (const name of newApi) expect(bodyOf('api', name).length, name).toBeGreaterThan(200);
+    for (const [schema, name] of [['api', 'settle_cost'], ['api', 'finish_operation'], ['api', 'sweep_attempts'], ['api', 'alarm_observations'], ['jobs', 'mark_ambiguous'], ['jobs', 'settle_abandoned_counted']] as const) {
+      expect(bodyOf(schema, name).length, `${schema}.${name}`).toBeGreaterThan(200);
+    }
+  });
+
+  // The migration ----------------------------------------------------------------------------------------------------------------------------
+
+  it('is one new migration after the Story 2.7 one, additive and forward-only, ending with a reload of the Data API schema cache', () => {
+    const migrations = files('supabase/migrations', (name) => name.endsWith('.sql')).map((file) => file.split('/').pop()!).sort();
+    const name = '20261101120000_reconcile_ambiguous_charges.sql';
+    expect(migrations).toContain(name);
+    expect(migrations.indexOf(name)).toBeGreaterThan(migrations.indexOf('20261031120000_durable_dispatch.sql'));
+    // Additive: nothing is dropped, renamed or truncated, no column or table is removed, and no earlier migration is edited into this one.
+    expect(migration).not.toMatch(/\bdrop\s+(?:table|function|trigger|column|type|schema|index|constraint|policy|view)\b/i);
+    expect(migration).not.toMatch(/\balter\s+table\b[^;]*\b(?:drop|rename)\b/i);
+    expect(migration).not.toMatch(/\balter\s+type\b[^;]*\b(?:drop|rename)\b/i);
+    expect(own).not.toMatch(/\btruncate\s+table\b|\bdelete\s+from\b/i);
+    // The only changes to a table of an earlier story add to it, and the only changes to a composite type add attributes.
+    expect([...own.matchAll(/^alter table ([a-z_.]+) (add \w+)/gm)].map((match) => `${match[1]} ${match[2]}`)).toEqual([
+      'usage.overrun_incidents add column',
+      'usage.overrun_incidents add constraint',
+      'usage.overrun_incidents add constraint',
+    ]);
+    expect([...own.matchAll(/^alter type ([a-z_.]+) add attribute (\w+)/gm)].map((match) => `${match[1]}.${match[2]}`)).toEqual([
+      'api.cost_settlement.correction_id',
+      'api.cost_settlement.delta_microdollars',
+      'api.dispatch_sweep.marked',
+      'api.dispatch_sweep.reconciled',
+      'api.dispatch_sweep.failed',
+      'api.alarm_observation.unknown_cost_oldest',
+    ]);
+    expect(migration).toMatch(/notify pgrst, 'reload schema';\s*$/);
+  });
+
+  it('adds one closed, append-only table: row-level security on, no policy, every privilege revoked, update and truncate refused, delete left for the purge, one correction for each reservation', () => {
+    expect([...own.matchAll(/create table ([a-z_.]+) \(/g)].map((match) => match[1])).toEqual(['usage.corrections']);
+    expect(own).toContain('alter table usage.corrections enable row level security;');
+    expect(own).toContain('revoke all on usage.corrections from public, anon, authenticated, service_role;');
+    expect(own).toMatch(/create trigger corrections_no_update before update on usage\.corrections\s+for each row execute function usage\.refuse_record_change\(\);/);
+    expect(own).toMatch(/create trigger corrections_no_truncate before truncate on usage\.corrections\s+for each statement execute function usage\.refuse_record_change\(\);/);
+    expect(own).not.toMatch(/create trigger \w+ before delete on usage\.corrections/);
+    expect(own).not.toMatch(/create policy/i);
+    expect(own).toContain('constraint corrections_reservation_key unique (reservation_id)');
+    // The signed delta is bounded, and the correction is of the DEADLINE settlement of its reservation.
+    expect(own).toContain('settled_delta_microdollars bigint not null check (settled_delta_microdollars between -1000000000000000 and 1000000000000000)');
+    expect(bodyOf('usage', 'check_correction')).toContain("v_settlement.classification <> 'deadline'");
+    // A settlement, a correction and a reservation are never edited: nothing in the migration updates or deletes one. An incident changes only by its one clearing.
+    expect(own).not.toMatch(/\bupdate\s+usage\.(?:settlements|corrections|reservations|commands|periods|rate_schedules)\b/);
+    expect([...own.matchAll(/\bupdate\s+usage\.overrun_incidents\b/g)]).toHaveLength(1);
+    expect(bodyOf('api', 'clear_overrun_incident')).toContain('update usage.overrun_incidents i set cleared_at = clock_timestamp(), cleared_by = v_actor');
+    expect(migration).toContain('revoke all on all tables in schema usage from public, anon, authenticated, service_role;');
+    expect(migration).toContain('revoke all on all functions in schema jobs from public, anon, authenticated, service_role;');
+  });
+
+  it('creates three new api functions, each security definer with an empty search path, granted to the service role by name and to nobody else, and no other function is reachable', () => {
+    expect([...own.matchAll(/create function (api\.[a-z_]+)\(/g)].map((match) => match[1])).toEqual(newApi.map((name) => `api.${name}`));
+    for (const name of newApi) {
+      const text = bodyOf('api', name);
+      expect(text, name).toContain('security definer');
+      expect(text, name).toContain("set search_path = ''");
+    }
+    const grants = [...migration.matchAll(/^grant .*$/gm)].map((match) => match[0]);
+    expect(grants).toEqual([
+      'grant execute on function api.reconcile_operation(uuid, text, bigint, bigint, text, text) to service_role;',
+      'grant execute on function api.list_overrun_incidents(uuid, bigint, integer) to service_role;',
+      'grant execute on function api.clear_overrun_incident(uuid, bigint, uuid, uuid) to service_role;',
+    ]);
+    // The internal functions have no grant: the revoke of every function in the schema is what closes them.
+    for (const internal of ['jobs.mark_ambiguous', 'jobs.settle_abandoned_counted', 'usage.check_correction', 'usage.unknown_cost_alarm_seconds']) expect(grants.join('\n'), internal).not.toContain(internal);
+  });
+
+  it('re-creates only what it names, with the signatures it had, and nothing else', () => {
+    expect([...own.matchAll(/create or replace function ([a-z_.]+)\(/g)].map((match) => match[1]).sort()).toEqual([
+      'api.alarm_observations',
+      'api.finish_operation',
+      'api.record_usage_refusal',
+      'api.settle_cost',
+      'api.sweep_attempts',
+      'jobs.settle_abandoned',
+      'usage.check_incident',
+      'usage.guard_incident_change',
+      'usage.job_exposure',
+      'usage.period_figures',
+    ]);
+    expect([...own.matchAll(/create function ([a-z_.]+)\(/g)].map((match) => match[1]).sort()).toEqual([
+      'api.clear_overrun_incident',
+      'api.list_overrun_incidents',
+      'api.reconcile_operation',
+      'jobs.mark_ambiguous',
+      'jobs.settle_abandoned_counted',
+      'usage.check_correction',
+      'usage.unknown_cost_alarm_seconds',
+    ]);
+    // The Story 2.11 commands, the fence and the Story 2.6 reservation are untouched.
+    expect(own).not.toMatch(/create (?:or replace )?function (?:api\.(?:accept_job|begin_step|advance_operation|move_attempt|request_retry|read_job|reserve_cost|quote_cost|submit_job|run_step|finish_attempt|claim_attempt|cancel_job|cancel_account_jobs|set_usage_limit|list_usage)|jobs\.(?:check_fence|charge_open|derived_reason|public_state|end_attempt|cancel_attempts|reserve_planned))\(/);
+    // The only audit events are the incident's clearing (in the clearing's own transaction) and the once-an-hour record of a refused clearing.
+    expect([...own.matchAll(/identity\.record_audit(?:_once)?\(([^)]*)\)/g)].map((match) => match[1])).toEqual(["v_actor, 'usage.incident_cleared', 'incident:' || p_incident_id::text", 'v_actor, p_action, v_target']);
+    expect(own).not.toMatch(/record_tombstone/);
+  });
+
+  it('records the alarm threshold once, in SQL, and the conditions\' file mirrors it', () => {
+    expect(own).toContain("create function usage.unknown_cost_alarm_seconds() returns integer language sql immutable set search_path = '' as $$ select 87000 $$;");
+    expect(code('lib/alarm-conditions.ts')).toMatch(/unknownCostSeconds = 87_000;/);
+    // The observation is read only, over the operations that are dispatched or ambiguous, hold a reservation and have no settlement, from the time the outcome was recorded.
+    const observations = bodyOf('api', 'alarm_observations');
+    expect(observations).toMatch(/returns api\.alarm_observation\s+language plpgsql\s+stable/);
+    inOrder(
+      observations,
+      ['min(coalesce(o.outcome_at, o.dispatched_at))', 'into v_result.unknown_cost_oldest', 'join usage.reservations rv on rv.operation_id = o.id', "o.state in ('dispatched', 'ambiguous')", 'not exists (select 1 from usage.settlements st where st.reservation_id = rv.id)'],
+      'unknown_cost_oldest',
+    );
+    expect(observations).not.toMatch(/\b(?:insert|update|delete)\b/i);
+  });
+
+  // The settlement ---------------------------------------------------------------------------------------------------------------------------
+
+  it('settles in an order that writes nothing before every check has passed: the model, then the price, then the bound of the period, then the correction or the settlement', () => {
+    const settle = bodyOf('api', 'settle_cost');
+    inOrder(
+      settle,
+      [
+        "pg_advisory_xact_lock(hashtextextended('nova3d:usage-command:'",
+        'for share',
+        "pg_advisory_xact_lock(hashtextextended('nova3d:usage:'",
+        'usage.ensure_period(',
+        'usage.cost_digest(',
+        "'reused'",
+        "'not_reserved'",
+        "'already_settled'",
+        "'not_settleable'",
+        "'not_due'",
+        'p_returned_model <> v_reservation.requested_model',
+        "'model_mismatch'",
+        'usage.price(',
+        "v_result.reason := 'overflow'",
+        'usage.period_figures(',
+        'v_period.carried_settled_microdollars + v_figure + v_delta > 1000000000000000',
+        "v_result.outcome := 'overflow'",
+        'insert into usage.corrections',
+        'insert into usage.settlements',
+      ],
+      'settle_cost',
+    );
+    // Authority-free, as Story 2.6 decided: no epoch, status or Project check.
+    expect(settle).not.toMatch(/assert_operation_authority|authorization_epoch|\bstatus\b|hold_project|projects\./);
+    // A correction is made once and only for evidence after a deadline booking; the incident of a correction names it.
+    expect(settle).toContain("if p_classification = 'evidence' and v_settlement.classification = 'deadline' then");
+    expect(settle).toMatch(/insert into usage\.overrun_incidents \(account_id, reservation_id, settlement_id, correction_id, provider, reserved_microdollars, evidence_microdollars\)/);
+    expect(settle).toContain("v_result.outcome := 'corrected';");
+    // The deadline settles exactly the reservation, and only when it is due.
+    expect(settle).toContain('v_due := v_operation.outcome_at + usage.ambiguity_deadline();');
+    expect(settle).toContain('v_settled := v_reservation.reserved_microdollars;');
+  });
+
+  it('counts the corrections in the figures and the Job\'s exposure, and never takes a period\'s settled figure below what it carried in', () => {
+    const figures = bodyOf('usage', 'period_figures');
+    expect(figures).toContain('select sum(c.settled_delta_microdollars) from usage.corrections c where c.period_id = p_period_id');
+    expect(figures).toMatch(/greatest\(/);
+    expect(figures).toContain('select p.carried_settled_microdollars from usage.periods p where p.id = p_period_id');
+    const exposure = bodyOf('usage', 'job_exposure');
+    expect(exposure).toContain('left join usage.corrections c on c.reservation_id = r.id');
+    expect(exposure).toContain('coalesce(c.settled_delta_microdollars, 0)');
+  });
+
+  // The moves and the sweep ------------------------------------------------------------------------------------------------------------------
+
+  it('moves a dispatched operation to ambiguous under the Job lock and the operation row, with no authority, and no API role can call it', () => {
+    const mark = bodyOf('jobs', 'mark_ambiguous');
+    inOrder(mark, ["pg_advisory_xact_lock(hashtextextended('nova3d:job:'", 'for update', "v_operation.state <> 'dispatched'", "set state = 'ambiguous', outcome_at = clock_timestamp()"], 'mark_ambiguous');
+    expect(mark).not.toMatch(/assert_operation_authority|authorization_epoch|check_fence|hold_project/);
+    expect(mark).not.toMatch(/api\.settle_cost/);
+  });
+
+  it('sweeps in an order that takes every Job lock and operation row before the first Usage lock, marks before it settles, and settles each operation in its own sub-block', () => {
+    const sweep = bodyOf('api', 'sweep_attempts');
+    inOrder(
+      sweep,
+      [
+        "pg_advisory_xact_lock(hashtextextended('nova3d:jobs-sweep', 0))",
+        'jobs.cancel_attempts(null, 100)',
+        "'lease_lost'",
+        "o.state = 'dispatched' and a.state in ('failed', 'cancelled', 'completed')",
+        'jobs.mark_ambiguous(r.operation_id)',
+        "o.state = 'ambiguous'",
+        'o.outcome_at + usage.ambiguity_deadline() <= clock_timestamp()',
+        'order by o.outcome_at, o.id',
+        'for update;',
+        'foreach v_operation in array v_locked loop',
+        "jobs.derived_id('settle_deadline'",
+        "'deadline')",
+        "update jobs.operations o set state = 'settled'",
+        'jobs.settle_abandoned_counted(null, null, 100)',
+      ],
+      'sweep_attempts',
+    );
+    // The deadline stage takes the Job lock of each due operation, then holds its row FOR UPDATE, all before the first settlement (and so before the first Usage lock).
+    const deadline = sweep.slice(sweep.indexOf('order by o.outcome_at, o.id'));
+    inOrder(deadline, ["pg_advisory_xact_lock(hashtextextended('nova3d:job:'", 'for update;', 'v_locked := v_locked || r.operation_id;', 'foreach v_operation in array v_locked loop', 'api.settle_cost('], 'deadline stage');
+    // Every stage is bounded and every operation runs in its own sub-block: a failure is counted and the sweep goes on.
+    expect([...sweep.matchAll(/\b100\b/g)]).toHaveLength(5);
+    expect([...sweep.matchAll(/exception when others then\s*v_result\.failed := v_result\.failed \+ 1;/g)].length).toBeGreaterThanOrEqual(3);
+    // The first settlement comes after the last Job lock of the deadline stage (the lock order that lets a command holding a Job lock wait for the Usage lock safely).
+    expect(sweep.indexOf('api.settle_cost(')).toBeGreaterThan(sweep.lastIndexOf("pg_advisory_xact_lock(hashtextextended('nova3d:job:'"));
+    // The deadline never settles before it is due and never settles twice: the stage re-checks under the lock, and the operation moves to settled only from ambiguous.
+    expect(sweep).toContain("o.id = r.operation_id and o.state = 'ambiguous' and o.outcome_at + usage.ambiguity_deadline() <= clock_timestamp()");
+    expect(sweep).toContain("where o.id = v_operation and o.state = 'ambiguous'");
+    // The counts the typed call reads.
+    for (const key of ['expired', 'cancelled', 'settled', 'marked', 'reconciled', 'failed']) expect(sweep, key).toContain(`v_result.${key}`);
+    expect(bodyOf('jobs', 'settle_abandoned')).toContain('jobs.settle_abandoned_counted(p_attempt_id, p_account_id, p_limit)');
+    expect(bodyOf('jobs', 'settle_abandoned_counted')).toMatch(/exception when others then\s*failed := failed \+ 1;/);
+    // Settling a lost operation needs no authority, so a disabled Account's money is never stranded.
+    expect(bodyOf('jobs', 'settle_abandoned_counted')).toContain('api.settle_cost(');
+  });
+
+  it('reports an outcome under the fence and never raises for a settlement that is refused: the move is undone and a word answers', () => {
+    const finish = bodyOf('api', 'finish_operation');
+    inOrder(
+      finish,
+      ["p_outcome not in ('completed', 'noncharge', 'ambiguous')", 'jobs.check_fence(p_attempt_id, p_fence)', "'not_found'", "'not_dispatched'", "if p_outcome = 'ambiguous' then", 'api.advance_operation(', 'api.settle_cost(', "raise exception using errcode = 'N3050'", "exception when sqlstate 'N3050' then"],
+      'finish_operation',
+    );
+    // An ambiguous report settles nothing: its branch returns before the first settlement.
+    const ambiguous = finish.slice(finish.indexOf("if p_outcome = 'ambiguous' then"), finish.indexOf('api.settle_cost('));
+    expect(ambiguous).toContain("'ambiguous'");
+    expect(ambiguous).toMatch(/return v_result;\s*end if;/);
+    // The refusal words, and none of them a 55000.
+    expect(finish).toContain("if v_settle.outcome in ('already_settled', 'invalid_evidence', 'overflow') then");
+    expect(finish).not.toContain('55000');
+  });
+
+  // Reconciliation and incidents -------------------------------------------------------------------------------------------------------------
+
+  it('reconciles under the Job lock, the operation row and derived command IDs: ambiguous with evidence settles then moves, with a noncharge moves then settles, and each is authority-free', () => {
+    const reconcile = bodyOf('api', 'reconcile_operation');
+    inOrder(
+      reconcile,
+      [
+        "p_outcome not in ('evidence', 'noncharge')",
+        "pg_advisory_xact_lock(hashtextextended('nova3d:job:'",
+        'for update',
+        "jobs.derived_id('reconcile'",
+        "if v_operation.state = 'ambiguous' then",
+        "if p_outcome = 'evidence' then",
+        "api.settle_cost(v_operation.account_id, v_command, p_operation_id, 'evidence'",
+        "set state = 'settled'",
+        "set state = 'noncharge'",
+        "api.settle_cost(v_operation.account_id, v_command, p_operation_id, 'noncharge')",
+        "exception when sqlstate 'N3050' then",
+        "v_result.outcome := 'not_reconcilable'",
+      ],
+      'reconcile_operation',
+    );
+    expect(reconcile).not.toMatch(/assert_operation_authority|check_fence|authorization_epoch|hold_project/);
+    // A noncharge is proven only by the provider's request ID.
+    expect(reconcile).toContain("(p_outcome = 'noncharge' and (p_request_id is null");
+    // The answers.
+    for (const word of ['reconciled', 'corrected', 'replayed', 'not_reconcilable', 'unavailable']) expect(reconcile, word).toContain(`'${word}'`);
+  });
+
+  it('lists and clears incidents for the active Administrator under the epoch, across Accounts, clearing once under the incident\'s row lock and auditing in the same transaction', () => {
+    for (const name of ['list_overrun_incidents', 'clear_overrun_incident']) {
+      inOrder(bodyOf('api', name), ['identity.assert_operation_authority(p_account_id, p_epoch)', "'denied'", 'select a.role', "'administrator'"], name);
+    }
+    inOrder(
+      bodyOf('api', 'clear_overrun_incident'),
+      ['from usage.overrun_incidents i where i.id = p_incident_id for update', "'unavailable'", "'already_cleared'", 'update usage.overrun_incidents', "identity.record_audit(v_actor, 'usage.incident_cleared', 'incident:'", "v_result.outcome := 'cleared'"],
+      'clear_overrun_incident',
+    );
+    expect(bodyOf('api', 'clear_overrun_incident')).toContain("v_actor := 'user:' || v_user::text;");
+    // The list reads, and does not write.
+    expect(bodyOf('api', 'list_overrun_incidents')).not.toMatch(/\b(?:insert|update|delete)\b|record_audit/i);
+    // The fresh administration marker is the application's to check (as for a limit): the database function does not read it.
+    expect(bodyOf('api', 'clear_overrun_incident')).not.toMatch(/fresh_authentications|step_up/i);
+    expect(bodyOf('api', 'record_usage_refusal')).toContain("p_action not in ('usage.limit_refused', 'usage.denied', 'usage.incident_refused')");
+  });
+
+  // The preflight ----------------------------------------------------------------------------------------------------------------------------
+
+  it('re-creates the preflight with every earlier probe, a Story 2.8 block raising N3020, seventy-two api functions, and the bucket check last', () => {
+    const current = preflight(migration);
+    const before = preflight(read('supabase/migrations/20261031120000_durable_dispatch.sql').replace(/^\s*--.*$/gm, ''));
+    // Every earlier probe is kept; the one of the incidents is the only one that grew (by the new column), so each earlier probe is found again with at least its columns.
+    const columnsOf = (probe: string) => /^perform (.+?) (from .+ limit 1;)$/.exec(probe)!.slice(1, 3);
+    for (const probe of before.match(/perform [^;]+;/g) ?? []) {
+      if (current.includes(probe)) continue;
+      const [columns, source] = columnsOf(probe);
+      const grown = (current.match(/perform [^;]+;/g) ?? []).find((candidate) => candidate.endsWith(source));
+      expect(grown, probe).toBeDefined();
+      for (const column of columns.split(', ')) expect(columnsOf(grown!)[0].split(', '), `${probe}: ${column}`).toContain(column);
+    }
+    for (const signature of before.match(/'(?:api|usage|identity|lifecycle|artifacts|projects|jobs)\.[a-z_]+\([^']*\)'/g) ?? []) expect(current, signature).toContain(signature);
+    // The new table is probed in full (and the incident's new column).
+    expect(current).toMatch(/perform [^;]*\.settled_delta_microdollars[^;]* from usage\.corrections \w+ limit 1;/);
+    expect(current).toMatch(/perform [^;]*\.correction_id[^;]* from usage\.overrun_incidents \w+ limit 1;/);
+    expect(current).toContain("raise exception 'api.preflight: the Story 2.8 migration is not applied (missing %)', v_missing using errcode = 'N3020';");
+    const block = current.slice(current.indexOf("'api.reconcile_operation(uuid,text,bigint,bigint,text,text)'"), current.indexOf('the Story 2.8 migration is not applied'));
+    for (const signature of [
+      'api.reconcile_operation(uuid,text,bigint,bigint,text,text)',
+      'api.list_overrun_incidents(uuid,bigint,integer)',
+      'api.clear_overrun_incident(uuid,bigint,uuid,uuid)',
+      'api.settle_cost(uuid,uuid,uuid,text,bigint,bigint,text)',
+      'api.finish_operation(uuid,uuid,uuid,text,bigint,bigint,text,text)',
+      'api.sweep_attempts()',
+      'api.record_usage_refusal(uuid,text,uuid)',
+      'api.alarm_observations()',
+      'usage.unknown_cost_alarm_seconds()',
+      'usage.check_correction()',
+      'jobs.mark_ambiguous(uuid)',
+      'jobs.settle_abandoned_counted(uuid,uuid,integer)',
+    ]) {
+      expect(block, signature).toContain(`'${signature}'`);
+    }
+    const privileges = current.slice(current.lastIndexOf('from unnest(array[', current.indexOf('has_function_privilege')), current.indexOf('has_function_privilege'));
+    expect([...privileges.matchAll(/'api\.[a-z_]+\(/g)]).toHaveLength(72);
+    for (const name of newApi) expect(privileges, name).toMatch(new RegExp(`'api\\.${name}\\(`));
+    // The bucket check stays last, and the file ends by having the Data API reload its schema cache.
+    expect(current.indexOf("b.id = 'private-files'")).toBeGreaterThan(current.indexOf('has_table_privilege'));
+    expect(current.indexOf('v_result.ok := true')).toBeGreaterThan(current.indexOf("b.id = 'private-files'"));
+    expect(migration.trimEnd().endsWith("notify pgrst, 'reload schema';")).toBe(true);
+  });
+
+  // The application --------------------------------------------------------------------------------------------------------------------------
+
+  it('reaches reconcile_operation through lib/job-commands.ts, the module that holds the Jobs commands, and nothing else names it', () => {
+    for (const file of sources.filter((candidate) => candidate !== 'lib/job-commands.ts' && candidate !== 'lib/accounts.ts')) {
+      expect(code(file), file).not.toMatch(/['"`]reconcile_operation['"`]/);
+    }
+    expect(code('lib/job-commands.ts')).toMatch(/callRow\(\s*'reconcile_operation'/);
+    // The typed module keeps the imports it had: the call helpers, the Operation type and the client-safe half.
+    expect([...code('lib/job-commands.ts').matchAll(/^import [\s\S]*? from '([^']+)';$/gm)].map((match) => match[1]).sort()).toEqual(['@/lib/accounts', '@/lib/authority', '@/lib/job-view']);
+    // No page, action, route or component reconciles anything: it is the machine path's and the operator's, never a screen's.
+    for (const file of sources.filter((candidate) => candidate.startsWith('app/') || candidate.startsWith('components/'))) {
+      expect(code(file), file).not.toMatch(/reconcileOperation|reconcile_operation|operation-outcome|markDispatchedFor|reportOutcome|providers\/(?:adapters|outcome)/);
+    }
+  });
+
+  it('keeps lib/usage-reservations.ts unimported by lib/usage.ts and lib/usage-view.ts, and the incident calls in lib/usage.ts', () => {
+    for (const file of ['lib/usage.ts', 'lib/usage-view.ts']) expect(code(file), file).not.toMatch(/usage-reservations|reserveCost|settleCost|quoteCost/);
+    // Nothing imports it but its own tests: the new module reaches the money through lib/job-commands.ts, not through the ledger module.
+    expect(sources.filter((file) => file !== 'lib/usage-reservations.ts' && /lib\/usage-reservations|\.\/usage-reservations/.test(code(file)))).toEqual([]);
+    expect(code('lib/operation-outcome.ts')).not.toMatch(/usage-reservations|settleCost|reserveCost/);
+  });
+
+  it('has a pure classifier: no import, no environment, no clock, no randomness, no request, no log, no await', () => {
+    const source = code('lib/providers/outcome.ts');
+    expect(source).not.toMatch(/^\s*import\b/m);
+    expect(source).not.toMatch(/process\.env|console\.|node:|next\/|\brequire\(|window|document\.|localStorage|sessionStorage|\bfetch\b|Date\b|Math\.random|crypto|setTimeout|\bawait\b|\basync\b|\bimport\(/);
+    expect(source).toMatch(/export function classifyProviderAnswer\(/);
+    // The statuses of a proven noncharge are exactly the six.
+    expect(source).toContain('export const definitiveRejections: readonly number[] = [400, 401, 403, 404, 413, 422];');
+  });
+
+  it('makes exactly one request in each adapter, after the identity is committed, never in a loop and never again, and classifies what comes back with the classifier', () => {
+    const adapters = code('lib/providers/adapters.ts');
+    expect([...adapters.matchAll(/\(config\.fetch \?\? fetch\)\(/g)]).toHaveLength(2);
+    expect([...adapters.matchAll(/\bsendOnce\(/g)]).toHaveLength(3);
+    expect(adapters).not.toMatch(/\bwhile\b|\bfor\s+await\b|\.retry|retries|maxRetries|\bretry\w*\s*\(|\.forEach\(|\.map\(\s*(?:async\b)?[^)]*(?:fetch|sendOnce)/i);
+    // The only loop in the adapters builds the content of the one message (the images); the request is not in it.
+    expect([...adapters.matchAll(/\bfor\s*\(([^)]*)\)/g)].map((match) => match[1])).toEqual(['const image of payload.images']);
+    // Each adapter commits the identity before it builds and sends its one request.
+    for (const [adapter, provider] of [['dispatchAnthropicMessages', 'anthropic'], ['dispatchBraveSearch', 'brave']] as const) {
+      const start = adapters.indexOf(`export async function ${adapter}(`);
+      const text = adapters.slice(start, adapters.indexOf('\nexport ', start + 10) > -1 ? adapters.indexOf('\nexport ', start + 10) : adapters.indexOf('/** What one request came to'));
+      if (provider === 'brave') {
+        // Brave reports no model, so the model the reservation pinned is checked BEFORE the identity is committed: without one nothing is dispatched or sent (no guessed default).
+        inOrder(text, ['ready(', 'assertPayloadPermission(', 'modelPattern.test(model)', 'config.markDispatched({provider', 'timeoutSignal(', 'sendOnce(', 'resultOf('], adapter);
+        // Two ways to be `not_dispatched`: no usable model (before the identity is committed) and an identity that could not be committed (after).
+        expect(text.split("'not_dispatched'")).toHaveLength(3);
+        expect(text.indexOf("'not_dispatched'"), adapter).toBeLessThan(text.indexOf('config.markDispatched({provider'));
+        expect(text, adapter).not.toContain("'web-search'");
+      } else {
+        inOrder(text, ['ready(', 'assertPayloadPermission(', 'config.markDispatched({provider', "'not_dispatched'", 'timeoutSignal(', 'sendOnce(', 'resultOf('], adapter);
+      }
+      expect(text, adapter).toContain(`provider: '${provider}'`);
+      // A redirect is never followed: the one request is the only request.
+      expect(text, adapter).toContain("redirect: 'manual'");
+    }
+    expect(adapters).toMatch(/import \{classifyProviderAnswer, usableRequestId[^}]*\} from '\.\/outcome';/);
+    // The key, the request ID and the usage are not logged; no SDK is used.
+    expect(adapters).not.toMatch(/console\.|@anthropic-ai|from 'openai'|process\.stdout|logger/);
+  });
+
+  it('keeps the module around the request on the Jobs module alone: it commits the identity through run_step, reports through finish_operation, and sends and logs nothing', () => {
+    const source = code('lib/operation-outcome.ts');
+    expect([...source.matchAll(/^import [\s\S]*? from '([^']+)';$/gm)].map((match) => match[1]).sort()).toEqual(['@/lib/accounts', '@/lib/job-commands', '@/lib/providers/adapters']);
+    expect(source).toMatch(/import \{finishOperation, runStep, type OperationFinish\} from '@\/lib\/job-commands';/);
+    expect(source).not.toMatch(/process\.env|console\.|node:|next\/|\bfetch\b|\brequire\(|window|document\.|localStorage|sessionStorage|setTimeout|XMLHttpRequest/);
+    expect(read('lib/operation-outcome.ts')).toContain('SERVER-ONLY');
+    // True only for a step that began or was already begun; a refusal or a throw is false, so nothing is sent.
+    expect(source).toContain("stepped.outcome === 'stepped' || stepped.outcome === 'replayed'");
+    expect(source).toMatch(/catch \{\s*(?:\/\/[^\n]*\n\s*)?return false;/);
+    // A refused completed or noncharge is reported ambiguous; an ambiguous report is not repeated.
+    expect(source).toMatch(/finish\.outcome === 'invalid_evidence' \|\| finish\.outcome === 'overflow' \|\| finish\.outcome === 'already_settled'/);
+  });
+
+  it('lets the signed worker command report an ambiguous operation, the sweep report its three new counts, and the task carry them as result keys', () => {
+    const workers = code('lib/worker-commands.ts');
+    expect(workers).toMatch(/outcome === 'ambiguous'/);
+    expect(workers).toContain("hasOnly(body, ['operation', 'outcome'], ['request_id'])");
+    expect(workers).toMatch(/outcome: 'ambiguous', requestId: command\.requestId/);
+    const dispatch = code('lib/job-dispatch.ts');
+    for (const key of ['marked', 'reconciled', 'failed']) {
+      expect(dispatch, key).toMatch(new RegExp(`\\b${key}: number;`));
+      expect(code('lib/job-tasks.ts'), key).toContain(`${key}: report.${key},`);
+    }
+    expect(code('lib/job-commands.ts')).toMatch(/export type AttemptSweep = \{expired: number; cancelled: number; settled: number; marked: number; reconciled: number; failed: number\};/);
+  });
+
+  it('gives the condition its words in both languages and keeps the Story 2.7 titles', () => {
+    const operations = code('lib/operations.ts');
+    expect(operations).toContain("'unknown-cost': 'operations.condition.unknown-cost',");
+    for (const catalog of ['lib/i18n/en.ts', 'lib/i18n/he.ts']) {
+      expect(code(catalog), catalog).toMatch(/'operations\.condition\.unknown-cost':/);
+      expect(code(catalog), catalog).toMatch(/'operations\.condition\.outbox-age':/);
+      expect(code(catalog), catalog).toMatch(/'operations\.condition\.lease-expired-unclaimed':/);
+    }
+    expect(code('lib/lifecycle.ts')).toMatch(/unknownCostOldest: optionalAge\(row\.unknown_cost_oldest\),/);
+  });
+
+  it('adds no route, no dependency, no variable and no new schedule', () => {
+    expect(files('app', (name) => /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)).sort()).toEqual([
+      'app/api/dispatch/route.ts',
+      'app/api/health/route.ts',
+      'app/api/heartbeat/route.ts',
+      'app/api/jobs/route.ts',
+      'app/api/kit/mutation/route.ts',
+      'app/api/status/route.ts',
+      'app/api/transfers/tickets/route.ts',
+      'app/api/workers/route.ts',
+      'app/auth/callback/route.ts',
+    ]);
+    const manifest = JSON.parse(read('package.json')) as {dependencies: Record<string, string>};
+    expect(Object.keys(manifest.dependencies).sort()).toEqual(['@aws-sdk/client-s3', '@aws-sdk/lib-storage', '@supabase/ssr', '@supabase/supabase-js', '@upstash/qstash', '@upstash/redis', '@upstash/workflow', 'next', 'pg', 'react', 'react-dom', 'sharp']);
+    // The sweep is the existing minute task: the registry names the same tasks as before.
+    expect([...code('lib/schedules.ts').matchAll(/task: '([a-z-]+)'/g)].map((match) => match[1])).toEqual(['dormant-identity-purge', 'ledger-relay', 'staging-cleanup', 'alarm-monitor', 'outbox-sweep']);
+    // The new modules read no variable.
+    for (const file of ['lib/providers/outcome.ts', 'lib/operation-outcome.ts']) expect(code(file), file).not.toMatch(/process\.env/);
+  });
+
+  it('writes the story down: the contract, the staging row, the README and the schedule registry', () => {
+    const contract = read('docs/authority-contract.md');
+    for (const needle of [
+      'Reconciling ambiguous charges', 'usage.corrections', 'api.reconcile_operation', 'api.list_overrun_incidents', 'api.clear_overrun_incident', 'jobs.mark_ambiguous',
+      'unknown-cost', 'unknown_cost_oldest', 'usage.unknown_cost_alarm_seconds', 'model_mismatch', 'corrected', 'usage.incident_cleared', 'usage.incident_refused',
+      'marked', 'reconciled', 'failed', '20261101120000_reconcile_ambiguous_charges.sql', 'lib/providers/outcome.ts', 'lib/operation-outcome.ts',
+    ]) expect(contract, needle).toContain(needle);
+    const guide = read('docs/staging.md');
+    for (const needle of ['20261101120000_reconcile_ambiguous_charges.sql', 'usage.corrections', 'api.reconcile_operation', 'api.list_overrun_incidents', 'api.clear_overrun_incident', 'usage.unknown_cost_alarm_seconds', 'unknown-cost', 'seventy-two']) {
+      expect(guide, needle).toContain(needle);
+    }
+    const readme = read('README.md');
+    for (const needle of ['Story 2.8', 'reconcile_ambiguous_charges', 'usage.corrections', 'api.reconcile_operation', 'api.clear_overrun_incident', 'lib/providers/outcome.ts', 'lib/operation-outcome.ts', 'unknown-cost']) {
+      expect(readme, needle).toContain(needle);
+    }
+    const schedules = read('lib/schedules.ts');
+    for (const needle of ['Story 2.8', '`marked`', '`reconciled`', '`failed`']) expect(schedules, needle).toContain(needle);
+    const deferred = read('_bmad-output/implementation-artifacts/deferred-work.md');
+    expect(deferred).toContain('Story 2.8');
   });
 });

@@ -462,36 +462,66 @@ export type Settlement = {
   incidentId: string | null;
 };
 
+/** A correction: the evidence that arrived after a deadline booking, appended beside it (the booking itself is never edited). */
+export type Correction = {
+  id: string;
+  /** The signed change of the settled amount: the evidence priced by the calculator minus the whole reservation the deadline settled. Negative releases the difference. */
+  deltaMicrodollars: number;
+  /** How far the evidence was above the reservation (the delta, when positive), else 0. */
+  overMicrodollars: number;
+  /** The overrun incident the evidence made on the original settlement, when it was above the reservation. */
+  incidentId: string | null;
+};
+
 /**
  * What api.settle_cost answers.
  *  - `settled`: one settlement in the current period (and, when the evidence was above the reservation, one overrun incident). `replayed`: the same command sent again, or
- *    another command ID with the same classification and evidence: the original settlement. `already_settled`: another classification or evidence for a reservation that
- *    is already settled (it carries the settlement).
+ *    another command ID with the same classification and evidence: the original settlement (and, for evidence that arrived after a deadline booking, its correction).
+ *    `already_settled`: another classification or evidence for a reservation that is already settled (it carries the settlement, and the correction when there is one).
+ *  - `corrected`: evidence for a reservation that the 24-hour deadline had settled at the reservation. ONE correction was appended (a signed delta; above the reservation it also
+ *    opened an incident on the original settlement); the settlement is the deadline one, unchanged.
  *  - `reused`: the command ID was used for another payload. `unavailable`: the operation is another Account's or unknown. `not_reserved`: the operation holds no
  *    reservation. `not_settleable`: the operation's state does not fit the classification (it carries it). `not_due`: a deadline settlement before 24 hours after the
- *    outcome (it carries the time it is due). `invalid_evidence`: the evidence prices above the largest amount.
+ *    outcome (it carries the time it is due). `invalid_evidence`: the evidence prices above the largest amount (`overflow`), or names a model other than the one the reservation
+ *    pinned (`model_mismatch`). `overflow`: the settlement would take the period's settled total over the largest amount; nothing was written and the operation stays unsettled.
  */
 export type CostSettlement =
-  | {outcome: 'settled' | 'replayed' | 'already_settled'; settlement: Settlement}
-  | {outcome: 'reused' | 'unavailable' | 'not_reserved'}
+  | {outcome: 'settled' | 'replayed' | 'already_settled'; settlement: Settlement; correction?: Correction}
+  | {outcome: 'corrected'; settlement: Settlement; correction: Correction}
+  | {outcome: 'reused' | 'unavailable' | 'not_reserved' | 'overflow'}
   | {outcome: 'not_settleable'; state: OperationState}
   | {outcome: 'not_due'; dueAt: string}
-  | {outcome: 'invalid_evidence'; reason: 'overflow'};
+  | {outcome: 'invalid_evidence'; reason: 'overflow' | 'model_mismatch'};
 
 /** The evidence of a charge: what the provider's usage report said, and the model it says served the request. */
 export type UsageEvidence = {inputTokens: number; outputTokens: number; returnedModel: string};
 
-function settlementOf(row: Row, operationId: string): Settlement {
+function settlementOf(row: Row, operationId: string): {settlement: Settlement; correction: Correction | null} {
   const classification = oneOf(row.classification, settlementClassifications);
   const settled = amountOf(row.settled_microdollars);
   const released = amountOf(row.released_microdollars, 1);
   const over = amountOf(row.over_microdollars);
   const incidentId = row.incident_id === null || row.incident_id === undefined ? null : uuidOf(row.incident_id);
-  // The over amount is exactly what the settlement is above the whole reservation it released, and it is the only thing that makes an incident.
-  if (over !== Math.max(settled - released, 0) || (over > 0) !== (incidentId !== null)) throw unexpected();
   // What each classification settles: the evidence at its price, the whole reservation at the deadline, nothing for a charge never made.
   if (classification === 'deadline' && settled !== released) throw unexpected();
   if ((classification === 'noncharge' || classification === 'unused') && settled !== 0) throw unexpected();
+  let correction: Correction | null = null;
+  let settlementOver = over;
+  let settlementIncident = incidentId;
+  if (row.correction_id === null || row.correction_id === undefined) {
+    if (row.delta_microdollars !== null && row.delta_microdollars !== undefined) throw unexpected();
+    // The over amount is exactly what the settlement is above the whole reservation it released, and it is the only thing that makes an incident.
+    if (over !== Math.max(settled - released, 0) || (over > 0) !== (incidentId !== null)) throw unexpected();
+  } else {
+    // A correction of a deadline booking: the booking is untouched (it is the deadline one, settled at its reservation, with no incident of its own); the row's over amount and
+    // incident are the correction's. The delta is signed, the over amount is the delta when positive, and only a positive delta makes an incident.
+    const delta = row.delta_microdollars;
+    if (typeof delta !== 'number' || !Number.isSafeInteger(delta) || classification !== 'deadline') throw unexpected();
+    if (over !== Math.max(delta, 0) || (over > 0) !== (incidentId !== null)) throw unexpected();
+    correction = {id: uuidOf(row.correction_id), deltaMicrodollars: delta, overMicrodollars: over, incidentId};
+    settlementOver = 0;
+    settlementIncident = null;
+  }
   const settlement = {
     id: uuidOf(row.settlement_id),
     reservationId: uuidOf(row.reservation_id),
@@ -500,11 +530,11 @@ function settlementOf(row: Row, operationId: string): Settlement {
     classification,
     settledMicrodollars: settled,
     releasedMicrodollars: released,
-    overMicrodollars: over,
-    incidentId,
+    overMicrodollars: settlementOver,
+    incidentId: settlementIncident,
   };
   if (settlement.operationId !== operationId) throw unexpected();
-  return settlement;
+  return {settlement, correction};
 }
 
 /**
@@ -545,6 +575,7 @@ export async function settleCost(
   );
   const outcome = oneOf(row.outcome, [
     'settled',
+    'corrected',
     'replayed',
     'reused',
     'already_settled',
@@ -552,12 +583,14 @@ export async function settleCost(
     'not_settleable',
     'not_due',
     'invalid_evidence',
+    'overflow',
     'unavailable',
   ] as const);
   switch (outcome) {
     case 'reused':
     case 'unavailable':
     case 'not_reserved':
+    case 'overflow':
       return {outcome};
     case 'not_settleable': {
       const state = oneOf(row.state, operationStates);
@@ -569,16 +602,24 @@ export async function settleCost(
       // Only a deadline settlement waits.
       if (input.classification !== 'deadline') throw unexpected();
       return {outcome, dueAt: timeOf(row.due_at)};
-    case 'invalid_evidence':
-      // Only evidence can be invalid, and only by pricing above the largest amount.
-      if (input.classification !== 'evidence' || row.reason !== 'overflow') throw unexpected();
-      return {outcome, reason: 'overflow'};
+    case 'invalid_evidence': {
+      // Only evidence can be invalid: by pricing above the largest amount, or by naming a model other than the pinned one.
+      const reason = oneOf(row.reason, ['overflow', 'model_mismatch'] as const);
+      if (input.classification !== 'evidence') throw unexpected();
+      return {outcome, reason};
+    }
     default: {
-      const settlement = settlementOf(row, operationId);
+      const {settlement, correction} = settlementOf(row, operationId);
+      // A correction is only ever made for evidence, after a deadline booking.
+      if (correction !== null && input.classification !== 'evidence') throw unexpected();
+      if (outcome === 'corrected') {
+        if (correction === null) throw unexpected();
+        return {outcome, settlement, correction};
+      }
       // A settlement made now is of the class that was asked for. (A replayed or earlier one may be of another.)
-      if (outcome === 'settled' && settlement.classification !== input.classification) throw unexpected();
-      if (outcome === 'replayed' && settlement.classification !== input.classification) throw unexpected();
-      return {outcome, settlement};
+      if (outcome === 'settled' && (correction !== null || settlement.classification !== input.classification)) throw unexpected();
+      if (outcome === 'replayed' && correction === null && settlement.classification !== input.classification) throw unexpected();
+      return correction === null ? {outcome, settlement} : {outcome, settlement, correction};
     }
   }
 }

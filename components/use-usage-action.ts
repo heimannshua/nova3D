@@ -1,7 +1,7 @@
 'use client';
 
 import {useActionState, useRef} from 'react';
-import {attemptUsageAction, usageActionIdle, type UsageAction, type UsageActionState} from '@/lib/usage-view';
+import {attemptUsageAction, newCommandId, usageActionIdle, type UsageAction, type UsageActionState} from '@/lib/usage-view';
 
 /**
  * A Usage action's state, whether it is running, and the `action` and `onSubmit` for its form (Story 2.4). A second press while one is
@@ -31,4 +31,13 @@ export function useUsageAction(
     return true;
   };
   return {state, formAction, pending, onSubmit};
+}
+
+/** Names the command a form is about, so one command keeps one ID (a retry, a double press) and the next one gets another. */
+export function useCommandIds() {
+  const sent = useRef<{signature: string; id: string} | null>(null);
+  return (signature: string) => {
+    if (sent.current?.signature !== signature) sent.current = {signature, id: newCommandId()};
+    return sent.current.id;
+  };
 }

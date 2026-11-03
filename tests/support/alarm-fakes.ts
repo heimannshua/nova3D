@@ -30,6 +30,8 @@ type Observed = {
   /** Story 2.7: the age of the oldest unpublished outbox row, and how long ago the oldest live lease expired (null: none). */
   outbox_oldest: number | null;
   lease_expired_oldest: number | null;
+  /** Story 2.8: the age of the oldest dispatched or ambiguous operation that holds a reservation and has no settlement (null: none). */
+  unknown_cost_oldest: number | null;
 };
 /** Every task finished a minute ago, nothing pending, nothing wrong. */
 export const calm = (): Observed => ({
@@ -43,6 +45,7 @@ export const calm = (): Observed => ({
   tasks: scheduleRegistry.map((entry) => ({task: entry.task, outcome: 'ran', at: '2026-10-17T07:59:00.000Z', age: 60})),
   outbox_oldest: null,
   lease_expired_oldest: null,
+  unknown_cost_oldest: null,
 });
 
 export function fakeDatabase() {

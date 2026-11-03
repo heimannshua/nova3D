@@ -10,7 +10,6 @@ import {
   formatMonth,
   limitBounds,
   limitProblemKeys,
-  newCommandId,
   parseDollars,
   usageCauseKeys,
   usageMessageKeys,
@@ -21,7 +20,7 @@ import {
   type UsageActionState,
   type UsageRow,
 } from '@/lib/usage-view';
-import {useUsageAction} from '../use-usage-action';
+import {useCommandIds, useUsageAction} from '../use-usage-action';
 import {useAnnounce} from '../ui/announcer';
 import {Button} from '../ui/button';
 import {ConfirmDialog} from '../ui/dialog';
@@ -157,15 +156,6 @@ function UsageItem({row, onMessage, onGone}: {row: UsageRow; onMessage: (message
       )}
     </li>
   );
-}
-
-/** Names the command a form is about, so one command keeps one ID (a retry, a double press) and the next one gets another. */
-function useCommandIds() {
-  const sent = useRef<{signature: string; id: string} | null>(null);
-  return (signature: string) => {
-    if (sent.current?.signature !== signature) sent.current = {signature, id: newCommandId()};
-    return sent.current.id;
-  };
 }
 
 /**

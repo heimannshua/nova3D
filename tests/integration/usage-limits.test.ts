@@ -169,16 +169,17 @@ describe('access: the usage schema is closed, and only the service role reaches 
     expect(defaults).toEqual([]);
   });
 
-  it('has exactly six tables (the periods of Story 2.4 and the five of Story 2.6), all with row-level security on, no policy, and no privilege for any role or PUBLIC', async () => {
+  it('has exactly seven tables (the periods of Story 2.4, the five of Story 2.6 and the corrections of Story 2.8), all with row-level security on, no policy, and no privilege for any role or PUBLIC', async () => {
     const {rows: tables} = await db.query(
       `select c.relname as name, c.relrowsecurity as rls, (select count(*) from pg_policy p where p.polrelid = c.oid)::int as policies,
               (select count(*)::int from aclexplode(c.relacl) a where a.grantee <> c.relowner) as other_grants
          from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'usage' and c.relkind in ('r', 'p', 'v', 'm', 'f') order by 1`,
     );
     // On purpose changed (Story 2.6): the stand-in `fixture_figures` is gone and the ledgers of Story 2.6 are there.
-    expect(tables).toEqual(['commands', 'overrun_incidents', 'periods', 'rate_schedules', 'reservations', 'settlements'].map((name) => ({name, rls: true, policies: 0, other_grants: 0})));
+    // On purpose changed (Story 2.8): the corrections (the append-only ledger of evidence that arrived after a deadline booking) are the seventh table.
+    expect(tables).toEqual(['commands', 'corrections', 'overrun_incidents', 'periods', 'rate_schedules', 'reservations', 'settlements'].map((name) => ({name, rls: true, policies: 0, other_grants: 0})));
     for (const role of ['anon', 'authenticated', 'service_role']) {
-      for (const table of ['usage.periods', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands']) {
+      for (const table of ['usage.periods', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.corrections', 'usage.commands']) {
         const {rows: held} = await db.query(`select has_table_privilege($1, $2, 'select,insert,update,delete,truncate,references,trigger') as can, has_any_column_privilege($1, $2, 'select,insert,update,references') as column_can`, [role, table]);
         expect(held[0], `${role} on ${table}`).toEqual({can: false, column_can: false});
       }
@@ -217,12 +218,14 @@ describe('access: the usage schema is closed, and only the service role reaches 
          from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'usage' order by 1`,
     );
     // On purpose changed (Story 2.6): the calculator, the constants, the ledger guards and the exposure joined the functions of Story 2.4.
+    // On purpose changed (Story 2.8): the guard of a correction (check_correction) and the alarm's recorded constant (unknown_cost_alarm_seconds) joined them.
     expect(functions.map((fn) => fn.name)).toEqual([
       'ambiguity_deadline',
       'append_period',
       'available_microdollars',
       'billed_units',
       'bound_cost',
+      'check_correction',
       'check_incident',
       'check_period',
       'check_reservation',
@@ -250,6 +253,7 @@ describe('access: the usage schema is closed, and only the service role reaches 
       'refuse_period_change',
       'refuse_record_change',
       'request_ceiling',
+      'unknown_cost_alarm_seconds',
     ]);
     for (const fn of functions) {
       expect(fn.default_acl, `usage.${fn.name} has an explicit ACL`).toBe(false);
@@ -352,7 +356,7 @@ describe('the periods table: a period is a record, never edited', () => {
         if (!result.ok) expect(result.code, sql).toBe('55000');
       }
       // The table cannot be emptied in one statement either (the foreign keys of the ledgers have to be named with it for the trigger to be the one to answer).
-      const truncated = await attempt(client, null, 'truncate usage.periods, usage.reservations, usage.settlements, usage.overrun_incidents');
+      const truncated = await attempt(client, null, 'truncate usage.periods, usage.reservations, usage.settlements, usage.corrections, usage.overrun_incidents');
       expect(truncated.ok).toBe(false);
       if (!truncated.ok) expect(truncated.code).toBe('55000');
       const alone = await attempt(client, null, 'truncate usage.periods');
@@ -760,19 +764,19 @@ describe('changing a limit and resetting the count: a successor period that carr
     });
   });
 
-  it('never writes a ledger: no function of the usage limits adds, changes or deletes a reservation, a settlement or an incident', async () => {
+  it('never writes a ledger: no function of the usage limits adds, changes or deletes a reservation, a settlement, a correction or an incident', async () => {
     await inTx(async (client) => {
       const admin = await account(client, 'administrator');
       const member = await account(client);
-      const before = await count(client, 'select (select count(*) from usage.reservations) + (select count(*) from usage.settlements) + (select count(*) from usage.overrun_incidents) as n');
+      const before = await count(client, 'select (select count(*) from usage.reservations) + (select count(*) from usage.settlements) + (select count(*) from usage.corrections) + (select count(*) from usage.overrun_incidents) as n');
       await setLimit(client, member.accountId, {admin, limit: 40 * M, expectedSeq: 1});
       await setLimit(client, member.accountId, {admin, kind: 'reset', limit: null, expectedSeq: 2});
       await listAs(client, admin);
       await rows(client, 'service_role', 'select * from api.record_usage_refusal($1, $2, $3)', [member.user.id, 'usage.denied', member.accountId]);
-      expect(await count(client, 'select (select count(*) from usage.reservations) + (select count(*) from usage.settlements) + (select count(*) from usage.overrun_incidents) as n')).toBe(before);
+      expect(await count(client, 'select (select count(*) from usage.reservations) + (select count(*) from usage.settlements) + (select count(*) from usage.corrections) + (select count(*) from usage.overrun_incidents) as n')).toBe(before);
     });
     const definition = (await db.query(`select string_agg(pg_get_functiondef(p.oid), E'\\n') as text from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'api' and p.proname in ('set_usage_limit', 'list_usage', 'record_usage_refusal')`)).rows[0].text as string;
-    expect(definition).not.toMatch(/(insert\s+into|update|delete\s+from)\s+usage\.(?:reservations|settlements|overrun_incidents|fixture_figures)/i);
+    expect(definition).not.toMatch(/(insert\s+into|update|delete\s+from)\s+usage\.(?:reservations|settlements|corrections|overrun_incidents|fixture_figures)/i);
   });
 });
 
@@ -1365,19 +1369,19 @@ describe('api.list_usage: each Account\'s current period, for an active Administ
 describe('refusing a change is audited (api.record_usage_refusal)', () => {
   const call = 'select outcome from api.record_usage_refusal($1, $2, $3)';
 
-  it('accepts each of the two refusals from exactly one of the two roles', async () => {
+  it('accepts each of the three refusals (Story 2.8 added usage.incident_refused, a refused clearing of an overrun incident) from exactly one of the two roles', async () => {
     await inTx(async (client) => {
       const member = await account(client);
       const admin = await account(client, 'administrator');
       const accepted: string[] = [];
-      for (const action of ['usage.limit_refused', 'usage.denied']) {
+      for (const action of ['usage.limit_refused', 'usage.denied', 'usage.incident_refused']) {
         for (const who of [member, admin]) {
           const result = await attempt(client, 'service_role', call, [who.user.id, action, null]);
           if (result.ok) accepted.push(`${action}:${who === admin ? 'administrator' : 'member'}`);
           else expect(result.code).toBe('22023');
         }
       }
-      expect(accepted.sort()).toEqual(['usage.denied:member', 'usage.limit_refused:administrator']);
+      expect(accepted.sort()).toEqual(['usage.denied:member', 'usage.incident_refused:administrator', 'usage.limit_refused:administrator']);
     });
   });
 
@@ -1672,7 +1676,8 @@ describe('the preflight carries the Story 2.4 tables and functions', () => {
     // On purpose changed (Story 2.6): fifty since it added the three functions of the cost reservations (it was forty-seven after the six functions of the Job records).
     // On purpose changed (Story 2.5): fifty-four since it added the grant, the read and the revoke of the provider permissions and the permissioned reserve_cost (it was fifty after the three functions of the cost reservations).
     // On purpose changed (Story 2.7): sixty-nine since it added the fifteen functions of the durable dispatch (it was fifty-four after the provider permissions).
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(69);
+    // On purpose changed (Story 2.8): seventy-two since it added the three functions of the reconciliation, `reconcile_operation`, `list_overrun_incidents` and `clear_overrun_incident` (it was sixty-nine after the durable dispatch).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(72);
     for (const signature of apiSignatures) expect(executable, signature).toContain(`'${signature}'`);
     // The bucket check stays last.
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));
@@ -1704,12 +1709,12 @@ describe('the preflight carries the Story 2.4 tables and functions', () => {
     });
   });
 
-  it.each(['usage.periods', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands'])('fails, naming a permission and not answering ok, when the role it runs as cannot read %s', async (blocked) => {
+  it.each(['usage.periods', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.corrections', 'usage.commands', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands'])('fails, naming a permission and not answering ok, when the role it runs as cannot read %s', async (blocked) => {
     const everything = [
       'identity.session_grants', 'identity.accounts', 'identity.account_preferences', 'identity.step_up_nonces', 'identity.fresh_authentications', 'identity.recovery_tokens', 'projects.projects', 'projects.project_commands', 'projects.request_revisions', 'projects.request_images',
       'lifecycle.tombstones', 'lifecycle.ledger_outbox', 'lifecycle.ledger_relay', 'lifecycle.status_requests', 'lifecycle.job_receipts',
       'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
-      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', 'jobs.outbox', 'jobs.workers', 'jobs.leases', 'jobs.callbacks', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands',
+      'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods', 'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands', 'jobs.outbox', 'jobs.workers', 'jobs.leases', 'jobs.callbacks', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.corrections', 'usage.commands',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',
     ];
     await inTx(async (client) => {

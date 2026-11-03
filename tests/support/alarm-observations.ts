@@ -4,7 +4,8 @@ import {scheduleRegistry} from '@/lib/schedules';
 /**
  * Observations in which every condition of the registry finds something to report: every task (the monitor too) finished its last run long ago, the ledger holds a
  * stale backlog behind a relay that is running, more Auth identities than the limit have no Account, the heartbeat and the receipts are far older than two hours, a dispatch
- * has waited far longer than 120 seconds to be published (Story 2.7) and a live lease expired far longer than 300 seconds ago.
+ * has waited far longer than 120 seconds to be published (Story 2.7), a live lease expired far longer than 300 seconds ago, and an operation of unknown cost has gone
+ * unsettled far longer than 24 hours and 10 minutes (Story 2.8).
  * A test that wants the keys the conditions put in their details, or a card for each of them, evaluates the real registry against this.
  */
 export function everythingWrong(): Observations {
@@ -20,6 +21,7 @@ export function everythingWrong(): Observations {
     tasks: scheduleRegistry.map((entry) => ({task: entry.task, outcome: 'ran' as const, at, age: 100_000})),
     outboxOldest: 9_000,
     leaseExpiredOldest: 8_000,
+    unknownCostOldest: 200_000,
     heartbeatConfigured: true,
   };
 }

@@ -7,7 +7,7 @@ import {addFakeAccount, chooserAccount, chooserUrl, fakeGoogleActive} from '../s
 import {alertOf, announcer, hydrated, label, overflowReport, setFontSize, signIn, variants, violations, watchForProblems} from '../support/e2e-helpers';
 import {endGlobalOutage, endOutage, flakyBaseUrl, startGlobalOutage, startOutage} from '../support/fake-network';
 import {accountsWorld, type AccountsWorld, type ForgedUser} from '../support/forged-session';
-import {removeLedger, setFigures as makeLedgerFigures} from '../support/usage-ledger';
+import {insertIncident, insertReservation, insertSettlement, ledgerJob, removeLedger, setFigures as makeLedgerFigures} from '../support/usage-ledger';
 
 // Story 2.4: the Administrator's Usage and limits page (AD-03), in a real browser against the production build and the local Supabase stack.
 // Each test forges the Administrator's session and, where the flow needs one, the fresh-authentication marker a completed step-up writes
@@ -16,11 +16,17 @@ import {removeLedger, setFigures as makeLedgerFigures} from '../support/usage-le
 // state other than "nothing used" make real ledger rows as the owner (tests/support/usage-ledger.ts: a Job, an operation, a reservation and a settlement of the
 // wanted amounts, bypassing admission). Every flow runs on `desktop` and `phone`.
 //
+// Story 2.8 adds the overrun incidents: a section above the Accounts that lists each incident (provider, operation, reserved, reported, over, when, open or cleared and by
+// whom) and lets the freshly authenticated Administrator review and clear an open one. An incident is a real ledger row made by the owner (a Job, an operation, a reservation
+// and an evidence settlement above it, then the incident), against a rate schedule with a provider of its own, so an open incident of a test blocks no provider any other test
+// uses; the schedule and the ledger rows are removed after each test.
+//
 // The page lists every Account of a database every test shares, so tests find their own card by the address of the Account they made.
 
 // The page lists the newest 200 Accounts of a database every test shares, each with two forms, and a test reloads or runs the accessibility check on
 // it several times: a generous allowance, so a busy machine and a full database are not read as a stuck page.
-test.describe.configure({timeout: 120_000});
+// (Story 2.8: the page also lists the overrun incidents of every test that runs now, and a full run makes an axe pass on it more than a minute long on a busy machine: 240 s.)
+test.describe.configure({timeout: 240_000});
 
 let world: AccountsWorld;
 test.beforeAll(async () => {
@@ -51,7 +57,7 @@ const microdollars = (text: string) => {
 
 // The world ---------------------------------------------------------------------------------------------------------------------------------
 
-type Options = {locale?: Locale; theme?: 'light' | 'dark'; marker?: boolean | 'expired'; preauthorized?: boolean};
+type Options = {locale?: Locale; theme?: 'light' | 'dark'; marker?: boolean | 'expired'; preauthorized?: boolean; before?: (user: ForgedUser) => Promise<void>};
 
 /** An Administrator with an Account, the grant of their forged session and, if asked, a marker; signed in, on the page, hydrated. */
 async function administrator(page: Page, context: BrowserContext, baseURL: string, options: Options = {}) {
@@ -65,6 +71,8 @@ async function administrator(page: Page, context: BrowserContext, baseURL: strin
   }
   if (options.marker) await world.forgeMarker(user, user.sessionId, {expired: options.marker === 'expired'});
   await signIn(context, baseURL, user, {locale: options.locale ?? 'en', theme: options.theme ?? 'light'});
+  // What a test needs to exist before the page is first read (an incident that this Administrator cleared, say).
+  if (options.before) await options.before(user);
   await open(page);
   return user;
 }
@@ -132,6 +140,82 @@ async function setFigures(user: ForgedUser, settled: number, reserved = 0) {
 const currentMonth = async () => (await world.db.query(`select to_char(usage.current_month(), 'YYYY-MM') as month`)).rows[0].month as string;
 const actorOf = (user: ForgedUser) => `user:${user.id}`;
 const targetOf = async (user: ForgedUser) => `account:${(await world.accountOf(user)).id}`;
+
+// Overrun incidents (Story 2.8) ------------------------------------------------------------------------------------------------------------------
+
+type MadeIncident = {id: string; provider: string; operationId: string; accountId: string; reserved: number; evidence: number; over: number};
+const madeSchedules: string[] = [];
+const madeOn: string[] = [];
+test.afterEach(async () => {
+  const accounts = madeOn.splice(0);
+  const schedules = madeSchedules.splice(0);
+  for (const accountId of accounts) await removeLedger(world.db, accountId);
+  if (schedules.length) await world.db.query('delete from usage.rate_schedules where id = any($1::uuid[])', [schedules]);
+});
+
+/**
+ * An overrun incident for the person's Account: a Job with an operation, a reservation of `reserved`, an evidence settlement of `evidence` above it, and the incident. Its
+ * provider is its own (`provider`, or a name made for the incident), so it blocks no provider another test uses; the ledger rows and the schedule go after the test.
+ */
+async function makeIncident(owner: ForgedUser, spec: {reserved?: number; evidence?: number; provider?: string} = {}): Promise<MadeIncident> {
+  const account = await world.accountOf(owner);
+  const period = await currentOf(owner);
+  const reserved = spec.reserved ?? 1_000_000;
+  const evidence = spec.evidence ?? reserved + 750_000;
+  const provider = spec.provider ?? `e2e-${randomUUID().replaceAll('-', '').slice(0, 12)}`;
+  const schedule = (
+    await world.db.query(
+      `insert into usage.rate_schedules (provider, model, version, api_version, currency, input_rate_num, input_rate_den, output_rate_num, output_rate_den, request_rate_num, request_rate_den,
+                                         input_increment, output_increment, multiplier_num, multiplier_den)
+       values ($1, 'e2e-model', 1, 'e2e-1', 'USD', 1, 1, 1, 1, 0, 1, 1, 1, 1, 1) returning id`,
+      [provider],
+    )
+  ).rows[0].id as string;
+  madeSchedules.push(schedule);
+  madeOn.push(account.id);
+  const job = await ledgerJob(world.db, account.id, 1);
+  const reservation = await insertReservation(world.db, {accountId: account.id, periodId: period.id, jobId: job.jobId, operationId: job.operationIds[0], amount: reserved, scheduleId: schedule});
+  const settlement = await insertSettlement(world.db, {accountId: account.id, reservationId: reservation, periodId: period.id, classification: 'evidence', settled: evidence});
+  const id = await insertIncident(world.db, {accountId: account.id, reservationId: reservation, settlementId: settlement});
+  return {id, provider, operationId: job.operationIds[0], accountId: account.id, reserved, evidence, over: evidence - reserved};
+}
+/** The incident's row: when it was cleared and by whom (null while it is open); undefined once it is gone. */
+const incidentRow = async (id: string) =>
+  (await world.db.query('select cleared_at, cleared_by from usage.overrun_incidents where id = $1', [id])).rows[0] as {cleared_at: Date | null; cleared_by: string | null} | undefined;
+/** The clearing, as another window (or anything but the page) would have made it: the owner writes the one change an incident allows. No audit event comes with it. */
+const clearAsOwner = (id: string, by: ForgedUser) => world.db.query('update usage.overrun_incidents set cleared_at = clock_timestamp(), cleared_by = $2 where id = $1', [id, actorOf(by)]);
+/** When the incident was recorded, as the page writes it (UTC, to the minute). */
+const whenOf = async (id: string) => (await world.db.query(`select to_char(created_at at time zone 'utc', 'YYYY-MM-DD HH24:MI') as at from usage.overrun_incidents where id = $1`, [id])).rows[0].at as string;
+
+const incidentCard = (page: Page, incident: {provider: string}) => page.locator('.usage-incident').filter({hasText: incident.provider});
+const incidentsHeading = (page: Page, locale: Locale = 'en') => page.getByRole('heading', {level: 2, name: t(locale, 'usage.incidents.title')});
+const clearButton = (item: Locator, locale: Locale = 'en') => item.getByRole('button', {name: t(locale, 'usage.incident.clear.button')});
+const clearLabel = async (locale: Locale, incident: MadeIncident) => t(locale, 'usage.incident.clear.label', {provider: isolateLtr(incident.provider), operation: isolateLtr(incident.operationId.slice(0, 8)), when: isolateLtr(await whenOf(incident.id))});
+const confirmClear = (page: Page, locale: Locale = 'en') => dialog(page).getByRole('button', {name: t(locale, 'usage.incident.clear.confirm'), exact: true});
+const clearedMessage = (locale: Locale, incident: {provider: string}) => t(locale, 'usage.incident.done', {provider: isolateLtr(incident.provider)});
+/** The message above the incidents (where an answer goes when the card's own control is gone), not a card's. */
+const aboveIncidents = (page: Page, locale: Locale = 'en') => page.locator('.settings-section').filter({has: incidentsHeading(page, locale)}).locator(':scope > .invite-notice');
+/** Review and clear, then the confirming button of its dialog, the way a person does. */
+async function clearThroughDialog(page: Page, item: Locator, locale: Locale = 'en') {
+  await clearButton(item, locale).click();
+  await confirmClear(page, locale).click();
+}
+type IncidentFacts = {account: string; operation: string; reserved: string; reported: string; over: string; recorded: string; cleared?: string; clearedBy?: string};
+/** What an incident's card says, read from its terms and their values, in the page's language. */
+async function incidentFacts(item: Locator, locale: Locale = 'en'): Promise<IncidentFacts> {
+  const pairs = await item.locator('dl.usage-incident-meta > div').evaluateAll((divs) => divs.map((div) => [div.querySelector('dt')!.textContent!.trim(), div.querySelector('dd')!.textContent!.trim()] as const));
+  const byName = new Map(pairs);
+  const value = (key: MessageKey) => byName.get(t(locale, key));
+  return {
+    account: value('usage.incident.row.account') ?? '',
+    operation: value('usage.incident.row.operation') ?? '',
+    reserved: value('usage.incident.row.reserved') ?? '',
+    reported: value('usage.incident.row.evidence') ?? '',
+    over: value('usage.incident.row.over') ?? '',
+    recorded: value('usage.incident.row.when') ?? '',
+    ...(value('usage.incident.row.clearedAt') ? {cleared: value('usage.incident.row.clearedAt'), clearedBy: value('usage.incident.row.clearedBy')} : {}),
+  };
+}
 
 // The page ---------------------------------------------------------------------------------------------------------------------------------
 
@@ -951,6 +1035,327 @@ test.describe('resetting the count', () => {
 });
 
 // ---------------------------------------------------------------------------------------------------
+test.describe('overrun incidents', () => {
+  test('are listed with their provider, operation, reserved, reported and over amounts, when, and whether they are open or cleared and by whom, the open ones first', async ({page, context, baseURL}) => {
+    const person = await member();
+    const cleared = await makeIncident(person, {reserved: 30_000, evidence: 55_000});
+    const open = await makeIncident(person);
+    const problems = watchForProblems(page);
+    const user = await administrator(page, context, baseURL!, {marker: false});
+    await clearAsOwner(cleared.id, user);
+    await page.reload();
+    await hydrated(page, 'main form button');
+
+    await expect(incidentsHeading(page)).toBeVisible();
+    await expect(page.getByText(t('en', 'usage.incidents.help'))).toBeVisible();
+    const mine = incidentCard(page, open);
+    await expect(mine).toBeVisible();
+    await expect(mine.getByRole('heading', {level: 3})).toHaveText(open.provider);
+    expect(await incidentFacts(mine)).toEqual({account: person.email, operation: open.operationId, reserved: '$1.00', reported: '$1.75', over: '$0.75', recorded: await whenOf(open.id)});
+    await expect(mine).toHaveAttribute('data-state', 'open');
+    // A word and a shape, not a colour; and what it means for the provider.
+    const badge = mine.locator('.status-badge').filter({hasText: new RegExp(`^${t('en', 'usage.incident.state.open')}$`)});
+    await expect(badge).toBeVisible();
+    await expect(badge.locator('svg')).toHaveCount(1);
+    await expect(mine.locator('.usage-note')).toHaveText(t('en', 'usage.incident.state.open.note', {provider: isolateLtr(open.provider)}));
+    // Review and clear names which incident it clears.
+    await expect(clearButton(mine)).toHaveAttribute('aria-label', await clearLabel('en', open));
+
+    const done = incidentCard(page, cleared);
+    await expect(done).toHaveAttribute('data-state', 'cleared');
+    expect(await incidentFacts(done)).toEqual({
+      account: person.email,
+      operation: cleared.operationId,
+      reserved: '$0.03',
+      reported: '$0.055',
+      over: '$0.025',
+      recorded: await whenOf(cleared.id),
+      cleared: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/),
+      clearedBy: user.email,
+    });
+    await expect(done.locator('.status-badge').filter({hasText: new RegExp(`^${t('en', 'usage.incident.state.cleared')}$`)})).toBeVisible();
+    await expect(done.locator('.usage-note')).toHaveText(t('en', 'usage.incident.state.cleared.note', {provider: isolateLtr(cleared.provider)}));
+    // Nothing is left to press on a cleared incident.
+    await expect(done.getByRole('button')).toHaveCount(0);
+    await expect(done.locator('form')).toHaveCount(0);
+
+    // The open ones come first.
+    const providers = await page.locator('.usage-incident h3').allInnerTexts();
+    expect(providers.indexOf(open.provider)).toBeGreaterThanOrEqual(0);
+    expect(providers.indexOf(open.provider)).toBeLessThan(providers.indexOf(cleared.provider));
+    // The Accounts list is still there, after the incidents; nothing of a request, a key or a Project is on the page.
+    expect((await page.locator('main section h2').allInnerTexts()).slice(0, 2)).toEqual([t('en', 'usage.incidents.title'), t('en', 'usage.list.title')]);
+    const html = await page.content();
+    expect(html).not.toMatch(/workspace_id|request_id|api[_-]?key|x-api-key/i);
+    expect(problems).toEqual([]);
+  });
+
+  test('are cleared behind a confirmation that states the amounts and starts on Cancel; Escape and Cancel clear nothing; confirming clears once, audited, and the card becomes a cleared one', async ({page, context, baseURL}) => {
+    const person = await member();
+    const incident = await makeIncident(person);
+    const user = await administrator(page, context, baseURL!, {marker: true});
+    const mine = incidentCard(page, incident);
+    const actor = actorOf(user);
+    const target = `incident:${incident.id}`;
+    await expect(page.locator('.notice-success').filter({hasText: t('en', 'usage.confirm.ok')})).toBeVisible();
+
+    // The dialog: what clearing does, with this incident's amounts; focus starts on Cancel.
+    await clearButton(mine).click();
+    await expect(dialog(page)).toBeVisible();
+    await expect(dialog(page).getByRole('heading', {name: t('en', 'usage.incident.clear.title')})).toBeVisible();
+    await expect(dialog(page)).toContainText(t('en', 'usage.incident.clear.body', {provider: isolateLtr(incident.provider), over: isolateLtr('$0.75'), reserved: isolateLtr('$1.00'), evidence: isolateLtr('$1.75')}));
+    await expect(dialog(page).getByRole('button', {name: t('en', 'confirm.cancel')})).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog(page)).toHaveCount(0);
+    await clearButton(mine).click();
+    await dialog(page).getByRole('button', {name: t('en', 'confirm.cancel')}).click();
+    await expect(dialog(page)).toHaveCount(0);
+    expect(await incidentRow(incident.id)).toEqual({cleared_at: null, cleared_by: null});
+    expect(await world.auditEvents('usage.incident_cleared', target)).toEqual([]);
+
+    // Confirm: cleared, said above the incidents with focus on their heading, and the card is a cleared one.
+    await clearButton(mine).click();
+    await confirmClear(page).click();
+    const said = clearedMessage('en', incident);
+    await expect(aboveIncidents(page).locator('.notice-success').filter({hasText: said})).toBeVisible(crossing);
+    await expect(announcer(page)).toHaveText(said);
+    await expect(incidentsHeading(page)).toBeFocused();
+    await expect(mine).toHaveAttribute('data-state', 'cleared', crossing);
+    await expect(mine.getByRole('button')).toHaveCount(0);
+    const facts = await incidentFacts(mine);
+    expect(facts.clearedBy).toBe(user.email);
+    expect(facts.cleared).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    // In the database: cleared once, by the Administrator, with one audit event in the same moment; nothing else about it changed.
+    const row = await incidentRow(incident.id);
+    expect(row?.cleared_by).toBe(actor);
+    expect(row?.cleared_at).toBeInstanceOf(Date);
+    expect(await world.auditEvents('usage.incident_cleared', target)).toEqual([{actor, action: 'usage.incident_cleared', target}]);
+    expect(await world.auditBy(actor, 'usage.incident_refused')).toEqual([]);
+    expect(await world.auditBy(actor, 'usage.denied')).toEqual([]);
+    // The trail holds the actor, the action and the opaque target: no address, no provider, no amount.
+    const trail = JSON.stringify((await world.db.query(`select * from identity.audit_events where target = $1`, [target])).rows);
+    expect(trail).not.toContain(person.email);
+    expect(trail).not.toContain(incident.provider);
+    expect(trail).not.toMatch(/1750000|1\.75/);
+  });
+
+  test('shows Clearing while it runs, takes one press to send one request, and sends one when it is double-clicked; one clearing is written', async ({page, context, baseURL}) => {
+    const person = await member();
+    const incident = await makeIncident(person);
+    const user = await administrator(page, context, baseURL!, {marker: true});
+    const posts: string[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && request.headers()['next-action']) posts.push(request.url());
+    });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route((url) => url.pathname === path, async (route) => {
+      if (route.request().method() === 'POST') await held;
+      return route.continue();
+    });
+    const mine = incidentCard(page, incident);
+    const submit = clearButton(mine);
+    try {
+      await clearThroughDialog(page, mine);
+      await expect(submit).toHaveAttribute('aria-disabled', 'true');
+      await expect(submit).toHaveText(t('en', 'usage.incident.clear.pending'));
+      await expect(mine.getByRole('status').filter({hasText: t('en', 'usage.incident.clear.pendingStatus')})).toBeVisible();
+      await submit.click({force: true});
+      await submit.click({force: true});
+      await expect(dialog(page)).toHaveCount(0);
+    } finally {
+      release();
+    }
+    await expect(aboveIncidents(page).locator('.notice-success').filter({hasText: clearedMessage('en', incident)})).toBeVisible(crossing);
+    await page.waitForLoadState('networkidle');
+    expect(posts, 'one request reached the server').toHaveLength(1);
+    expect(await world.auditBy(actorOf(user), 'usage.incident_cleared')).toHaveLength(1);
+  });
+
+  test('gives each incident its own command ID, made when the form is sent', async ({page, context, baseURL}) => {
+    const person = await member();
+    const first = await makeIncident(person);
+    const second = await makeIncident(person);
+    await administrator(page, context, baseURL!, {marker: true});
+    const ids: (string | null)[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && request.headers()['next-action']) ids.push(commandIdOf(request.postData()));
+    });
+    await clearThroughDialog(page, incidentCard(page, first));
+    await expect(aboveIncidents(page).locator('.notice-success').filter({hasText: clearedMessage('en', first)})).toBeVisible(crossing);
+    await clearThroughDialog(page, incidentCard(page, second));
+    await expect(aboveIncidents(page).locator('.notice-success').filter({hasText: clearedMessage('en', second)})).toBeVisible(crossing);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(ids[1]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(ids[0]).not.toBe(ids[1]);
+  });
+
+  test('one that another window cleared meanwhile is told so, as information: nothing is written again and the card catches up', async ({page, context, baseURL}) => {
+    const person = await member();
+    const incident = await makeIncident(person);
+    const user = await administrator(page, context, baseURL!, {marker: true});
+    const mine = incidentCard(page, incident);
+    await expect(clearButton(mine)).toBeVisible();
+    await clearAsOwner(incident.id, user);
+    const before = await incidentRow(incident.id);
+    await clearThroughDialog(page, mine);
+    const said = t('en', 'usage.incident.alreadyCleared', {provider: isolateLtr(incident.provider)});
+    await expect(aboveIncidents(page).locator('.notice-info').filter({hasText: said})).toBeVisible(crossing);
+    await expect(announcer(page)).toHaveText(said);
+    await expect(incidentsHeading(page)).toBeFocused();
+    await expect(mine).toHaveAttribute('data-state', 'cleared', crossing);
+    expect(await incidentRow(incident.id)).toEqual(before);
+    expect(await world.auditEvents('usage.incident_cleared', `incident:${incident.id}`)).toEqual([]);
+  });
+
+  test('one that is gone is not found, said above the incidents with focus on them; nothing is written and the card goes', async ({page, context, baseURL}) => {
+    const person = await member();
+    const incident = await makeIncident(person);
+    const user = await administrator(page, context, baseURL!, {marker: true});
+    const mine = incidentCard(page, incident);
+    await expect(clearButton(mine)).toBeVisible();
+    await world.db.query('delete from usage.overrun_incidents where id = $1', [incident.id]);
+    await clearThroughDialog(page, mine);
+    const said = t('en', 'usage.incident.error.notFound', {provider: isolateLtr(incident.provider)});
+    await expect(aboveIncidents(page).locator('.notice-warning').filter({hasText: said})).toBeVisible(crossing);
+    await expect(announcer(page)).toHaveText(said);
+    await expect(incidentsHeading(page)).toBeFocused();
+    await expect(mine).toHaveCount(0, crossing);
+    expect(await world.auditBy(actorOf(user), 'usage.incident_cleared')).toEqual([]);
+  });
+
+  test('an Administrator who stopped being one while the page was open is denied, audited as denied, and nothing is cleared; the page is then a 404', async ({page, context, baseURL}) => {
+    const person = await member();
+    const incident = await makeIncident(person);
+    const user = await administrator(page, context, baseURL!, {marker: true});
+    const mine = incidentCard(page, incident);
+    await expect(clearButton(mine)).toBeVisible();
+    await world.db.query(`update identity.accounts set role = 'member' where user_id = $1`, [user.id]);
+    await clearThroughDialog(page, mine);
+    await expect(alertOf(page).filter({hasText: t('en', 'usage.incident.error.denied')})).toBeVisible(crossing);
+    expect(await incidentRow(incident.id)).toEqual({cleared_at: null, cleared_by: null});
+    expect(await world.auditBy(actorOf(user), 'usage.denied')).toEqual([expect.objectContaining({target: `account:${incident.accountId}`})]);
+    expect(await world.auditBy(actorOf(user), 'usage.incident_cleared')).toEqual([]);
+    expect(await world.auditBy(actorOf(user), 'usage.incident_refused')).toEqual([]);
+    expect((await page.goto(path))?.status()).toBe(404);
+  });
+
+  test('a member gets the 404 page and none of the incidents: not a card, not a provider, not an operation', async ({page, context, baseURL}) => {
+    const person = await member();
+    const incident = await makeIncident(person);
+    await signIn(context, baseURL!, person);
+    const response = await page.goto(path);
+    expect(response?.status()).toBe(404);
+    await expect(page.locator('.usage-incident')).toHaveCount(0);
+    await expect(clearButton(page.locator('body'))).toHaveCount(0);
+    const html = await page.content();
+    expect(html).not.toContain(incident.provider);
+    expect(html).not.toContain(incident.operationId);
+    expect(await incidentRow(incident.id)).toEqual({cleared_at: null, cleared_by: null});
+  });
+
+  test.describe('without a fresh sign-in', () => {
+    for (const marker of [false, 'expired', 'another class'] as const) {
+      test(`clearing is refused, nothing is cleared, the step-up is offered, and the refusal is audited once as an incident refusal (${marker === false ? 'no marker' : marker === 'expired' ? 'a marker that ran out' : 'only a marker of another class'})`, async ({page, context, baseURL}) => {
+        const person = await member();
+        const incident = await makeIncident(person);
+        const user = await administrator(page, context, baseURL!, {marker: marker === 'expired' ? 'expired' : false});
+        if (marker === 'another class') await world.forgeMarker(user, user.sessionId, {actionClass: 'owner_deletion'});
+        const actor = actorOf(user);
+        const target = `account:${incident.accountId}`;
+        const mine = incidentCard(page, incident);
+        // Offered beforehand, as a link to the step-up for administration.
+        await expect(stepUpLink(page)).toHaveAttribute('href', '/step-up?for=administration');
+        await expect(page.locator('.notice-warning').filter({hasText: t('en', 'usage.confirm.needed')})).toBeVisible();
+
+        await clearThroughDialog(page, mine);
+        const refused = alertsIn(mine).filter({hasText: t('en', 'usage.error.needsConfirm')});
+        await expect(refused).toBeVisible(crossing);
+        await expect(refused.getByRole('link', {name: t('en', 'invitations.confirm.action')})).toHaveAttribute('href', '/step-up?for=administration');
+        // Still open, still pressable, nothing written but the refusal.
+        await expect(mine).toHaveAttribute('data-state', 'open');
+        await expect(clearButton(mine)).toBeVisible();
+        expect(await incidentRow(incident.id)).toEqual({cleared_at: null, cleared_by: null});
+        expect(await world.auditBy(actor, 'usage.incident_refused')).toEqual([expect.objectContaining({actor, action: 'usage.incident_refused', target})]);
+        expect(await world.auditBy(actor, 'usage.limit_refused')).toEqual([]);
+        expect(await world.auditEvents('usage.incident_cleared', `incident:${incident.id}`)).toEqual([]);
+
+        // Pressing again is the same refusal and the same one audit event: once an hour.
+        await clearThroughDialog(page, mine);
+        await expect(alertsIn(mine).filter({hasText: t('en', 'usage.error.needsConfirm')})).toBeVisible();
+        expect(await world.auditBy(actor, 'usage.incident_refused')).toHaveLength(1);
+        expect(await incidentRow(incident.id)).toEqual({cleared_at: null, cleared_by: null});
+      });
+    }
+
+    test('a fresh sign-in that runs out while the page is open re-reads the page: the green note gives way to the step-up note, and nothing is cleared', async ({page, context, baseURL}) => {
+      const person = await member();
+      const incident = await makeIncident(person);
+      const user = await administrator(page, context, baseURL!, {marker: true});
+      await expect(page.locator('.notice-success').filter({hasText: t('en', 'usage.confirm.ok')})).toBeVisible();
+      await world.expireMarker(user.sessionId);
+      await clearThroughDialog(page, incidentCard(page, incident));
+      await expect(alertsIn(incidentCard(page, incident)).filter({hasText: t('en', 'usage.error.needsConfirm')})).toBeVisible(crossing);
+      await expect(page.locator('.notice-warning').filter({hasText: t('en', 'usage.confirm.needed')})).toBeVisible(crossing);
+      await expect(page.locator('.notice-success').filter({hasText: t('en', 'usage.confirm.ok')})).toHaveCount(0);
+      expect(await incidentRow(incident.id)).toEqual({cleared_at: null, cleared_by: null});
+    });
+  });
+
+  test.describe('with the fake Google', () => {
+    let fakeActive = false;
+    test.beforeAll(async () => {
+      fakeActive = await fakeGoogleActive(world.stack.apiUrl);
+      if (!fakeActive && process.env.CI) throw new Error('The fake Google is not running, or the stack\'s Auth is not swapped to use it, so this flow cannot run. CI swaps it in with `npm run fake-google:up` before the browser tests.');
+    });
+    test.beforeEach(() => {
+      test.skip(!fakeActive, 'The fake Google is not active. Run `npm run fake-google:up` against the local stack to run this flow.');
+    });
+
+    for (const locale of ['en', 'he'] as const) {
+      test(`a real step-up from this page returns to the Administration index, and the incident is then cleared (${locale})`, async ({page, context, baseURL}) => {
+        const tag = randomUUID().slice(0, 8);
+        const user = await world.signedInUser({email: `incident-${tag}@example.test`, subject: `google-${randomUUID()}`});
+        await world.activate(user);
+        await world.makeAdministrator(user);
+        await addFakeAccount({email: user.email, sub: user.subject, name: `Incident ${tag}`});
+        const person = await member();
+        const incident = await makeIncident(person);
+        await signIn(context, baseURL!, user, {locale, theme: locale === 'he' ? 'dark' : 'light'});
+        await open(page);
+        const mine = incidentCard(page, incident);
+
+        // Not fresh: refused, and the link is the way to a fresh sign-in.
+        await clearThroughDialog(page, mine, locale);
+        const refused = alertsIn(mine).filter({hasText: t(locale, 'usage.error.needsConfirm')});
+        await expect(refused).toBeVisible(crossing);
+        expect(await incidentRow(incident.id)).toEqual({cleared_at: null, cleared_by: null});
+        await refused.getByRole('link', {name: t(locale, 'invitations.confirm.action')}).click();
+        await expect(page).toHaveURL(`${baseURL}${stepUpUrl('administration')}`, crossing);
+        await hydrated(page, 'main button[type="submit"], main a[href]');
+        await page.getByRole('button', {name: new RegExp(`^(${t(locale, 'stepUp.continue')}|${t(locale, 'stepUp.pending')})$`)}).click();
+        await expect(page).toHaveURL(chooserUrl, crossing);
+        await chooserAccount(page, user.email).click();
+
+        // Back on the Administration index, in the NEW session, which has the marker; the incident clears.
+        await expect(page).toHaveURL(`${baseURL}/admin`, crossing);
+        await page.getByRole('link', {name: t(locale, 'admin.usage.open')}).click();
+        await expect(page).toHaveURL(`${baseURL}${path}`, crossing);
+        await expect(page.locator('.notice-success').filter({hasText: t(locale, 'usage.confirm.ok')})).toBeVisible();
+        await hydrated(page, 'main form button');
+        await clearThroughDialog(page, incidentCard(page, incident), locale);
+        await expect(aboveIncidents(page, locale).locator('.notice-success').filter({hasText: clearedMessage(locale, incident)})).toBeVisible(crossing);
+        const row = await incidentRow(incident.id);
+        expect(row?.cleared_by).toBe(actorOf(user));
+        expect(await world.auditEvents('usage.incident_cleared', `incident:${incident.id}`)).toEqual([expect.objectContaining({actor: actorOf(user)})]);
+        expect(await world.auditBy(actorOf(user), 'usage.incident_refused')).toHaveLength(1);
+      });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
 test.describe('when the database does not answer', () => {
   const flaky = (baseURL: string) => new URL(path, flakyBaseUrl(baseURL)).href;
   // The second server's switch for `list_usage` is global (the call names no user), so the tests that load the page through it take turns.
@@ -990,8 +1395,8 @@ test.describe('when the database does not answer', () => {
       await expect(page.locator('.usage-item')).toHaveCount(0);
       await expect(page.getByRole('button', {name: new RegExp(`^(${t('en', 'usage.change.submit')}|${t('en', 'usage.reset.button')})`)})).toHaveCount(0);
       await expect(page.getByRole('meter')).toHaveCount(0);
-      // No number is invented: no amount of dollars anywhere on the page.
-      expect(await page.locator('main').innerText()).not.toMatch(/\$\d/);
+      // No number is invented: no amount of dollars anywhere in the Accounts' section (the incidents are another read, and the tests that run now may have made some).
+      expect(await page.locator('.settings-section').filter({has: listHeading(page)}).innerText()).not.toMatch(/\$\d/);
       expect(await violations(page)).toEqual([]);
       expect(await overflowReport(page)).toEqual({scroll: 0, clipped: []});
     } finally {
@@ -1019,6 +1424,93 @@ test.describe('when the database does not answer', () => {
     } finally {
       endGlobalOutage('list_usage');
     }
+  });
+
+  /** An Administrator with a marker, signed in on the page of the second server, for the tests that make something fail before the page is read. */
+  async function adminBeforeRead(context: BrowserContext, baseURL: string, locale: Locale = 'en') {
+    const user = await world.signedInUser();
+    await world.activate(user);
+    await world.makeAdministrator(user);
+    await world.forgeMarker(user, user.sessionId);
+    await signIn(context, baseURL, user, {locale, theme: locale === 'he' ? 'dark' : 'light'});
+    return {user, accountId: (await world.accountOf(user)).id as string};
+  }
+
+  for (const locale of ['en', 'he'] as const) {
+    test(`the incidents cannot be read: the page still renders (200), says they could not be loaded, lists none, still lists the Accounts, passes axe, and works again when the database does (${locale})`, async ({page, context, baseURL}) => {
+      const person = await member();
+      const incident = await makeIncident(person);
+      const {accountId} = await adminBeforeRead(context, baseURL!, locale);
+      const problems = watchForProblems(page);
+      startOutage(accountId, {rpc: ['list_overrun_incidents'], mode: 'down'});
+      try {
+        const response = await page.goto(flaky(baseURL!));
+        expect(response?.status()).toBe(200);
+        await expect(page.getByRole('heading', {level: 3, name: t(locale, 'usage.incidents.error.title')})).toBeVisible();
+        await expect(page.locator('.state-error[role="alert"]')).toContainText(t(locale, 'usage.incidents.error.body'));
+        await expect(page.locator('.usage-incident')).toHaveCount(0);
+        await expect(page.getByText(incident.provider)).toHaveCount(0);
+        // The Accounts are a read of their own, and are there.
+        await expect(card(page, person.email)).toBeVisible();
+        expect(await axe(page, locale)).toEqual([]);
+        expect(await overflowReport(page)).toEqual({scroll: 0, clipped: []});
+      } finally {
+        endOutage(accountId);
+      }
+      expect(problems).toEqual([]);
+      await page.reload();
+      await expect(incidentCard(page, incident)).toBeVisible();
+      await expect(page.getByRole('heading', {level: 3, name: t(locale, 'usage.incidents.error.title')})).toHaveCount(0);
+    });
+  }
+
+  test('the clearing gets no answer: the person is told it is not known, to check the incidents first (read again), and the retry is the same command, which goes through', async ({page, context, baseURL}) => {
+    const person = await member();
+    const incident = await makeIncident(person);
+    const {accountId} = await adminBeforeRead(context, baseURL!);
+    await open(page, flaky(baseURL!));
+    const ids: (string | null)[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && request.headers()['next-action']) ids.push(commandIdOf(request.postData()));
+    });
+    // An incident that appears while the page is open: "check the incidents" must point at a list read AFTER the attempt.
+    const appeared = await makeIncident(person);
+    await expect(incidentCard(page, appeared)).toHaveCount(0);
+    startOutage(accountId, {rpc: ['clear_overrun_incident'], mode: 'error'});
+    try {
+      await clearThroughDialog(page, incidentCard(page, incident));
+      await expect(alertsIn(incidentCard(page, incident)).filter({hasText: t('en', 'usage.incident.error.unknown')})).toBeVisible(crossing);
+      await expect(incidentCard(page, appeared)).toBeVisible(crossing);
+    } finally {
+      endOutage(accountId);
+    }
+    expect(await incidentRow(incident.id)).toEqual({cleared_at: null, cleared_by: null});
+    // Sending it again is the same command, which now goes through.
+    await clearThroughDialog(page, incidentCard(page, incident));
+    await expect(aboveIncidents(page).locator('.notice-success').filter({hasText: clearedMessage('en', incident)})).toBeVisible(crossing);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(ids[1]).toBe(ids[0]);
+    expect((await incidentRow(incident.id))?.cleared_by).not.toBeNull();
+    expect(await incidentRow(appeared.id)).toEqual({cleared_at: null, cleared_by: null});
+  });
+
+  test('the marker cannot be checked when an incident is to be cleared: a retryable notice, nothing is cleared, nothing is recorded as a refusal, and the next press works', async ({page, context, baseURL}) => {
+    const person = await member();
+    const incident = await makeIncident(person);
+    const {user} = await adminBeforeRead(context, baseURL!);
+    await open(page, flaky(baseURL!));
+    startOutage(user.id, {rpc: ['use_marker'], mode: 'down'});
+    try {
+      await clearThroughDialog(page, incidentCard(page, incident));
+      await expect(alertsIn(incidentCard(page, incident)).filter({hasText: t('en', 'usage.error.unavailable')})).toBeVisible(crossing);
+    } finally {
+      endOutage(user.id);
+    }
+    expect(await incidentRow(incident.id)).toEqual({cleared_at: null, cleared_by: null});
+    expect(await world.auditBy(actorOf(user), 'usage.incident_refused')).toEqual([]);
+    await clearThroughDialog(page, incidentCard(page, incident));
+    await expect(aboveIncidents(page).locator('.notice-success').filter({hasText: clearedMessage('en', incident)})).toBeVisible(crossing);
   });
 
   test('the marker cannot be checked: a retryable notice, nothing is appended, nothing is recorded as a refusal, and the next press works', async ({page, context, baseURL}) => {
@@ -1288,5 +1780,139 @@ test.describe('on every screen', () => {
     await expect(card(page, person.email).locator('.notice-success').filter({hasText: t('en', 'usage.reset.done', {name: person.email})})).toBeVisible(crossing);
     await expect(dialog(page)).toHaveCount(0);
     expect((await periodsOf(person)).map((period) => period.cause)).toEqual(['initial', 'change', 'reset']);
+  });
+  for (const variant of variants) {
+    test(`the overrun incidents have no accessibility violations: ${variant.name}`, async ({page, context, baseURL}) => {
+      const locale = variant.locale;
+      const person = await member();
+      const blocking = await makeIncident(person);
+      const closed = await makeIncident(person, {reserved: 30_000, evidence: 55_000});
+      const late = await makeIncident(person);
+      const gone = await makeIncident(person);
+      const problems = watchForProblems(page);
+      const user = await administrator(page, context, baseURL!, {marker: false, locale, theme: variant.theme, before: async (admin) => void (await clearAsOwner(closed.id, admin))});
+      await expect(page.locator('html')).toHaveAttribute('lang', locale);
+      await expect(page.locator('html')).toHaveAttribute('data-theme', variant.theme);
+      await expect(page.locator('html')).toHaveAttribute('dir', locale === 'he' ? 'rtl' : 'ltr');
+      await expect(incidentCard(page, blocking)).toHaveAttribute('data-state', 'open');
+      await expect(incidentCard(page, closed)).toHaveAttribute('data-state', 'cleared');
+      expect(await axe(page, locale), 'open and cleared incidents, with the step-up offered').toEqual([]);
+      expect(await overflowReport(page)).toEqual({scroll: 0, clipped: []});
+
+      // The confirmation, and the refusal that follows it without a fresh sign-in.
+      await clearButton(incidentCard(page, blocking), locale).click();
+      await expect(dialog(page)).toBeVisible();
+      expect(await axe(page, locale), 'the clearing confirmation').toEqual([]);
+      await confirmClear(page, locale).click();
+      await expect(alertsIn(incidentCard(page, blocking)).filter({hasText: t(locale, 'usage.error.needsConfirm')})).toBeVisible(crossing);
+      expect(await axe(page, locale), 'a refusal').toEqual([]);
+
+      // With a fresh sign-in: cleared, said above the incidents.
+      await world.forgeMarker(user, user.sessionId);
+      await open(page);
+      await expect(page.locator('.notice-success').filter({hasText: t(locale, 'usage.confirm.ok')})).toBeVisible();
+      expect(await axe(page, locale), 'confirmed').toEqual([]);
+      await clearThroughDialog(page, incidentCard(page, blocking), locale);
+      await expect(aboveIncidents(page, locale).locator('.notice-success').filter({hasText: clearedMessage(locale, blocking)})).toBeVisible(crossing);
+      await expect(incidentCard(page, blocking)).toHaveAttribute('data-state', 'cleared', crossing);
+      expect(await axe(page, locale), 'an incident that was cleared').toEqual([]);
+
+      // One that another window cleared meanwhile (information), and one that is gone (a warning).
+      await clearAsOwner(late.id, user);
+      await clearThroughDialog(page, incidentCard(page, late), locale);
+      await expect(aboveIncidents(page, locale).locator('.notice-info')).toBeVisible(crossing);
+      expect(await axe(page, locale), 'an incident that was already cleared').toEqual([]);
+      await world.db.query('delete from usage.overrun_incidents where id = $1', [gone.id]);
+      await clearThroughDialog(page, incidentCard(page, gone), locale);
+      await expect(aboveIncidents(page, locale).locator('.notice-warning')).toBeVisible(crossing);
+      expect(await axe(page, locale), 'an incident that is gone').toEqual([]);
+      expect(await overflowReport(page)).toEqual({scroll: 0, clipped: []});
+      expect(problems).toEqual([]);
+    });
+  }
+
+  for (const variant of [variants[0], variants[3]]) {
+    test(`reflows the overrun incidents at 320 px wide with 200% text, with a long provider, a long address, long amounts and a dialog: ${variant.name}`, async ({page, context, baseURL, browserName}) => {
+      test.skip(browserName !== 'chromium', 'Page.setFontSizes is a Chromium DevTools command');
+      await page.setViewportSize({width: 320, height: 640});
+      await setFontSize(page, 32);
+      const long = await member({email: `${'long-address-'.repeat(4)}${randomUUID().slice(0, 8)}@example.test`});
+      // The longest name a provider has (80 characters), and the longest amounts an incident holds.
+      const provider = `${'long-provider-'.repeat(5)}${randomUUID().replaceAll('-', '').slice(0, 10)}`;
+      const incident = await makeIncident(long, {provider, reserved: 1_234_567, evidence: 9_876_543_217});
+      await administrator(page, context, baseURL!, {marker: true, locale: variant.locale, theme: variant.theme});
+      expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe('32px');
+      const mine = incidentCard(page, incident);
+      await expect(mine).toBeVisible();
+      expect(await overflowReport(page)).toEqual({scroll: 0, clipped: []});
+      await clearButton(mine, variant.locale).click();
+      const confirm = dialog(page);
+      await expect(confirm).toBeVisible();
+      const box = (await confirm.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(320);
+      expect(await axe(page, variant.locale)).toEqual([]);
+      await confirmClear(page, variant.locale).click();
+      await expect(aboveIncidents(page, variant.locale).locator('.notice-success').filter({hasText: clearedMessage(variant.locale, incident)})).toBeVisible(crossing);
+      expect(await overflowReport(page)).toEqual({scroll: 0, clipped: []});
+    });
+  }
+
+  test('the overrun incidents have targets of at least 44 px for Review and clear and both buttons of its dialog, on a phone and on a desktop', async ({page, context, baseURL}) => {
+    const person = await member();
+    const incident = await makeIncident(person);
+    await administrator(page, context, baseURL!, {marker: false});
+    const button = clearButton(incidentCard(page, incident));
+    await button.scrollIntoViewIfNeeded();
+    const box = (await button.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    await button.click();
+    for (const name of [t('en', 'confirm.cancel'), t('en', 'usage.incident.clear.confirm')]) {
+      const target = (await dialog(page).getByRole('button', {name}).boundingBox())!;
+      expect(target.height).toBeGreaterThanOrEqual(44);
+    }
+  });
+
+  test('the overrun incidents read in Hebrew, right to left: no Latin word but the provider, the operation and the address, which stay left to right with the amounts and the times; the whole flow reads in Hebrew', async ({page, context, baseURL}) => {
+    const person = await member();
+    const incident = await makeIncident(person);
+    const user = await administrator(page, context, baseURL!, {marker: true, locale: 'he', theme: 'dark'});
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+    await expect(incidentsHeading(page, 'he')).toBeVisible();
+    const mine = incidentCard(page, incident);
+    await expect(mine).toBeVisible();
+    // Six values on the card, each left to right: the address, the operation, three amounts and the time.
+    await expect(mine.locator('dd .ltr-token')).toHaveCount(6);
+    for (const token of await mine.locator('dd .ltr-token').all()) await expect(token).toHaveCSS('direction', 'ltr');
+    await expect(mine.locator('h3 .ltr-token')).toHaveCSS('direction', 'ltr');
+    await expect(mine.locator('time').locator('xpath=..')).toHaveCSS('direction', 'ltr');
+    expect(await incidentFacts(mine, 'he')).toEqual({account: person.email, operation: incident.operationId, reserved: '$1.00', reported: '$1.75', over: '$0.75', recorded: await whenOf(incident.id)});
+    const words = (await mine.innerText()).split(person.email).join('').split(incident.provider).join('').split(incident.operationId).join('');
+    expect(words).not.toMatch(/[A-Za-z]{2,}/);
+    const section = page.locator('.settings-section').filter({has: incidentsHeading(page, 'he')});
+    expect((await section.locator(':scope > h2, :scope > .settings-help').allInnerTexts()).join(' ')).not.toMatch(/[A-Za-z]{2,}/);
+    // The whole flow reads in Hebrew.
+    await clearThroughDialog(page, mine, 'he');
+    await expect(aboveIncidents(page, 'he').locator('.notice-success').filter({hasText: clearedMessage('he', incident)})).toBeVisible(crossing);
+    await expect(mine.locator('.status-badge').filter({hasText: t('he', 'usage.incident.state.cleared')})).toBeVisible(crossing);
+    await expect.poll(async () => (await incidentFacts(mine, 'he')).clearedBy, crossing).toBe(user.email);
+  });
+
+  test('the overrun incidents can be used with the keyboard alone: Review and clear, its dialog, and the answer', async ({page, context, baseURL}) => {
+    const person = await member();
+    const incident = await makeIncident(person);
+    await administrator(page, context, baseURL!, {marker: true});
+    const mine = incidentCard(page, incident);
+    await clearButton(mine).focus();
+    await page.keyboard.press('Enter');
+    await expect(dialog(page).getByRole('button', {name: t('en', 'confirm.cancel')})).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(confirmClear(page)).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(aboveIncidents(page).locator('.notice-success').filter({hasText: clearedMessage('en', incident)})).toBeVisible(crossing);
+    await expect(dialog(page)).toHaveCount(0);
+    await expect(incidentsHeading(page)).toBeFocused();
+    expect((await incidentRow(incident.id))?.cleared_at).not.toBeNull();
   });
 });

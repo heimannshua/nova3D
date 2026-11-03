@@ -175,6 +175,7 @@ type Command =
   | {cmd: 'step'; attemptId: string; fence: string; stepKey: string; ordinal: number | null}
   | {cmd: 'operation'; attemptId: string; fence: string; operationId: string; outcome: 'completed'; usage: OperationUsage}
   | {cmd: 'operation'; attemptId: string; fence: string; operationId: string; outcome: 'noncharge'; requestId: string}
+  | {cmd: 'operation'; attemptId: string; fence: string; operationId: string; outcome: 'ambiguous'; requestId: string | null}
   | {cmd: 'finish'; attemptId: string; fence: string; revision: number; to: 'completed' | 'failed'; resultDigest: string | null};
 
 function commandOf(claims: WorkerCommandClaims, body: Body): Command | null {
@@ -208,6 +209,13 @@ function commandOf(claims: WorkerCommandClaims, body: Body): Command | null {
         if (!hasOnly(body, ['operation', 'outcome', 'request_id'])) return null;
         const {request_id: requestId} = body;
         return typeof requestId === 'string' ? {cmd: 'operation', attemptId: claims.att, fence: claims.fence, operationId: operation, outcome, requestId} : null;
+      }
+      if (outcome === 'ambiguous') {
+        // The outcome of a request that went out and whose answer is unknown (a timeout, a 5xx, a lost connection): the request ID is whatever the provider returned, if anything.
+        if (!hasOnly(body, ['operation', 'outcome'], ['request_id'])) return null;
+        const {request_id: requestId} = body;
+        if (requestId !== undefined && requestId !== null && typeof requestId !== 'string') return null;
+        return {cmd: 'operation', attemptId: claims.att, fence: claims.fence, operationId: operation, outcome, requestId: typeof requestId === 'string' ? requestId : null};
       }
       return null;
     }
@@ -262,7 +270,11 @@ async function run(command: Command, accounts: AccountsOptions, issuer: WorkerIs
     case 'operation': {
       const base = {attemptId: command.attemptId, fence: command.fence, operationId: command.operationId};
       const finished = await finishOperation(
-        command.outcome === 'completed' ? {...base, outcome: 'completed', usage: command.usage} : {...base, outcome: 'noncharge', requestId: command.requestId},
+        command.outcome === 'completed'
+          ? {...base, outcome: 'completed', usage: command.usage}
+          : command.outcome === 'noncharge'
+            ? {...base, outcome: 'noncharge', requestId: command.requestId}
+            : {...base, outcome: 'ambiguous', requestId: command.requestId},
         accounts,
       );
       if (finished.outcome !== 'finished') return refused(finished.outcome);

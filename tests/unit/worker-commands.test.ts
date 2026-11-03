@@ -390,7 +390,14 @@ describe('8. the body', () => {
     await badBody(claims.step, {step_key: 'work', ordinal: '1'});
     await badBody(claims.step, {step_key: 'work', ordinal: 1, extra: true});
     await badBody(claims.operation, {operation: OPERATION});
-    await badBody(claims.operation, {operation: OPERATION, outcome: 'ambiguous'});
+    await badBody(claims.operation, {operation: OPERATION, outcome: 'settled'});
+    await badBody(claims.operation, {operation: OPERATION, outcome: 'abandoned', request_id: 'req_1'});
+    await badBody(claims.operation, {operation: OPERATION, outcome: 'ambiguous', request_id: 7});
+    await badBody(claims.operation, {operation: OPERATION, outcome: 'ambiguous', request_id: ['req_1']});
+    await badBody(claims.operation, {operation: OPERATION, outcome: 'ambiguous', input_tokens: 1, output_tokens: 1, returned_model: 'm'});
+    await badBody(claims.operation, {operation: OPERATION, outcome: 'ambiguous', request_id: 'req_1', extra: true});
+    await badBody(claims.operation, {outcome: 'ambiguous', request_id: 'req_1'});
+    await badBody(claims.operation, {operation: 7, outcome: 'ambiguous'});
     await badBody(claims.operation, {operation: OPERATION, outcome: 'completed', input_tokens: 1, output_tokens: 1});
     await badBody(claims.operation, {operation: OPERATION, outcome: 'completed', input_tokens: 1, output_tokens: 1, returned_model: 'm', request_id: 'r'});
     await badBody(claims.operation, {operation: OPERATION, outcome: 'noncharge'});
@@ -408,6 +415,10 @@ describe('8. the body', () => {
     await badBody(claims.register, {...registerBody, version: 0});
     await badBody(claims.register, {...registerBody, kinds: []});
     await badBody(claims.operation, {operation: 'nope', outcome: 'noncharge', request_id: 'req_1'});
+    await badBody(claims.operation, {operation: 'nope', outcome: 'ambiguous'});
+    await badBody(claims.operation, {operation: OPERATION, outcome: 'ambiguous', request_id: 'has a space'});
+    await badBody(claims.operation, {operation: OPERATION, outcome: 'ambiguous', request_id: ''});
+    await badBody(claims.operation, {operation: OPERATION, outcome: 'ambiguous', request_id: 'r'.repeat(201)});
     await badBody(claims.finish, {to: 'completed'});
     await badBody(claims.finish, {to: 'failed', result_digest: DIGEST});
     await badBody(claims.finish, {to: 'completed', result_digest: 'abc'});
@@ -545,10 +556,74 @@ describe('9. the commands', () => {
     expect(sent[1].body).toMatchObject({p_outcome: 'noncharge', p_request_id: 'req_1', p_input_tokens: null});
   });
 
-  it.each(['not_found', 'not_dispatched', 'invalid_transition', 'already_settled', 'invalid_evidence'])('answers 409 {state: %s} when an operation\'s outcome is refused', async (outcome) => {
+  it.each(['not_found', 'not_dispatched', 'invalid_transition', 'already_settled', 'invalid_evidence', 'overflow'])('answers 409 {state: %s} when an operation\'s outcome is refused', async (outcome) => {
     answers.finish_operation = () => json({outcome, operation_id: OPERATION, state: 'planned'});
     const response = await handle(cad.request(claims.operation, {operation: OPERATION, outcome: 'noncharge', request_id: 'req_1'}));
     expect([response.status, await response.json()]).toEqual([409, {state: outcome}]);
+  });
+
+  // Story 2.8: a request that went out and whose answer is unknown (a timeout, a 5xx, a lost connection) is reported `ambiguous`: it settles nothing and keeps the reservation.
+  describe('reports an operation ambiguous (Story 2.8)', () => {
+    const ambiguousAnswer = (patch: Record<string, unknown> = {}) => json({outcome: 'finished', operation_id: OPERATION, state: 'ambiguous', settled_microdollars: null, released_microdollars: null, over_microdollars: null, ...patch});
+
+    it('with the provider\'s request ID, and answers that nothing was settled', async () => {
+      answers.finish_operation = () => ambiguousAnswer();
+      const response = await handle(cad.request(claims.operation, {operation: OPERATION, outcome: 'ambiguous', request_id: 'req_503'}));
+      expect([response.status, await response.json()]).toEqual([200, {state: 'finished', operation: OPERATION, operation_state: 'ambiguous', settled_microdollars: null, released_microdollars: null}]);
+      expect(sent[1]).toEqual({
+        name: 'finish_operation',
+        body: {p_attempt_id: ATTEMPT, p_fence: FENCE, p_operation_id: OPERATION, p_outcome: 'ambiguous', p_input_tokens: null, p_output_tokens: null, p_returned_model: null, p_request_id: 'req_503'},
+      });
+    });
+
+    it.each([
+      ['no request ID', {operation: OPERATION, outcome: 'ambiguous'}],
+      ['a null request ID', {operation: OPERATION, outcome: 'ambiguous', request_id: null}],
+    ])('with %s (the provider sent none: a timeout, a lost connection)', async (_label, body) => {
+      answers.finish_operation = () => ambiguousAnswer();
+      const response = await handle(cad.request(claims.operation, body));
+      expect([response.status, await response.json()]).toEqual([200, {state: 'finished', operation: OPERATION, operation_state: 'ambiguous', settled_microdollars: null, released_microdollars: null}]);
+      expect(sent[1].body).toMatchObject({p_outcome: 'ambiguous', p_request_id: null, p_input_tokens: null, p_output_tokens: null, p_returned_model: null});
+    });
+
+    it('takes the attempt and the fence from the signed token, never from the body', async () => {
+      answers.finish_operation = () => ambiguousAnswer();
+      const smuggled = await handle(cad.request(claims.operation, {operation: OPERATION, outcome: 'ambiguous', fence: 'forged'}));
+      expect(smuggled.status).toBe(400);
+      await handle(cad.request(claims.operation, {operation: OPERATION, outcome: 'ambiguous'}));
+      expect(sent.at(-1)!.body).toMatchObject({p_attempt_id: ATTEMPT, p_fence: FENCE});
+      expect(sent.at(-1)!.body).not.toHaveProperty('p_account_id');
+    });
+
+    it('answers a report sent again after a reconciliation with the state the operation is in now, 200', async () => {
+      answers.finish_operation = () => ambiguousAnswer({state: 'settled', settled_microdollars: 3400, released_microdollars: 3400, over_microdollars: 0});
+      const response = await handle(cad.request(claims.operation, {operation: OPERATION, outcome: 'ambiguous', request_id: 'req_503'}));
+      expect([response.status, await response.json()]).toEqual([200, {state: 'finished', operation: OPERATION, operation_state: 'settled', settled_microdollars: 3400, released_microdollars: 3400}]);
+    });
+
+    it.each(['not_found', 'not_dispatched', 'invalid_transition', 'already_settled', 'fence_mismatch', 'cancelled', 'expired', 'revoked', 'not_running', 'unavailable'])(
+      'answers 409 {state: %s} when the report is refused',
+      async (outcome) => {
+        answers.finish_operation = () => json({outcome, operation_id: OPERATION, state: 'planned', attempt_id: ATTEMPT});
+        const response = await handle(cad.request(claims.operation, {operation: OPERATION, outcome: 'ambiguous'}));
+        expect([response.status, await response.json()]).toEqual([409, {state: outcome}]);
+      },
+    );
+
+    it('answers 503 when the database does not answer the report, and the worker may send it again', async () => {
+      const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      answers.finish_operation = () => json({message: 'down'}, 503);
+      const response = await handle(cad.request(claims.operation, {operation: OPERATION, outcome: 'ambiguous', request_id: 'req_1'}));
+      expect([response.status, await response.json()]).toEqual([503, {error: 'unavailable'}]);
+      error.mockRestore();
+    });
+
+    it('still reports completed and noncharge as before', async () => {
+      answers.finish_operation = () => json({outcome: 'finished', operation_id: OPERATION, state: 'noncharge', settled_microdollars: 0, released_microdollars: 5, over_microdollars: 0});
+      const response = await handle(cad.request(claims.operation, {operation: OPERATION, outcome: 'noncharge', request_id: 'req_1'}));
+      expect(response.status).toBe(200);
+      expect(sent[1].body).toMatchObject({p_outcome: 'noncharge', p_request_id: 'req_1'});
+    });
   });
 
   it('finishes the attempt completed with its result digest, and failed with none, and answers the attempt\'s state', async () => {

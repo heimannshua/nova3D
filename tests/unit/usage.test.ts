@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 import {AccountsUnavailableError} from '@/lib/accounts';
-import {listUsage, maxUsageListed, recordUsageRefusal, setUsageLimit} from '@/lib/usage';
+import {clearOverrunIncident, listOverrunIncidents, listUsage, maxIncidentsListed, maxUsageListed, recordUsageRefusal, setUsageLimit, usageRefusalActions} from '@/lib/usage';
 
 // The typed calls of the Usage functions (lib/usage.ts), against a fake fetch: what each sends (the Administrator's Account and epoch from the operation,
 // the actor from the session, nothing a request chose), what each accepts as an answer, and that an answer that cannot be got, or makes no sense, is an
@@ -13,6 +13,9 @@ const USER = '5f0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c44';
 const ACTOR = `user:${USER}`;
 const env = {NEXT_PUBLIC_SUPABASE_URL: 'https://abcdefgh.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'service-key-for-tests-only'};
 const operation = {accountId: ADMIN, epoch: 3};
+const INCIDENT = '66666666-7777-4888-8999-aaaaaaaaaaaa';
+const OPERATION = '77777777-8888-4999-8aaa-bbbbbbbbbbbb';
+const JOB = '88888888-9999-4aaa-8bbb-cccccccccccc';
 
 type Sent = {name: string; body: Record<string, unknown>; headers: Record<string, string>};
 function fake(answer: unknown, status = 200) {
@@ -197,7 +200,11 @@ describe('setUsageLimit', () => {
 });
 
 describe('recordUsageRefusal', () => {
-  it.each(['usage.limit_refused', 'usage.denied'] as const)('records %s for the user, naming the Account when there is one', async (action) => {
+  it('knows the three refusals: a limit change without a marker, a non-Administrator, and (Story 2.8) a clearing of an incident without a marker', () => {
+    expect([...usageRefusalActions]).toEqual(['usage.limit_refused', 'usage.denied', 'usage.incident_refused']);
+  });
+
+  it.each(['usage.limit_refused', 'usage.denied', 'usage.incident_refused'] as const)('records %s for the user, naming the Account when there is one', async (action) => {
     const {sent, options} = fake({outcome: 'recorded'});
     expect(await recordUsageRefusal({userId: USER, action, accountId: TARGET}, options)).toBe('recorded');
     expect(sent[0]).toMatchObject({name: 'record_usage_refusal', body: {p_user_id: USER, p_action: action, p_target_account_id: TARGET}});
@@ -219,5 +226,150 @@ describe('recordUsageRefusal', () => {
     await expect(recordUsageRefusal({userId: USER, action: 'usage.denied', accountId: 'nope'}, options)).rejects.toBeInstanceOf(TypeError);
     expect(fetch).not.toHaveBeenCalled();
     await expect(recordUsageRefusal({userId: USER, action: 'usage.denied'}, fake({outcome: 'maybe'}).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+});
+
+// Story 2.8 ----------------------------------------------------------------------------------------------------------------------------------
+
+const incidentRow = {
+  incident_id: INCIDENT,
+  account_id: TARGET,
+  provider: 'anthropic',
+  operation_id: OPERATION,
+  job_id: JOB,
+  reserved_microdollars: 1_000_000,
+  evidence_microdollars: 1_750_000,
+  over_microdollars: 750_000,
+  created_at: '2026-10-12T00:24:36.123456+00:00',
+  cleared_at: null,
+  cleared_by: null,
+  cleared_by_email: null,
+};
+const clearedRow = {...incidentRow, incident_id: OTHER, cleared_at: '2026-10-12T01:00:00.5+00:00', cleared_by: `user:${USER}`, cleared_by_email: 'admin@example.com'};
+
+describe('listOverrunIncidents', () => {
+  it('asks for the Administrator\'s Account and epoch, as the service role, with the default limit of 50, and reads each incident', async () => {
+    const {sent, options} = fake({outcome: 'listed', incidents: [incidentRow, clearedRow]});
+    expect(await listOverrunIncidents(operation, {}, options)).toEqual({
+      outcome: 'listed',
+      incidents: [
+        {id: INCIDENT, accountId: TARGET, provider: 'anthropic', operationId: OPERATION, jobId: JOB, reserved: 1_000_000, evidence: 1_750_000, over: 750_000, createdAt: '2026-10-12T00:24:36.123456+00:00', clearedAt: null, clearedBy: null, clearedByEmail: null},
+        {id: OTHER, accountId: TARGET, provider: 'anthropic', operationId: OPERATION, jobId: JOB, reserved: 1_000_000, evidence: 1_750_000, over: 750_000, createdAt: '2026-10-12T00:24:36.123456+00:00', clearedAt: '2026-10-12T01:00:00.5+00:00', clearedBy: `user:${USER}`, clearedByEmail: 'admin@example.com'},
+      ],
+    });
+    expect(sent).toEqual([expect.objectContaining({name: 'list_overrun_incidents', body: {p_account_id: ADMIN, p_epoch: 3, p_limit: 50}})]);
+    expect(sent[0].headers).toMatchObject({authorization: 'Bearer service-key-for-tests-only', 'content-profile': 'api'});
+  });
+
+  it('sends the limit it was given, and the options default to the same call', async () => {
+    const {sent, options} = fake({outcome: 'listed', incidents: []});
+    expect(await listOverrunIncidents(operation, {limit: 7}, options)).toEqual({outcome: 'listed', incidents: []});
+    expect(sent[0].body).toEqual({p_account_id: ADMIN, p_epoch: 3, p_limit: 7});
+    const alone = fake({outcome: 'listed', incidents: []});
+    await listOverrunIncidents(operation, undefined, alone.options);
+    expect(alone.sent[0].body.p_limit).toBe(50);
+  });
+
+  it('reads a cleared incident whose clearer Auth no longer vouches for as cleared by nobody in particular, not as open', async () => {
+    const listed = await listOverrunIncidents(operation, {}, fake({outcome: 'listed', incidents: [{...clearedRow, cleared_by_email: null}]}).options);
+    expect(listed).toMatchObject({incidents: [{clearedAt: '2026-10-12T01:00:00.5+00:00', clearedBy: `user:${USER}`, clearedByEmail: null}]});
+  });
+
+  it('answers denied, with no incidents, when the database does', async () => {
+    expect(await listOverrunIncidents(operation, {}, fake({outcome: 'denied', incidents: null}).options)).toEqual({outcome: 'denied'});
+  });
+
+  it('refuses an operation that is not shaped like one and a limit that is not one, before asking', async () => {
+    const {fetch, options} = fake({});
+    await expect(listOverrunIncidents({accountId: 'not-an-id', epoch: 1}, {}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(listOverrunIncidents({accountId: ADMIN, epoch: 0}, {}, options)).rejects.toBeInstanceOf(TypeError);
+    for (const limit of [0, -1, 1.5, maxIncidentsListed + 1, Number.NaN]) await expect(listOverrunIncidents(operation, {limit}, options), String(limit)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a body that is not an object', []],
+    ['an outcome it does not know', {outcome: 'maybe', incidents: []}],
+    ['no incidents', {outcome: 'listed'}],
+    ['incidents that are not a list', {outcome: 'listed', incidents: {}}],
+    ['more incidents than were asked for', {outcome: 'listed', incidents: Array.from({length: 51}, (_unused, index) => ({...incidentRow, incident_id: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`}))}],
+    ['the same incident twice', {outcome: 'listed', incidents: [incidentRow, incidentRow]}],
+    ['an open incident after a cleared one', {outcome: 'listed', incidents: [clearedRow, incidentRow]}],
+    ['an incident with a bad ID', {outcome: 'listed', incidents: [{...incidentRow, incident_id: 'nope'}]}],
+    ['an incident with no Account', {outcome: 'listed', incidents: [{...incidentRow, account_id: null}]}],
+    ['an incident with a bad operation', {outcome: 'listed', incidents: [{...incidentRow, operation_id: 'nope'}]}],
+    ['an incident with a bad Job', {outcome: 'listed', incidents: [{...incidentRow, job_id: 7}]}],
+    ['a provider that is not a name', {outcome: 'listed', incidents: [{...incidentRow, provider: 'Anthropic <b>'}]}],
+    ['a missing provider', {outcome: 'listed', incidents: [{...incidentRow, provider: null}]}],
+    ['evidence that is not above the reservation', {outcome: 'listed', incidents: [{...incidentRow, evidence_microdollars: 1_000_000, over_microdollars: 0}]}],
+    ['an amount over that is not the difference', {outcome: 'listed', incidents: [{...incidentRow, over_microdollars: 1}]}],
+    ['a reserved amount of 0', {outcome: 'listed', incidents: [{...incidentRow, reserved_microdollars: 0, evidence_microdollars: 5, over_microdollars: 5}]}],
+    ['an amount that is a float', {outcome: 'listed', incidents: [{...incidentRow, evidence_microdollars: 1_750_000.5, over_microdollars: 750_000.5}]}],
+    ['an amount that is text', {outcome: 'listed', incidents: [{...incidentRow, reserved_microdollars: '1000000'}]}],
+    ['a negative amount', {outcome: 'listed', incidents: [{...incidentRow, reserved_microdollars: -1}]}],
+    ['a time that is not one', {outcome: 'listed', incidents: [{...incidentRow, created_at: 'yesterday'}]}],
+    ['no time', {outcome: 'listed', incidents: [{...incidentRow, created_at: null}]}],
+    ['cleared at with no clearer', {outcome: 'listed', incidents: [{...clearedRow, cleared_by: null, cleared_by_email: null}]}],
+    ['a clearer with no time', {outcome: 'listed', incidents: [{...clearedRow, cleared_at: null}]}],
+    ['a clearer that is not a user', {outcome: 'listed', incidents: [{...clearedRow, cleared_by: 'seed:local'}]}],
+    ['an address for an incident nobody cleared', {outcome: 'listed', incidents: [{...incidentRow, cleared_by_email: 'admin@example.com'}]}],
+    ['an address that is not text', {outcome: 'listed', incidents: [{...clearedRow, cleared_by_email: 7}]}],
+  ])('treats %s as no answer at all', async (_name, answer) => {
+    await expect(listOverrunIncidents(operation, {}, fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('throws, and does not return an empty list, when the database cannot be reached or refuses', async () => {
+    await expect(listOverrunIncidents(operation, {}, {env, fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true, outcomeUnknown: true});
+    await expect(listOverrunIncidents(operation, {}, fake({message: 'no'}, 503).options)).rejects.toMatchObject({retryable: true});
+    await expect(listOverrunIncidents(operation, {}, fake({code: '42501'}, 401).options)).rejects.toMatchObject({retryable: false, code: '42501'});
+  });
+});
+
+describe('clearOverrunIncident', () => {
+  const input = {commandId: COMMAND, incidentId: INCIDENT};
+  const receipt = (outcome: string, over: Record<string, unknown> = {}) => ({outcome, incident_id: INCIDENT, cleared_at: '2026-10-12T01:00:00.123456+00:00', cleared_by: `user:${USER}`, ...over});
+
+  it('sends the Administrator\'s Account and epoch from the operation, the command and the incident, and nothing else', async () => {
+    const {sent, options} = fake(receipt('cleared'));
+    expect(await clearOverrunIncident(operation, input, options)).toEqual({outcome: 'cleared', incidentId: INCIDENT, clearedAt: '2026-10-12T01:00:00.123456+00:00', clearedBy: `user:${USER}`});
+    expect(sent).toEqual([expect.objectContaining({name: 'clear_overrun_incident', body: {p_account_id: ADMIN, p_epoch: 3, p_command_id: COMMAND, p_incident_id: INCIDENT}})]);
+    expect(sent[0].headers).toMatchObject({authorization: 'Bearer service-key-for-tests-only', 'content-profile': 'api'});
+  });
+
+  it('reads an incident that was cleared before as already cleared, with who and when', async () => {
+    const answer = await clearOverrunIncident(operation, input, fake(receipt('already_cleared', {cleared_by: `user:${OTHER}`})).options);
+    expect(answer).toEqual({outcome: 'already_cleared', incidentId: INCIDENT, clearedAt: '2026-10-12T01:00:00.123456+00:00', clearedBy: `user:${OTHER}`});
+  });
+
+  it.each(['unavailable', 'denied'] as const)('reads %s as that and nothing more', async (outcome) => {
+    expect(await clearOverrunIncident(operation, input, fake({outcome, incident_id: null, cleared_at: null, cleared_by: null}).options)).toEqual({outcome});
+  });
+
+  it('refuses what is not a command before asking: an incident or a command that is not an ID, an operation that is not shaped like one', async () => {
+    const {fetch, options} = fake({});
+    await expect(clearOverrunIncident(operation, {...input, incidentId: 'not-an-id'}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(clearOverrunIncident(operation, {...input, commandId: 'not-an-id'}, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(clearOverrunIncident({accountId: 'not-an-id', epoch: 1}, input, options)).rejects.toBeInstanceOf(TypeError);
+    await expect(clearOverrunIncident({accountId: ADMIN, epoch: 0}, input, options)).rejects.toBeInstanceOf(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a body that is not an object', []],
+    ['an outcome it does not know', {outcome: 'maybe'}],
+    ['a clearing of another incident than the one asked for', receipt('cleared', {incident_id: OTHER})],
+    ['a clearing with no incident', receipt('cleared', {incident_id: null})],
+    ['a clearing with no time', receipt('cleared', {cleared_at: null})],
+    ['a clearing with a time that is not one', receipt('cleared', {cleared_at: 'later'})],
+    ['a clearing by nobody', receipt('cleared', {cleared_by: null})],
+    ['a clearing by something that is not a user', receipt('already_cleared', {cleared_by: 'seed:local:e2e'})],
+  ])('treats %s as no answer at all', async (_name, answer) => {
+    await expect(clearOverrunIncident(operation, input, fake(answer).options)).rejects.toBeInstanceOf(AccountsUnavailableError);
+  });
+
+  it('throws, so the caller can tell the person to check, when the database cannot be reached: the clearing may have been made', async () => {
+    await expect(clearOverrunIncident(operation, input, {env, fetch: async () => { throw new TypeError('fetch failed'); }})).rejects.toMatchObject({name: 'AccountsUnavailableError', retryable: true, outcomeUnknown: true});
+    await expect(clearOverrunIncident(operation, input, fake({message: 'no'}, 503).options)).rejects.toMatchObject({retryable: true, outcomeUnknown: true});
+    await expect(clearOverrunIncident(operation, input, fake({code: '22023'}, 400).options)).rejects.toMatchObject({retryable: false, outcomeUnknown: false});
   });
 });

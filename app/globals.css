@@ -943,6 +943,14 @@ textarea.invite-input { display: block; min-block-size: calc(var(--target) * 2);
   .usage-meta > div:not(:first-child) dt { margin-block-start: var(--space-2); }
   .usage-item .status-badge { flex-wrap: wrap; }
 }
+/* Overrun incidents (Story 2.8): a card like an Account's, with its provider, operation (a long ID), amounts and times. Any of them, at 200% text in a 320 px window, wraps inside the card instead of pushing it out. */
+.usage-incident { overflow-wrap: anywhere; }
+.usage-incidents-empty { margin-block-start: var(--space-3); }
+@media (max-width: 30rem) {
+  .usage-incident-meta { display: block; }
+  .usage-incident-meta > div:not(:first-child) dt { margin-block-start: var(--space-2); }
+  .usage-incident .status-badge { flex-wrap: wrap; }
+}
 
 /* ---------- Design kit ---------- */
 .kit-section > h2 { margin-block-end: var(--space-3); }

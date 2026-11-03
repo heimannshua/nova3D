@@ -253,7 +253,8 @@ describe.each(locales)('the detail of an open alarm on the page in %s', (locale)
   it.each([
     ['outbox-age', 200],
     ['lease-expired-unclaimed', 640],
-  ])('labels the %s card (Story 2.7) with its own title, and its age', (condition, age) => {
+    ['unknown-cost', 90_000],
+  ])('labels the %s card (Stories 2.7 and 2.8) with its own title, and its age', (condition, age) => {
     const stuck = view(condition, null, {age_seconds: age}, 6);
     const card = cards(render(locale, [stuck]))[0];
     expect(text(/<h3\b[^>]*>([\s\S]*?)<\/h3>/.exec(card)![1]).trim()).toBe(t(locale, `operations.condition.${condition}` as never));

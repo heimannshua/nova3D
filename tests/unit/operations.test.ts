@@ -57,8 +57,8 @@ describe('the title of a condition', () => {
     expect(Object.keys(conditionTitleKeys).sort()).toEqual(alarmConditions.map((condition) => condition.id).sort());
   });
 
-  it('has its own words for the two conditions Story 2.7 adds, different from every other title', () => {
-    for (const condition of ['outbox-age', 'lease-expired-unclaimed']) {
+  it('has its own words for the three conditions Stories 2.7 and 2.8 add, different from every other title', () => {
+    for (const condition of ['outbox-age', 'lease-expired-unclaimed', 'unknown-cost']) {
       const key = conditionTitleKey(condition)!;
       expect(key, condition).toBe(`operations.condition.${condition}`);
       expect(en[key], condition).toBeTruthy();
@@ -173,7 +173,7 @@ describe('the values of an alarm\'s detail', () => {
     }
   });
 
-  it('are labelled for every integer and boolean the eight conditions put in a detail: a condition that adds one without words fails here, not on the page', () => {
+  it('are labelled for every integer and boolean the nine conditions put in a detail: a condition that adds one without words fails here, not on the page', () => {
     const keys = new Set<string>();
     for (const condition of alarmConditions) {
       const findings = condition.evaluate(everythingWrong(), scheduleRegistry);

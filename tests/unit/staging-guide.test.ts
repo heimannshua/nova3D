@@ -38,6 +38,19 @@ describe('docs/staging.md names every migration', () => {
     expect(rows).toEqual(migrations);
   });
 
+  it('has the Story 2.8 row directly after the Story 2.7 one, and says what it adds: the corrections, the three api functions, the alarm constant and the preflight count', () => {
+    const table = guide.slice(guide.indexOf('| Migration |'));
+    const rows = table.split('\n').filter((line) => /^\| `\d{14}_[a-z0-9_]+\.sql` \|/.test(line));
+    const names = rows.map((row) => /^\| `([^`]+)`/.exec(row)![1]);
+    const index = names.indexOf('20261101120000_reconcile_ambiguous_charges.sql');
+    expect(index).toBeGreaterThan(0);
+    expect(names[index - 1]).toBe('20261031120000_durable_dispatch.sql');
+    const row = rows[index];
+    for (const needle of ['usage.corrections', 'api.reconcile_operation', 'api.list_overrun_incidents', 'api.clear_overrun_incident', 'usage.unknown_cost_alarm_seconds', 'jobs.mark_ambiguous', 'seventy-two', 'api.preflight', '`marked`']) {
+      expect(row, needle).toContain(needle);
+    }
+  });
+
   it('says what each one adds and what it means for the deploy: no empty cell', () => {
     const table = guide.slice(guide.indexOf('| Migration |'));
     for (const row of table.split('\n').filter((line) => /^\| `\d{14}_/.test(line))) {

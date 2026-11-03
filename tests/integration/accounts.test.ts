@@ -52,6 +52,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
   };
   // On purpose changed (Story 2.7): the fifteen functions of the durable dispatch (cancel_account_jobs, cancel_job, claim_attempt, claim_outbox, finish_attempt, finish_operation, list_jobs,
   // mark_published, read_job_detail, record_callback, register_worker, renew_lease, run_step, submit_job, sweep_attempts) are the service role's alone, like the others.
+  // On purpose changed (Story 2.8): the three functions of the reconciliation (clear_overrun_incident, list_overrun_incidents, reconcile_operation) are the service role's alone, like the others.
   const apiFunctions = [
     'accept_job',
     'account_status',
@@ -70,6 +71,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'claim_job_run',
     'claim_ledger_events',
     'claim_outbox',
+    'clear_overrun_incident',
     'complete_step_up',
     'confirm_registration',
     'consume_preauthorization',
@@ -98,6 +100,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'list_expired_staging',
     'list_invitations',
     'list_jobs',
+    'list_overrun_incidents',
     'list_projects',
     'list_usage',
     'lookup_status',
@@ -112,6 +115,7 @@ describe('schema, access and AC-8: anon and authenticated can execute and read n
     'read_job_detail',
     'read_project_request',
     'read_retained_pictures',
+    'reconcile_operation',
     'record_account_refusal',
     'record_alarm_notice',
     'record_callback',

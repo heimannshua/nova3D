@@ -168,15 +168,19 @@ const quote = async (client: Client, who: Who, o: QuoteRequest) => (await rows(c
 const reserve = async (client: Client, who: Who, o: ReserveRequest) => (await rows(client, 'service_role', RESERVE, reserveArgs(who, o)))[0];
 
 type SettleRequest = {operationId: string; classification: 'evidence' | 'deadline' | 'noncharge' | 'unused'; command?: string; input?: number | null; output?: number | null; model?: string | null};
-const settleArgs = (accountId: string, o: SettleRequest) => {
+// On purpose changed (Story 2.8): evidence must carry the model the reservation pinned (otherwise `invalid_evidence`, reason `model_mismatch`), so the model of evidence that does not
+// name one is looked up from the reservation of the operation (a fixed one for an operation that has none, which then answers `unavailable` or `not_settleable` whatever the model).
+const pinnedModel = async (client: Client, operationId: string): Promise<string> =>
+  ((await client.query('select requested_model from usage.reservations where operation_id = $1', [operationId])).rows[0]?.requested_model as string | undefined) ?? 'claude-test-0001';
+const settleArgs = (accountId: string, o: SettleRequest, pinned = 'claude-test-0001') => {
   const evidence = o.classification === 'evidence';
-  return [accountId, o.command ?? randomUUID(), o.operationId, o.classification, o.input === undefined ? (evidence ? 1000 : null) : o.input, o.output === undefined ? (evidence ? 500 : null) : o.output, o.model === undefined ? (evidence ? 'claude-test-0001' : null) : o.model];
+  return [accountId, o.command ?? randomUUID(), o.operationId, o.classification, o.input === undefined ? (evidence ? 1000 : null) : o.input, o.output === undefined ? (evidence ? 500 : null) : o.output, o.model === undefined ? (evidence ? pinned : null) : o.model];
 };
-const settle = async (client: Client, accountId: string, o: SettleRequest) => (await rows(client, 'service_role', SETTLE, settleArgs(accountId, o)))[0];
+const settle = async (client: Client, accountId: string, o: SettleRequest) => (await rows(client, 'service_role', SETTLE, settleArgs(accountId, o, o.classification === 'evidence' && o.model === undefined ? await pinnedModel(client, o.operationId) : undefined)))[0];
 // The same calls on a connection that is not inside a transaction (the committed cases), as the owner: the api functions are security definer all the same.
 const quoteNow = async (client: Client, who: Who, o: QuoteRequest) => (await client.query(QUOTE, quoteArgs(who, o))).rows[0];
 const reserveNow = async (client: Client, who: Who, o: ReserveRequest) => (await client.query(RESERVE, reserveArgs(who, o))).rows[0];
-const settleNow = async (client: Client, accountId: string, o: SettleRequest) => (await client.query(SETTLE, settleArgs(accountId, o))).rows[0];
+const settleNow = async (client: Client, accountId: string, o: SettleRequest) => (await client.query(SETTLE, settleArgs(accountId, o, o.classification === 'evidence' && o.model === undefined ? await pinnedModel(client, o.operationId) : undefined))).rows[0];
 
 // Reading the ledgers -----------------------------------------------------------------------------------------------------------
 
@@ -832,7 +836,7 @@ describe('reserving: one reservation for one operation, judged in order, and not
       await moveTo(client, over, 'completed');
       expect(await settle(client, a.accountId, {operationId: over, classification: 'evidence', input: 0, output: 1500})).toMatchObject({outcome: 'settled', settled: 1_500_000, over: 500_000});
       expect(await exposureOf(client, job.jobId)).toBe(2_900_000);
-      // The overrun blocks the provider; the owner clears it, as Story 2.8 will, and the Job has $2.10 left: two $1.00 operations fit, then $0.10 exactly, and not a microdollar more.
+      // The overrun blocks the provider; the owner clears it here (Story 2.8's api.clear_overrun_incident clears one for the fresh-authenticated Administrator; the row guard is the same), and the Job has $2.10 left: two $1.00 operations fit, then $0.10 exactly, and not a microdollar more.
       await client.query(`update usage.overrun_incidents set cleared_at = clock_timestamp(), cleared_by = 'user:administrator' where account_id = $1`, [a.accountId]);
       expect(await reserve(client, a, {schedule: exact, operationId: rest[0], output: 1000})).toMatchObject({outcome: 'reserved'});
       expect(await reserve(client, a, {schedule: exact, operationId: rest[1], output: 1000})).toMatchObject({outcome: 'reserved'});
@@ -933,7 +937,7 @@ describe('reserving: one reservation for one operation, judged in order, and not
       expect(await reserve(client, b, {schedule: std, operationId: jobB.operationIds[0]})).toMatchObject({outcome: 'provider_blocked', requested: 312_600, limit: 25 * M, used: 0, available: 25 * M});
       await unchanged(client, b.accountId, ledgerB);
       expect(await reserve(client, b, {schedule: elsewhere, operationId: jobB.operationIds[0]})).toMatchObject({outcome: 'reserved'});
-      // Cleared (as the owner here, as the fresh-authenticated Administrator in Story 2.8): admitted again.
+      // Cleared (by the owner here; by api.clear_overrun_incident for the fresh-authenticated Administrator since Story 2.8, which sets the same two columns): admitted again.
       await client.query(`update usage.overrun_incidents set cleared_at = clock_timestamp(), cleared_by = 'user:administrator' where id = $1`, [incident.id]);
       expect(await reserve(client, a, {schedule: std, operationId: jobA.operationIds[0]})).toMatchObject({outcome: 'reserved'});
     });
@@ -1129,14 +1133,14 @@ describe('settling: evidence, deadline, noncharge and unused each release the wh
       expect(held.amount).toBe(312_600);
       await moveTo(client, held.operationId, 'completed');
       const command = randomUUID();
-      const answer = await settle(client, a.accountId, {operationId: held.operationId, classification: 'evidence', command, input: 1000, output: 500, model: 'claude-test-20260101'});
+      const answer = await settle(client, a.accountId, {operationId: held.operationId, classification: 'evidence', command, input: 1000, output: 500, model: std.model});
       // 1,000 x 3 + 500 x 15 = 10,500.
       expect(answer).toMatchObject({
         outcome: 'settled', reservation_id: held.reservationId, operation_id: held.operationId, classification: 'evidence', settled: 10_500, released: 312_600, over: 0, incident_id: null,
         state: null, due_at: null, reason: null,
       });
       expect(await settlementRow(client, answer.settlement_id)).toMatchObject({
-        account_id: a.accountId, reservation_id: held.reservationId, classification: 'evidence', settled: 10_500, released: 312_600, input_tokens: 1000, output_tokens: 500, returned_model: 'claude-test-20260101',
+        account_id: a.accountId, reservation_id: held.reservationId, classification: 'evidence', settled: 10_500, released: 312_600, input_tokens: 1000, output_tokens: 500, returned_model: std.model,
       });
       const period = (await client.query('select id from usage.periods where account_id = $1 order by seq desc limit 1', [a.accountId])).rows[0].id;
       expect(answer.period_id).toBe(period);
@@ -1337,7 +1341,7 @@ describe('settling: evidence, deadline, noncharge and unused each release the wh
       expect((await settle(client, a.accountId, {operationId: job.operationIds[0], classification: 'evidence', command: settleCommand, input: 10, output: 10})).outcome).toBe('replayed');
       // The settlement goes (as the owner, as a purge or a bad restore might): the settle receipt names nothing.
       await client.query('delete from usage.settlements where id = $1', [settled.settlement_id]);
-      const settleReplay = await attempt(client, 'service_role', SETTLE, settleArgs(a.accountId, {operationId: job.operationIds[0], classification: 'evidence', command: settleCommand, input: 10, output: 10}));
+      const settleReplay = await attempt(client, 'service_role', SETTLE, settleArgs(a.accountId, {operationId: job.operationIds[0], classification: 'evidence', command: settleCommand, input: 10, output: 10, model: std.model}));
       expect(settleReplay.ok).toBe(false);
       if (!settleReplay.ok) {
         expect(settleReplay.code).toBe('55000');
@@ -1670,7 +1674,7 @@ describe('the ledgers are immutable, owned by composite keys, and guarded where 
         if (!result.ok) expect(result.code, sql).toBe('55000');
       }
       // Truncating one of them is refused too. (A table another one refers to is named with its referrers, so the trigger and not the foreign key answers.)
-      const together = await attempt(client, null, 'truncate usage.periods, usage.rate_schedules, usage.reservations, usage.settlements, usage.overrun_incidents, usage.commands');
+      const together = await attempt(client, null, 'truncate usage.periods, usage.rate_schedules, usage.reservations, usage.settlements, usage.corrections, usage.overrun_incidents, usage.commands');
       expect(together.ok).toBe(false);
       if (!together.ok) expect(together.code).toBe('55000');
       const alone = await attempt(client, null, 'truncate usage.commands');
@@ -1686,7 +1690,8 @@ describe('the ledgers are immutable, owned by composite keys, and guarded where 
   });
 
   it('has, on every table that is never emptied, an enabled BEFORE TRUNCATE trigger that raises 55000 of its own (a truncate can also be refused by a foreign key, or by the trigger of another table named with it)', async () => {
-    const guards = await truncateGuards(db, ['usage.periods', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands', 'jobs.operations']);
+    // On purpose changed (Story 2.8): the corrections (which an incident can name, and which refer to the periods, the reservations and the settlements) have the guard too.
+    const guards = await truncateGuards(db, ['usage.periods', 'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.corrections', 'usage.overrun_incidents', 'usage.commands', 'jobs.operations']);
     for (const [table, found] of Object.entries(guards)) expect(found.length, `${table} has a BEFORE TRUNCATE trigger that raises 55000`).toBeGreaterThanOrEqual(1);
     // The two tables nothing refers to are refused by their own trigger when they are truncated alone.
     await inTx(async (client) => {
@@ -2200,12 +2205,12 @@ describe('concurrency: one lock for an Account makes the limits hold however man
       await moveTo(db, operationId, 'completed');
     }
     // The same evidence under six command IDs.
-    const same = await concurrently(6, (client) => client.query(SETTLE, settleArgs(a.accountId, {operationId: job.operationIds[0], classification: 'evidence', input: 0, output: 400})));
+    const same = await concurrently(6, (client) => client.query(SETTLE, settleArgs(a.accountId, {operationId: job.operationIds[0], classification: 'evidence', input: 0, output: 400, model: exact.model})));
     expect(outcomes(same)).toEqual(['replayed', 'replayed', 'replayed', 'replayed', 'replayed', 'settled']);
     expect(new Set(same.map((answer) => (answer as {rows: {settlement_id: string}[]}).rows[0].settlement_id)).size).toBe(1);
     expect(await count(db, 'select count(*) as n from usage.settlements where reservation_id = (select id from usage.reservations where operation_id = $1)', [job.operationIds[0]])).toBe(1);
     // Different evidence under different command IDs: one wins, the other is told what was settled.
-    const different = await concurrently(2, (client, index) => client.query(SETTLE, settleArgs(a.accountId, {operationId: job.operationIds[1], classification: 'evidence', input: 0, output: 300 + index})));
+    const different = await concurrently(2, (client, index) => client.query(SETTLE, settleArgs(a.accountId, {operationId: job.operationIds[1], classification: 'evidence', input: 0, output: 300 + index, model: exact.model})));
     expect(outcomes(different)).toEqual(['already_settled', 'settled']);
     expect(await count(db, 'select count(*) as n from usage.settlements where reservation_id = (select id from usage.reservations where operation_id = $1)', [job.operationIds[1]])).toBe(1);
     expect(await ledgerOf(db, a.accountId)).toMatchObject({reservations: 2, settlements: 2, commands: 2 + 6 + 1});
@@ -2268,7 +2273,8 @@ describe('the typed module over REST, as the application will call it (committed
     // Settling takes the Account alone: not settleable while the operation is planned, then evidence above the reservation, which makes an incident and blocks the provider.
     expect(await settleCost({accountId: a.accountId}, {commandId: randomUUID(), operationId: first, classification: 'unused'}, {env})).toEqual({outcome: 'not_settleable', state: 'planned'});
     await moveTo(db, first, 'completed');
-    const evidence = {inputTokens: 30_000, outputTokens: 16_000, returnedModel: 'claude-test-20260101'};
+    // On purpose changed (Story 2.8): evidence carries the model the reservation pinned (the schedule's), not any model.
+    const evidence = {inputTokens: 30_000, outputTokens: 16_000, returnedModel: std.model};
     const settlement = await settleCost({accountId: a.accountId}, {commandId: randomUUID(), operationId: first, classification: 'evidence', evidence}, {env});
     expect(settlement).toMatchObject({outcome: 'settled', settlement: {operationId: first, classification: 'evidence', settledMicrodollars: 330_000, releasedMicrodollars: 312_600, overMicrodollars: 17_400}});
     expect(settlement.outcome === 'settled' && settlement.settlement.incidentId).toMatch(/^[0-9a-f-]{36}$/);
@@ -2299,9 +2305,10 @@ describe('the preflight carries the Story 2.6 tables and functions', () => {
     'usage.input_bound(bigint,integer)', 'usage.price(uuid,numeric,numeric,integer)', 'usage.job_exposure(uuid)', 'usage.overhead_tokens()', 'usage.image_tokens()', 'usage.margin_percent()',
     'usage.input_ceiling()', 'usage.output_ceiling()', 'usage.request_ceiling()', 'usage.operation_cap()', 'usage.job_cap()', 'usage.ambiguity_deadline()',
   ];
-  const newTables = ['usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands'];
+  // On purpose changed (Story 2.8): the corrections table is read by the preflight too (the sixth of these tables).
+  const newTables = ['usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.corrections', 'usage.commands'];
 
-  it('answers ok to the service role, reads the five new tables, no longer reads the stand-in, and looks for the functions (fifty-four in all)', async () => {
+  it('answers ok to the service role, reads the six new tables (the five of Story 2.6 and the corrections of Story 2.8), no longer reads the stand-in, and looks for the functions (fifty-four in all)', async () => {
     await inTx(async (client) => {
       expect((await rows(client, 'service_role', 'select ok from api.preflight()'))[0]).toEqual({ok: true});
     });
@@ -2316,7 +2323,8 @@ describe('the preflight carries the Story 2.6 tables and functions', () => {
     const executable = definition.slice(definition.lastIndexOf('unnest(array[', check), check);
     // On purpose changed (Story 2.5): fifty-four since it added the grant, the read and the revoke of the provider permissions and the permissioned reserve_cost (it was fifty after the three functions of the cost reservations).
     // On purpose changed (Story 2.7): sixty-nine since it added the fifteen functions of the durable dispatch (it was fifty-four after the provider permissions).
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(69);
+    // On purpose changed (Story 2.8): seventy-two since it added the three functions of the reconciliation, `reconcile_operation`, `list_overrun_incidents` and `clear_overrun_incident` (it was sixty-nine after the durable dispatch).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(72);
     for (const signature of apiSignatures) expect(executable, signature).toContain(`'${signature}'`);
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));
   });

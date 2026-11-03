@@ -32,6 +32,7 @@ const PERIOD = '5d6e7f80-9a1b-4c2d-8e3f-4a5b6c7d8e9f';
 const RESERVATION = '6e7f8091-a2b3-4c4d-8e5f-6a7b8c9d0e1f';
 const SETTLEMENT = '7f8091a2-b3c4-4d5e-8f6a-7b8c9d0e1f2a';
 const INCIDENT = '8091a2b3-c4d5-4e6f-8a7b-8c9d0e1f2a3b';
+const CORRECTION = '91a2b3c4-d5e6-4f7a-8b8c-9d0e1f2a3b4c';
 const COMMAND = '11111111-2222-4333-8444-555555555555';
 const env = {NEXT_PUBLIC_SUPABASE_URL: 'https://abcdefgh.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'service-key-for-tests-only'};
 const operation = {accountId: ACCOUNT, epoch: 3};
@@ -148,6 +149,23 @@ const settlementFields = (patch: Record<string, unknown> = {}) => ({
   ...patch,
 });
 
+/**
+ * What the database answers for evidence that arrived after the deadline had settled the reservation (Story 2.8): the settlement fields are the deadline settlement, unchanged
+ * (settled at the whole reservation, released the same), and the correction is the signed delta from it. The row's over amount and incident are the correction's.
+ */
+const correctionFields = (patch: Record<string, unknown> = {}) =>
+  settlementFields({
+    outcome: 'corrected',
+    classification: 'deadline',
+    settled_microdollars: 200_000,
+    released_microdollars: 200_000,
+    over_microdollars: 0,
+    incident_id: null,
+    correction_id: CORRECTION,
+    delta_microdollars: -50_000,
+    ...patch,
+  });
+
 const evidence = {inputTokens: 21_000, outputTokens: 3_500, returnedModel: 'claude-sonnet-5-5-20261001'};
 
 describe('the recorded constants and the vocabularies', () => {
@@ -180,6 +198,11 @@ describe('the recorded constants and the vocabularies', () => {
     ]);
     expect(costRefusals).toEqual(['unavailable_bound', 'provider_blocked', 'over_operation_cap', 'over_job_cap', 'insufficient_allowance']);
     expect(settlementClassifications).toEqual(['evidence', 'deadline', 'noncharge', 'unused']);
+  });
+
+  it('keeps the four settlement classes (Story 2.8 added no class word: a correction is its own entry, not a class)', () => {
+    expect([...settlementClassifications]).toEqual(['evidence', 'deadline', 'noncharge', 'unused']);
+    expect(Object.keys(settleableStates)).toEqual(['evidence', 'deadline', 'noncharge', 'unused']);
   });
 
   it('holds the operation states equal to the Jobs module\'s, which this module may not import', () => {
@@ -795,6 +818,139 @@ describe('settleCost', () => {
 
   it('reads invalid_evidence for evidence that prices above the largest amount, naming the overflow', async () => {
     expect(await settle(settlementFields({outcome: 'invalid_evidence', reason: 'overflow'}))).toEqual({outcome: 'invalid_evidence', reason: 'overflow'});
+  });
+
+  it('reads invalid_evidence for a returned model other than the one the reservation pinned, naming the model mismatch', async () => {
+    expect(await settle(settlementFields({outcome: 'invalid_evidence', reason: 'model_mismatch'}))).toEqual({outcome: 'invalid_evidence', reason: 'model_mismatch'});
+  });
+
+  it('names no other reason for invalid_evidence than overflow and model_mismatch', async () => {
+    for (const reason of ['unpriced', 'unknown_rate', 'model', 'mismatch', '', null]) await expectUnexpected(settle(settlementFields({outcome: 'invalid_evidence', reason})));
+  });
+
+  it.each(['deadline', 'noncharge', 'unused'] as const)('throws for invalid_evidence with the model mismatch for the class %s (only evidence is compared with a model)', async (classification) => {
+    await expectUnexpected(settle(settlementFields({outcome: 'invalid_evidence', reason: 'model_mismatch'}), {classification, evidence: null}));
+  });
+
+  describe('overflow: a settlement that would take the period\'s settled total over the largest amount writes nothing', () => {
+    it('answers overflow with nothing else for evidence', async () => {
+      expect(await settle({outcome: 'overflow'})).toEqual({outcome: 'overflow'});
+      expect(await settle(settlementFields({outcome: 'overflow'}))).toEqual({outcome: 'overflow'});
+    });
+
+    it.each(['deadline', 'noncharge', 'unused'] as const)('answers overflow with nothing else for the class %s too (the deadline can overflow a period)', async (classification) => {
+      expect(await settle(settlementFields({outcome: 'overflow'}), {classification, evidence: null})).toEqual({outcome: 'overflow'});
+    });
+
+    it('is distinct from invalid_evidence overflow (the evidence alone prices above the largest amount)', async () => {
+      expect(await settle(settlementFields({outcome: 'overflow'}))).not.toEqual(await settle(settlementFields({outcome: 'invalid_evidence', reason: 'overflow'})));
+    });
+  });
+
+  describe('corrected: evidence for a reservation the deadline had settled appends one correction and leaves the settlement alone', () => {
+    const deadline = {...settlement, classification: 'deadline', settledMicrodollars: 200_000, releasedMicrodollars: 200_000, overMicrodollars: 0, incidentId: null};
+
+    it('reads evidence BELOW the booking: a negative delta releases the difference, no incident, the settlement unchanged', async () => {
+      expect(await settle(correctionFields())).toEqual({
+        outcome: 'corrected',
+        settlement: deadline,
+        correction: {id: CORRECTION, deltaMicrodollars: -50_000, overMicrodollars: 0, incidentId: null},
+      });
+    });
+
+    it('reads evidence ABOVE the booking: a positive delta, the same amount over, the incident the evidence made; the deadline settlement still carries neither', async () => {
+      expect(await settle(correctionFields({delta_microdollars: 60_000, over_microdollars: 60_000, incident_id: INCIDENT}))).toEqual({
+        outcome: 'corrected',
+        settlement: deadline,
+        correction: {id: CORRECTION, deltaMicrodollars: 60_000, overMicrodollars: 60_000, incidentId: INCIDENT},
+      });
+    });
+
+    it('reads evidence equal to the booking: a delta of exactly 0 is a correction (a correction is the record that the evidence arrived)', async () => {
+      expect(await settle(correctionFields({delta_microdollars: 0}))).toMatchObject({outcome: 'corrected', correction: {deltaMicrodollars: 0, overMicrodollars: 0, incidentId: null}});
+    });
+
+    it('reads a delta as a signed whole number up to the largest amount either way', async () => {
+      expect(await settle(correctionFields({settled_microdollars: 1e15, released_microdollars: 1e15, delta_microdollars: -1e15}))).toMatchObject({correction: {deltaMicrodollars: -1e15}});
+      expect(await settle(correctionFields({delta_microdollars: 1e15, over_microdollars: 1e15, incident_id: INCIDENT}))).toMatchObject({correction: {deltaMicrodollars: 1e15, overMicrodollars: 1e15}});
+    });
+
+    it('lower-cases the correction and the incident it reads', async () => {
+      expect(await settle(correctionFields({correction_id: CORRECTION.toUpperCase(), delta_microdollars: 5, over_microdollars: 5, incident_id: INCIDENT.toUpperCase()}))).toMatchObject({
+        correction: {id: CORRECTION, incidentId: INCIDENT},
+      });
+    });
+
+    it('sends the same call as any evidence (the Account alone, the command, the operation, the class and the evidence): a correction is the database\'s decision', async () => {
+      const {sent, options} = fake(correctionFields());
+      await settleCost({accountId: ACCOUNT}, input, options);
+      expect(sent[0].body).toEqual({
+        p_account_id: ACCOUNT,
+        p_command_id: COMMAND,
+        p_operation_id: OPERATION,
+        p_classification: 'evidence',
+        p_input_tokens: 21_000,
+        p_output_tokens: 3_500,
+        p_returned_model: 'claude-sonnet-5-5-20261001',
+      });
+    });
+
+    it('reads the same late evidence again as replayed, with the settlement and the correction that exist', async () => {
+      expect(await settle(correctionFields({outcome: 'replayed'}))).toEqual({
+        outcome: 'replayed',
+        settlement: deadline,
+        correction: {id: CORRECTION, deltaMicrodollars: -50_000, overMicrodollars: 0, incidentId: null},
+      });
+      expect(await settle(correctionFields({outcome: 'replayed', delta_microdollars: 60_000, over_microdollars: 60_000, incident_id: INCIDENT}))).toMatchObject({
+        outcome: 'replayed',
+        correction: {deltaMicrodollars: 60_000, incidentId: INCIDENT},
+      });
+    });
+
+    it('reads other evidence for a reservation that has a correction as already_settled, with the settlement and the correction', async () => {
+      expect(await settle(correctionFields({outcome: 'already_settled'}))).toEqual({
+        outcome: 'already_settled',
+        settlement: deadline,
+        correction: {id: CORRECTION, deltaMicrodollars: -50_000, overMicrodollars: 0, incidentId: null},
+      });
+    });
+
+    it('still reads a replay or an already_settled of an ordinary settlement without a correction member', async () => {
+      expect(await settle(settlementFields({outcome: 'replayed'}))).not.toHaveProperty('correction');
+      expect(await settle(settlementFields({outcome: 'already_settled'}))).not.toHaveProperty('correction');
+      expect(await settle(settlementFields())).not.toHaveProperty('correction');
+    });
+
+    it.each([
+      ['a correction answered as settled (a settlement made now is never a correction)', correctionFields({outcome: 'settled'})],
+      ['corrected with no correction', correctionFields({correction_id: null, delta_microdollars: null})],
+      ['corrected with a delta and no correction', correctionFields({correction_id: null})],
+      ['a settlement (not corrected) with a delta and no correction', settlementFields({delta_microdollars: -5})],
+      ['a correction with no delta', correctionFields({delta_microdollars: null})],
+      ['a correction with a delta that is fractional', correctionFields({delta_microdollars: -0.5})],
+      ['a correction with a delta that is text', correctionFields({delta_microdollars: '-5'})],
+      ['a correction with a delta that is not a safe integer', correctionFields({delta_microdollars: Number.MAX_SAFE_INTEGER + 2})],
+      ['a correction that is not an ID', correctionFields({correction_id: 'nope'})],
+      ['a correction of a settlement that is not a deadline booking', correctionFields({classification: 'evidence'})],
+      ['a correction of a noncharge', correctionFields({classification: 'noncharge', settled_microdollars: 0})],
+      ['a deadline booking that is not the whole reservation', correctionFields({settled_microdollars: 100_000})],
+      ['an over amount that is not the positive part of the delta', correctionFields({delta_microdollars: 60_000, over_microdollars: 50_000, incident_id: INCIDENT})],
+      ['an over amount on a negative delta', correctionFields({delta_microdollars: -60_000, over_microdollars: 60_000, incident_id: INCIDENT})],
+      ['a positive delta with no over amount', correctionFields({delta_microdollars: 60_000, over_microdollars: 0})],
+      ['a positive delta with no incident', correctionFields({delta_microdollars: 60_000, over_microdollars: 60_000, incident_id: null})],
+      ['an incident on a negative delta', correctionFields({incident_id: INCIDENT})],
+      ['an incident on a delta of 0', correctionFields({delta_microdollars: 0, incident_id: INCIDENT})],
+      ['an incident that is not an ID', correctionFields({delta_microdollars: 60_000, over_microdollars: 60_000, incident_id: 'nope'})],
+      ['a correction for another operation', correctionFields({operation_id: OTHER_OPERATION})],
+    ])('throws an unexpected-shape error for %s, and invents nothing', async (_label, answer) => {
+      await expectUnexpected(settle(answer));
+    });
+
+    it.each(['deadline', 'noncharge', 'unused'] as const)('throws for a correction answered to a request of the class %s (a correction is only ever made for evidence)', async (classification) => {
+      await expectUnexpected(settle(correctionFields(), {classification, evidence: null}));
+      await expectUnexpected(settle(correctionFields({outcome: 'replayed'}), {classification, evidence: null}));
+      await expectUnexpected(settle(correctionFields({outcome: 'already_settled'}), {classification, evidence: null}));
+    });
   });
 
   it.each([

@@ -374,7 +374,7 @@ describe('publishSubmitted', () => {
 
 describe('runOutboxSweep', () => {
   beforeEach(() => {
-    answers.sweep_attempts = () => json({expired: 1, cancelled: 2, settled: 3});
+    answers.sweep_attempts = () => json({expired: 1, cancelled: 2, settled: 3, marked: 4, reconciled: 5, failed: 6});
     answers.mark_published = (body) => json({outcome: 'marked', message_id: body.p_message_id});
   });
 
@@ -385,6 +385,9 @@ describe('runOutboxSweep', () => {
       expired: 1,
       cancelled: 2,
       settled: 3,
+      marked: 4,
+      reconciled: 5,
+      failed: 6,
       claimed: 2,
       published: 2,
       publishFailed: 0,
@@ -402,9 +405,30 @@ describe('runOutboxSweep', () => {
   });
 
   it('does the database\'s work and claims nothing with no queue configured: claiming would only hold the rows for a minute', async () => {
-    expect(await runOutboxSweep({config: null, accounts: accounts()})).toEqual({expired: 1, cancelled: 2, settled: 3, claimed: 0, published: 0, publishFailed: 0, configured: false});
+    expect(await runOutboxSweep({config: null, accounts: accounts()})).toEqual({expired: 1, cancelled: 2, settled: 3, marked: 4, reconciled: 5, failed: 6, claimed: 0, published: 0, publishFailed: 0, configured: false});
     expect(await runOutboxSweep({env: {}, accounts: accounts()})).toMatchObject({claimed: 0, configured: false});
     expect(calls()).toEqual(['sweep_attempts', 'sweep_attempts']);
+  });
+
+  it('reports a sweep that marked, reconciled and failed nothing as zeros, and carries the three counts of Story 2.8 into the report whatever else it did', async () => {
+    answers.sweep_attempts = () => json({expired: 0, cancelled: 0, settled: 0, marked: 0, reconciled: 0, failed: 0});
+    expect(await runOutboxSweep({config: null, accounts: accounts()})).toEqual({
+      expired: 0,
+      cancelled: 0,
+      settled: 0,
+      marked: 0,
+      reconciled: 0,
+      failed: 0,
+      claimed: 0,
+      published: 0,
+      publishFailed: 0,
+      configured: false,
+    });
+  });
+
+  it('refuses a sweep answer that lacks one of the three new counts (the shape is checked, nothing is invented)', async () => {
+    answers.sweep_attempts = () => json({expired: 1, cancelled: 2, settled: 3});
+    await expect(runOutboxSweep({config: null, accounts: accounts()})).rejects.toMatchObject({name: 'AccountsUnavailableError'});
   });
 
   it('publishes nothing when no row is old enough', async () => {

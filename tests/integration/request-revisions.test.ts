@@ -1370,7 +1370,8 @@ describe('the preflight carries the Story 2.1 table and functions', () => {
     // On purpose changed (Story 2.6): fifty since it added the three functions of the cost reservations (it was forty-seven after the six functions of the Job records).
     // On purpose changed (Story 2.5): fifty-four since it added the grant, the read and the revoke of the provider permissions and the permissioned reserve_cost (it was fifty after the three functions of the cost reservations).
     // On purpose changed (Story 2.7): sixty-nine since it added the fifteen functions of the durable dispatch (it was fifty-four after the provider permissions).
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(69);
+    // On purpose changed (Story 2.8): seventy-two since it added the three functions of the reconciliation, `reconcile_operation`, `list_overrun_incidents` and `clear_overrun_incident` (it was sixty-nine after the durable dispatch).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(72);
     expect(executable).toContain(create_);
     expect(executable).toContain(read_);
     expect(definition.indexOf('Story 2.1 migration')).toBeLessThan(check);

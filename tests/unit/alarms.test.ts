@@ -375,6 +375,50 @@ describe('the conditions the monitor evaluates', () => {
     expect(database.openAlarms().map((alarm) => alarm.condition).sort()).toEqual(['lease-expired-unclaimed', 'outbox-age']);
   });
 
+  it('raises unknown-cost (Story 2.8) for an unsettled operation of unknown cost older than 87,000 seconds, emails it, refreshes it while it lasts, and resolves it once the operation is settled', async () => {
+    const database = fakeDatabase();
+    const mail = sender();
+    const options = deps(database, mail);
+    database.observed.value.unknown_cost_oldest = 87_000;
+    expect(await runAlarmMonitor(options)).toEqual({raised: 0, resolved: 0, mailed: 0, mailFailed: 0});
+    database.observed.value.unknown_cost_oldest = 87_001;
+    expect(await runAlarmMonitor(options)).toEqual({raised: 1, resolved: 0, mailed: 1, mailFailed: 0});
+    expect(database.alarms).toEqual([expect.objectContaining({condition: 'unknown-cost', subject: null, detail: {age_seconds: 87_001}})]);
+    expect(mail.mails[0]).toMatchObject({condition: 'unknown-cost', subject: null});
+    database.advance(60_000);
+    database.observed.value.unknown_cost_oldest = 87_061;
+    expect(await runAlarmMonitor(options)).toEqual({raised: 1, resolved: 0, mailed: 0, mailFailed: 0});
+    expect(database.alarms).toHaveLength(1);
+    expect(database.alarms[0].detail).toEqual({age_seconds: 87_061});
+    // The sweep (or evidence) settled it: no operation of unknown cost is left.
+    database.advance(60_000);
+    database.observed.value.unknown_cost_oldest = null;
+    expect(await runAlarmMonitor(options)).toEqual({raised: 0, resolved: 1, mailed: 0, mailFailed: 0});
+    expect(database.alarms[0].resolvedAt).toBe(START + 120_000);
+  });
+
+  it('keeps unknown-cost apart from the outbox and the lease alarms, and it is not the heartbeat\'s to raise or resolve', async () => {
+    const database = fakeDatabase();
+    const mail = sender();
+    database.observed.value.unknown_cost_oldest = 100_000;
+    expect(await runAlarmMonitor(deps(database, mail))).toEqual({raised: 1, resolved: 0, mailed: 1, mailFailed: 0});
+    database.observed.value.outbox_oldest = 500;
+    database.advance(60_000);
+    expect(await runAlarmMonitor(deps(database, mail))).toMatchObject({raised: 2, resolved: 0});
+    expect(database.alarms.map((alarm) => alarm.condition).sort()).toEqual(['outbox-age', 'unknown-cost']);
+    // The outbox clears and the cost stays: only the outbox alarm resolves.
+    database.observed.value.outbox_oldest = null;
+    database.advance(60_000);
+    expect(await runAlarmMonitor(deps(database, mail))).toMatchObject({resolved: 1});
+    expect(database.openAlarms().map((alarm) => alarm.condition)).toEqual(['unknown-cost']);
+    // The heartbeat's evaluation neither raises nor resolves it.
+    database.advance(60_000);
+    database.observed.value.unknown_cost_oldest = null;
+    const report = await runHeartbeatEvaluation(deps(database, mail, {heartbeatConfigured: true}));
+    expect(report.raised).toBe(0);
+    expect(database.openAlarms().map((alarm) => alarm.condition)).toEqual(['unknown-cost']);
+  });
+
   it('evaluates the real registry against calm observations and finds nothing', async () => {
     const database = fakeDatabase();
     const mail = sender();

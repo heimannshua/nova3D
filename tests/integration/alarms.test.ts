@@ -904,7 +904,8 @@ describe('the preflight carries every earlier probe and the new ones', () => {
     // On purpose changed (Story 2.6): fifty since it added the three functions of the cost reservations (it was forty-seven after the six functions of the Job records).
     // On purpose changed (Story 2.5): fifty-four since it added the grant, the read and the revoke of the provider permissions and the permissioned reserve_cost (it was fifty after the three functions of the cost reservations).
     // On purpose changed (Story 2.7): sixty-nine since it added the fifteen functions of the durable dispatch (it was fifty-four after the provider permissions).
-    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(69);
+    // On purpose changed (Story 2.8): seventy-two since it added the three functions of the reconciliation, `reconcile_operation`, `list_overrun_incidents` and `clear_overrun_incident` (it was sixty-nine after the durable dispatch).
+    expect(executable.match(/'api\.[a-z_]+\([^']*\)'/g)).toHaveLength(72);
     // The bucket check stays last.
     expect(definition.indexOf('private-files')).toBeGreaterThan(definition.indexOf('delete Auth identities'));
   });
@@ -965,8 +966,9 @@ describe('the typed calls against the real stack (lib/lifecycle.ts, over REST)',
   it('reads the real observations: every field the registry reads is the shape the typed call accepts, and the backlog agrees with ledgerPending', async () => {
     const observed = await alarmObservations({env});
     // On purpose changed (Story 2.7): the age of the oldest unpublished outbox row and how long ago the oldest live lease expired (null for none) are observed too.
+    // On purpose changed (Story 2.8): the age of the oldest unsettled operation of unknown cost (null for none) is observed too.
     expect(Object.keys(observed).sort()).toEqual([
-      'firstHeartbeatAge', 'firstReceiptAge', 'latestHeartbeatAge', 'latestReceiptAge', 'leaseExpiredOldest', 'ledgerOldest', 'ledgerWaiting', 'outboxOldest', 'tasks', 'unaccounted',
+      'firstHeartbeatAge', 'firstReceiptAge', 'latestHeartbeatAge', 'latestReceiptAge', 'leaseExpiredOldest', 'ledgerOldest', 'ledgerWaiting', 'outboxOldest', 'tasks', 'unaccounted', 'unknownCostOldest',
     ]);
     const backlog = await ledgerPending({env});
     expect(Math.abs(observed.ledgerWaiting - backlog.pending)).toBeLessThanOrEqual(5);
@@ -1160,7 +1162,8 @@ describe('the monitor end to end against the real database, with a fixture condi
     const observed = await alarmObservations({env});
     const found = evaluateConditions(alarmConditions, 'monitor', {...observed, heartbeatConfigured: true}, scheduleRegistry);
     // On purpose changed (Story 2.7): the monitor also evaluates the outbox age and the abandoned lease.
-    expect(found.map((one) => one.id)).toEqual(['task-late', 'ledger-pending', 'identities-unaccounted', 'heartbeat-stale', 'outbox-age', 'lease-expired-unclaimed']);
+    // On purpose changed (Story 2.8): and the age of an unsettled charge of unknown cost (`unknown-cost`).
+    expect(found.map((one) => one.id)).toEqual(['task-late', 'ledger-pending', 'identities-unaccounted', 'heartbeat-stale', 'outbox-age', 'lease-expired-unclaimed', 'unknown-cost']);
     for (const one of found) {
       expect(one.findings, one.id).not.toBeNull();
       // (The relay's latest receipt may be `no_store` in this database: then `ledger-pending` is unobservable, which is an answer too.)
@@ -1524,7 +1527,7 @@ describe('monitor-late: the heartbeat route sees a stopped monitor (F3)', () => 
       const entry = observed.tasks.find((task) => task.task === 'alarm-monitor');
       expect(entry).toMatchObject({outcome: 'ran'});
       expect(entry!.age).toBeLessThanOrEqual(5);
-      const conditionsSaw = monitorLateCondition.evaluate({firstReceiptAge: Number(observed.first_receipt_age), latestReceiptAge: 1, firstHeartbeatAge: null, latestHeartbeatAge: null, ledgerWaiting: 0, ledgerOldest: null, unaccounted: 0, tasks: observed.tasks as never, outboxOldest: null, leaseExpiredOldest: null, heartbeatConfigured: false}, scheduleRegistry);
+      const conditionsSaw = monitorLateCondition.evaluate({firstReceiptAge: Number(observed.first_receipt_age), latestReceiptAge: 1, firstHeartbeatAge: null, latestHeartbeatAge: null, ledgerWaiting: 0, ledgerOldest: null, unaccounted: 0, tasks: observed.tasks as never, outboxOldest: null, leaseExpiredOldest: null, unknownCostOldest: null, heartbeatConfigured: false}, scheduleRegistry);
       expect(conditionsSaw).toEqual([]);
     });
   });

@@ -1,13 +1,25 @@
 import {renderToStaticMarkup} from 'react-dom/server';
 import {describe, expect, it} from 'vitest';
 import {messageFor, UsageList} from '@/components/admin/usage-list';
+import {incidentMessageFor} from '@/components/admin/usage-incidents';
 import {UsageContent} from '@/components/admin/usage-content';
 import {UsageFailureNotice} from '@/components/admin/usage-failure-notice';
 import {UsageMeter} from '@/components/admin/usage-meter';
 import type {Confirmation} from '@/lib/administration';
 import {createTranslator, isolateLtr, locales, translate, type Locale, type MessageKey} from '@/lib/i18n';
 import {I18nProvider} from '@/lib/i18n/react';
-import {figuresOf, formatDollars, limitBounds, limitProblemKeys, usageStateKeys, type UsageActionState, type UsageRow} from '@/lib/usage-view';
+import {
+  figuresOf,
+  formatDollars,
+  formatIncidentTime,
+  incidentStateKeys,
+  limitBounds,
+  limitProblemKeys,
+  usageStateKeys,
+  type UsageActionState,
+  type UsageIncident,
+  type UsageRow,
+} from '@/lib/usage-view';
 
 // Story 2.4: the Administrator's Usage and limits page, rendered to markup in both languages, in every state. What needs a browser (the dialog, focus, the
 // live regions, the Server Actions, axe, 320 px at 200% text) is in tests/e2e/usage.spec.ts.
@@ -34,10 +46,10 @@ const DISABLED = row({accountId: '77777777-7777-4777-8777-777777777777', email: 
 const NO_ADDRESS = row({accountId: '88888888-8888-4888-8888-888888888888', email: null});
 const ODD_AMOUNT = row({accountId: '99999999-9999-4999-8999-999999999999', email: 'amit@example.com', settled: 19_999_999});
 
-const render = (locale: Locale, rows: UsageRow[] | null, confirmation: Confirmation = 'confirmed') =>
+const render = (locale: Locale, rows: UsageRow[] | null, confirmation: Confirmation = 'confirmed', incidents: UsageIncident[] | null = []) =>
   renderToStaticMarkup(
     <I18nProvider locale={locale}>
-      <UsageContent rows={rows} confirmation={confirmation}/>
+      <UsageContent rows={rows} incidents={incidents} confirmation={confirmation}/>
     </I18nProvider>,
   );
 /** Isolation marks wrap a value put into a sentence; they carry no words. */
@@ -54,10 +66,16 @@ describe.each(locales)('the Usage and limits page in %s', (locale) => {
   const all = [UNDER, NEARLY, REACHED, OVER, ZERO, ADMINISTRATOR, DISABLED];
   const markup = render(locale, all);
 
-  it('has one level-one heading and one section, the list of Accounts', () => {
+  it('has one level-one heading and two sections, the overrun incidents and then the list of Accounts', () => {
     expect(markup.match(/<h1\b/g)).toHaveLength(1);
     expect(text(markup)).toContain(t(locale, 'usage.title'));
-    expect([...markup.matchAll(/<h2\b[^>]*>(.*?)<\/h2>/g)].map((match) => text(match[1]).trim())).toEqual([t(locale, 'usage.list.title')]);
+    expect([...markup.matchAll(/<h2\b[^>]*>(.*?)<\/h2>/g)].map((match) => text(match[1]).trim())).toEqual([t(locale, 'usage.incidents.title'), t(locale, 'usage.list.title')]);
+  });
+
+  it('says there are no overrun incidents, in a line and not in a card, when there are none', () => {
+    expect(text(markup)).toContain(t(locale, 'usage.incidents.empty'));
+    expect(markup).not.toContain('usage-incident"');
+    expect([...markup.matchAll(/<h3\b/g)]).toHaveLength(all.length);
   });
 
   it('shows one card for each Account, in the order given, and no table', () => {
@@ -387,5 +405,257 @@ describe.each(locales)('what an answer says above a card in %s', (locale) => {
       expect(message, key).not.toMatch(/[{}]/);
     }
     expect(t(locale, 'usage.error.range', limitBounds())).toContain('$10,000.00');
+  });
+});
+
+// Story 2.8: the overrun incidents of the Administrator's page.
+const OPEN: UsageIncident = {
+  id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  accountId: UNDER.accountId,
+  provider: 'anthropic',
+  operationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  jobId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+  reserved: 1_000_000,
+  evidence: 1_750_000,
+  over: 750_000,
+  createdAt: '2026-10-12T00:24:36.123456+00:00',
+  clearedAt: null,
+  clearedBy: null,
+  clearedByEmail: null,
+};
+const CLEARED: UsageIncident = {
+  ...OPEN,
+  id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  accountId: NEARLY.accountId,
+  provider: 'brave',
+  operationId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  reserved: 30_000,
+  evidence: 55_000,
+  over: 25_000,
+  createdAt: '2026-10-11T09:05:00+00:00',
+  clearedAt: '2026-10-12T01:30:00+00:00',
+  clearedBy: 'user:5f0d6c1e-8a52-4c1b-9d57-2b6a1f0e7c44',
+  clearedByEmail: 'josh@example.com',
+};
+const CLEARED_BY_NOBODY: UsageIncident = {...CLEARED, id: 'ffffffff-ffff-4fff-8fff-ffffffffffff', accountId: '12121212-1212-4212-8212-121212121212', clearedByEmail: null};
+const incidentCards = (markup: string) => [...markup.matchAll(/<li class="invite-item usage-incident"[^>]*>([\s\S]*?)<\/li>/g)].map((match) => match[0]);
+
+describe.each(locales)('the overrun incidents in %s', (locale) => {
+  const accounts = [UNDER, NEARLY];
+  const incidents = [OPEN, CLEARED, CLEARED_BY_NOBODY];
+  const markup = render(locale, accounts, 'confirmed', incidents);
+  const cardsOf = incidentCards(markup);
+
+  it('is one card for each incident, in the order given (the database puts the open ones first), and no table', () => {
+    expect(cardsOf).toHaveLength(incidents.length);
+    expect(markup).not.toContain('<table');
+    const providers = cardsOf.map((card) => text(card.match(/<h3[^>]*>([\s\S]*?)<\/h3>/)![1]).trim());
+    expect(providers).toEqual(['anthropic', 'brave', 'brave']);
+    // The incidents come before the Accounts, and the Accounts are as they were.
+    expect(markup.indexOf('usage-incident')).toBeLessThan(markup.indexOf('usage-item'));
+    expect(cards(markup)).toHaveLength(accounts.length);
+  });
+
+  it('shows the provider, the operation, the reserved and reported amounts, the amount over and when, from the one formatter', () => {
+    const open = facts(cardsOf[0]);
+    expect(open[t(locale, 'usage.incident.row.operation')]).toBe(OPEN.operationId);
+    expect(open[t(locale, 'usage.incident.row.reserved')]).toBe('$1.00');
+    expect(open[t(locale, 'usage.incident.row.evidence')]).toBe('$1.75');
+    expect(open[t(locale, 'usage.incident.row.over')]).toBe('$0.75');
+    expect(open[t(locale, 'usage.incident.row.when')]).toBe('2026-10-12 00:24');
+    const cleared = facts(cardsOf[1]);
+    expect(cleared[t(locale, 'usage.incident.row.reserved')]).toBe(formatDollars(30_000));
+    expect(cleared[t(locale, 'usage.incident.row.evidence')]).toBe(formatDollars(55_000));
+    expect(cleared[t(locale, 'usage.incident.row.over')]).toBe('$0.025');
+    expect(cleared[t(locale, 'usage.incident.row.when')]).toBe(formatIncidentTime(CLEARED.createdAt));
+    // The amounts reconcile: the evidence is the reservation and the amount over.
+    for (const [index, incident] of incidents.entries()) {
+      const shown = facts(cardsOf[index]);
+      expect(dollars(shown[t(locale, 'usage.incident.row.reserved')]) + dollars(shown[t(locale, 'usage.incident.row.over')])).toBeCloseTo(dollars(shown[t(locale, 'usage.incident.row.evidence')]), 6);
+      expect(incident.reserved + incident.over).toBe(incident.evidence);
+    }
+  });
+
+  it('names the Account of an incident by the address the list of Accounts has, says "no address" only for an Account in the list that has none, and says "not in the list" otherwise', () => {
+    expect(facts(cardsOf[0])[t(locale, 'usage.incident.row.account')]).toBe('dana@example.com');
+    expect(facts(cardsOf[1])[t(locale, 'usage.incident.row.account')]).toBe('noa+<ben>@example.com');
+    // An Account beyond the Accounts the list shows: Auth vouching for no address is NOT what is meant, so it does not say that.
+    expect(facts(cardsOf[2])[t(locale, 'usage.incident.row.account')]).toBe(t(locale, 'usage.incident.row.accountUnlisted'));
+    // An Account in the list whose address Auth no longer vouches for keeps the old words.
+    const listed = render(locale, [NO_ADDRESS], 'confirmed', [{...OPEN, accountId: NO_ADDRESS.accountId}]);
+    expect(facts(incidentCards(listed)[0])[t(locale, 'usage.incident.row.account')]).toBe(t(locale, 'usage.row.noAddress'));
+    // The usage of the Accounts could not be read: the incidents are still shown, and none of their Accounts is in a list that is not there.
+    const alone = render(locale, null, 'confirmed', [OPEN]);
+    expect(facts(incidentCards(alone)[0])[t(locale, 'usage.incident.row.account')]).toBe(t(locale, 'usage.incident.row.accountUnlisted'));
+    expect(t(locale, 'usage.incident.row.accountUnlisted')).not.toBe(t(locale, 'usage.row.noAddress'));
+  });
+
+  it('says open or cleared as a word and a shape, in a tone, and what it means for the provider', () => {
+    const expectations = [
+      [0, 'open', 'danger'],
+      [1, 'cleared', 'success'],
+    ] as const;
+    for (const [index, state, tone] of expectations) {
+      const card = cardsOf[index];
+      const badge = card.match(/<span class="status-badge (tone-[a-z-]+)">(<svg[\s\S]*?<\/svg>)<span>(.*?)<\/span><\/span>/);
+      expect(badge, `card ${index}`).not.toBeNull();
+      expect(badge![1]).toBe(`tone-${tone}`);
+      expect(badge![2]).toContain('aria-hidden="true"');
+      expect(badge![3]).toBe(t(locale, incidentStateKeys[state].label));
+      expect(bare(text(card))).toContain(bare(t(locale, incidentStateKeys[state].note, {provider: isolateLtr(index === 0 ? 'anthropic' : 'brave')})));
+      expect(card).toContain(`data-state="${state}"`);
+    }
+    const shapes = [0, 1].map((index) => cardsOf[index].match(/<span class="status-badge tone-[a-z-]+">(<svg[\s\S]*?<\/svg>)/)![1]);
+    expect(new Set(shapes).size).toBe(2);
+  });
+
+  it('says, for a cleared incident, when and by whom, and for an open one neither', () => {
+    const open = facts(cardsOf[0]);
+    expect(t(locale, 'usage.incident.row.clearedAt') in open).toBe(false);
+    expect(t(locale, 'usage.incident.row.clearedBy') in open).toBe(false);
+    const cleared = facts(cardsOf[1]);
+    expect(cleared[t(locale, 'usage.incident.row.clearedAt')]).toBe('2026-10-12 01:30');
+    expect(cleared[t(locale, 'usage.incident.row.clearedBy')]).toBe('josh@example.com');
+    expect(facts(cardsOf[2])[t(locale, 'usage.incident.row.clearedBy')]).toBe(t(locale, 'usage.row.noAddress'));
+    // Nothing in a cleared card, but the facts, can be pressed.
+    for (const card of [cardsOf[1], cardsOf[2]]) {
+      expect(card).not.toContain('<button');
+      expect(card).not.toContain('<form');
+    }
+  });
+
+  it('offers Review and clear to an open incident only, naming which incident it clears, with its Account, the incident and a command that is made when it is sent', () => {
+    const card = cardsOf[0];
+    const button = card.match(/<button[^>]*aria-label="([^"]+)"[^>]*>/);
+    expect(button).not.toBeNull();
+    const label = button![1].replace(/&#x27;/g, "'").replace(/&amp;/g, '&');
+    // The name carries the first 8 characters of the operation ID, so two incidents of one provider recorded in the same minute have different names.
+    expect(label).toBe(t(locale, 'usage.incident.clear.label', {provider: isolateLtr('anthropic'), operation: isolateLtr(OPEN.operationId.slice(0, 8)), when: isolateLtr('2026-10-12 00:24')}));
+    expect(label).toContain(OPEN.operationId.slice(0, 8));
+    const sameMinute = render(locale, [UNDER], 'confirmed', [OPEN, {...OPEN, id: 'a1a1a1a1-aaaa-4aaa-8aaa-aaaaaaaaaaaa', operationId: 'b2b2b2b2-bbbb-4bbb-8bbb-bbbbbbbbbbbb'}]);
+    const labels = incidentCards(sameMinute).flatMap((entry) => [...entry.matchAll(/<button[^>]*aria-label="([^"]+)"[^>]*>/g)].map((match) => match[1]));
+    expect(labels).toHaveLength(2);
+    expect(new Set(labels).size).toBe(2);
+    // The visible word is inside the accessible name.
+    expect(text(card)).toContain(t(locale, 'usage.incident.clear.button'));
+    expect(label).toContain(t(locale, 'usage.incident.clear.button'));
+    expect(card).toContain(`name="accountId" value="${OPEN.accountId}"`);
+    expect(card).toContain(`name="incidentId" value="${OPEN.id}"`);
+    expect(card).toMatch(/name="commandId"[^>]*value=""/);
+    expect(card.match(/<input type="hidden"/g)).toHaveLength(3);
+    expect(markup.match(/<button[^>]*aria-label="[^"]*"[^>]*>(?:(?!<\/button>)[\s\S])*<\/button>/g)?.filter((entry) => entry.includes(t(locale, 'usage.incident.clear.button')))).toHaveLength(1);
+  });
+
+  it('holds no confirmation dialog, no alert and no outcome message until something is done', () => {
+    expect(markup).not.toContain('<dialog');
+    expect(markup).not.toContain('role="alert"');
+    expect(markup).not.toContain('notice-warning');
+  });
+
+  it('keeps the provider, the operation, every amount and every time left to right', () => {
+    expect(markup).toMatch(/<bdi[^>]*class="ltr-token"[^>]*>anthropic<\/bdi>/);
+    expect(markup).toMatch(new RegExp(`<bdi[^>]*class="ltr-token"[^>]*>${OPEN.operationId}</bdi>`));
+    expect(markup).toMatch(/<bdi[^>]*class="ltr-token"[^>]*>\$1\.75<\/bdi>/);
+    expect(markup).toMatch(/<bdi[^>]*class="ltr-token"[^>]*><time dateTime="2026-10-12T00:24:36\.123Z">2026-10-12 00:24<\/time><\/bdi>/);
+  });
+
+  it('says the incidents could not be loaded, and lists none, when they could not; the Accounts are still there', () => {
+    const failed = render(locale, accounts, 'confirmed', null);
+    expect(text(failed)).toContain(t(locale, 'usage.incidents.error.title'));
+    expect(text(failed)).toContain(t(locale, 'usage.incidents.error.body'));
+    expect(failed).toContain('role="alert"');
+    expect(failed).not.toContain('usage-incident"');
+    expect(text(failed)).not.toContain(t(locale, 'usage.incidents.empty'));
+    expect(cards(failed)).toHaveLength(accounts.length);
+  });
+
+  it('keeps its explanation to the incidents: what an incident is, that the provider is blocked for every Account, and that only amounts are listed', () => {
+    expect(text(markup)).toContain(t(locale, 'usage.incidents.help'));
+    if (locale === 'en') {
+      expect(t('en', 'usage.incidents.help')).toMatch(/blocked for every Account/);
+      expect(t('en', 'usage.incidents.help')).toMatch(/never projects or files/);
+    }
+  });
+
+  it('holds the Hebrew to Hebrew: no Latin word apart from addresses, providers and operation IDs, and no currency or time-zone code', () => {
+    if (locale !== 'he') return;
+    const words = text(markup)
+      .replace(/\S*@\S+/g, '')
+      .replace(/anthropic|brave/g, '')
+      .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '');
+    expect(words.match(/[A-Za-z]{2,}/g) ?? []).toEqual([]);
+    expect(words).not.toMatch(/USD|UTC/);
+    expect(markup).toContain('dir="ltr"');
+  });
+});
+
+describe.each(locales)('the overrun incidents with nothing to show in %s', (locale) => {
+  it('is a line, not a card, for none; and says the step-up is needed to clear when it is', () => {
+    const none = render(locale, [UNDER], 'needed', []);
+    expect(text(none)).toContain(t(locale, 'usage.incidents.empty'));
+    expect(text(none)).toContain(t(locale, 'usage.confirm.needed'));
+    expect(none).not.toContain('<dialog');
+  });
+
+  it('puts the step-up note first when it is needed, then the incidents, then the Accounts', () => {
+    const needed = render(locale, [UNDER], 'needed', [OPEN]);
+    expect(needed.indexOf('/step-up?for=administration')).toBeLessThan(needed.indexOf('usage-incident"'));
+    expect(needed.indexOf('usage-incident"')).toBeLessThan(needed.indexOf('usage-item"'));
+  });
+});
+
+describe.each(locales)('the failure notice about an incident in %s', (locale) => {
+  const render = (state: UsageActionState) =>
+    renderToStaticMarkup(
+      <I18nProvider locale={locale}>
+        <UsageFailureNotice state={state} about="incident"/>
+      </I18nProvider>,
+    );
+
+  it('offers the step-up, as an alert, when there is no fresh sign-in or it ran out', () => {
+    const markup = render({outcome: 'refused', stepUp: true});
+    expect(text(markup)).toContain(t(locale, 'usage.error.needsConfirm'));
+    expect(markup).toMatch(/<a [^>]*href="\/step-up\?for=administration"[^>]*>/);
+    expect(markup).toContain('role="alert"');
+  });
+
+  it.each([
+    [{outcome: 'refused', stepUp: false}, 'usage.error.refused'],
+    [{outcome: 'denied'}, 'usage.incident.error.denied'],
+    [{outcome: 'unavailable', unknown: false}, 'usage.error.unavailable'],
+    [{outcome: 'unavailable', unknown: true}, 'usage.incident.error.unknown'],
+  ] as [UsageActionState, MessageKey][])('says the message for %j, as an alert, without the step-up', (state, key) => {
+    const markup = render(state);
+    expect(text(markup)).toContain(t(locale, key));
+    expect(markup).toContain('role="alert"');
+    expect(markup).not.toContain('/step-up');
+  });
+
+  it.each([{outcome: 'idle'}, {outcome: 'cleared'}, {outcome: 'already_cleared'}, {outcome: 'not_found'}, {outcome: 'stale'}] as UsageActionState[])('says nothing for %j', (state) => {
+    expect(render(state)).toBe('');
+  });
+});
+
+describe.each(locales)('what an answer about an incident says in %s', (locale) => {
+  const translator = createTranslator(locale);
+  const said = (state: UsageActionState) => incidentMessageFor(state, 'anthropic', translator);
+  const params = {provider: isolateLtr('anthropic')};
+
+  it('says a clearing that was made as a success, one that was already made as information, and names the provider', () => {
+    expect(said({outcome: 'cleared'})).toEqual({tone: 'success', text: t(locale, 'usage.incident.done', params)});
+    expect(said({outcome: 'already_cleared'})).toEqual({tone: 'info', text: t(locale, 'usage.incident.alreadyCleared', params)});
+    expect(said({outcome: 'cleared'})?.text).toContain('anthropic');
+  });
+
+  it.each([
+    ['stale', 'usage.incident.error.stale'],
+    ['not_found', 'usage.incident.error.notFound'],
+  ] as const)('warns for %s, with a remedy', (outcome, key) => {
+    expect(said({outcome})).toEqual({tone: 'warning', text: t(locale, key, params)});
+    expect(said({outcome})?.text).not.toMatch(/[{}]/);
+  });
+
+  it.each([{outcome: 'idle'}, {outcome: 'refused', stepUp: true}, {outcome: 'denied'}, {outcome: 'unavailable', unknown: true}, {outcome: 'changed', limit: 1}, {outcome: 'reset'}] as UsageActionState[])('says nothing above the card for %j: the failure notice says it, or it is not about an incident', (state) => {
+    expect(said(state)).toBeNull();
   });
 });

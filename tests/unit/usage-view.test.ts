@@ -7,7 +7,14 @@ import {
   classify,
   figuresOf,
   formatDollars,
+  formatIncidentTime,
   formatMonth,
+  incidentFailureKey,
+  incidentMessageKeys,
+  incidentStateKeys,
+  incidentStateOf,
+  incidentStateTones,
+  incidentTimeIso,
   isLimit,
   isMicrodollars,
   limitBounds,
@@ -25,6 +32,7 @@ import {
   usageStateKeys,
   usageStateTones,
   type UsageActionState,
+  type UsageIncident,
   type UsageState,
 } from '@/lib/usage-view';
 
@@ -362,6 +370,80 @@ describe('words for the rows', () => {
   it('name an Account by its address, or by the stand-in when Auth no longer vouches for one', () => {
     expect(usageNameOf({email: 'dana@example.com'}, 'none')).toBe('dana@example.com');
     expect(usageNameOf({email: null}, 'none')).toBe('none');
+  });
+});
+
+describe('overrun incidents (Story 2.8)', () => {
+  const incident = (over: Partial<UsageIncident> = {}): UsageIncident => ({
+    id: '11111111-1111-4111-8111-111111111111',
+    accountId: '22222222-2222-4222-8222-222222222222',
+    provider: 'anthropic',
+    operationId: '33333333-3333-4333-8333-333333333333',
+    jobId: '44444444-4444-4444-8444-444444444444',
+    reserved: 1_000_000,
+    evidence: 1_500_000,
+    over: 500_000,
+    createdAt: '2026-10-12T00:24:36.123456+00:00',
+    clearedAt: null,
+    clearedBy: null,
+    clearedByEmail: null,
+    ...over,
+  });
+
+  it('is open until it is cleared, and then cleared, with a word, a note and a tone of its own for each', () => {
+    expect(incidentStateOf(incident())).toBe('open');
+    expect(incidentStateOf(incident({clearedAt: '2026-10-12T01:00:00+00:00', clearedBy: 'user:abc'}))).toBe('cleared');
+    expect(Object.keys(incidentStateKeys).sort()).toEqual(['cleared', 'open']);
+    expect(incidentStateTones).toEqual({open: 'danger', cleared: 'success'});
+    for (const locale of locales) {
+      for (const {label, note} of Object.values(incidentStateKeys)) {
+        expect(catalogs[locale][label], `${locale}:${label}`).toBeTruthy();
+        // The note names the provider.
+        expect(placeholdersOf(catalogs[locale][note])).toEqual(['provider']);
+      }
+    }
+    // The two states differ by word, not by colour alone.
+    expect(catalogs.en[incidentStateKeys.open.label]).not.toBe(catalogs.en[incidentStateKeys.cleared.label]);
+  });
+
+  it('writes a time as 2026-10-12 00:24 in UTC, the same on the server and in the browser, and nothing for a time it cannot read', () => {
+    expect(formatIncidentTime('2026-10-12T00:24:36.123456+00:00')).toBe('2026-10-12 00:24');
+    expect(formatIncidentTime('2026-10-12T02:24:36+02:00')).toBe('2026-10-12 00:24');
+    expect(formatIncidentTime('2026-12-31T23:59:59Z')).toBe('2026-12-31 23:59');
+    for (const bad of ['', 'yesterday', '2026-13-45T00:00:00Z']) {
+      expect(formatIncidentTime(bad)).toBe('');
+      expect(incidentTimeIso(bad)).toBeUndefined();
+    }
+    expect(incidentTimeIso('2026-10-12T02:24:36+02:00')).toBe('2026-10-12T00:24:36.000Z');
+    // No zone word in the text: the labels say UTC (and, in Hebrew, say it in Hebrew).
+    expect(formatIncidentTime('2026-10-12T00:24:00Z')).not.toMatch(/[A-Za-z]/);
+  });
+
+  it('has a message, in both languages, for every answer about an incident that is a fixed message, and each names the provider', () => {
+    expect(Object.keys(incidentMessageKeys).sort()).toEqual(['already_cleared', 'cleared', 'not_found', 'stale']);
+    for (const locale of locales) {
+      for (const key of Object.values(incidentMessageKeys)) expect(catalogs[locale][key], `${locale}:${key}`).toBeTruthy();
+      for (const key of [incidentMessageKeys.cleared, incidentMessageKeys.already_cleared, incidentMessageKeys.not_found]) expect(placeholdersOf(catalogs[locale][key]), key).toEqual(['provider']);
+    }
+  });
+
+  it('picks the words of an incident for a refusal that offers the step-up, one that does not, and a failure that may or may not have cleared it', () => {
+    expect(incidentFailureKey({outcome: 'refused', stepUp: true})).toBe('usage.error.needsConfirm');
+    expect(incidentFailureKey({outcome: 'refused', stepUp: false})).toBe('usage.error.refused');
+    expect(incidentFailureKey({outcome: 'unavailable', unknown: false})).toBe('usage.error.unavailable');
+    expect(incidentFailureKey({outcome: 'unavailable', unknown: true})).toBe('usage.incident.error.unknown');
+    // The unknown outcome points at the incidents, not at a card or a limit.
+    expect(catalogs.en['usage.incident.error.unknown']).toMatch(/list of incidents/);
+    expect(catalogs.en['usage.incident.error.denied']).toMatch(/clear an incident/);
+    expect(usageFailureKey({outcome: 'unavailable', unknown: true})).toBe('usage.error.unknown');
+  });
+
+  it('adds the two answers of a clearing to what an action answers, and leaves the others as they were', async () => {
+    const answers: UsageActionState[] = [{outcome: 'cleared'}, {outcome: 'already_cleared'}];
+    for (const answer of answers) expect(await attemptUsageAction(async () => answer, usageActionIdle, new FormData(), vi.fn())).toBe(answer);
+    // The limit actions' messages are not about an incident.
+    expect(Object.keys(usageMessageKeys)).not.toContain('cleared');
+    expect(Object.keys(usageMessageKeys)).not.toContain('already_cleared');
   });
 });
 

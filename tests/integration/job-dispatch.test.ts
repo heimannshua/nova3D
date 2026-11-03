@@ -1015,7 +1015,10 @@ describe('running a claimed attempt: step, operation, settlement, publication', 
       ['finish to', 'select * from api.finish_attempt($1, $2, $3, $4)', [job.attemptId, job.fence, 'cancelled', null]],
       ['completed without digest', 'select * from api.finish_attempt($1, $2, $3, $4)', [job.attemptId, job.fence, 'completed', null]],
       ['failed with digest', 'select * from api.finish_attempt($1, $2, $3, $4)', [job.attemptId, job.fence, 'failed', 'b'.repeat(64)]],
-      ['operation outcome', 'select * from api.finish_operation($1, $2, $3, $4, 1, 1, $5, null)', [job.attemptId, job.fence, randomUUID(), 'ambiguous', 'm']],
+      // On purpose changed (Story 2.8): `ambiguous` is an outcome api.finish_operation accepts now (fenced, no evidence, no tokens), so the unknown outcome is another word; an ambiguous
+      // report that carries evidence is still an invalid argument.
+      ['operation outcome', 'select * from api.finish_operation($1, $2, $3, $4, 1, 1, $5, null)', [job.attemptId, job.fence, randomUUID(), 'settled', 'm']],
+      ['an ambiguous outcome with evidence', 'select * from api.finish_operation($1, $2, $3, $4, 1, 1, $5, null)', [job.attemptId, job.fence, randomUUID(), 'ambiguous', 'm']],
     ];
     for (const [label, sql, params] of bad) {
       const result = await attempt(db, null, sql, params);
@@ -1060,7 +1063,8 @@ describe('leases: renewed in time, expired by the sweep, never extended late', (
     await job.workers.sweep();
     expect((await leaseRow(job.attemptId)).ended_at.getTime()).toBe(endedAt);
     // The dispatched operation is still chargeable and held; the one that never went out was released.
-    expect((await operationRows(job.attemptId)).map((row) => row.state)).toEqual(['dispatched', 'planned'].map((state, index) => (index === 1 ? 'abandoned' : state)));
+    // On purpose changed (Story 2.8): the same sweep marks the dispatched operation of the ended attempt `ambiguous` (its 24-hour clock starts); its reservation stays held.
+    expect((await operationRows(job.attemptId)).map((row) => row.state)).toEqual(['ambiguous', 'abandoned']);
     expect(await figures(a.accountId)).toEqual({settled: 0, reserved: RESERVED});
     // A late renewal, step or finish is refused and publishes nothing; the failure stays terminal until the user retries.
     expect((await job.workers.renew(job.attemptId, job.fence)).outcome).toBe('expired');
@@ -1547,9 +1551,10 @@ describe('the sweep: leases, abandoned reservations and the second layer of the 
     expect(await count(db, `select count(*) as n from usage.settlements where account_id = $1`, [a.accountId])).toBe(2);
   });
 
-  it('returns the three counts as numbers, and an idle sweep changes nothing', async () => {
+  it('returns the six counts as numbers, and an idle sweep changes nothing', async () => {
     const swept = await sweepAttempts({env});
-    expect(Object.keys(swept).sort()).toEqual(['cancelled', 'expired', 'settled']);
+    // On purpose changed (Story 2.8): three counts more, the operations marked ambiguous, those settled at their deadline, and those that could not be moved or settled.
+    expect(Object.keys(swept).sort()).toEqual(['cancelled', 'expired', 'failed', 'marked', 'reconciled', 'settled']);
     for (const value of Object.values(swept)) expect(Number.isSafeInteger(value)).toBe(true);
     const task = await runOutboxSweep({config: null, accounts: {env}});
     expect(task.configured).toBe(false);
@@ -1935,7 +1940,7 @@ describe('the typed calls of lib/job-commands.ts against the real database', () 
     const stepped = await runStep({...fenced, stepKey: 'search', ordinal: 1}, {env});
     expect(stepped).toMatchObject({outcome: 'stepped', operationState: 'dispatched'});
     if (stepped.outcome !== 'stepped' || stepped.operationId === null) return;
-    expect(await finishOperation({...fenced, operationId: stepped.operationId, outcome: 'completed', usage: {inputTokens: 1, outputTokens: 1, returnedModel: 'fixture-model'}}, {env})).toMatchObject({
+    expect(await finishOperation({...fenced, operationId: stepped.operationId, outcome: 'completed', usage: {inputTokens: 1, outputTokens: 1, returnedModel: (await scheduleOf()).model}}, {env})).toMatchObject({
       outcome: 'finished',
       state: 'completed',
       settlement: {settledMicrodollars: 2, releasedMicrodollars: RESERVED, overMicrodollars: 0},
@@ -1965,7 +1970,7 @@ describe('the typed calls of lib/job-commands.ts against the real database', () 
 
 // ---------------------------------------------------------------------------------------------------
 describe('the preflight carries the Story 2.7 tables and functions', () => {
-  it('answers ok to the service role, and reads the four tables and looks for the fifteen functions (sixty-nine api functions in all)', async () => {
+  it('answers ok to the service role, and reads the four tables and looks for the fifteen functions (seventy-two api functions in all, after Story 2.8 added three)', async () => {
     const answer = await one('select ok from api.preflight()');
     expect(answer.ok).toBe(true);
     const text = (await one(`select pg_get_functiondef('api.preflight()'::regprocedure) as def`)).def as string;
@@ -1974,8 +1979,8 @@ describe('the preflight carries the Story 2.7 tables and functions', () => {
     }
     const listed = [...text.matchAll(/'((?:api)\.[a-z_]+\([^']*\))'/g)].map((match) => match[1]);
     const withExecute = text.slice(text.indexOf('the service role cannot execute') - 4500, text.indexOf('the service role cannot execute'));
-    expect(new Set([...withExecute.matchAll(/'(api\.[a-z_]+\([^']*\))'/g)].map((match) => match[1])).size).toBe(69);
-    expect(listed.length).toBeGreaterThanOrEqual(69);
+    expect(new Set([...withExecute.matchAll(/'(api\.[a-z_]+\([^']*\))'/g)].map((match) => match[1])).size).toBe(72);
+    expect(listed.length).toBeGreaterThanOrEqual(72);
   });
 });
 
@@ -2455,7 +2460,10 @@ describe('the preflight fails closed for the Story 2.7 objects', () => {
   it('lists the fifteen signatures it looks for and the fifteen the service role must execute', async () => {
     expect(signatures).toHaveLength(15);
     const definition = (await db.query(`select pg_get_functiondef('api.preflight()'::regprocedure) as text`)).rows[0].text as string;
-    for (const signature of signatures) expect(definition.split(`'${signature}'`).length - 1, signature).toBe(2);
+    // On purpose changed (Story 2.8): the Story 2.8 block of the preflight looks for the two functions it re-created (finish_operation, which now also takes `ambiguous`, and the
+    // sweep, which counts three more things) once more, so those two appear three times; the other thirteen still twice (looked for, and executable by the service role).
+    const recreated = ['api.finish_operation(uuid,uuid,uuid,text,bigint,bigint,text,text)', 'api.sweep_attempts()'];
+    for (const signature of signatures) expect(definition.split(`'${signature}'`).length - 1, signature).toBe(recreated.includes(signature) ? 3 : 2);
   });
 
   it.each(signatures)('fails with N3020 naming %s and the Story 2.7 migration when it is missing', async (signature) => {
@@ -2492,7 +2500,7 @@ describe('the preflight fails closed for the Story 2.7 objects', () => {
       'artifacts.staging_leases', 'artifacts.ticket_redemptions', 'artifacts.transfer_handles', 'artifacts.manifests', 'artifacts.attachment_transforms', 'artifacts.service_key_revocations', 'artifacts.session_authority', 'artifacts.instance', 'artifacts.retained_pictures',
       'lifecycle.alarms', 'lifecycle.alarm_notices', 'lifecycle.heartbeats', 'usage.periods',
       'jobs.jobs', 'jobs.attempts', 'jobs.steps', 'jobs.operations', 'jobs.commands',
-      'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.commands',
+      'usage.rate_schedules', 'usage.reservations', 'usage.settlements', 'usage.overrun_incidents', 'usage.corrections', 'usage.commands',
       'provider_private.permissions',
       'jobs.outbox', 'jobs.workers', 'jobs.leases', 'jobs.callbacks',
       'auth.sessions', 'auth.identities', 'auth.mfa_amr_claims',

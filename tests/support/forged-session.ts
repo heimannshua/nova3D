@@ -331,8 +331,9 @@ export function accountsWorld() {
     await db.query(`delete from identity.session_grants where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.registration_commands where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from identity.invitations where redeemed_account_id in ${accounts}`, [user.id]);
-    // The Usage ledgers (Story 2.6) restrict the Job records, the periods and the Account: incidents, settlements, reservations and command receipts go first.
+    // The Usage ledgers (Story 2.6) restrict the Job records, the periods and the Account: incidents, corrections (Story 2.8), settlements, reservations and command receipts go first.
     await db.query(`delete from usage.overrun_incidents where account_id in ${accounts}`, [user.id]);
+    await db.query(`delete from usage.corrections where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from usage.settlements where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from usage.reservations where account_id in ${accounts}`, [user.id]);
     await db.query(`delete from usage.commands where account_id in ${accounts}`, [user.id]);

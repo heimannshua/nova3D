@@ -5,7 +5,7 @@ import {describe, expect, it} from 'vitest';
 import {projectFixtures} from '@/lib/project-fixtures';
 import {projectStages} from '@/lib/project-stage';
 import {createHarness, stack, tag} from '../support/accounts-db';
-import {insertIncident, insertReservation, insertSettlement} from '../support/usage-ledger';
+import {insertIncident, insertReservation, insertSettlement, ledgerJob} from '../support/usage-ledger';
 
 // The local fixture seed (scripts/seed-projects.mjs) run against the Supabase CLI stack: one Project for each of the stages (six in Story 1.7, seven since Story 2.1 added request_confirmed, eight since Story 2.2 added request_draft), nothing
 // twice, nothing for an Account that is not active, and removal that takes only the fixtures. Its refusals are in tests/unit/seed-projects.test.ts.
@@ -247,6 +247,57 @@ describe('the local fixture seed', () => {
     expect(await ledgerOf(kept)).toEqual({reservations: 1, settlements: 1, incidents: 1});
     // The receipts of the commands are the Account's, and stay (as the script's comment says).
     expect(await receipts()).toBe(receiptsBefore);
+  });
+
+  it('--remove also takes the correction of a deadline-settled reservation of a fixture Project, and the incident that names it, before its settlement and its reservation, and keeps another Project\'s (Story 2.8)', async () => {
+    const a = await account();
+    expect((await run(['--email', a.email])).code).toBe(0);
+    const { rows: fixture } = await db.query('select id from projects.projects where account_id = $1 and title = $2', [a.accountId, projectFixtures[0].title]);
+    const doomed = fixture[0].id as string;
+    const kept = (
+      await db.query(
+        `insert into projects.projects (workspace_id, account_id, title, stage) select w.id, w.account_id, 'My own project', 'generating' from projects.workspaces w where w.account_id = $1 returning id`,
+        [a.accountId],
+      )
+    ).rows[0].id as string;
+    const periodId = (await db.query('select id from usage.periods where account_id = $1', [a.accountId])).rows[0].id as string;
+    // In each Project: a Job with one operation, a reservation of it, the settlement that booked it at its deadline, the correction that late evidence above it appended (a
+    // correction refers to the reservation, the settlement and the period), and the incident of that evidence, which names the correction (as the owner makes them).
+    for (const projectId of [doomed, kept]) {
+      const job = await ledgerJob(db, a.accountId, 1, projectId);
+      const reservationId = await insertReservation(db, {accountId: a.accountId, periodId, jobId: job.jobId, operationId: job.operationIds[0], amount: 1_000_000});
+      const settlementId = await insertSettlement(db, {accountId: a.accountId, reservationId, periodId, classification: 'deadline'});
+      const correctionId = (
+        await db.query(
+          `insert into usage.corrections (account_id, reservation_id, settlement_id, period_id, settled_delta_microdollars, input_tokens, output_tokens, returned_model, digest)
+           values ($1, $2, $3, $4, 500000, 1, 1, 'fixture-ledger', $5) returning id`,
+          [a.accountId, reservationId, settlementId, periodId, randomUUID().replaceAll('-', '').repeat(2)],
+        )
+      ).rows[0].id as string;
+      await db.query(
+        `insert into usage.overrun_incidents (account_id, reservation_id, settlement_id, correction_id, provider, reserved_microdollars, evidence_microdollars)
+         select r.account_id, r.id, $2, $3, r.provider, r.reserved_microdollars, r.reserved_microdollars + 500000 from usage.reservations r where r.id = $1`,
+        [reservationId, settlementId, correctionId],
+      );
+    }
+    const ledgerOf = async (projectId: string) =>
+      (
+        await db.query(
+          `select (select count(*) from usage.reservations r join jobs.jobs j on j.id = r.job_id where j.project_id = $1)::int as reservations,
+                  (select count(*) from usage.settlements s join usage.reservations r on r.id = s.reservation_id join jobs.jobs j on j.id = r.job_id where j.project_id = $1)::int as settlements,
+                  (select count(*) from usage.corrections c join usage.reservations r on r.id = c.reservation_id join jobs.jobs j on j.id = r.job_id where j.project_id = $1)::int as corrections,
+                  (select count(*) from usage.overrun_incidents i join usage.reservations r on r.id = i.reservation_id join jobs.jobs j on j.id = r.job_id where j.project_id = $1)::int as incidents`,
+          [projectId],
+        )
+      ).rows[0] as Record<'reservations' | 'settlements' | 'corrections' | 'incidents', number>;
+    expect(await ledgerOf(doomed)).toEqual({reservations: 1, settlements: 1, corrections: 1, incidents: 1});
+    expect(await ledgerOf(kept)).toEqual({reservations: 1, settlements: 1, corrections: 1, incidents: 1});
+
+    const removed = await run(['--remove', '--email', a.email]);
+    expect(removed.code, removed.stderr).toBe(0);
+    expect(await ledgerOf(doomed)).toEqual({reservations: 0, settlements: 0, corrections: 0, incidents: 0});
+    expect(await ledgerOf(kept)).toEqual({reservations: 1, settlements: 1, corrections: 1, incidents: 1});
+    expect((await db.query('select count(*)::int as n from jobs.jobs where project_id = $1', [doomed])).rows[0].n).toBe(0);
   });
 
   it('--remove also takes the dispatch records of a fixture Project: the lease of a claimed attempt, its outbox row and the callbacks that name it (which restrict nothing), and leaves another Project\'s and a registration\'s', async () => {

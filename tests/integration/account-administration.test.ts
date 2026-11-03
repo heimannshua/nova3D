@@ -961,12 +961,13 @@ describe('the preflight probes the Story 1.5 functions and the privilege to end 
         'lifecycle.alarms',
         'lifecycle.alarm_notices',
         'lifecycle.heartbeats',
-        // Story 2.4 and 2.6: the tables of the usage schema (one more read each, before the privilege checks; the stand-in of Story 2.4 is gone).
+        // Story 2.4, 2.6 and 2.8: the tables of the usage schema (one more read each, before the privilege checks; the stand-in of Story 2.4 is gone; Story 2.8 added the corrections).
         'usage.periods',
         'usage.rate_schedules',
         'usage.reservations',
         'usage.settlements',
         'usage.overrun_incidents',
+        'usage.corrections',
         'usage.commands',
         // Story 2.11: the five tables of the jobs schema (one more read each, before the privilege checks).
         'jobs.jobs',
