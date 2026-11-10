@@ -1,7 +1,11 @@
 {
   "database": "dolt",
   "backend": "dolt",
-  "dolt_mode": "embedded",
-  "dolt_database": "nova3D",
-  "project_id": "fa6cd66d-76fe-4846-9b10-eed975d0daed"
+  "dolt_mode": "server",
+  "dolt_server_host": "dolt-gw.houston.orvex.ai",
+  "dolt_server_port": 3306,
+  "dolt_server_user": "78ad4435-0d43-4d53-80ec-5df1467d5a4c",
+  "dolt_database": "heimannshua_nova3d_beads",
+  "dolt_server_tls": true,
+  "project_id": "6d59d74a-b53a-4f0f-8748-d5db05a12928"
 }

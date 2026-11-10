@@ -8,34 +8,108 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:cdcea925 -->
-## Beads Issue Tracker
+<!-- BEGIN BEADS INTEGRATION v:1 profile:full hash:837dccf8 -->
+## Issue Tracking with bd (beads)
 
-This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
+**IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
 
-### Quick Reference
+### Why bd?
+
+- Dependency-aware: Track blockers and relationships between issues
+- Git-friendly: Dolt-powered version control with native sync
+- Agent-optimized: JSON output, ready work detection, discovered-from links
+- Prevents duplicate tracking systems and confusion
+
+### Quick Start
+
+**Check for ready work:**
 
 ```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --claim  # Claim work
-bd close <id>         # Complete work
+bd ready --json
 ```
 
-### Rules
+**Create new issues:**
 
-- Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
-- Run `bd prime` for detailed command reference and session close protocol
-- Use `bd remember` for durable project facts — not per-tool memory files, which fragment across accounts; keep per-operator preferences in your harness's own memory
+```bash
+bd create "Issue title" --description="Detailed context" -t bug|feature|task -p 0-4 --json
+bd create "Issue title" --description="What this issue is about" -p 1 --deps discovered-from:bd-123 --json
+```
+
+**Claim and update:**
+
+```bash
+bd update <id> --claim --json
+bd update bd-42 --priority 1 --json
+```
+
+**Complete work:**
+
+```bash
+bd close bd-42 --reason "Completed" --json
+```
+
+### Issue Types
+
+- `bug` - Something broken
+- `feature` - New functionality
+- `task` - Work item (tests, docs, refactoring)
+- `epic` - Large feature with subtasks
+- `chore` - Maintenance (dependencies, tooling)
+
+### Priorities
+
+- `0` - Critical (security, data loss, broken builds)
+- `1` - High (major features, important bugs)
+- `2` - Medium (default, nice-to-have)
+- `3` - Low (polish, optimization)
+- `4` - Backlog (future ideas)
+
+### Workflow for AI Agents
+
+1. **Check ready work**: `bd ready` shows unblocked issues
+2. **Claim your task atomically**: `bd update <id> --claim`
+3. **Work on it**: Implement, test, document
+4. **Discover new work?** Create linked issue:
+   - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
+5. **Complete**: `bd close <id> --reason "Done"`
+
+### Quality
+- Use `--acceptance` and `--design` fields when creating issues
+- Use `--validate` to check description completeness
+
+### Lifecycle
+- `bd defer <id>` / `bd supersede <id>` for issue management
+- `bd stale` / `bd orphans` / `bd lint` for hygiene
+- `bd human <id>` to flag for human decisions
+- `bd formula list` / `bd mol pour <name>` for structured workflows
+
+### Sync
+
+bd stores issue history in Dolt:
+
+- Each write auto-commits to Dolt history
+- Do not treat `.beads/issues.jsonl` as the sync protocol
 
 **Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/core-concepts/sync-concepts.md for details and anti-patterns.
+
+### Important Rules
+
+- ✅ Use bd for ALL task tracking
+- ✅ Always use `--json` flag for programmatic use
+- ✅ Link discovered work with `discovered-from` dependencies
+- ✅ Check `bd ready` before asking "what should I work on?"
+- ❌ Do NOT create markdown TODO lists
+- ❌ Do NOT use external issue trackers
+- ❌ Do NOT duplicate tracking systems
+
+For more details, see README.md and https://github.com/gastownhall/beads/blob/main/docs/getting-started/quickstart.md.
 
 ## Agent Context Profiles
 
 The managed Beads block is task-tracking guidance, not permission to override repository, user, or orchestrator instructions.
 
-- **Conservative (default)**: Use `bd` for task tracking. Do not run git commits, git pushes, or Dolt remote sync unless explicitly asked. At handoff, report changed files, validation, and suggested next commands.
-- **Minimal**: Keep tool instruction files as pointers to `bd prime`; use the same conservative git policy unless active instructions say otherwise.
+- **Conservative (default)**: Use `bd` for task tracking. Do not run Dolt remote sync unless explicitly asked. Git commits and pushes are governed by your repository, role and orchestrator instructions; this block does not restrict them. At handoff, report changed files, validation, and suggested next commands.
+- **Minimal**: Keep tool instruction files as pointers to `bd prime`; use the same Dolt remote sync policy as conservative.
 - **Team-maintainer**: Only when the repository explicitly opts in, agents may close beads, run quality gates, commit, and push as part of session close. A current "do not commit" or "do not push" instruction still wins.
 
 ## Session Completion
@@ -47,7 +121,7 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 3. **Update issue status** - Close finished work, update in-progress items
 4. **Handle git/sync by active profile**:
    ```bash
-   # Conservative/minimal/default: report status and proposed commands; wait for approval.
+   # Conservative/minimal/default: report status and suggested next commands; run Dolt remote sync only when asked. Git commits and pushes follow your repository, role and orchestrator instructions.
    git status
 
    # Team-maintainer opt-in only, unless current instructions forbid it:
@@ -59,8 +133,10 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 
 **Critical rules:**
 - Explicit user or orchestrator instructions override this Beads block.
-- Do not commit or push without clear authority from the active profile or the current user request.
+- Git commits and pushes are governed by your repository, role and orchestrator instructions; this block does not restrict them. Never force-push and never use --no-verify.
+- Run Beads/Dolt remote sync only with authority from the active profile or the current user request.
 - If a required sync or push is blocked, stop and report the exact command and error.
+
 <!-- END BEADS INTEGRATION -->
 
 <!-- BEGIN BEADS CODEX SETUP: generated by bd setup codex -->

@@ -12,5 +12,6 @@ host_classes:
     - dev-josh
 admission_caps:
   memory_floor_gib: 2.0
-  max_runner_online: 8
-  max_creates_per_interval: 1
+  max_runner_online: 20
+  max_creates_per_interval: 2
+creation_window_minutes: 0.5

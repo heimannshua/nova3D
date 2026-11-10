@@ -5,3 +5,11 @@
 #
 # [agents.bmad-agent-pm]
 # description = "Prefers short, bulleted PRDs over narrative drafts."
+
+[houston.doc]
+space = "LT"
+docmost_manual_root_slug = "r8uqwZg4uO"
+wiki_first_enforcement = "block"
+
+[modules.doc]
+docmost_space = "LT"
