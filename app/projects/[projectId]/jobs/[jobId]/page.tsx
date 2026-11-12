@@ -33,8 +33,10 @@ export default async function ProjectJobPage({params}: ProjectJobPageProps) {
     );
   }
 
-  if (result.outcome === 'denied') return redirect(homePath);
-  if (result.outcome === 'unavailable') notFound();
+  if (result.outcome !== 'found') {
+    if (result.outcome === 'denied') return redirect(homePath);
+    return notFound();
+  }
 
   const {job} = result;
   if (job.projectId !== validatedProjectId) notFound();
