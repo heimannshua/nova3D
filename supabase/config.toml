@@ -110,9 +110,6 @@ enabled = false
 [auth.external.notion]
 enabled = false
 
-[auth.external.slack]
-enabled = false
-
 [auth.external.slack_oidc]
 enabled = false
 
