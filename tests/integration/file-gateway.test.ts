@@ -6,6 +6,7 @@ import http from 'node:http';
 import {createServer as createNetServer} from 'node:net';
 import {resolve} from 'node:path';
 import {Readable} from 'node:stream';
+import sharp from 'sharp';
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
 import {disableAccount, raiseAuthorizationEpoch, revokeSessionGrant} from '../../lib/accounts';
 import {canonicalize} from '../../lib/canonical-json';
@@ -36,6 +37,34 @@ function pngBytes(length: number): Buffer {
   checksum.writeUInt32BE(crc32(Buffer.concat([type, data])));
   const chunk = Buffer.concat([chunkLength, type, data, checksum]);
   return Buffer.concat([image.subarray(0, -12), chunk, image.subarray(-12)]);
+}
+
+async function seededRgbJpegAtExactLength(targetLength: number): Promise<Buffer> {
+  const width = 320;
+  const height = 240;
+  const pixels = Buffer.alloc(width * height * 3);
+  let state = 0x12345678;
+  for (let index = 0; index < pixels.length; index += 1) {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    pixels[index] = state >>> 24;
+  }
+
+  const encoded = await sharp(pixels, {raw: {width, height, channels: 3}})
+    .jpeg({quality: 85, chromaSubsampling: '4:2:0', progressive: false})
+    .toBuffer();
+  if (encoded.length >= targetLength) throw new Error('The seeded JPEG does not fit the target length.');
+  if (encoded.at(-2) !== 0xff || encoded.at(-1) !== 0xd9) throw new Error('The seeded JPEG has no intact EOI marker.');
+
+  const payloadLength = targetLength - encoded.length - 4;
+  const segmentLength = payloadLength + 2;
+  if (segmentLength > 0xffff) throw new Error('The JPEG COM segment exceeds its legal length.');
+  const comment = Buffer.alloc(4);
+  comment[0] = 0xff;
+  comment[1] = 0xfe;
+  comment.writeUInt16BE(segmentLength, 2);
+  const padded = Buffer.concat([encoded.subarray(0, -2), comment, Buffer.alloc(payloadLength, 0x50), encoded.subarray(-2)]);
+  if (padded.length !== targetLength) throw new Error('The padded JPEG does not have the requested length.');
+  return padded;
 }
 
 // Story 1.12: the file gateway, end to end. The gateway runs IN-PROCESS on a loopback port (workers/files/src/main.ts `start`) against the REAL local
@@ -536,6 +565,16 @@ describe('uploads: what is refused, and what it leaves behind', () => {
       expect(await objectOf(staging(who.accountId, result.id)), ct).toBeNull();
       expect(await leaseOf(result.id), ct).toMatchObject({state: 'released'});
     }
+  });
+
+  it('does not complete a fresh upload of the old signature-plus-random JPEG fixture', async () => {
+    const who = await member();
+    const bytes = jpegBytes(5000);
+    const result = await upload(who, bytes, {ct: 'image/jpeg'});
+    expect(result.response.status).toBe(400);
+    expect(await result.response.json()).toEqual(errorBody('invalid_upload'));
+    expect(await objectOf(staging(who.accountId, result.id))).toBeNull();
+    expect(await leaseOf(result.id)).toMatchObject({state: 'released'});
   });
 
   it('refuses a picture over 12 MiB and a file over 100 MiB with 413 and leaves nothing: no lease, no object', async () => {
@@ -1127,7 +1166,8 @@ describe('downloads: whole, by range, in chunks of at most 1 MiB, each checked l
 
   it('serves a picture with its own content type', async () => {
     const who = await member();
-    const bytes = jpegBytes(70_000);
+    const bytes = await seededRgbJpegAtExactLength(70_000);
+    expect(bytes).toHaveLength(70_000);
     const stored = await uploaded(who, bytes, {ct: 'image/jpeg'});
     const response = await download(who, stored.id);
     expect(response.headers.get('content-type')).toBe('image/jpeg');
@@ -2314,6 +2354,17 @@ describe('retaining a picture: the strip, the manifest and the retained download
     const stored = await uploaded(who, bytes, {cls: 'picture', ct: contentType});
     return {...stored, epoch: await epochOf(db, who.accountId), contentType};
   }
+  async function legacyCompleteUnparseable(who: Member, bytes: Buffer) {
+    const id = randomUUID();
+    const contentType = 'image/jpeg';
+    await db.query(
+      `insert into artifacts.staging_leases (id, account_id, kid, kind, length, sha256, content_type, received_length, state, expires_at)
+       values ($1, $2, $3, 'picture', $4, $5, $6, $4, 'complete', now() + interval '1 hour')`,
+      [id, who.accountId, gateway.signer.kid, bytes.length, sha256(bytes), contentType],
+    );
+    await gateway.storage.put(staging(who.accountId, id), (async function* () { yield bytes; })(), {contentType});
+    return {id, epoch: await epochOf(db, who.accountId)};
+  }
   const attachClaims = (who: Member, stored: {id: string; epoch: number}, transform = strip) => ({cmd: 'attach' as const, acct: who.accountId, epoch: stored.epoch, uid: stored.id, tr: transform});
   const retain = async (who: Member, stored: {id: string; epoch: number}) => {
     const result = await post(commandFor(gateway, attachClaims(who, stored)));
@@ -2407,7 +2458,7 @@ describe('retaining a picture: the strip, the manifest and the retained download
     const refused = await post(commandFor(gateway, attachClaims(who, changed)));
     expect([refused.status, JSON.parse(refused.body)]).toEqual([409, errorBody('bytes_changed')]);
 
-    const broken = await staged(who, jpegBytes(5000), 'image/jpeg');
+    const broken = await legacyCompleteUnparseable(who, jpegBytes(5000));
     const unparsed = await post(commandFor(gateway, attachClaims(who, broken)));
     expect([unparsed.status, JSON.parse(unparsed.body)]).toEqual([400, errorBody('strip_failed')]);
 
