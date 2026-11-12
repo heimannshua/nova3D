@@ -16,8 +16,10 @@ export type IdentityFetch = (input: string, init?: RequestInit) => Promise<Respo
 const requiredVariables = [
   'APP_ENV',
   'NEXT_PUBLIC_APP_ENV',
+  'APP_ORIGIN',
   'ADMINISTRATOR_EMAIL',
   'INSTANCE_ID',
+  'NOVA3D_QUEUE_PREFIX',
   'PAID_ADAPTERS_ENABLED',
   'SYNTHETIC_DATA_ENABLED',
 ];
@@ -36,6 +38,8 @@ const previewForbiddenName = /^(?:(?:NEXT_PUBLIC_)?SUPABASE_|POSTGRES_|(?:NEXT_P
 // Bare words are anchored so a real value such as todos@example.com is not mistaken for a placeholder.
 const placeholder = /^(?:replace-with-|<[^>]+>)|^(?:changeme|todo)$/i;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const canonicalUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const queuePrefixPattern = /^nova3d:(?:local|staging|production):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const emailPattern = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 /** RFC 5321 limit. The database refuses longer addresses too. */
 export const maxEmailLength = 254;
@@ -59,9 +63,9 @@ export type CheckOptions = {
   /** Also call the accounts API's api.preflight, which really reads the tables the gate depends on, and expect ok: the hosted preflight. */
   accountsApi?: boolean;
   /**
-   * Whether a staging or production environment must also hold what sends the recovery mail: RESEND_API_KEY and
-   * APP_ORIGIN (Story 1.6). Defaults to true, which is what the server needs. The audited seed command, which sends no
-   * mail, turns it off.
+   * Whether a staging or production environment must hold RESEND_API_KEY for recovery mail (Story 1.6). APP_ORIGIN
+   * remains required independently as the canonical queued-callback origin. Defaults to true; the audited seed command,
+   * which sends no mail, turns this check off.
    */
   mail?: boolean;
 };
@@ -142,7 +146,7 @@ export function isHttpsUrl(value: string) {
 /**
  * Why APP_ORIGIN (the origin of the application's own links, Story 1.6) is unusable, or null: it must be an origin and
  * nothing more (a scheme and a host, optionally a port; no path, query, fragment or credentials), and https for staging
- * and production. Locally the recovery link is built from the request's own origin and this is not read.
+ * and production. Locally it must be an HTTP loopback origin.
  */
 export function appOriginProblem(value: string, environment?: string): string | null {
   const text = value.trim();
@@ -156,6 +160,7 @@ export function appOriginProblem(value: string, environment?: string): string | 
     return 'must be an origin and nothing more: a scheme and a host (and a port), with no path, query, fragment or credentials';
   }
   if ((environment === 'staging' || environment === 'production') && url.protocol !== 'https:') return 'must be an https origin for staging and production';
+  if (environment === 'local' && (url.protocol !== 'http:' || !isLoopbackUrl(text))) return 'must be an http loopback origin for local';
   return null;
 }
 
@@ -165,9 +170,9 @@ export function validateEnvironment(env: Env, options: CheckOptions = {}): strin
   const environment = env.APP_ENV;
   const preview = isPreview(env);
   const keys = options.hashKeys ?? hashKeyVariables;
-  // Hosted environments send the recovery mail through Resend and build its link from APP_ORIGIN (Story 1.6); the local
-  // stack sends it to its own Mailpit and uses the request's origin.
-  const hostedMail = !preview && options.mail !== false && (environment === 'staging' || environment === 'production') ? ['RESEND_API_KEY', 'APP_ORIGIN'] : [];
+  // Hosted recovery mail uses APP_ORIGIN (Story 1.6); local recovery mail goes to Mailpit. APP_ORIGIN remains required
+  // independently as the canonical queued-callback origin in every environment.
+  const hostedMail = !preview && options.mail !== false && (environment === 'staging' || environment === 'production') ? ['RESEND_API_KEY'] : [];
   const needed = preview ? requiredVariables : [...requiredVariables, ...supabaseVariables, ...keys, ...hostedMail];
 
   const missing = needed.filter((name) => !env[name]?.trim());
@@ -182,6 +187,9 @@ export function validateEnvironment(env: Env, options: CheckOptions = {}): strin
   }
   if (env.INSTANCE_ID && !isPlaceholder(env.INSTANCE_ID) && !uuidPattern.test(env.INSTANCE_ID.trim())) {
     errors.push('INSTANCE_ID must be a UUID');
+  }
+  if (env.NOVA3D_QUEUE_PREFIX && !isPlaceholder(env.NOVA3D_QUEUE_PREFIX) && !queuePrefixPattern.test(env.NOVA3D_QUEUE_PREFIX)) {
+    errors.push('NOVA3D_QUEUE_PREFIX must be nova3d:<environment>:<lowercase-instance-uuid> with no whitespace');
   }
   for (const name of ['PAID_ADAPTERS_ENABLED', 'SYNTHETIC_DATA_ENABLED']) {
     if (env[name] && !['true', 'false'].includes(env[name]!)) errors.push(`${name} must be true or false`);
@@ -224,6 +232,8 @@ export function validateEnvironment(env: Env, options: CheckOptions = {}): strin
 
   if (preview) {
     if (environment !== 'staging') errors.push('Vercel preview/development deployments must use APP_ENV=staging');
+    if (!canonicalUuidPattern.test(env.INSTANCE_ID ?? '')) errors.push('preview INSTANCE_ID must be a canonical lowercase UUID');
+    if (env.NOVA3D_QUEUE_PREFIX !== `nova3d:staging:${env.INSTANCE_ID}`) errors.push('preview NOVA3D_QUEUE_PREFIX must match the staging APP_ENV and INSTANCE_ID');
     if (env.SYNTHETIC_DATA_ENABLED !== 'true') errors.push('preview/development requires SYNTHETIC_DATA_ENABLED=true');
     if (env.PAID_ADAPTERS_ENABLED !== 'false') errors.push('preview/development requires PAID_ADAPTERS_ENABLED=false');
     const held = Object.keys(env).filter((name) => previewForbiddenName.test(name) && env[name]);
@@ -370,7 +380,7 @@ export async function checkAccountsApi(env: Env, fetchImpl: IdentityFetch = fetc
   return {};
 }
 
-/** Compares the row with APP_ENV and INSTANCE_ID. Names the mismatch, never prints the UUIDs. */
+/** Compares the row with APP_ENV, INSTANCE_ID and its derived queue prefix. Never prints UUIDs or prefix values. */
 export function compareIdentity(env: Env, identity: InstanceIdentity): string[] {
   const errors: string[] = [];
   if (identity.environment !== env.APP_ENV) {
@@ -379,13 +389,16 @@ export function compareIdentity(env: Env, identity: InstanceIdentity): string[] 
   if (identity.instance_id.toLowerCase() !== (env.INSTANCE_ID || '').trim().toLowerCase()) {
     errors.push('instance mismatch: INSTANCE_ID differs from the instance_identity row');
   }
+  if (errors.length === 0 && env.NOVA3D_QUEUE_PREFIX !== `nova3d:${identity.environment}:${identity.instance_id.toLowerCase()}`) {
+    errors.push('NOVA3D_QUEUE_PREFIX differs from the prefix derived from the matched instance_identity row');
+  }
   return errors;
 }
 
 /** One line that says how to repair a mismatch. Never contains a UUID or a key. */
 export function identityMismatchHint(env: Env) {
-  if (env.APP_ENV === 'local') return 'fix: run node scripts/setup-env.mjs local after supabase db reset, so INSTANCE_ID follows the local stack';
-  return "fix: set INSTANCE_ID to the instance_id of this project's lifecycle.instance_identity row, and check that NEXT_PUBLIC_SUPABASE_URL belongs to this APP_ENV (docs/deployment-setup.md)";
+  if (env.APP_ENV === 'local') return 'fix: run node scripts/setup-env.mjs local after supabase db reset, so INSTANCE_ID and NOVA3D_QUEUE_PREFIX follow the local stack';
+  return "fix: align INSTANCE_ID and NOVA3D_QUEUE_PREFIX with this project's lifecycle.instance_identity row, and check that NEXT_PUBLIC_SUPABASE_URL belongs to APP_ENV (docs/deployment-setup.md)";
 }
 
 /**

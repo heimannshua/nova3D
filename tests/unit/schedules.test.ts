@@ -182,6 +182,13 @@ describe('the settings it needs', () => {
     expect(script.readConfig({...env, APP_ENV: 'production', INSTANCE_ID: INSTANCE.toUpperCase(), QSTASH_URL: 'https://qstash.upstash.io/', APP_ORIGIN: ` ${ORIGIN} `}).config).toMatchObject({appEnv: 'production', instanceId: INSTANCE, baseUrl: 'https://qstash.upstash.io', origin: ORIGIN});
   });
 
+  it('keeps the schedule destination bound to APP_ORIGIN despite request and Preview hosts', async () => {
+    const script = await load();
+    const result = script.readConfig({...env, VERCEL_URL: 'preview-123.vercel.app', REQUEST_ORIGIN: 'https://request.example.test'});
+    expect(result.config?.origin).toBe(ORIGIN);
+    expect(script.desiredSchedules({origin: result.config!.origin, instanceId: INSTANCE}).every((schedule) => schedule.destination.startsWith(`${ORIGIN}/`))).toBe(true);
+  });
+
   it.each([
     ['no token', {QSTASH_TOKEN: undefined}, 'QSTASH_TOKEN'],
     ['no endpoint', {QSTASH_URL: undefined}, 'QSTASH_URL'],

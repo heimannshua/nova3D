@@ -156,6 +156,11 @@ describe('configuredPublishing', () => {
     expect(typeof config!.publish).toBe('function');
   });
 
+  it('uses only APP_ORIGIN when request and Preview host values are also present', () => {
+    const config = configuredPublishing({...good, VERCEL_URL: 'preview-123.vercel.app', REQUEST_ORIGIN: 'https://request.example.test'});
+    expect(config?.url).toBe(`${good.APP_ORIGIN}/api/dispatch`);
+  });
+
   it('lower-cases and trims the instance', () => {
     expect(configuredPublishing({...good, INSTANCE_ID: ` ${INSTANCE.toUpperCase()} `})!.instanceId).toBe(INSTANCE);
   });

@@ -20,6 +20,7 @@ const staging: Env = {
   SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY,
   ADMINISTRATOR_EMAIL: 'admin@example.com',
   INSTANCE_ID: INSTANCE,
+  NOVA3D_QUEUE_PREFIX: `nova3d:staging:${INSTANCE}`,
   PAID_ADAPTERS_ENABLED: 'false',
   SYNTHETIC_DATA_ENABLED: 'true',
   VERCEL: '1',
@@ -32,7 +33,7 @@ const staging: Env = {
 
 const noKeys: Env = {INVITATION_HASH_KEY: undefined, RATE_LIMIT_HASH_KEY: undefined, RECOVERY_HASH_KEY: undefined};
 // A preview holds neither the mail key nor anything else of the recovery mail's own.
-const noMail: Env = {RESEND_API_KEY: undefined, APP_ORIGIN: undefined};
+const noMail: Env = {RESEND_API_KEY: undefined};
 const answer = (status: number, body: unknown): IdentityFetch => async () => new Response(JSON.stringify(body), {status});
 
 describe('isLoopbackUrl', () => {
@@ -47,6 +48,24 @@ describe('isLoopbackUrl', () => {
 describe('validateEnvironment', () => {
   it('accepts a complete staging deployment', () => {
     expect(validateEnvironment(staging)).toEqual([]);
+  });
+
+  it('requires a canonical queue prefix for the selected environment and instance', async () => {
+    const expected = `nova3d:staging:${INSTANCE}`;
+    expect(validateEnvironment({...staging, NOVA3D_QUEUE_PREFIX: expected})).toEqual([]);
+    for (const value of [undefined, `nova3d:staging:${INSTANCE.toUpperCase()}`, ` ${expected}`, `${expected} `]) {
+      const errors = validateEnvironment({...staging, NOVA3D_QUEUE_PREFIX: value});
+      expect(errors.join(), String(value)).toContain('NOVA3D_QUEUE_PREFIX');
+      expect(errors.join(), String(value)).not.toContain(value ?? 'undefined');
+    }
+    const rowMismatch = await checkInstanceIdentity({...staging, NOVA3D_QUEUE_PREFIX: `nova3d:production:${INSTANCE}`}, answer(200, [{environment: 'staging', instance_id: INSTANCE}]));
+    expect(rowMismatch.errors.join()).toContain('NOVA3D_QUEUE_PREFIX');
+    expect(rowMismatch.errors.join()).not.toContain(INSTANCE);
+
+    const preview: Env = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys, ...noMail};
+    expect(validateEnvironment(preview)).toEqual([]);
+    expect(validateEnvironment({...preview, NOVA3D_QUEUE_PREFIX: `nova3d:staging:${'9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d'}`} ).join()).toContain('preview NOVA3D_QUEUE_PREFIX');
+    expect(validateEnvironment({...preview, APP_ORIGIN: undefined}).join()).toContain('APP_ORIGIN');
   });
 
   it('requires ADMINISTRATOR_EMAIL and INSTANCE_ID everywhere, previews included', () => {
@@ -71,10 +90,10 @@ describe('validateEnvironment', () => {
   it('requires https for staging and production, not for local', () => {
     const http = 'http://abcdefgh.supabase.co';
     expect(validateEnvironment({...staging, NEXT_PUBLIC_SUPABASE_URL: http}).join()).toContain('must use https');
-    const production = {...staging, APP_ENV: 'production', NEXT_PUBLIC_APP_ENV: 'production', SYNTHETIC_DATA_ENABLED: 'false', PAID_ADAPTERS_ENABLED: 'true'};
+    const production = {...staging, APP_ENV: 'production', NEXT_PUBLIC_APP_ENV: 'production', NOVA3D_QUEUE_PREFIX: `nova3d:production:${INSTANCE}`, SYNTHETIC_DATA_ENABLED: 'false', PAID_ADAPTERS_ENABLED: 'true', APP_ORIGIN: 'https://nova3d.example.test'};
     expect(validateEnvironment(production)).toEqual([]);
     expect(validateEnvironment({...production, NEXT_PUBLIC_SUPABASE_URL: http}).join()).toContain('must use https');
-    const local = {...staging, APP_ENV: 'local', NEXT_PUBLIC_APP_ENV: 'local', VERCEL: undefined, VERCEL_ENV: undefined, NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321'};
+    const local = {...staging, APP_ENV: 'local', NEXT_PUBLIC_APP_ENV: 'local', VERCEL: undefined, VERCEL_ENV: undefined, NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321', APP_ORIGIN: 'http://127.0.0.1:3000', NOVA3D_QUEUE_PREFIX: `nova3d:local:${INSTANCE}`};
     expect(validateEnvironment(local)).toEqual([]);
   });
 
@@ -315,7 +334,7 @@ describe('checkInstanceIdentity', () => {
   });
 
   it('points a local mismatch at setup-env', () => {
-    expect(identityMismatchHint({APP_ENV: 'local'})).toBe('fix: run node scripts/setup-env.mjs local after supabase db reset, so INSTANCE_ID follows the local stack');
+    expect(identityMismatchHint({APP_ENV: 'local'})).toBe('fix: run node scripts/setup-env.mjs local after supabase db reset, so INSTANCE_ID and NOVA3D_QUEUE_PREFIX follow the local stack');
     expect(identityMismatchHint({APP_ENV: 'staging'})).toContain('INSTANCE_ID');
     expect(identityMismatchHint({APP_ENV: 'staging'})).toContain('docs/deployment-setup.md');
   });
@@ -352,7 +371,7 @@ describe('hash keys (Story 1.3)', () => {
     }
     expect(validateEnvironment({...staging, ...noKeys}).join('\n')).toContain('missing required variables: INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY, RECOVERY_HASH_KEY');
     // The local environment is held to the same rule.
-    const local = {...staging, APP_ENV: 'local', NEXT_PUBLIC_APP_ENV: 'local', VERCEL: undefined, VERCEL_ENV: undefined, NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321'};
+    const local = {...staging, APP_ENV: 'local', NEXT_PUBLIC_APP_ENV: 'local', VERCEL: undefined, VERCEL_ENV: undefined, NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321', APP_ORIGIN: 'http://127.0.0.1:3000', NOVA3D_QUEUE_PREFIX: `nova3d:local:${INSTANCE}`};
     expect(validateEnvironment(local)).toEqual([]);
     expect(validateEnvironment({...local, ...noKeys}).join('\n')).toContain('missing required variables');
   });
@@ -639,14 +658,14 @@ describe('the accounts API preflight (check-env --live)', () => {
 
 describe('the recovery variables (Story 1.6)', () => {
   const good = () => randomBytes(32).toString('base64');
-  const production: Env = {...staging, APP_ENV: 'production', NEXT_PUBLIC_APP_ENV: 'production', SYNTHETIC_DATA_ENABLED: 'false', PAID_ADAPTERS_ENABLED: 'true', APP_ORIGIN: 'https://nova3d.example.test'};
-  const local: Env = {...staging, APP_ENV: 'local', NEXT_PUBLIC_APP_ENV: 'local', VERCEL: undefined, VERCEL_ENV: undefined, NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321', RESEND_API_KEY: undefined, APP_ORIGIN: undefined};
+  const production: Env = {...staging, APP_ENV: 'production', NEXT_PUBLIC_APP_ENV: 'production', NOVA3D_QUEUE_PREFIX: `nova3d:production:${INSTANCE}`, SYNTHETIC_DATA_ENABLED: 'false', PAID_ADAPTERS_ENABLED: 'true', APP_ORIGIN: 'https://nova3d.example.test'};
+  const local: Env = {...staging, APP_ENV: 'local', NEXT_PUBLIC_APP_ENV: 'local', VERCEL: undefined, VERCEL_ENV: undefined, NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321', RESEND_API_KEY: undefined, APP_ORIGIN: 'http://127.0.0.1:3000', NOVA3D_QUEUE_PREFIX: `nova3d:local:${INSTANCE}`};
   const preview: Env = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys, ...noMail};
 
   it('make a complete staging, production and local environment', () => {
     expect(validateEnvironment(staging)).toEqual([]);
     expect(validateEnvironment(production)).toEqual([]);
-    // Locally the mail goes to the stack's Mailpit and the link uses the request's origin: neither variable is needed.
+    // Locally mail goes to Mailpit; the callback origin is still required.
     expect(validateEnvironment(local)).toEqual([]);
   });
 
@@ -657,11 +676,11 @@ describe('the recovery variables (Story 1.6)', () => {
           expect(validateEnvironment({...environment, [name]: value}).join('\n'), `${environment.APP_ENV} ${name}=${JSON.stringify(value)}`).toContain(`missing required variables: ${name}`);
         }
       }
-      expect(validateEnvironment({...environment, ...noMail}).join('\n')).toContain('missing required variables: RESEND_API_KEY, APP_ORIGIN');
+      expect(validateEnvironment({...environment, RESEND_API_KEY: undefined, APP_ORIGIN: undefined}).join('\n')).toContain('missing required variables: APP_ORIGIN, RESEND_API_KEY');
     }
   });
 
-  it('do not require them locally or in a preview (which must not hold the mail key)', () => {
+  it('does not require the mail key locally or in a preview (which must not hold it)', () => {
     expect(validateEnvironment({...local, ...noMail})).toEqual([]);
     expect(validateEnvironment(preview)).toEqual([]);
   });
@@ -711,7 +730,7 @@ describe('the recovery variables (Story 1.6)', () => {
       expect(errors.join('\n'), name).toContain(name);
       expect(errors.join('\n'), name).not.toContain(value);
     }
-    // APP_ORIGIN is no secret: a preview may hold it.
+    // APP_ORIGIN is required but is not secret: a preview may hold it.
     expect(validateEnvironment({...preview, APP_ORIGIN: 'https://nova3d-preview.example.test'})).toEqual([]);
   });
 
@@ -737,9 +756,11 @@ describe('the recovery variables (Story 1.6)', () => {
       expect(errors.join('\n')).toContain(`APP_ORIGIN ${problem}`);
     });
 
-    it('lets a local environment hold an http origin, which it never reads', () => {
+    it('requires a local loopback http origin', () => {
       expect(appOriginProblem('http://127.0.0.1:4173', 'local')).toBeNull();
       expect(validateEnvironment({...local, APP_ORIGIN: 'http://127.0.0.1:4173'})).toEqual([]);
+      expect(appOriginProblem('https://127.0.0.1:4173', 'local')).toContain('http loopback');
+      expect(appOriginProblem('http://nova3d.example.test', 'local')).toContain('http loopback');
     });
 
     it('is not a secret: a value that is wrong is quoted in no error', () => {

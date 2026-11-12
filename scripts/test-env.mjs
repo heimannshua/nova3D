@@ -85,12 +85,14 @@ const local = () => ({
   SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY,
   ADMINISTRATOR_EMAIL: 'admin@example.com',
   INSTANCE_ID: INSTANCE,
+  NOVA3D_QUEUE_PREFIX: `nova3d:local:${INSTANCE}`,
+  APP_ORIGIN: 'http://127.0.0.1:3000',
   PAID_ADAPTERS_ENABLED: 'false',
   SYNTHETIC_DATA_ENABLED: 'true',
   ...hashKeys(),
 });
 // Staging and production send the recovery mail through Resend and build its link from APP_ORIGIN (Story 1.6).
-const staging = () => ({...local(), APP_ENV: 'staging', NEXT_PUBLIC_APP_ENV: 'staging', NEXT_PUBLIC_SUPABASE_URL: FIXTURE_HOST, RESEND_API_KEY: MAIL_KEY, APP_ORIGIN: 'https://nova3d-staging.example.test'});
+const staging = () => ({...local(), APP_ENV: 'staging', NEXT_PUBLIC_APP_ENV: 'staging', NEXT_PUBLIC_SUPABASE_URL: FIXTURE_HOST, NOVA3D_QUEUE_PREFIX: `nova3d:staging:${INSTANCE}`, RESEND_API_KEY: MAIL_KEY, APP_ORIGIN: 'https://nova3d-staging.example.test'});
 // A preview holds no Supabase variables, no hashing key and no mail key.
 const preview = () => {
   const {NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY, RECOVERY_HASH_KEY, RESEND_API_KEY, ...rest} = staging();
@@ -355,8 +357,8 @@ describe('static rules kept from the seed', () => {
     passed(await run(staging()));
   });
 
-  it('requires the mail key and the link origin in staging and production, but not locally (Story 1.6)', async () => {
-    const production = () => ({...staging(), APP_ENV: 'production', NEXT_PUBLIC_APP_ENV: 'production', SYNTHETIC_DATA_ENABLED: 'false', PAID_ADAPTERS_ENABLED: 'true', APP_ORIGIN: 'https://nova3d.example.test'});
+  it('requires the mail key in staging and production and a canonical callback origin everywhere', async () => {
+    const production = () => ({...staging(), APP_ENV: 'production', NEXT_PUBLIC_APP_ENV: 'production', NOVA3D_QUEUE_PREFIX: `nova3d:production:${INSTANCE}`, SYNTHETIC_DATA_ENABLED: 'false', PAID_ADAPTERS_ENABLED: 'true', APP_ORIGIN: 'https://nova3d.example.test'});
     for (const environment of [staging(), production()]) {
       for (const name of ['RESEND_API_KEY', 'APP_ORIGIN']) {
         const {[name]: _missing, ...without} = environment;
@@ -371,8 +373,19 @@ describe('static rules kept from the seed', () => {
     const result = await run({...staging(), RESEND_API_KEY: spaced});
     rejected(result, 'RESEND_API_KEY must be one token without spaces');
     assert.ok(!result.stderr.includes(spaced), 'the mail key was printed');
-    // Locally the mail goes to the stack's Mailpit and the link uses the request's origin.
+    rejected(await run({...local(), APP_ORIGIN: undefined}), 'missing required variables: APP_ORIGIN');
+    rejected(await run({...local(), APP_ORIGIN: 'https://nova3d.example.test'}), 'APP_ORIGIN must be an http loopback origin for local');
     passed(await run(local()));
+  });
+
+  it('requires a canonical matching queue prefix and rejects bad values without printing them', async () => {
+    passed(await run(staging()));
+    for (const value of [undefined, `nova3d:staging:${INSTANCE.toUpperCase()}`, ` nova3d:staging:${INSTANCE}`, `nova3d:production:${INSTANCE}`]) {
+      const result = await run({...staging(), NOVA3D_QUEUE_PREFIX: value});
+      rejected(result, 'NOVA3D_QUEUE_PREFIX');
+      assert.ok(!result.stderr.includes(value ?? 'undefined'), 'the queue prefix was printed');
+    }
+    rejected(await run({...preview(), NOVA3D_QUEUE_PREFIX: `nova3d:staging:${OTHER_INSTANCE}`}), 'preview NOVA3D_QUEUE_PREFIX must match');
   });
 
   it('does not require the keys in a preview, which must not hold them', async () => {

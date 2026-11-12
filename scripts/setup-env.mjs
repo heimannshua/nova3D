@@ -3,7 +3,7 @@
 //
 // staging and production: copy the template once; fill it in locally or in Vercel.
 // local: needs the Supabase CLI stack (`supabase start`). Creates .env.local if missing, then
-//        points it at the local stack and writes INSTANCE_ID from the stack's instance_identity row.
+//        points it at the local stack and writes INSTANCE_ID and NOVA3D_QUEUE_PREFIX from its instance_identity row.
 //        Values are never printed. When it replaces a hosted Supabase URL it first writes a
 //        one-time backup, .env.local.bak, and never overwrites an existing backup.
 //        It also generates INVITATION_HASH_KEY, RATE_LIMIT_HASH_KEY and RECOVERY_HASH_KEY (32 random
@@ -77,15 +77,27 @@ if (identity.environment !== 'local') {
   process.exit(1);
 }
 
+let text = readFileSync(destination, 'utf8');
+const configuredOrigin = [...text.matchAll(/^(?:export[ \t]+)?APP_ORIGIN=(.*)$/gm)][0]?.[1];
+const existingOrigin = configuredOrigin === undefined ? '' : parseEnvValue(configuredOrigin);
+let validLocalOrigin = false;
+try {
+  const parsed = new URL(existingOrigin);
+  validLocalOrigin = parsed.protocol === 'http:' && parsed.origin === existingOrigin && isLoopbackUrl(existingOrigin);
+} catch {
+  // A missing or malformed local origin receives the documented loopback default below.
+}
+
 const updates = {
   APP_ENV: 'local',
   NEXT_PUBLIC_APP_ENV: 'local',
+  APP_ORIGIN: validLocalOrigin ? existingOrigin : 'http://127.0.0.1:3000',
   NEXT_PUBLIC_SUPABASE_URL: apiUrl,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: anonKey,
   SUPABASE_SERVICE_ROLE_KEY: serviceKey,
   INSTANCE_ID: identity.instance_id,
+  NOVA3D_QUEUE_PREFIX: `nova3d:local:${identity.instance_id.toLowerCase()}`,
 };
-let text = readFileSync(destination, 'utf8');
 // Local hashing keys (Stories 1.3 and 1.6): random, per machine, never taken from the template.
 const keyValues = (name) => [...text.matchAll(new RegExp(`^(?:export[ \\t]+)?${name}=(.*)$`, 'gm'))].map((match) => parseEnvValue(match[1]));
 const usable = Object.fromEntries(hashKeyVariables.map((name) => {
