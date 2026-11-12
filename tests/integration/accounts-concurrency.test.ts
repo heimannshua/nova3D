@@ -288,6 +288,34 @@ describe('AC-1 and AC-3: more races', () => {
     }
     expect(settled.size).toBeGreaterThanOrEqual(1);
   });
+
+  it('settles a revoke-first named-code race before registration', async () => {
+    const clients = await Promise.all([connect(), connect()]);
+    const hash = await issueNamedCommitted('Revoke-first race');
+    const user = await addUser(db);
+    committedUsers.push(user.id);
+    const origin = originHash();
+    committedOrigins.push(origin);
+
+    // Keep the successful revoke uncommitted while registration reaches the same row lock.
+    await clients[0].query('begin');
+    const revoked = await api(clients[0]).revoke({hash});
+    expect(revoked.outcome).toBe('revoked');
+
+    const {rows: registerPid} = await clients[1].query('select pg_backend_pid() as pid');
+    await clients[1].query('begin');
+    const registering = api(clients[1]).register(user.id, hash, {origin});
+    registering.catch(() => undefined);
+    expect(await waitingOn(registerPid[0].pid), 'registration waits for the revoke row lock').toBe('transactionid');
+
+    await clients[0].query('commit');
+    const registered = await registering;
+    await clients[1].query('commit');
+
+    expect(registered.outcome).toBe('refused');
+    expect(await invitationStatus(db, hash)).toBe('revoked');
+    expect(await count(db, 'select count(*) as n from identity.accounts where user_id = $1', [user.id])).toBe(0);
+  });
 });
 
 describe('AC-2: concurrent general issues', () => {
