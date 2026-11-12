@@ -53,6 +53,16 @@ begin
   end if;
 
   v_receipt.kind := p_kind;
+  -- Serialize exact hashes before checking general-code protection. A duplicate is a
+  -- non-mutating exists result, even when replace was requested for the current general row.
+  perform pg_advisory_xact_lock(hashtextextended('invitation:hash:' || p_code_hash, 0));
+  if exists (select 1 from identity.invitations i where i.code_hash = p_code_hash) then
+    v_receipt.outcome := 'exists';
+    v_receipt.invitation_id := null;
+    v_receipt.replaced_invitation_id := null;
+    return v_receipt;
+  end if;
+
   if p_kind = 'general' then
     perform pg_advisory_xact_lock(hashtextextended('invitation:general', 0));
   end if;

@@ -267,16 +267,24 @@ describe('AC-1 and AC-3: more races', () => {
       const origin = originHash();
       committedOrigins.push(origin);
 
-      const [revoked, registered] = await Promise.all([
-        committedTx(clients[0], () => api(clients[0]).revoke({hash})),
-        committedTx(clients[1], () => api(clients[1]).register(user.id, hash, {origin})),
-      ]);
+      // Establish redemption as the row-lock winner, then prove the revoker waits and
+      // rereads the committed terminal state instead of racing on timing.
+      await clients[1].query('begin');
+      const registered = await api(clients[1]).register(user.id, hash, {origin});
+      const {rows: revokePid} = await clients[0].query('select pg_backend_pid() as pid');
+      await clients[0].query('begin');
+      const revoking = api(clients[0]).revoke({hash});
+      revoking.catch(() => undefined);
+      expect(await waitingOn(revokePid[0].pid), 'revoke waits for the redemption row lock').toBe('transactionid');
+      await clients[1].query('commit');
+      const revoked = await revoking;
+      await clients[0].query('commit');
       const accounts = await count(db, 'select count(*) as n from identity.accounts where user_id = $1', [user.id]);
       const state = await invitationStatus(db, hash);
       settled.add(registered.outcome);
       expect(registered.outcome, `round ${round}`).toBe('registered');
       expect({state, accounts}, `round ${round}`).toEqual({state: 'redeemed', accounts: 1});
-      expect(['protected', 'redeemed']).toContain(revoked.outcome);
+      expect(revoked.outcome).toBe('redeemed');
     }
     expect(settled.size).toBeGreaterThanOrEqual(1);
   });
