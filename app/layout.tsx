@@ -7,16 +7,18 @@ import {PreferencesProvider} from '@/components/preferences-provider';
 import {createTranslator, directionOf} from '@/lib/i18n';
 import {getAccountAddress} from '@/lib/account-address.server';
 import {getRequestPreferences} from '@/lib/preferences.server';
+import {pwaColors, pwaMetadata} from '@/lib/pwa-metadata';
 import './globals.css';
 
 // Lets the page use the whole screen on a phone with a notch or a home indicator; the shell pads for the
 // safe areas itself (env(safe-area-inset-*)). Zoom is left alone: no maximum-scale, no user-scalable.
-export const viewport: Viewport = {viewportFit: 'cover'};
+export const viewport: Viewport = {themeColor: pwaColors.themeColor, viewportFit: 'cover'};
 
 export async function generateMetadata(): Promise<Metadata> {
   const {preferences} = await getRequestPreferences();
   const t = createTranslator(preferences.locale);
   return {
+    ...pwaMetadata(preferences.locale),
     title: {default: t('meta.title'), template: '%s · nova3D'},
     description: t('meta.description'),
   };

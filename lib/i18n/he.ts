@@ -9,6 +9,9 @@ export const he: Record<MessageKey, Message> = {
   // Document and routes
   'meta.title': 'nova3D · יוצרים עם ראיות',
   'meta.description': 'דרך פרטית ומבוססת ראיות מרעיון ועד מודל להדפסה.',
+  'meta.pwa.name': 'nova3D · יוצרים על סמך ראיות',
+  'meta.pwa.shortName': 'nova3D',
+  'meta.pwa.description': 'דרך פרטית ומבוססת ראיות, מרעיון ועד למודל שאפשר להדפיס.',
   'meta.login': 'התחברות',
   'meta.register': 'יצירת חשבון',
   'meta.stepUp': 'התחברות חוזרת',

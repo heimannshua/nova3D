@@ -8,6 +8,9 @@ export const en = {
   // Document and routes
   'meta.title': 'nova3D · Make with evidence',
   'meta.description': 'A private, evidence-aware path from an idea to a printable model.',
+  'meta.pwa.name': 'nova3D · Make with evidence',
+  'meta.pwa.shortName': 'nova3D',
+  'meta.pwa.description': 'A private, evidence-aware path from an idea to a printable model.',
   'meta.login': 'Sign in',
   'meta.register': 'Create your account',
   'meta.settings': 'Settings',

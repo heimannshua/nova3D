@@ -29,3 +29,31 @@ test('the health endpoint reports a synthetic shell with no provider calls', asy
   expect(response.ok()).toBe(true);
   expect(await response.json()).toMatchObject({ok: true, appMode: 'synthetic-shell', providerCall: false, syntheticData: true});
 });
+
+test('public PWA manifests and icons are available for both locales', async ({page, request}) => {
+  await page.goto('/login');
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.en.webmanifest');
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/pwa/apple-touch-icon.png');
+
+  await page.context().addCookies([{name: 'nova3d-locale', value: 'he', url: page.url()}]);
+  await page.reload();
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.he.webmanifest');
+
+  for (const locale of ['en', 'he']) {
+    const response = await request.get(`/manifest.${locale}.webmanifest`);
+    expect(response.ok()).toBe(true);
+    expect(response.headers()['content-type']).toMatch(/json/i);
+    const manifest = await response.json();
+    expect(manifest).toMatchObject({lang: locale, display: 'standalone', start_url: '/', scope: '/'});
+
+    for (const icon of manifest.icons) {
+      const iconResponse = await request.get(icon.src);
+      expect(iconResponse.ok()).toBe(true);
+      expect(iconResponse.headers()['content-type']).toContain('image/png');
+    }
+  }
+
+  const appleIcon = await request.get('/pwa/apple-touch-icon.png');
+  expect(appleIcon.ok()).toBe(true);
+  expect(appleIcon.headers()['content-type']).toContain('image/png');
+});

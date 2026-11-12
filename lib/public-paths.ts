@@ -19,7 +19,7 @@
 // its signed command to /api/workers (a POST with an `Authorization: Bearer <token>` header). The same rule holds for both: no session, no CSRF cookie, no browser Origin check by
 // the proxy, and the signature or the token, verified by the route (lib/job-dispatch.ts, lib/worker-commands.ts), is the only authentication.
 export const machinePaths = ['/api/jobs', '/api/heartbeat', '/api/dispatch', '/api/workers'];
-export const publicPaths = ['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm', ...machinePaths];
+export const publicPaths = ['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm', '/manifest.en.webmanifest', '/manifest.he.webmanifest', '/pwa/icon-192.png', '/pwa/icon-512.png', '/pwa/apple-touch-icon.png', ...machinePaths];
 
 /**
  * The synthetic design kit route. Public only when synthetic data is on, which production forbids (check-env).
