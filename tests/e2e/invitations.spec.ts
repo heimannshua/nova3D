@@ -228,7 +228,7 @@ test.describe('with a fresh sign-in', () => {
     expect(looksLikeInvitationCode(code)).toBe(true);
     expect(code).toMatch(/^[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){7}$/);
 
-    // The list gained an Unused row, with the name, the kind and the identifier, and not the code.
+    // The list gained an Unused row with only its label, status and identifier, and not the code.
     const stored = await world.invitationByLabel(name);
     expect(stored).toHaveLength(1);
     const [invitation] = stored;
@@ -238,6 +238,8 @@ test.describe('with a fresh sign-in', () => {
     await expect(item).toBeVisible(crossing);
     await expect(item.getByText(t('en', 'invitations.status.unused'), {exact: true})).toBeVisible();
     await expect(item).toContainText(invitation.id);
+    await expect(item.getByText(t('en', 'invitations.row.kind.named'), {exact: true})).toHaveCount(0);
+    await expect(item.getByText(t('en', 'invitations.row.created'), {exact: true})).toHaveCount(0);
     await expect(item).not.toContainText(code);
     // The name field is empty again, ready for the next code.
     await expect(nameField(page)).toHaveValue('');
@@ -507,43 +509,22 @@ test.describe('the general code', () => {
     expect(waiting).toBeDefined();
     expect((await world.invitationRow(waiting!))!.code_hash).toBe(hashInvitationCode(code, key()));
     await expect(generalRows(page).filter({hasText: waiting!}).getByText(t('en', 'invitations.status.unused'), {exact: true})).toBeVisible();
-    await expect(replaceButton(page)).toBeVisible();
+    await expect(replaceButton(page)).toHaveCount(0);
     await expect(mintButton(page)).toHaveCount(0);
     await page.reload();
     expect(await page.content()).not.toContain(code);
     await expect(reveals(page)).toHaveCount(0);
   });
 
-  test('while one is waiting, Replace asks first, starts on Cancel, revokes it and shows the new one once', async ({page, context, baseURL}) => {
+  test('while one is waiting, it stays unused and neither Replace nor mint-next is offered', async ({page, context, baseURL}) => {
     const current = await world.issueGeneralCode();
-    const user = await administrator(page, context, baseURL!, {marker: true});
+    await administrator(page, context, baseURL!, {marker: true});
     await expect(page.getByText(t('en', 'invitations.general.waiting'), {exact: true})).toBeVisible();
+    await expect(generalRows(page).filter({hasText: current.invitationId}).getByText(t('en', 'invitations.status.unused'), {exact: true})).toBeVisible();
+    await expect(replaceButton(page)).toHaveCount(0);
     await expect(mintButton(page)).toHaveCount(0);
-
-    await replaceButton(page).click();
-    await expect(dialog(page).getByRole('heading', {name: t('en', 'invitations.general.replaceTitle')})).toBeVisible();
-    await expect(dialog(page).getByRole('button', {name: t('en', 'confirm.cancel')})).toBeFocused();
-    await page.keyboard.press('Escape');
-    await expect(dialog(page)).toHaveCount(0);
-    await expect(replaceButton(page)).toBeFocused();
     expect(await world.unusedGeneralId()).toBe(current.invitationId);
-
-    await replaceButton(page).click();
-    await dialog(page).getByRole('button', {name: t('en', 'invitations.general.replaceConfirm')}).click();
-    const reveal = reveals(page).first();
-    await expect(reveal).toBeVisible(crossing);
-    await expect(reveal).toContainText(t('en', 'invitations.reveal.rotated'));
-    const code = await shownCode(reveal);
-    const next = await world.unusedGeneralId();
-    expect(next).toBeDefined();
-    expect(next).not.toBe(current.invitationId);
-    expect(await world.invitationStatus(current.invitationId)).toBe('revoked');
-    await expect(generalRows(page).filter({hasText: current.invitationId}).getByText(t('en', 'invitations.status.revoked'), {exact: true})).toBeVisible();
-    await expect(generalRows(page).filter({hasText: next!}).getByText(t('en', 'invitations.status.unused'), {exact: true})).toBeVisible();
-    expect((await world.invitationRow(next!))!.code_hash).toBe(hashInvitationCode(code, key()));
-    const actor = `user:${user.id}`;
-    expect(await world.auditEvents('invitation.revoked', `invitation:${current.invitationId}`)).toEqual([{actor, action: 'invitation.revoked', target: `invitation:${current.invitationId}`}]);
-    expect(await world.auditEvents('invitation.issued', `invitation:${next}`)).toEqual([{actor, action: 'invitation.issued', target: `invitation:${next}`}]);
+    expect(await world.invitationStatus(current.invitationId)).toBe('unused');
   });
 
   test('in two windows at once, one makes the code and the other is told one exists', async ({page, context, baseURL}) => {

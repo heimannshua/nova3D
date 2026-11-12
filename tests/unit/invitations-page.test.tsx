@@ -56,7 +56,7 @@ describe.each(locales)('the invitation page in %s', (locale) => {
     expect(markup).not.toMatch(/(?:[0-9A-HJKMNP-TV-Z]{4}-){7}[0-9A-HJKMNP-TV-Z]{4}/);
   });
 
-  it('lists every code newest first as it was given, each with its name, kind, status, identifier and time', () => {
+  it('lists every code newest first with only its label, status and identifier', () => {
     const items = [...markup.matchAll(/<li class="invite-item">([\s\S]*?)<\/li>/g)].map((match) => match[1]);
     expect(items).toHaveLength(all.length);
     items.forEach((item, index) => {
@@ -64,10 +64,11 @@ describe.each(locales)('the invitation page in %s', (locale) => {
       const words = text(item);
       expect(words).toContain(row.kind === 'general' ? t(locale, 'invitations.row.general') : (row.label as string));
       expect(words).toContain(t(locale, `invitations.status.${row.state}`));
-      expect(words).toContain(t(locale, row.kind === 'general' ? 'invitations.row.kind.general' : 'invitations.row.kind.named'));
       expect(item).toContain(row.invitationId);
+      expect(item).not.toContain(t(locale, 'invitations.row.kind'));
+      expect(item).not.toContain(t(locale, 'invitations.row.created'));
+      expect(item).not.toContain('<time');
     });
-    expect(markup).toContain('<time dateTime="2026-10-12T00:24:11.123Z">2026-10-12 00:24 UTC</time>');
   });
 
   it('puts the name in the page as text, never as markup', () => {

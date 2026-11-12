@@ -3,7 +3,7 @@
 import {useId, useRef, useState} from 'react';
 import {revokeInvitationCode} from '@/app/admin/invitations/actions';
 import {useI18n} from '@/lib/i18n/react';
-import {formatCreatedAt, invitationMessageKeys, isoOf, statusKeys, type InvitationRow, type InvitationStatus} from '@/lib/invitations';
+import {invitationMessageKeys, statusKeys, type InvitationRow, type InvitationStatus} from '@/lib/invitations';
 import type {MessageKey} from '@/lib/i18n';
 import {useInvitationAction} from '../use-invitation-action';
 import {useAnnounce} from '../ui/announcer';
@@ -20,9 +20,9 @@ const statusTones: Record<InvitationStatus, StatusTone> = {unused: 'success', re
 export type ListMessage = {tone: NoticeTone; text: string};
 
 /**
- * Every code, newest first (AD-01): its name, kind, status, identifier and creation time. A code's value is not in
- * this list, and is not anywhere the page can read: the database keeps only a hash of it. An unused code has a
- * Revoke button, which asks first in a dialog that starts on Cancel.
+ * Every code, newest first (AD-01): its label, status and identifier. A code's value is not in this list, and is not
+ * anywhere the page can read: the database keeps only a hash of it. An unused named code has a Revoke button, which
+ * asks first in a dialog that starts on Cancel.
  *
  * `invitations` is null when the list could not be read: the page says so and nothing else about the codes.
  */
@@ -57,7 +57,6 @@ export function InvitationList({invitations, message, onMessage}: {invitations: 
 function InvitationItem({invitation, onMessage, onDone}: {invitation: InvitationRow; onMessage: (message: ListMessage) => void; onDone: () => void}) {
   const {t} = useI18n();
   const name = invitation.kind === 'general' ? t('invitations.row.general') : (invitation.label ?? '');
-  const created = formatCreatedAt(invitation.createdAt);
   return (
     <li className="invite-item">
       <div className="invite-item-head">
@@ -66,16 +65,8 @@ function InvitationItem({invitation, onMessage, onDone}: {invitation: Invitation
       </div>
       <dl className="invite-meta">
         <div>
-          <dt>{t('invitations.row.kind')}</dt>
-          <dd>{invitation.kind === 'general' ? t('invitations.row.kind.general') : t('invitations.row.kind.named')}</dd>
-        </div>
-        <div>
           <dt>{t('invitations.row.id')}</dt>
           <dd><LtrToken><code className="invite-id">{invitation.invitationId}</code></LtrToken></dd>
-        </div>
-        <div>
-          <dt>{t('invitations.row.created')}</dt>
-          <dd>{created ? <LtrToken><time dateTime={isoOf(invitation.createdAt)}>{created}</time></LtrToken> : '-'}</dd>
         </div>
       </dl>
       {invitation.state === 'unused' && invitation.kind === 'named' ? <RevokeControl invitation={invitation} name={name} onMessage={onMessage} onDone={onDone}/> : null}
