@@ -9,7 +9,7 @@ vi.mock('@/lib/access', async (importOriginal) => {
   return {...actual, resolveAccess: accessMocks.resolveAccess};
 });
 import {proxy} from '@/proxy';
-import {isMachinePath, isPublicPath, machinePaths, publicPaths} from '@/lib/public-paths';
+import {isMachinePath, isPublicPath, machinePaths, publicPaths, pwaStaticPaths} from '@/lib/public-paths';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -20,14 +20,15 @@ afterEach(() => {
 // without a sign-in, so it must never be public unless synthetic data is on (production forbids that).
 describe('public paths (Story 1.2)', () => {
   it('keeps the sign-in, callback, health, status, scheduled-job, heartbeat, dispatch and worker routes public', () => {
-    expect(publicPaths).toEqual(['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm', '/manifest.en.webmanifest', '/manifest.he.webmanifest', '/pwa/icon-192.png', '/pwa/icon-512.png', '/pwa/apple-touch-icon.png', '/api/jobs', '/api/heartbeat', '/api/dispatch', '/api/workers']);
+    expect(publicPaths).toEqual(['/login', '/auth/callback', '/api/health', '/api/status', '/recover', '/recover/confirm', '/api/jobs', '/api/heartbeat', '/api/dispatch', '/api/workers']);
     for (const path of publicPaths) expect(isPublicPath(path, {})).toBe(true);
   });
 
-  it('makes only the exact PWA static resources public and keeps near-misses private', () => {
+  it('keeps exact PWA static resources separate from generic public and machine paths', () => {
     const resources = ['/manifest.en.webmanifest', '/manifest.he.webmanifest', '/pwa/icon-192.png', '/pwa/icon-512.png', '/pwa/apple-touch-icon.png'];
+    expect(pwaStaticPaths).toEqual(resources);
     for (const path of resources) {
-      expect(isPublicPath(path, {}), path).toBe(true);
+      expect(isPublicPath(path, {}), path).toBe(false);
       expect(isMachinePath(path), path).toBe(false);
     }
     for (const path of ['/pwa/', '/pwa/other.png', '/manifest.fr.webmanifest', '/manifest.en.webmanifest/x', '/pwa/../settings', '/pwa/%2e%2e/settings', '/PWA/icon-192.png', '/Manifest.en.webmanifest']) {

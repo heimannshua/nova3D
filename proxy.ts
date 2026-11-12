@@ -20,7 +20,7 @@ import {hasSupabaseConfig} from '@/lib/auth-config';
 import {hasUndecodableJobId, undecodableJobPath} from '@/lib/job-paths';
 import {recordFromCookies} from '@/lib/preferences';
 import {hasUndecodableProjectId, undecodableProjectPath} from '@/lib/project-paths';
-import {isMachinePath, isPublicPath} from '@/lib/public-paths';
+import {isMachinePath, isPublicPath, pwaStaticPaths} from '@/lib/public-paths';
 import {csrfCookieName, csrfCookieOptions, decideOrigin, isCsrfToken, isDocumentNavigation, isSecureRequest, originInputOf, type OriginRefusal} from '@/lib/request-integrity';
 import {signInErrorPath, type SignInErrorCode} from '@/lib/sign-in';
 import {createSupabaseProxyClient} from '@/lib/supabase/proxy';
@@ -148,6 +148,9 @@ function deny(request: NextRequest, error: SignInErrorCode) {
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const api = isApiPath(pathname);
+  if (pwaStaticPaths.includes(pathname) && (request.method === 'GET' || request.method === 'HEAD')) {
+    return NextResponse.next();
+  }
   if (isPublicPath(pathname, process.env)) {
     // A machine path (Story 1.9: the scheduled-job route; Story 1.13: the heartbeat route) is called by a scheduler or a worker, which has no browser
     // Origin. It skips this one rule and nothing else: the route checks the call's signature or signed token, which is its only authentication.

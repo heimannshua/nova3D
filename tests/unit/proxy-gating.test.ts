@@ -433,6 +433,39 @@ describe('public paths are not gated', () => {
     expect(calls).toEqual([]);
   });
 
+  it.each(['GET', 'HEAD'])('lets only exact PWA %s requests through without reading cookies or resolving identity', async (method) => {
+    const paths = ['/manifest.en.webmanifest', '/manifest.he.webmanifest', '/pwa/icon-192.png', '/pwa/icon-512.png', '/pwa/apple-touch-icon.png'];
+    const cookies = [
+      {label: 'no cookies', cookie: null, legacy: false},
+      {label: 'legacy cookie', cookie: null, legacy: true},
+      {label: 'arbitrary session cookie', cookie: `${cookieName}=not-a-valid-session`, legacy: false},
+    ];
+
+    for (const path of paths) {
+      for (const cookie of cookies) {
+        calls = [];
+        const response = await run(path, {method, cookie: cookie.cookie, legacy: cookie.legacy});
+        expect(response.status, `${method} ${path} with ${cookie.label}`).toBe(200);
+        expect(response.headers.get('x-middleware-next'), `${method} ${path} with ${cookie.label}`).toBe('1');
+        expect(response.headers.get('location'), `${method} ${path} with ${cookie.label}`).toBeNull();
+        expect(setCookies(response), `${method} ${path} with ${cookie.label}`).toEqual([]);
+        expect(calls, `${method} ${path} with ${cookie.label}`).toEqual([]);
+      }
+    }
+  });
+
+  it.each(['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'PROPFIND'])('routes PWA %s requests through the existing authenticated path', async (method) => {
+    const paths = ['/manifest.en.webmanifest', '/manifest.he.webmanifest', '/pwa/icon-192.png', '/pwa/icon-512.png', '/pwa/apple-touch-icon.png'];
+
+    for (const path of paths) {
+      calls = [];
+      const response = await run(path, {method});
+      expect(passes(response), `${method} ${path}`).toBe(true);
+      expect(calls.some((call) => call.path === '/auth/v1/user'), `${method} ${path}`).toBe(true);
+      expect(rpcs().map((call) => call.path), `${method} ${path}`).toContain('/rest/v1/rpc/authorize_session');
+    }
+  });
+
   it('never makes /register public, with or without synthetic data', async () => {
     for (const synthetic of ['true', 'false']) {
       vi.stubEnv('SYNTHETIC_DATA_ENABLED', synthetic);
