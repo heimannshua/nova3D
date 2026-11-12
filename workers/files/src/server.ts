@@ -79,7 +79,7 @@ const routes = {
   commands: /^\/v1\/commands$/,
 };
 
-type Reason = 'forbidden' | 'unavailable' | 'ended' | 'content' | 'checksum' | 'short' | 'too_long';
+type Reason = 'forbidden' | 'unavailable' | 'ended' | 'content' | 'invalid_image' | 'checksum' | 'short' | 'too_long';
 
 /** Why an upload stopped, thrown out of the body's stream so the object is never completed. */
 class Halt extends Error {
@@ -347,7 +347,7 @@ export function createGatewayServer(deps: GatewayDeps): Server {
 
     try {
       await storage.put(key, chunks(), {contentType: claims.ct});
-      if (validatesImage && !(await validPicture(claims.ct, Buffer.concat(imageChunks, received)))) throw halt('content');
+      if (validatesImage && !(await validPicture(claims.ct, Buffer.concat(imageChunks, received)))) throw halt('invalid_image');
       if (!(await database.complete(id, claims.acct, received, afterNow(transferLimits.leaseSeconds)))) {
         // The lease ended while the last bytes were landing (it was released, or its key revoked): the object is not kept.
         throw halt('ended');
@@ -370,11 +370,13 @@ export function createGatewayServer(deps: GatewayDeps): Server {
             ? {status: 409, error: 'upload_ended'}
             : reason === 'content'
               ? {status: 400, error: 'content_mismatch'}
-              : reason === 'checksum'
-                ? {status: 400, error: 'checksum_mismatch'}
-                : reason === 'short' || reason === 'too_long'
-                  ? {status: 400, error: 'length_mismatch'}
-                  : {status: 503, error: 'unavailable'};
+              : reason === 'invalid_image'
+                ? {status: 400, error: 'invalid_upload'}
+                : reason === 'checksum'
+                  ? {status: 400, error: 'checksum_mismatch'}
+                  : reason === 'short' || reason === 'too_long'
+                    ? {status: 400, error: 'length_mismatch'}
+                    : {status: 503, error: 'unavailable'};
       return refuseUpload(req, res, refusal);
     }
   }

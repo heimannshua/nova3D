@@ -763,15 +763,17 @@ describe('an upload', () => {
 
   it.each([
     ['a JPEG', 'image/jpeg', () => baselineJpeg()],
-    ['a WebP', 'image/webp', () => webpWithMetadata({trailer: false})],
-    ['a PNG', 'image/png', () => pngWithMetadata({trailer: false})],
-  ])('stores a fully decoded %s picture', async (_name, contentType, make) => {
+    ['a GPS-bearing JPEG', 'image/jpeg', () => gpsJpeg()],
+    ['a metadata-bearing WebP', 'image/webp', () => webpWithMetadata()],
+    ['a metadata-bearing PNG', 'image/png', () => pngWithMetadata()],
+  ])('stores a fully decoded %s picture without changing its bytes', async (_name, contentType, make) => {
     const member = world.member();
     const id = randomUUID();
     const bytes = make();
     const reply = await world.upload(member, id, bytes, {ct: contentType});
     expect(reply.status).toBe(201);
     expect(world.storage.objects.get(`staging/${member.accountId}/${id}`)!.contentType).toBe(contentType);
+    expect(world.storage.objects.get(`staging/${member.accountId}/${id}`)!.bytes.equals(bytes)).toBe(true);
   });
 
   it('stores any other file as application/octet-stream, whatever it holds, with no signature to check', async () => {
@@ -908,30 +910,31 @@ describe('an upload that fails leaves no object and releases its lease', () => {
   };
 
   it.each([
-    ['a JPEG that is a PNG', 'image/jpeg', () => pngBytes(4000), 1],
-    ['a PNG that is a JPEG', 'image/png', () => jpegBytes(4000), 1],
-    ['a WebP that is a PNG', 'image/webp', () => pngBytes(4000), 1],
-    ['a signature-only JPEG', 'image/jpeg', () => Buffer.from([0xff, 0xd8, 0xff]), 0],
-    ['a truncated JPEG with its matching signature', 'image/jpeg', () => baselineJpeg().subarray(0, -8), 0],
-    ['a corrupt PNG with its matching signature', 'image/png', () => { const bytes = pngWithMetadata({appearance: false, exif: false, icc: false, physical: false, text: false, trailer: false}); bytes[bytes.length - 20] ^= 0xff; return bytes; }, 0],
-    ['a PNG missing its IEND chunk', 'image/png', () => pngWithMetadata({trailer: false}).subarray(0, -12), 0],
-    ['a PNG with a truncated IEND chunk', 'image/png', () => pngWithMetadata({trailer: false}).subarray(0, -1), 0],
-    ['a truncated WebP with its matching signature', 'image/webp', () => webpWithMetadata({trailer: false}).subarray(0, -8), 0],
-    ['a WebP that is RIFF and no WEBP', 'image/webp', () => Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(8), randomBytes(100)]), 1],
-    ['a PNG that is shorter than its signature', 'image/png', () => Buffer.from([0x89, 0x50, 0x4e, 0x47]), 1],
-    ['a PNG that is not one', 'image/png', () => randomBytes(5000).fill(0x41, 0, 8), 1],
-  ])('refuses %s: 400 content_mismatch, the object deleted, the lease released, and nothing attached', async (_name, ct, make, abortedPuts) => {
+    ['a JPEG that is a PNG', 'image/jpeg', () => pngBytes(4000), 'content_mismatch', 1],
+    ['a PNG that is a JPEG', 'image/png', () => jpegBytes(4000), 'content_mismatch', 1],
+    ['a WebP that is a PNG', 'image/webp', () => pngBytes(4000), 'content_mismatch', 1],
+    ['a signature-only JPEG with matching length and SHA-256 claims', 'image/jpeg', () => Buffer.from([0xff, 0xd8, 0xff]), 'invalid_upload', 0],
+    ['a truncated JPEG with its matching signature', 'image/jpeg', () => baselineJpeg().subarray(0, -8), 'invalid_upload', 0],
+    ['a corrupt PNG with its matching signature', 'image/png', () => { const bytes = pngWithMetadata({appearance: false, exif: false, icc: false, physical: false, text: false, trailer: false}); bytes[bytes.length - 20] ^= 0xff; return bytes; }, 'invalid_upload', 0],
+    ['a PNG missing its IEND chunk', 'image/png', () => pngWithMetadata({trailer: false}).subarray(0, -12), 'invalid_upload', 0],
+    ['a PNG with a truncated IEND chunk', 'image/png', () => pngWithMetadata({trailer: false}).subarray(0, -1), 'invalid_upload', 0],
+    ['a truncated WebP with its matching signature', 'image/webp', () => webpWithMetadata({trailer: false}).subarray(0, -8), 'invalid_upload', 0],
+    ['a WebP that is RIFF and no WEBP', 'image/webp', () => Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(8), randomBytes(100)]), 'content_mismatch', 1],
+    ['a PNG that is shorter than its signature', 'image/png', () => Buffer.from([0x89, 0x50, 0x4e, 0x47]), 'content_mismatch', 1],
+    ['a PNG that is not one', 'image/png', () => randomBytes(5000).fill(0x41, 0, 8), 'content_mismatch', 1],
+  ])('refuses %s: the object deleted, the lease released, and nothing attached', async (_name, ct, make, error, abortedPuts) => {
     const member = world.member();
     const id = randomUUID();
     const bytes = make();
     const reply = await world.upload(member, id, bytes, {ct});
-    expect([reply.status, reply.json()]).toEqual([400, {error: 'content_mismatch'}]);
+    expect([reply.status, reply.json()]).toEqual([400, {error}]);
     expect(world.storage.keys()).toEqual([]);
     expect(world.storage.abortedPuts).toBe(abortedPuts);
     expect(world.storage.calls).toContain(`delete:staging/${member.accountId}/${id}`);
     expect(world.db.leases.get(id)!.state).toBe('released');
     expect(world.db.manifests.size).toBe(0);
     expect(world.db.count('complete')).toBe(0);
+    expect(world.db.calls).not.toContain('complete');
   });
 
   it('refuses a large body at its first chunk and reads no more of it than a little: the sender reads the answer or finds the connection cut', async () => {

@@ -73,7 +73,7 @@ export function leadingBytesMatch(contentType: string, head: Uint8Array): boolea
   }
 }
 
-/** Whether a PNG ends with a complete, terminal IEND chunk. libvips can decode all pixels from a PNG that has lost this footer. */
+/** Whether a PNG has a complete IEND chunk; established uploads may carry opaque trailer bytes after it. libvips can decode all pixels when IEND is missing. */
 export function hasCompletePngEnd(bytes: Buffer): boolean {
   let offset = 8;
   while (offset <= bytes.length - 12) {
@@ -82,7 +82,7 @@ export function hasCompletePngEnd(bytes: Buffer): boolean {
     const end = offset + 12 + length;
     const type = bytes.toString('ascii', offset + 4, offset + 8);
     if (type === 'IEND') {
-      return length === 0 && end === bytes.length && bytes.subarray(offset).equals(pngIendChunk);
+      return length === 0 && bytes.subarray(offset, end).equals(pngIendChunk);
     }
     offset = end;
   }
@@ -95,7 +95,7 @@ export async function validPicture(contentType: string, bytes: Buffer): Promise<
   if (contentType === 'image/png' && !hasCompletePngEnd(bytes)) return false;
   if (contentType !== 'image/jpeg' && contentType !== 'image/png' && contentType !== 'image/webp') return false;
   try {
-    await sharp(bytes, {animated: true, failOn: 'warning', limitInputPixels: 100_000_000}).stats();
+    await sharp(bytes, {animated: true, sequentialRead: true, failOn: 'error', limitInputPixels: 100_000_000}).stats();
     return true;
   } catch {
     return false;

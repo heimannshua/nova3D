@@ -518,21 +518,21 @@ describe('uploads: what is refused, and what it leaves behind', () => {
 
   it('refuses leading bytes that are not what the content type says (a PNG that is not, a JPEG that is a PNG): 400, no object, lease released', async () => {
     const who = await member();
-    for (const [ct, bytes] of [
-      ['image/png', randomBytes(1000)],
-      ['image/jpeg', pngBytes(5000)],
-      ['image/webp', jpegBytes(5000)],
-      ['image/jpeg', baselineJpeg().subarray(0, -8)],
-      ['image/png', (() => { const bytes = pngWithMetadata({appearance: false, exif: false, icc: false, physical: false, text: false, trailer: false}); bytes[bytes.length - 20] ^= 0xff; return bytes; })()],
-      ['image/jpeg', Buffer.from([0xff, 0xd8, 0xff])],
-      ['image/png', pngWithMetadata({trailer: false}).subarray(0, -12)],
-      ['image/png', pngWithMetadata({trailer: false}).subarray(0, -1)],
-      ['image/webp', webpWithMetadata({trailer: false}).subarray(0, -8)],
-      ['image/png', Buffer.concat([pngBytes(8).subarray(0, 7), Buffer.from([0x00]), randomBytes(500)])],
-    ] as [string, Buffer][]) {
+    for (const [ct, bytes, expected] of [
+      ['image/png', randomBytes(1000), 'content_mismatch'],
+      ['image/jpeg', pngBytes(5000), 'content_mismatch'],
+      ['image/webp', jpegBytes(5000), 'content_mismatch'],
+      ['image/jpeg', baselineJpeg().subarray(0, -8), 'invalid_upload'],
+      ['image/png', (() => { const bytes = pngWithMetadata({appearance: false, exif: false, icc: false, physical: false, text: false, trailer: false}); bytes[bytes.length - 20] ^= 0xff; return bytes; })(), 'invalid_upload'],
+      ['image/jpeg', Buffer.from([0xff, 0xd8, 0xff]), 'invalid_upload'],
+      ['image/png', pngWithMetadata({trailer: false}).subarray(0, -12), 'invalid_upload'],
+      ['image/png', pngWithMetadata({trailer: false}).subarray(0, -1), 'invalid_upload'],
+      ['image/webp', webpWithMetadata({trailer: false}).subarray(0, -8), 'invalid_upload'],
+      ['image/png', Buffer.concat([pngBytes(8).subarray(0, 7), Buffer.from([0x00]), randomBytes(500)]), 'content_mismatch'],
+    ] as [string, Buffer, string][]) {
       const result = await upload(who, bytes, {ct});
       expect(result.response.status, ct).toBe(400);
-      expect(await result.response.json(), ct).toEqual(errorBody('content_mismatch'));
+      expect(await result.response.json(), ct).toEqual(errorBody(expected));
       expect(await objectOf(staging(who.accountId, result.id)), ct).toBeNull();
       expect(await leaseOf(result.id), ct).toMatchObject({state: 'released'});
     }
@@ -2388,6 +2388,7 @@ describe('retaining a picture: the strip, the manifest and the retained download
     const who = await member();
     for (const [bytes, contentType] of [[pngWithMetadata(), 'image/png'], [webpWithMetadata(), 'image/webp']] as const) {
       const stored = await staged(who, bytes, contentType);
+      expect((await objectOf(staging(who.accountId, stored.id)))!.equals(bytes), contentType).toBe(true);
       const answer = await retain(who, stored);
       const object = (await objectOf(objectKey(who.accountId, answer.manifest.root)))!;
       expect(object.equals(stripPictureMetadata(contentType, bytes)), contentType).toBe(true);

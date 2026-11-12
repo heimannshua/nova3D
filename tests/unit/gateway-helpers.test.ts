@@ -81,22 +81,26 @@ describe('blocks: a chunk is at most the chunk size, however the pieces arrive',
 describe('image validation', () => {
   it.each([
     ['image/jpeg', baselineJpeg()],
-    ['image/png', pngWithMetadata({trailer: false})],
-    ['image/webp', webpWithMetadata({trailer: false})],
+    ['image/png', pngWithMetadata()],
+    ['image/webp', webpWithMetadata()],
   ])('accepts a fully decodable %s', async (contentType, bytes) => {
     expect(await validPicture(contentType, bytes)).toBe(true);
   });
 
   it('accepts opaque files and rejects signatures, corrupt data and a missing PNG end marker', async () => {
     const png = pngWithMetadata({appearance: false, exif: false, icc: false, physical: false, text: false, trailer: false});
+    const metadataPngWithTrailer = pngWithMetadata();
     const brokenPng = Buffer.from(png);
     brokenPng[brokenPng.length - 20] ^= 0xff;
     expect(hasCompletePngEnd(png)).toBe(true);
+    expect(hasCompletePngEnd(metadataPngWithTrailer)).toBe(true);
     expect(hasCompletePngEnd(png.subarray(0, -12))).toBe(false);
     expect(await validPicture('application/octet-stream', Buffer.from([0xff, 0xd8, 0xff]))).toBe(true);
     expect(await validPicture('image/jpeg', Buffer.from([0xff, 0xd8, 0xff]))).toBe(false);
     expect(await validPicture('image/png', png.subarray(0, -12))).toBe(false);
     expect(await validPicture('image/png', brokenPng)).toBe(false);
+    expect(await validPicture('image/jpeg', baselineJpeg().subarray(0, -8))).toBe(false);
+    expect(await validPicture('image/webp', webpWithMetadata().subarray(0, -8))).toBe(false);
   });
 });
 
