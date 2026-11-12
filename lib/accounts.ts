@@ -313,9 +313,49 @@ export type IssuedInvitation = {outcome: 'issued'; code: string; invitationId: s
 export type ExistingInvitation = {outcome: 'exists'; invitationId: string | null; kind: 'named' | 'general'};
 /** The current unused general code is protected. No code was stored; the ID identifies the protected invitation. */
 export type ProtectedInvitation = {outcome: 'protected'; invitationId: string; kind: 'general'};
-export type RevocationReceipt = {invitationId: string | null; outcome: 'revoked' | 'protected' | 'already_revoked' | 'redeemed' | 'not_found'};
+export type UnavailableInvitation = {outcome: 'unavailable'};
+export type RevocationReceipt = {invitationId: string | null; outcome: 'revoked' | 'protected' | 'already_revoked' | 'redeemed' | 'not_found' | 'unavailable'};
 export type WithdrawalReceipt = {outcome: 'withdrawn' | 'consumed' | 'not_found'};
 export type InvitationSummary = {invitationId: string; kind: 'named' | 'general'; label: string | null; state: 'unused' | 'redeemed' | 'revoked'; createdAt: string};
+
+const protectedInvitationActions = ['invitation.issue_protected', 'invitation.revoke_protected'] as const;
+export type ProtectedInvitationAction = (typeof protectedInvitationActions)[number];
+const invitationProtectionVersion = 'invitation-protection-v1';
+
+/** Exact scalar capability only; every missing, malformed, old or failed probe is unavailable. */
+export async function invitationProtectionReady(options: AccountsOptions = {}): Promise<boolean> {
+  try {
+    return (await callApi('invitation_protection_ready', {}, options)) === invitationProtectionVersion;
+  } catch {
+    return false;
+  }
+}
+
+/** App-side fallback for a protected row, before the migration has installed the writer-side audit call. */
+export async function recordProtectedInvitationAttempt(
+  input: {actor: string; action: ProtectedInvitationAction; invitationId: string},
+  options: AccountsOptions = {},
+): Promise<void> {
+  if (!actorPattern.test(input.actor)) throw new TypeError('actor must be a bounded audit actor');
+  if (!(protectedInvitationActions as readonly string[]).includes(input.action)) throw new TypeError('action must be a protected invitation action');
+  await callApiNoContent(
+    'record_protected_invitation_attempt',
+    {p_actor: input.actor, p_action: input.action, p_invitation_id: requireUuid('invitationId', input.invitationId)},
+    options,
+  );
+}
+
+function protectedAuditUnavailable(operation: 'issue' | 'revoke') {
+  console.warn(JSON.stringify({event: 'invitation.protected_audit_unavailable', operation}));
+}
+
+async function recordProtectedAttemptOrLog(actor: string, action: ProtectedInvitationAction, invitationId: string, operation: 'issue' | 'revoke', options: AccountsOptions) {
+  try {
+    await recordProtectedInvitationAttempt({actor, action, invitationId}, options);
+  } catch {
+    protectedAuditUnavailable(operation);
+  }
+}
 
 // Story 1.7: the call helpers below are exported for lib/projects.ts, which makes the typed calls of the Projects functions in the
 // same way (the service role, an `api` function, an answer read and checked, never trusted); Story 1.8 adds lib/lifecycle.ts, which makes
@@ -323,7 +363,7 @@ export type InvitationSummary = {invitationId: string; kind: 'named' | 'general'
 // the dormant-identity purge). Nothing else outside this file calls them.
 export type Row = Record<string, unknown>;
 
-export async function callApi(name: string, args: Row, options: AccountsOptions): Promise<unknown> {
+async function apiRequest(name: string, args: Row, options: AccountsOptions): Promise<Response> {
   const env = options.env ?? process.env;
   const base = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -364,13 +404,13 @@ export async function callApi(name: string, args: Row, options: AccountsOptions)
     throw new AccountsUnavailableError('The accounts database did not answer.', {retryable: true});
   }
 
-  let body: unknown;
-  try {
-    body = await response.json();
-  } catch {
-    body = undefined;
-  }
   if (!response.ok) {
+    let body: unknown;
+    try {
+      body = await response.clone().json();
+    } catch {
+      body = undefined;
+    }
     const code = typeof (body as Row | undefined)?.code === 'string' ? ((body as Row).code as string) : undefined;
     throw new AccountsUnavailableError(`The accounts database refused the call (HTTP ${response.status}).`, {
       status: response.status,
@@ -379,7 +419,28 @@ export async function callApi(name: string, args: Row, options: AccountsOptions)
       outcomeUnknown: response.status >= 500,
     });
   }
-  return body;
+  return response;
+}
+
+export async function callApi(name: string, args: Row, options: AccountsOptions): Promise<unknown> {
+  const response = await apiRequest(name, args, options);
+  try {
+    return await response.json();
+  } catch {
+    return undefined;
+  }
+}
+
+/** A successful service-role RPC that promises RETURNS void must have no response content. */
+export async function callApiNoContent(name: string, args: Row, options: AccountsOptions): Promise<void> {
+  const response = await apiRequest(name, args, options);
+  let body: string;
+  try {
+    body = await response.text();
+  } catch {
+    throw unexpected(response.status);
+  }
+  if (body !== '') throw unexpected(response.status);
 }
 
 export const unexpected = (status?: number) =>
@@ -841,7 +902,19 @@ export async function withdrawPreauthorization(input: {email: string; actor: str
 export async function issueInvitation(
   input: {kind: 'named'; label: string; actor: string} | {kind: 'general'; actor: string; replace?: boolean},
   options: AccountsOptions = {},
-): Promise<IssuedInvitation | ExistingInvitation | ProtectedInvitation> {
+): Promise<IssuedInvitation | ExistingInvitation | ProtectedInvitation | UnavailableInvitation> {
+  if (input.kind === 'general' && input.replace === true && !(await invitationProtectionReady(options))) {
+    let current: InvitationSummary[];
+    try {
+      current = (await listInvitations(options)).filter((item) => item.kind === 'general' && item.state === 'unused');
+    } catch {
+      return {outcome: 'unavailable'};
+    }
+    if (current.length !== 1) return {outcome: 'unavailable'};
+    await recordProtectedAttemptOrLog(input.actor, 'invitation.issue_protected', current[0].invitationId, 'issue', options);
+    return {outcome: 'protected', invitationId: requireUuid('invitationId', current[0].invitationId), kind: 'general'};
+  }
+
   const env = options.env ?? process.env;
   const key = hashKey(env, 'INVITATION_HASH_KEY');
   const code = generateInvitationCode();
@@ -877,11 +950,27 @@ export async function revokeInvitation(
   const env = options.env ?? process.env;
   let args: Row;
   if (input.invitationId !== undefined) {
-    args = {p_actor: input.actor, p_invitation_id: requireUuid('invitationId', input.invitationId)};
+    const invitationId = requireUuid('invitationId', input.invitationId);
+    let matches: InvitationSummary[];
+    try {
+      matches = (await listInvitations(options)).filter((item) => item.invitationId.toLowerCase() === invitationId);
+    } catch {
+      return {invitationId: null, outcome: 'unavailable'};
+    }
+    if (matches.length === 0) return {invitationId: null, outcome: 'not_found'};
+    if (matches.length !== 1) return {invitationId: null, outcome: 'unavailable'};
+    const listed = matches[0];
+    const ready = await invitationProtectionReady(options);
+    if (listed.kind === 'general' && listed.state === 'unused' && !ready) {
+      await recordProtectedAttemptOrLog(input.actor, 'invitation.revoke_protected', invitationId, 'revoke', options);
+      return {invitationId, outcome: 'protected'};
+    }
+    args = {p_actor: input.actor, p_invitation_id: invitationId};
   } else {
-    const key = hashKey(env, 'INVITATION_HASH_KEY');
     // Something that is not shaped like a code cannot be one that was issued.
     if (!looksLikeInvitationCode(input.code)) return {invitationId: null, outcome: 'not_found'};
+    if (!(await invitationProtectionReady(options))) return {invitationId: null, outcome: 'unavailable'};
+    const key = hashKey(env, 'INVITATION_HASH_KEY');
     args = {p_actor: input.actor, p_code_hash: hashInvitationCode(input.code, key)};
   }
   const row = await callRow('revoke_invitation', args, options);

@@ -1,6 +1,38 @@
 -- Story 1.3 AC-2: only successful redemption retires the current unused general invitation.
 -- Readers and seed command understand the additive protected outcome before this migration is applied.
 
+create or replace function api.invitation_protection_ready()
+returns text
+language sql
+security definer
+set search_path = ''
+as $$
+  select 'invitation-protection-v1'::text;
+$$;
+
+revoke all on function api.invitation_protection_ready() from public, anon, authenticated;
+grant execute on function api.invitation_protection_ready() to service_role;
+
+create or replace function api.record_protected_invitation_attempt(p_actor text, p_action text, p_invitation_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if p_actor is null or p_actor !~ '^[a-z][a-z_]*(:[A-Za-z0-9_-]{1,64}){0,2}$'
+     or p_action is null or p_action not in ('invitation.issue_protected', 'invitation.revoke_protected')
+     or p_invitation_id is null then
+    raise exception 'invalid argument' using errcode = '22023';
+  end if;
+
+  perform identity.record_audit(p_actor, p_action, 'invitation:' || p_invitation_id::text);
+end;
+$$;
+
+revoke all on function api.record_protected_invitation_attempt(text, text, uuid) from public, anon, authenticated;
+grant execute on function api.record_protected_invitation_attempt(text, text, uuid) to service_role;
+
 create or replace function api.issue_invitation(p_code_hash text, p_kind text, p_label text, p_actor text, p_replace boolean default false)
 returns api.invitation_receipt
 language plpgsql
@@ -36,7 +68,7 @@ begin
         end if;
         v_receipt.outcome := 'protected';
         v_receipt.invitation_id := v_current.id;
-        perform identity.record_audit(p_actor, 'invitation.issue_protected', 'invitation:' || v_current.id::text);
+        perform api.record_protected_invitation_attempt(p_actor, 'invitation.issue_protected', v_current.id);
         return v_receipt;
       end if;
     end if;
@@ -89,7 +121,7 @@ begin
   v_receipt.invitation_id := v_invitation.id;
   if v_invitation.status = 'unused' and v_invitation.kind = 'general' then
     v_receipt.outcome := 'protected';
-    perform identity.record_audit(p_actor, 'invitation.revoke_protected', 'invitation:' || v_invitation.id::text);
+    perform api.record_protected_invitation_attempt(p_actor, 'invitation.revoke_protected', v_invitation.id);
   elsif v_invitation.status = 'unused' then
     update identity.invitations i
        set status = 'revoked', revoked_at = clock_timestamp(), revoked_by = p_actor

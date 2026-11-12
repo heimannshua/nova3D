@@ -24,6 +24,8 @@ import {
   issueCsrf,
   issueGrant,
   issueInvitation,
+  invitationProtectionReady,
+  recordProtectedInvitationAttempt,
   listInvitations,
   invitationRefusalActions,
   guardOperation,
@@ -297,7 +299,9 @@ function endpoint(answer: (name: string, body: Record<string, unknown>) => {stat
     const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
     calls.push({url, init: init ?? {}, body});
     const reply = answer(url.split('/rpc/')[1], body);
-    return new Response(JSON.stringify(reply.body), {status: reply.status ?? 200, headers: {'content-type': 'application/json'}});
+    return reply.body === undefined
+      ? new Response(null, {status: reply.status ?? 204})
+      : new Response(JSON.stringify(reply.body), {status: reply.status ?? 200, headers: {'content-type': 'application/json'}});
   };
   return {calls, fetch: fetchImpl};
 }
@@ -469,7 +473,9 @@ describe('the other calls', () => {
 
   it('issue a code, send only its hash and return the code to the caller once', async () => {
     const env = environment();
-    const {calls, fetch} = endpoint(() => ({body: {outcome: 'issued', invitation_id: 'i1', kind: 'named', replaced_invitation_id: null}}));
+    const {calls, fetch} = endpoint((name) => ({body: name === 'invitation_protection_ready'
+      ? 'invitation-protection-v1'
+      : {outcome: 'issued', invitation_id: 'i1', kind: 'named', replaced_invitation_id: null}}));
     const issued = await issueInvitation({kind: 'named', label: 'Daniel', actor: 'seed:local:josh'}, {env, fetch});
     if (issued.outcome !== 'issued') throw new Error('expected an issued code');
 
@@ -487,7 +493,7 @@ describe('the other calls', () => {
     expect(again.outcome === 'issued' && again.code !== issued.code).toBe(true);
 
     await issueInvitation({kind: 'general', actor: 'seed:local:josh', replace: true}, {env, fetch});
-    expect(calls[2].body).toMatchObject({p_kind: 'general', p_label: null, p_replace: true});
+    expect(calls[3].body).toMatchObject({p_kind: 'general', p_label: null, p_replace: true});
   });
 
   it('return no code when the database says the invitation exists', async () => {
@@ -498,7 +504,7 @@ describe('the other calls', () => {
   });
 
   it('return a protected current general ID without returning the unissued code', async () => {
-    const {fetch} = endpoint(() => ({body: {outcome: 'protected', invitation_id: 'i9', kind: 'general', replaced_invitation_id: null}}));
+    const {fetch} = endpoint((name) => ({body: name === 'invitation_protection_ready' ? 'invitation-protection-v1' : {outcome: 'protected', invitation_id: 'i9', kind: 'general', replaced_invitation_id: null}}));
     const result = await issueInvitation({kind: 'general', actor: 'seed:local:josh', replace: true}, {env: environment(), fetch});
     expect(result).toEqual({outcome: 'protected', invitationId: 'i9', kind: 'general'});
     expect(result).not.toHaveProperty('code');
@@ -506,19 +512,99 @@ describe('the other calls', () => {
 
   it('revoke by invitation ID or by the code, hashing the code', async () => {
     const env = environment();
-    const {calls, fetch} = endpoint(() => ({body: {invitation_id: 'i1', outcome: 'revoked'}}));
+    const {calls, fetch} = endpoint((name) => ({body: name === 'list_invitations'
+      ? [{invitation_id: COMMAND, kind: 'named', label: 'A', state: 'unused', created_at: '2026-11-01T00:00:00Z'}]
+      : name === 'invitation_protection_ready' ? 'invitation-protection-v1' : {invitation_id: 'i1', outcome: 'revoked'}}));
     expect(await revokeInvitation({actor: 'seed:local:josh', invitationId: COMMAND}, {env, fetch})).toEqual({invitationId: 'i1', outcome: 'revoked'});
-    expect(calls[0].body).toEqual({p_actor: 'seed:local:josh', p_invitation_id: COMMAND});
+    expect(calls[2].body).toEqual({p_actor: 'seed:local:josh', p_invitation_id: COMMAND});
 
     const code = generateInvitationCode();
     await revokeInvitation({actor: 'seed:local:josh', code}, {env, fetch});
-    expect(calls[1].body).toEqual({p_actor: 'seed:local:josh', p_code_hash: hashInvitationCode(code, hashKey(env, 'INVITATION_HASH_KEY'))});
-    expect(JSON.stringify(calls[1].body)).not.toContain(code);
+    expect(calls[4].body).toEqual({p_actor: 'seed:local:josh', p_code_hash: hashInvitationCode(code, hashKey(env, 'INVITATION_HASH_KEY'))});
+    expect(JSON.stringify(calls[4].body)).not.toContain(code);
   });
 
   it('return the protected invitation ID from a protected revoke', async () => {
-    const {fetch} = endpoint(() => ({body: {invitation_id: 'i9', outcome: 'protected'}}));
-    expect(await revokeInvitation({actor: 'seed:local:josh', invitationId: COMMAND}, {env: environment(), fetch})).toEqual({invitationId: 'i9', outcome: 'protected'});
+    const {fetch} = endpoint((name) => ({status: name === 'record_protected_invitation_attempt' || name === 'invitation_protection_ready' ? 404 : undefined,
+      body: name === 'list_invitations' ? [{invitation_id: COMMAND, kind: 'general', label: null, state: 'unused', created_at: '2026-11-01T00:00:00Z'}] : {invitation_id: 'i9', outcome: 'protected'}}));
+    expect(await revokeInvitation({actor: 'seed:local:josh', invitationId: COMMAND}, {env: environment(), fetch})).toEqual({invitationId: COMMAND, outcome: 'protected'});
+  });
+
+  it('reads only the exact versioned capability and fails closed on all other shapes', async () => {
+    expect(await invitationProtectionReady({env: environment(), fetch: endpoint(() => ({body: 'invitation-protection-v1'})).fetch})).toBe(true);
+    for (const body of [null, {}, ['invitation-protection-v1'], 'invitation-protection-v2', '']) {
+      expect(await invitationProtectionReady({env: environment(), fetch: endpoint(() => ({body})).fetch})).toBe(false);
+    }
+    expect(await invitationProtectionReady({env: environment(), fetch: endpoint(() => ({status: 404, body: {}})).fetch})).toBe(false);
+    expect(await invitationProtectionReady({env: environment(), fetch: async () => { throw new TypeError('secret response body'); }})).toBe(false);
+  });
+
+  it('accepts only an empty successful protected-audit response and sends fixed opaque fields', async () => {
+    const {calls, fetch} = endpoint(() => ({status: 204, body: undefined}));
+    await expect(recordProtectedInvitationAttempt({actor: 'seed:local:josh', action: 'invitation.issue_protected', invitationId: COMMAND}, {env: environment(), fetch})).resolves.toBeUndefined();
+    expect(calls[0].url).toMatch(/\/rpc\/record_protected_invitation_attempt$/);
+    expect(calls[0].body).toEqual({p_actor: 'seed:local:josh', p_action: 'invitation.issue_protected', p_invitation_id: COMMAND});
+    const malformed = endpoint(() => ({body: null}));
+    await expect(recordProtectedInvitationAttempt({actor: 'seed:local:josh', action: 'invitation.revoke_protected', invitationId: COMMAND}, {env: environment(), fetch: malformed.fetch})).rejects.toBeInstanceOf(AccountsUnavailableError);
+    await expect(recordProtectedInvitationAttempt({actor: 'seed:local:josh', action: 'invitation.denied' as never, invitationId: COMMAND}, {env: environment(), fetch})).rejects.toBeInstanceOf(TypeError);
+    await expect(recordProtectedInvitationAttempt({actor: 'actor with spaces', action: 'invitation.issue_protected', invitationId: COMMAND}, {env: environment(), fetch})).rejects.toBeInstanceOf(TypeError);
+    await expect(recordProtectedInvitationAttempt({actor: 'seed:local:josh', action: 'invitation.issue_protected', invitationId: 'not-a-uuid'}, {env: environment(), fetch})).rejects.toBeInstanceOf(TypeError);
+  });
+
+  it('never calls the legacy replace writer when capability is absent, including after an empty list read', async () => {
+    const absent = endpoint((name) => ({
+      status: name === 'invitation_protection_ready' || name === 'record_protected_invitation_attempt' ? 404 : undefined,
+      body: name === 'list_invitations' ? [] : {outcome: 'issued', invitation_id: 'should-not-exist'},
+    }));
+    const unavailable = await issueInvitation({kind: 'general', actor: 'seed:local:josh', replace: true}, {env: environment(), fetch: absent.fetch});
+    expect(unavailable).toEqual({outcome: 'unavailable'});
+    expect(absent.calls.map((call) => call.url.split('/rpc/')[1])).toEqual(['invitation_protection_ready', 'list_invitations']);
+    expect(unavailable).not.toHaveProperty('code');
+  });
+
+  it('returns the exact listed current-general row as protected and never calls either legacy writer when protection is absent', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const oldDb = endpoint((name) => ({
+      status: name === 'invitation_protection_ready' || name === 'record_protected_invitation_attempt' ? 404 : undefined,
+      body: name === 'list_invitations' ? [{invitation_id: COMMAND, kind: 'general', label: null, state: 'unused', created_at: '2026-11-01T00:00:00Z'}] : {},
+    }));
+    const result = await issueInvitation({kind: 'general', actor: 'seed:local:josh', replace: true}, {env: environment(), fetch: oldDb.fetch});
+    expect(result).toEqual({outcome: 'protected', invitationId: COMMAND, kind: 'general'});
+    expect(oldDb.calls.map((call) => call.url.split('/rpc/')[1])).toEqual(['invitation_protection_ready', 'list_invitations', 'record_protected_invitation_attempt']);
+    expect(warn).toHaveBeenCalledWith(JSON.stringify({event: 'invitation.protected_audit_unavailable', operation: 'issue'}));
+    expect(JSON.stringify(warn.mock.calls)).not.toMatch(new RegExp(`${COMMAND}|${SERVICE_KEY}|seed:local:josh`));
+  });
+
+  it('fails closed on an unavailable ID lookup and refuses code revocation without the capability', async () => {
+    const unreadable = endpoint((name) => ({status: name === 'list_invitations' ? 503 : undefined, body: {}}));
+    expect(await revokeInvitation({actor: 'seed:local:josh', invitationId: COMMAND}, {env: environment(), fetch: unreadable.fetch})).toEqual({invitationId: null, outcome: 'unavailable'});
+    expect(unreadable.calls.map((call) => call.url.split('/rpc/')[1])).toEqual(['list_invitations']);
+    const code = generateInvitationCode();
+    const oldDb = endpoint((name) => ({status: name === 'invitation_protection_ready' ? 404 : undefined, body: {}}));
+    expect(await revokeInvitation({actor: 'seed:local:josh', code}, {env: environment(), fetch: oldDb.fetch})).toEqual({invitationId: null, outcome: 'unavailable'});
+    expect(oldDb.calls.map((call) => call.url.split('/rpc/')[1])).toEqual(['invitation_protection_ready']);
+  });
+
+  it('fails closed on an ambiguous current-general read and a duplicate exact ID read', async () => {
+    const ambiguous = endpoint((name) => ({
+      status: name === 'invitation_protection_ready' ? 404 : undefined,
+      body: name === 'list_invitations' ? [
+        {invitation_id: COMMAND, kind: 'general', label: null, state: 'unused', created_at: '2026-11-01T00:00:00Z'},
+        {invitation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', kind: 'general', label: null, state: 'unused', created_at: '2026-11-02T00:00:00Z'},
+      ] : {outcome: 'issued'},
+    }));
+    expect(await issueInvitation({kind: 'general', actor: 'seed:local:josh', replace: true}, {env: environment(), fetch: ambiguous.fetch})).toEqual({outcome: 'unavailable'});
+    expect(ambiguous.calls.map((call) => call.url.split('/rpc/')[1])).toEqual(['invitation_protection_ready', 'list_invitations']);
+
+    const duplicateId = endpoint((name) => ({
+      status: name === 'invitation_protection_ready' ? 404 : undefined,
+      body: name === 'list_invitations' ? [
+        {invitation_id: COMMAND, kind: 'named', label: 'A', state: 'unused', created_at: '2026-11-01T00:00:00Z'},
+        {invitation_id: COMMAND, kind: 'named', label: 'A', state: 'unused', created_at: '2026-11-01T00:00:00Z'},
+      ] : {outcome: 'revoked'},
+    }));
+    expect(await revokeInvitation({actor: 'seed:local:josh', invitationId: COMMAND}, {env: environment(), fetch: duplicateId.fetch})).toEqual({invitationId: null, outcome: 'unavailable'});
+    expect(duplicateId.calls.map((call) => call.url.split('/rpc/')[1])).toEqual(['list_invitations']);
   });
 
   it('say not_found for something that cannot be a code, without calling the database', async () => {

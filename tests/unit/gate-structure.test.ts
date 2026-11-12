@@ -580,7 +580,7 @@ describe('the invitation page (Story 1.11) changes a code in one place, behind t
 
   it('keeps the database functions behind the typed calls: nothing else names them', () => {
     for (const file of sources.filter((candidate) => candidate !== 'lib/accounts.ts')) {
-      expect(withoutComments(read(file)), file).not.toMatch(/['"`](?:issue_invitation|revoke_invitation|list_invitations|record_invitation_refusal)['"`]/);
+      expect(withoutComments(read(file)), file).not.toMatch(/['"`](?:issue_invitation|revoke_invitation|list_invitations|record_invitation_refusal|invitation_protection_ready|record_protected_invitation_attempt)['"`]/);
     }
   });
 

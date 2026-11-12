@@ -69,6 +69,62 @@ describe('access: only the service role can record a refusal', () => {
     expect(acl.rows.map((row) => row.grantee).sort()).toEqual(['postgres', 'service_role']);
   });
 
+  it('exposes an exact scalar capability and a service-only, empty-search-path audit endpoint', async () => {
+    const capability = await fetch(`${stack.apiUrl}/rest/v1/rpc/invitation_protection_ready`, {
+      method: 'POST',
+      headers: {apikey: stack.serviceKey, authorization: `Bearer ${stack.serviceKey}`, 'content-type': 'application/json', 'content-profile': 'api'},
+      body: '{}',
+    });
+    expect(capability.status).toBe(200);
+    expect(await capability.json()).toBe('invitation-protection-v1');
+
+    const {rows} = await db.query(
+      `select p.prosecdef as definer, p.proconfig as config, pg_get_function_arguments(p.oid) as args, pg_get_function_result(p.oid) as result
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'api' and p.proname = 'record_protected_invitation_attempt'`,
+    );
+    expect(rows).toEqual([{definer: true, config: ['search_path=""'], args: 'p_actor text, p_action text, p_invitation_id uuid', result: 'void'}]);
+    const grants = await db.query(`select r.rolname as role, has_function_privilege(r.oid, 'api.record_protected_invitation_attempt(text, text, uuid)', 'execute') as can from pg_roles r where r.rolname in ('anon', 'authenticated', 'service_role', 'supabase_auth_admin') order by 1`);
+    expect(Object.fromEntries(grants.rows.map((row) => [row.role, row.can]))).toEqual({anon: false, authenticated: false, service_role: true, supabase_auth_admin: false});
+  });
+
+  it('appends every identical protected attempt once, returns no content, and keeps only opaque fields', async () => {
+    const actor = `seed:local:${randomUUID()}`;
+    const target = randomUUID();
+    const before = await db.query(`select count(*)::int as n from identity.audit_events where actor = $1`, [actor]);
+    const responseBodies: string[] = [];
+    for (let index = 0; index < 2; index += 1) {
+      const response = await fetch(`${stack.apiUrl}/rest/v1/rpc/record_protected_invitation_attempt`, {
+        method: 'POST',
+        headers: {apikey: stack.serviceKey, authorization: `Bearer ${stack.serviceKey}`, 'content-type': 'application/json', 'content-profile': 'api'},
+        body: JSON.stringify({p_actor: actor, p_action: 'invitation.revoke_protected', p_invitation_id: target}),
+      });
+      expect(response.status).toBe(204);
+      responseBodies.push(await response.text());
+    }
+    expect(responseBodies).toEqual(['', '']);
+    const events = await db.query(`select actor, action, target, occurred_at from identity.audit_events where actor = $1 order by id desc limit 2`, [actor]);
+    expect(events.rows).toEqual([
+      {actor, action: 'invitation.revoke_protected', target: `invitation:${target}`, occurred_at: expect.any(Date)},
+      {actor, action: 'invitation.revoke_protected', target: `invitation:${target}`, occurred_at: expect.any(Date)},
+    ]);
+    const after = await db.query(`select count(*)::int as n from identity.audit_events where actor = $1`, [actor]);
+    expect(after.rows[0].n).toBe(before.rows[0].n + 2);
+  });
+
+  it.each([
+    ['wrong action', {p_actor: 'seed:local:test', p_action: 'invitation.denied', p_invitation_id: randomUUID()}],
+    ['invalid actor', {p_actor: 'actor with spaces', p_action: 'invitation.issue_protected', p_invitation_id: randomUUID()}],
+    ['missing UUID', {p_actor: 'seed:local:test', p_action: 'invitation.issue_protected', p_invitation_id: null}],
+  ])('rejects %s from the audit endpoint', async (_label, payload) => {
+    const response = await fetch(`${stack.apiUrl}/rest/v1/rpc/record_protected_invitation_attempt`, {
+      method: 'POST',
+      headers: {apikey: stack.serviceKey, authorization: `Bearer ${stack.serviceKey}`, 'content-type': 'application/json', 'content-profile': 'api'},
+      body: JSON.stringify(payload),
+    });
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe('22023');
+  });
+
   it.each(['anon', 'authenticated'])('is refused to %s with a database permission error, and writes nothing', async (role) => {
     await inTx(async (client) => {
       const m = await account(client, 'member');

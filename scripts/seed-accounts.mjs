@@ -179,6 +179,7 @@ try {
       if (error instanceof AccountsUnavailableError && error.outcomeUnknown) fail(`Failed: ${describe(error)} ${unknownOutcome}`);
       throw error;
     }
+    if (issued.outcome === 'unavailable') fail('Invitation protection is unavailable. No code was issued; verify the migration before retrying.');
     if (issued.outcome === 'exists') {
       fail(
         values.general
@@ -209,9 +210,10 @@ try {
       redeemed: 'Not revoked: this code was already redeemed.',
       not_found: 'No such invitation.',
       protected: `Not revoked: current general invitation ${receipt.invitationId} must be redeemed first.`,
+      unavailable: 'Invitation protection is unavailable. Nothing was revoked; verify the migration before retrying.',
     };
     console.log(messages[receipt.outcome]);
-    if (receipt.outcome === 'protected' || receipt.outcome === 'redeemed' || receipt.outcome === 'not_found') process.exitCode = 1;
+    if (receipt.outcome === 'protected' || receipt.outcome === 'redeemed' || receipt.outcome === 'not_found' || receipt.outcome === 'unavailable') process.exitCode = 1;
   }
 } catch (error) {
   if (error instanceof AccountsConfigError || error instanceof AccountsUnavailableError || error instanceof TypeError) {

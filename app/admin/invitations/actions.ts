@@ -118,6 +118,10 @@ export async function mintGeneralInvitation(_previous: InvitationActionState, fo
     } catch (error) {
       return failed(error);
     }
+    if (issued.outcome === 'unavailable') {
+      refresh();
+      return {outcome: 'unavailable', unknown: false};
+    }
     // Either way the list the page shows may be out of date now.
     refresh();
     if (issued.outcome === 'protected') return {outcome: 'protected', protectedInvitationId: issued.invitationId};
@@ -136,6 +140,10 @@ export async function revokeInvitationCode(_previous: InvitationActionState, for
       receipt = await withinBudget(budget, (timeoutMs) => revokeInvitation({actor, invitationId}, {timeoutMs}));
     } catch (error) {
       return failed(error);
+    }
+    if (receipt.outcome === 'unavailable') {
+      refresh();
+      return {outcome: 'unavailable', unknown: false};
     }
     refresh();
     return receipt.outcome === 'protected'

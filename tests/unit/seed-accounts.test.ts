@@ -27,7 +27,7 @@ globalThis.fetch = (input, init) => {
 };`;
 const preload = `--import=data:text/javascript,${encodeURIComponent(forwardFixtureHost)}`;
 
-type Reply = {status?: number; body: unknown} | 'drop';
+type Reply = {status?: number; body?: unknown} | 'drop';
 type Rpc = {name: string; body: Record<string, any>};
 let server: Server;
 let origin = '';
@@ -52,7 +52,7 @@ beforeAll(async () => {
       rpcs.push(rpc);
       const reply = answer(rpc);
       if (reply === 'drop') return void request.socket.destroy();
-      response.writeHead(reply.status ?? 200, {'content-type': 'application/json'}).end(JSON.stringify(reply.body));
+      response.writeHead(reply.status ?? 200, reply.body === undefined ? {} : {'content-type': 'application/json'}).end(reply.body === undefined ? undefined : JSON.stringify(reply.body));
     });
   });
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
@@ -165,6 +165,8 @@ describe('the --confirm guard outside local', () => {
 describe('the audit actor', () => {
   it('is seed:<APP_ENV>:<operating-system user> on every command', async () => {
     answer = ({name}) => {
+      if (name === 'list_invitations') return {body: [{invitation_id: ID, kind: 'named', label: 'Daniel', state: 'unused', created_at: '2026-11-01T00:00:00Z'}]};
+      if (name === 'invitation_protection_ready') return {body: 'invitation-protection-v1'};
       if (name === 'revoke_invitation') return {body: {invitation_id: ID, outcome: 'revoked'}};
       if (name === 'withdraw_preauthorization') return {body: {outcome: 'withdrawn'}};
       if (name === 'issue_invitation') return {body: {outcome: 'issued', invitation_id: ID, kind: 'named', replaced_invitation_id: null}};
@@ -174,15 +176,18 @@ describe('the audit actor', () => {
     for (const args of [['preauthorize'], ['unauthorize', '--email', 'a@b.co'], ['issue', '--name', 'Daniel'], ['revoke', '--id', ID]]) {
       expect((await run([...args, '--confirm', 'staging'])).code, args.join(' ')).toBe(0);
     }
-    expect(rpcs.length).toBe(4);
-    for (const rpc of rpcs) expect(rpc.body.p_actor, rpc.name).toBe(`seed:staging:${operator}`);
-    for (const rpc of rpcs) expect(rpc.body.p_actor).toMatch(/^[a-z][a-z_]*(:[A-Za-z0-9_-]{1,64}){0,2}$/);
+    const writes = rpcs.filter(({name}) => !['list_invitations', 'invitation_protection_ready'].includes(name));
+    expect(writes.map(({name}) => name)).toEqual(['seed_preauthorization', 'withdraw_preauthorization', 'issue_invitation', 'revoke_invitation']);
+    for (const rpc of writes) expect(rpc.body.p_actor, rpc.name).toBe(`seed:staging:${operator}`);
+    for (const rpc of writes) expect(rpc.body.p_actor).toMatch(/^[a-z][a-z_]*(:[A-Za-z0-9_-]{1,64}){0,2}$/);
   });
 });
 
 describe('revoke and unauthorize', () => {
   const revoke = (outcome: string) => {
-    answer = () => ({body: {invitation_id: outcome === 'not_found' ? null : ID, outcome}});
+    answer = ({name}) => name === 'list_invitations'
+      ? {body: [{invitation_id: ID, kind: 'named', label: 'Daniel', state: 'unused', created_at: '2026-11-01T00:00:00Z'}]}
+      : name === 'invitation_protection_ready' ? {body: 'invitation-protection-v1'} : {body: {invitation_id: outcome === 'not_found' ? null : ID, outcome}};
   };
 
   it.each([
@@ -200,10 +205,11 @@ describe('revoke and unauthorize', () => {
 
   it('revokes by a code read from standard input, sending only its hash', async () => {
     revoke('revoked');
+    answer = ({name}) => name === 'invitation_protection_ready' ? {body: 'invitation-protection-v1'} : {body: {invitation_id: ID, outcome: 'revoked'}};
     const code = '7H2K-9QXM-3NRT-0AB4-VWXY-1234-5678-ZZZZ';
     const result = await run(['revoke', '--code-stdin', '--confirm', 'staging'], staging(), `${code.toLowerCase()}\n`);
     expect(result.code, result.stderr).toBe(0);
-    expect(rpcs[0].body.p_code_hash).toBe(hashInvitationCode(code, Buffer.from(INVITATION_KEY, 'base64')));
+    expect(rpcs.at(-1)?.body.p_code_hash).toBe(hashInvitationCode(code, Buffer.from(INVITATION_KEY, 'base64')));
     expect(JSON.stringify(rpcs)).not.toContain(code);
     expect(result.stdout + result.stderr).not.toContain(code);
   });
@@ -283,13 +289,38 @@ describe('issue', () => {
     expect(clash.stderr).toContain('must be redeemed');
     expect(clash.stdout).toBe('');
 
-    answer = () => ({body: {outcome: 'protected', invitation_id: '5b0c9f0e-1111-4222-8333-444455556666', kind: 'general', replaced_invitation_id: null}});
+    answer = ({name}) => name === 'invitation_protection_ready'
+      ? {body: 'invitation-protection-v1'}
+      : {body: {outcome: 'protected', invitation_id: '5b0c9f0e-1111-4222-8333-444455556666', kind: 'general', replaced_invitation_id: null}};
     const replaced = await run(['issue', '--general', '--replace', '--confirm', 'staging']);
     expect(replaced.code).toBe(1);
     expect(rpcs.at(-1)!.body).toMatchObject({p_kind: 'general', p_replace: true});
     expect(replaced.stderr).toContain('must be redeemed');
     expect(replaced.stderr).toContain('5b0c9f0e-1111-4222-8333-444455556666');
     expect(replaced.stdout).toBe('');
+  });
+
+  it('fails closed on an old database after an empty precheck, without calling the destructive writer or printing a code', async () => {
+    answer = ({name}) => {
+      if (name === 'invitation_protection_ready' || name === 'record_protected_invitation_attempt') return {status: 404};
+      if (name === 'list_invitations') return {body: []};
+      return {body: {outcome: 'issued', invitation_id: ID, kind: 'general', replaced_invitation_id: null}};
+    };
+    const result = await run(['issue', '--general', '--replace', '--confirm', 'staging']);
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('No code was issued');
+    expect(rpcs.map(({name}) => name)).toEqual(['invitation_protection_ready', 'list_invitations']);
+  });
+
+  it('refuses code-based revoke until the migrated server capability is available', async () => {
+    answer = ({name}) => name === 'invitation_protection_ready' ? {status: 404} : {body: {invitation_id: ID, outcome: 'revoked'}};
+    const code = '7H2K-9QXM-3NRT-0AB4-VWXY-1234-5678-ZZZZ';
+    const result = await run(['revoke', '--code-stdin', '--confirm', 'staging'], staging(), `${code}\n`);
+    expect(result.code).toBe(1);
+    expect(result.stdout + result.stderr).not.toContain(code);
+    expect(result.stdout).toContain('Invitation protection is unavailable');
+    expect(rpcs.map(({name}) => name)).toEqual(['invitation_protection_ready']);
   });
 
   it('says the outcome is unknown, and to list and revoke by ID, when the call fails after it may have been applied', async () => {
@@ -397,7 +428,8 @@ describe('which hashing keys each command needs', () => {
   const onlyRateLimit = {INVITATION_HASH_KEY: undefined, RATE_LIMIT_HASH_KEY: RATE_LIMIT_KEY};
   const fine = (outcome = 'revoked') => {
     answer = ({name}) => {
-      if (name === 'list_invitations') return {body: []};
+      if (name === 'list_invitations') return {body: [{invitation_id: ID, kind: 'named', label: 'Daniel', state: 'unused', created_at: '2026-11-01T00:00:00Z'}]};
+      if (name === 'invitation_protection_ready') return {body: 'invitation-protection-v1'};
       if (name === 'revoke_invitation') return {body: {invitation_id: ID, outcome}};
       if (name === 'withdraw_preauthorization') return {body: {outcome: 'withdrawn'}};
       if (name === 'seed_preauthorization') return {body: {preauthorization_id: ID, role: 'administrator', created: true, consumed: false, other_administrators: 0}};

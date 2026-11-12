@@ -358,6 +358,12 @@ describe('mintGeneralInvitation', () => {
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
 
+  it('returns a known unavailable refusal without claiming the change may have happened', async () => {
+    mocks.issueInvitation.mockResolvedValue({outcome: 'unavailable'});
+    expect(await mintGeneralInvitation(idle, form({replace: 'true'}))).toEqual({outcome: 'unavailable', unknown: false});
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  });
+
   it('says whether the change may have been made when the database does not answer', async () => {
     mocks.issueInvitation.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
     expect(await mintGeneralInvitation(idle, form({replace: 'true'}))).toEqual({outcome: 'unavailable', unknown: true});
@@ -404,6 +410,12 @@ describe('revokeInvitationCode', () => {
   it('passes a protected receipt and its invitation ID through, and refreshes the page', async () => {
     mocks.revokeInvitation.mockResolvedValue({invitationId: OTHER_INVITATION, outcome: 'protected'});
     expect(await revokeInvitationCode(idle, form({invitationId: INVITATION}))).toEqual({outcome: 'protected', protectedInvitationId: OTHER_INVITATION});
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns a known unavailable refusal without claiming a revoke may have happened', async () => {
+    mocks.revokeInvitation.mockResolvedValue({invitationId: null, outcome: 'unavailable'});
+    expect(await revokeInvitationCode(idle, form({invitationId: INVITATION}))).toEqual({outcome: 'unavailable', unknown: false});
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
 
