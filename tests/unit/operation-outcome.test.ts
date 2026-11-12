@@ -24,12 +24,12 @@ beforeEach(() => {
 });
 
 describe('markDispatchedFor (the adapters\' markDispatched)', () => {
-  it('is true for stepped and for replayed, and calls run_step under the attempt, fence, step and ordinal', async () => {
+  it('is true only for a newly stepped operation with a matching identity, and calls run_step under the attempt, fence, step and ordinal', async () => {
     const accounts = {fetch: vi.fn() as unknown as typeof fetch};
     for (const outcome of ['stepped', 'replayed']) {
       mocks.runStep.mockReset();
       mocks.runStep.mockResolvedValue({outcome, stepId: 's', operationId: OPERATION, operationState: 'dispatched'});
-      expect(await markDispatchedFor(site, accounts)(identity)).toBe(true);
+      expect(await markDispatchedFor(site, accounts)(identity)).toBe(outcome === 'stepped');
       expect(mocks.runStep).toHaveBeenCalledTimes(1);
       expect(mocks.runStep).toHaveBeenCalledWith({attemptId: ATTEMPT, fence: FENCE, stepKey: 'research', ordinal: 2}, accounts);
     }

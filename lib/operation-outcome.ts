@@ -32,7 +32,7 @@ export function markDispatchedFor(site: OperationSite, accounts: AccountsOptions
   return async (identity) => {
     try {
       const stepped = await runStep({attemptId: site.attemptId, fence: site.fence, stepKey: site.stepKey, ordinal: site.ordinal}, accounts);
-      return (stepped.outcome === 'stepped' || stepped.outcome === 'replayed') && stepped.operationId === identity.operationId;
+      return stepped.outcome === 'stepped' && stepped.operationId === identity.operationId;
     } catch {
       // Not knowing is not committed: nothing is sent.
       return false;
