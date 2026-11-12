@@ -3823,15 +3823,16 @@ describe('Job records (Story 2.11) are written by six commands and read through 
     expect(code(moduleFile)).not.toMatch(/\bcallApi\b/);
   });
 
-  it('has no caller yet, as lib/project-target.ts has none: Stories 2.6 to 2.8 are the first', () => {
-    // On purpose changed (Story 2.5): the provider-permissions Server Action is the one caller, and of readJob alone: it checks that the Job is the Project's and not finished before it grants or revokes a consent.
+  it('permits only the provider-permissions action and persisted Job detail page to call readJob', () => {
+    // readJob has exactly two callers: the provider-permissions action and the persisted job detail page. The action checks Project ownership and that the Job is unfinished before granting or revoking consent.
     // The five commands that write a Job, and isChargeable, still have no caller outside the module.
     const permissionsAction = 'app/projects/[projectId]/provider-permissions/actions.ts';
+    const jobDetailPage = 'app/projects/[projectId]/jobs/[jobId]/page.tsx';
     for (const name of ['acceptJob', 'beginStep', 'advanceOperation', 'moveAttempt', 'requestRetry']) expect(callers(name), name).toEqual([moduleFile]);
-    expect(callers('readJob')).toEqual([permissionsAction, moduleFile]);
+    expect(callers('readJob')).toEqual([jobDetailPage, permissionsAction, moduleFile]);
     expect(callers('isChargeable')).toEqual([moduleFile]);
-    // Nothing else in the application, not even a page or a component, imports the module.
-    expect(sources.filter((file) => file !== moduleFile && /lib\/job-records|\.\/job-records/.test(code(file)))).toEqual([permissionsAction]);
+    // These are the only application files that import the module outside its declaration.
+    expect(sources.filter((file) => file !== moduleFile && /lib\/job-records|\.\/job-records/.test(code(file)))).toEqual([jobDetailPage, permissionsAction]);
   });
 
   it('names no tombstone, reads no environment, prints nothing and imports only the call helpers and the Operation type', () => {
