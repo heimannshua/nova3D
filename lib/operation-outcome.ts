@@ -1,8 +1,8 @@
 // Story 2.8: the two halves of an external operation that sit around the one provider request. SERVER-ONLY (it calls lib/job-commands.ts, which holds the service role).
 //
 //   BEFORE the request: `markDispatched` is what the adapters call (lib/providers/adapters.ts) before they send anything. It commits the operation's identity under the attempt's
-//   fence (`run_step`, which dispatches only an operation that is planned AND reserved) and answers true only for `stepped` or `replayed`. Anything else, a refusal of the fence
-//   included, is false, and then nothing is sent: a request never goes out before its identity is committed.
+//   fence (`run_step`, which dispatches only an operation that is planned AND reserved) and answers true only when a newly stepped operation's returned identity matches the requested operation.
+//   A replay, any other outcome, or a refusal of the fence is false, and then nothing is sent: a request never goes out before its identity is committed.
 //
 //   AFTER the request: `reportOutcome` records what the adapter's classified answer means through `finish_operation`, under the same fence:
 //     completed  -> `completed`: the operation moves and settles as evidence, the unused remainder released. A report the database REFUSES (the returned model is not the pinned one,
@@ -23,10 +23,10 @@ import type {AccountsOptions} from '@/lib/accounts';
 export type OperationSite = {attemptId: string; fence: string; stepKey: string; ordinal: number};
 
 /**
- * The adapters' `markDispatched`: commits the dispatched identity of the operation BEFORE any request is made. True only when the database answered `stepped` (the step began and the
- * operation is dispatched) or `replayed` (it already was, under this fence) AND the operation it answered about is the one the adapter named (`identity.operationId`): a site
- * whose step and ordinal lead to another operation commits that other operation's identity, and this one has none, so the answer is false. False too for everything else (a refused
- * fence, an operation that is not planned or not reserved, a database that did not answer), and an adapter that gets false sends nothing.
+ * The adapters' `markDispatched`: commits the dispatched identity of the operation BEFORE any request is made. True only when the database newly stepped the operation and its returned
+ * identity matches the one the adapter named (`identity.operationId`): a site whose step and ordinal lead to another operation commits that other operation's identity, and this one has
+ * none, so the answer is false. Replayed outcomes and everything else (a refused fence, an operation that is not planned or not reserved, or a database that did not answer) are false, and
+ * an adapter that gets false sends nothing.
  */
 export function markDispatchedFor(site: OperationSite, accounts: AccountsOptions = {}): AdapterConfig['markDispatched'] {
   return async (identity) => {

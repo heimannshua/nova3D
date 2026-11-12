@@ -5565,7 +5565,7 @@ describe('Reconciling ambiguous charges (Story 2.8) is one additive migration, o
     expect(source).toMatch(/import \{finishOperation, runStep, type OperationFinish\} from '@\/lib\/job-commands';/);
     expect(source).not.toMatch(/process\.env|console\.|node:|next\/|\bfetch\b|\brequire\(|window|document\.|localStorage|sessionStorage|setTimeout|XMLHttpRequest/);
     expect(read('lib/operation-outcome.ts')).toContain('SERVER-ONLY');
-    // True only for a step that began or was already begun; a refusal or a throw is false, so nothing is sent.
+    // True only for a newly stepped operation with matching identity; replay, refusal, mismatch, or throw is false, so nothing is sent.
     expect(source).toContain("stepped.outcome === 'stepped' && stepped.operationId === identity.operationId");
     expect(source).toMatch(/catch \{\s*(?:\/\/[^\n]*\n\s*)?return false;/);
     // A refused completed or noncharge is reported ambiguous; an ambiguous report is not repeated.
