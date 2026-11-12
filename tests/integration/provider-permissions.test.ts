@@ -475,6 +475,32 @@ describe('admission under a grant (api.reserve_cost, the permissioned form)', ()
     });
   });
 
+  it('denies a replay after the Account is disabled without changing its usage periods', async () => {
+    await inTx(async (client) => {
+      const ctx = await context(client);
+      const id = await grantId(client, ctx);
+      const command = randomUUID();
+      expect(await reserve(client, ctx, {permissionId: id, command})).toMatchObject({outcome: 'reserved'});
+
+      const periodsBefore = (await client.query(
+        'select id, seq, month_start from usage.periods where account_id = $1 order by seq',
+        [ctx.owner.accountId],
+      )).rows;
+      const periodCountBefore = await count(client, 'select count(*) as n from usage.periods where account_id = $1', [ctx.owner.accountId]);
+      await client.query(`update identity.accounts set status = 'disabled' where id = $1`, [ctx.owner.accountId]);
+
+      expect(await reserve(client, ctx, {permissionId: id, command})).toMatchObject({outcome: 'denied', reservation_id: null});
+
+      const periodsAfter = (await client.query(
+        'select id, seq, month_start from usage.periods where account_id = $1 order by seq',
+        [ctx.owner.accountId],
+      )).rows;
+      const periodCountAfter = await count(client, 'select count(*) as n from usage.periods where account_id = $1', [ctx.owner.accountId]);
+      expect(periodCountAfter).toBe(periodCountBefore);
+      expect(periodsAfter).toEqual(periodsBefore);
+    });
+  });
+
   it('refuses a price above the disclosed maximum, accepts one equal to it, and tells the truth about a request that cannot be priced', async () => {
     await inTx(async (client) => {
       const ctx = await context(client, 6);

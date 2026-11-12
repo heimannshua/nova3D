@@ -424,6 +424,17 @@ describe('reserveCost', () => {
     expect(await reserveCost(operation, {...input, permission}, fake({outcome: 'maximum_exceeded'}).options)).toEqual({outcome: 'maximum_exceeded'});
   });
 
+  it('validates each permission UUID before making the service-role request', async () => {
+    const permission = {permissionId: PERIOD, provider: 'anthropic' as const, projectId: JOB, jobId: OPERATION, category: 'synthesis_vision' as const,
+      purpose: 'identify the subject', outboundData: ['confirmed_project_scope']};
+    for (const field of ['permissionId', 'projectId', 'jobId'] as const) {
+      const {fetch, options} = fake(reservationFields());
+      const invalidPermission = {...permission, [field]: 'not-a-uuid'};
+      await expect(reserveCost(operation, {...input, permission: invalidPermission}, options)).rejects.toBeInstanceOf(TypeError);
+      expect(fetch).not.toHaveBeenCalled();
+    }
+  });
+
   it('refuses a grant for another provider than the request is quoted for, before asking, rather than letting the grant\'s provider override the calculation\'s', async () => {
     const permission = {permissionId: PERIOD, provider: 'brave' as const, projectId: JOB, jobId: OPERATION, category: 'research_search' as const,
       purpose: 'search the web', outboundData: ['confirmed_project_scope']};

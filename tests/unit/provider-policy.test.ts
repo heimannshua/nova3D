@@ -36,6 +36,7 @@ describe('paid provider permission policy', () => {
 
   it('normalizes public subjects and refuses empty or oversized input', () => {
     expect(normalizePublicSubject('  Middot\n  Altar ')).toBe('Middot Altar');
+    expect(normalizePublicSubject('  Ｍｉｄｄｏｔ\u0000\u0007\tＡｌｔａｒ  ')).toBe('Middot Altar');
     expect(() => normalizePublicSubject('  ')).toThrow();
     expect(() => normalizePublicSubject('x'.repeat(241))).toThrow();
   });
