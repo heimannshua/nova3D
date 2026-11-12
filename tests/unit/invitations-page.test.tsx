@@ -87,24 +87,22 @@ describe.each(locales)('the invitation page in %s', (locale) => {
     expect(tones[t(locale, 'invitations.status.revoked')]).toBe('tone-danger');
   });
 
-  it('offers Revoke for an unused code only, and names which code it revokes', () => {
+  it('offers Revoke for unused named codes, but never for the current general code', () => {
     const buttons = [...markup.matchAll(/<button[^>]*aria-label="([^"]+)"[^>]*>/g)].map((match) => match[1].replace(/&#x27;/g, "'"));
-    expect(buttons).toEqual([t(locale, 'invitations.row.revokeLabel', {name: t(locale, 'invitations.row.general')}), t(locale, 'invitations.row.revokeLabel', {name: 'Daniel'})]);
+    expect(buttons).toEqual([t(locale, 'invitations.row.revokeLabel', {name: 'Daniel'})]);
     // The visible word is inside the accessible name.
     for (const name of buttons) expect(name).toContain(t(locale, 'invitations.row.revoke'));
   });
 
-  it('offers Replace while a general code is waiting, and Make when none is, and never both', () => {
-    expect(text(markup)).toContain(t(locale, 'invitations.general.replace'));
+  it('offers mint-next only when no unused general code is waiting', () => {
     expect(text(markup)).toContain(t(locale, 'invitations.general.waiting'));
     expect(text(markup)).not.toContain(t(locale, 'invitations.general.mint'));
-    expect(markup).toContain('name="replace" value="true"');
+    expect(markup).not.toContain('name="replace"');
     const none = render(locale, [UNUSED_NAMED, USED_GENERAL]);
     expect(text(none)).toContain(t(locale, 'invitations.general.mint'));
     expect(text(none)).toContain(t(locale, 'invitations.general.none'));
     expect(text(none)).toContain(t(locale, 'invitations.general.noneBadge'));
-    expect(text(none)).not.toContain(t(locale, 'invitations.general.replace'));
-    expect(none).toContain('name="replace" value="false"');
+    expect(none).not.toContain('name="replace"');
     // A general code that was used or revoked is not "waiting".
     expect(text(render(locale, [USED_GENERAL, {...UNUSED_GENERAL, state: 'revoked'}]))).toContain(t(locale, 'invitations.general.mint'));
     // A named code that is unused is not a general one.
@@ -126,9 +124,7 @@ describe.each(locales)('the invitation page in %s', (locale) => {
     expect(text(failed)).not.toContain(t(locale, 'invitations.general.none'));
     expect(text(failed)).not.toContain(t(locale, 'invitations.general.noneBadge'));
     expect(text(failed)).not.toContain(t(locale, 'invitations.general.waiting'));
-    expect(text(failed)).not.toContain(t(locale, 'invitations.general.replace'));
     expect(failed).not.toContain('class="invite-state"');
-    expect(failed).toContain('name="replace" value="false"');
   });
 
   it('says there are no codes yet, when there are none', () => {

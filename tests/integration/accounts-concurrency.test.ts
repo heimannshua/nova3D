@@ -273,14 +273,10 @@ describe('AC-1 and AC-3: more races', () => {
       ]);
       const accounts = await count(db, 'select count(*) as n from identity.accounts where user_id = $1', [user.id]);
       const state = await invitationStatus(db, hash);
-      if (registered.outcome === 'registered') {
-        settled.add('redeemed');
-        expect({state, accounts, revoke: revoked.outcome}, `round ${round}`).toEqual({state: 'redeemed', accounts: 1, revoke: 'redeemed'});
-      } else {
-        settled.add('revoked');
-        expect(withoutCommand(registered), `round ${round}`).toEqual(generic);
-        expect({state, accounts, revoke: revoked.outcome}, `round ${round}`).toEqual({state: 'revoked', accounts: 0, revoke: 'revoked'});
-      }
+      settled.add(registered.outcome);
+      expect(registered.outcome, `round ${round}`).toBe('registered');
+      expect({state, accounts}, `round ${round}`).toEqual({state: 'redeemed', accounts: 1});
+      expect(['protected', 'redeemed']).toContain(revoked.outcome);
     }
     expect(settled.size).toBeGreaterThanOrEqual(1);
   });
@@ -313,7 +309,7 @@ describe('AC-2: concurrent general issues', () => {
     });
   });
 
-  it('settles many parallel general issues, with and without replace, on exactly one current code', async () => {
+  it('settles many parallel general issues, protecting the one current code from every replacement attempt', async () => {
     await isolatingGeneralCode(async (issued) => {
       const clients = await Promise.all(Array.from({length: 6}, () => connect()));
 
@@ -328,11 +324,13 @@ describe('AC-2: concurrent general issues', () => {
 
       const replacing = clients.map(() => codeHash());
       issued.push(...replacing);
+      const before = await count(db, `select count(*) as n from identity.audit_events where action = 'invitation.issue_protected'`);
       const replaced = await Promise.all(clients.map((client, index) => committedTx(client, () => api(client).issue(replacing[index], 'general', null, 'seed:local:test', true))));
-      expect(replaced.every((outcome) => outcome.outcome === 'issued')).toBe(true);
-      expect(replaced.filter((outcome) => outcome.replaced_invitation_id !== null)).toHaveLength(6);
+      expect(replaced).toEqual(Array.from({length: 6}, () => expect.objectContaining({outcome: 'protected', invitation_id: winner.invitation_id, replaced_invitation_id: null})));
       expect(await count(db, `select count(*) as n from identity.invitations where kind = 'general' and status = 'unused'`)).toBe(1);
-      expect(await count(db, `select count(*) as n from identity.invitations where code_hash = any($1) and status = 'revoked'`, [[...plain, ...replacing]])).toBe(6);
+      expect(await count(db, `select count(*) as n from identity.invitations where code_hash = any($1)`, [replacing])).toBe(0);
+      expect(await count(db, `select count(*) as n from identity.audit_events where action = 'invitation.issue_protected'`)).toBe(before + 6);
+      expect((await db.query(`select distinct target from identity.audit_events where action = 'invitation.issue_protected'`)).rows).toEqual([{target: `invitation:${winner.invitation_id}`}]);
     });
   });
 

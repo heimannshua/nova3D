@@ -109,6 +109,7 @@ export type InvitationActionState =
   | ({outcome: 'issued'} & IssuedCode)
   | {outcome: 'created'}
   | {outcome: 'exists'}
+  | {outcome: 'protected'; protectedInvitationId: string}
   | {outcome: 'revoked'}
   | {outcome: 'already_revoked'}
   | {outcome: 'redeemed'}
@@ -134,6 +135,7 @@ export function attemptInvitationAction(
 /** The catalog key for an answer that is one fixed message. The others carry something: `invalid` its problem (labelErrorKeys), a failure what to do next (failureKey). */
 export const invitationMessageKeys = {
   exists: 'invitations.general.exists',
+  protected: 'invitations.revoke.protected',
   revoked: 'invitations.revoke.done',
   already_revoked: 'invitations.revoke.alreadyRevoked',
   redeemed: 'invitations.revoke.redeemed',

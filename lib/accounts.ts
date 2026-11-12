@@ -311,7 +311,9 @@ export type PreauthorizationReceipt = {
 export type IssuedInvitation = {outcome: 'issued'; code: string; invitationId: string; kind: 'named' | 'general'; replacedInvitationId: string | null};
 /** A current general code (or this code's hash) already exists. No code was stored, so none is returned. */
 export type ExistingInvitation = {outcome: 'exists'; invitationId: string | null; kind: 'named' | 'general'};
-export type RevocationReceipt = {invitationId: string | null; outcome: 'revoked' | 'already_revoked' | 'redeemed' | 'not_found'};
+/** The current unused general code is protected. No code was stored; the ID identifies the protected invitation. */
+export type ProtectedInvitation = {outcome: 'protected'; invitationId: string; kind: 'general'};
+export type RevocationReceipt = {invitationId: string | null; outcome: 'revoked' | 'protected' | 'already_revoked' | 'redeemed' | 'not_found'};
 export type WithdrawalReceipt = {outcome: 'withdrawn' | 'consumed' | 'not_found'};
 export type InvitationSummary = {invitationId: string; kind: 'named' | 'general'; label: string | null; state: 'unused' | 'redeemed' | 'revoked'; createdAt: string};
 
@@ -839,7 +841,7 @@ export async function withdrawPreauthorization(input: {email: string; actor: str
 export async function issueInvitation(
   input: {kind: 'named'; label: string; actor: string} | {kind: 'general'; actor: string; replace?: boolean},
   options: AccountsOptions = {},
-): Promise<IssuedInvitation | ExistingInvitation> {
+): Promise<IssuedInvitation | ExistingInvitation | ProtectedInvitation> {
   const env = options.env ?? process.env;
   const key = hashKey(env, 'INVITATION_HASH_KEY');
   const code = generateInvitationCode();
@@ -854,6 +856,11 @@ export async function issueInvitation(
     },
     options,
   );
+  if (row.outcome === 'protected') {
+    const invitationId = text(row.invitation_id);
+    if (!invitationId || input.kind !== 'general') throw unexpected();
+    return {outcome: 'protected', invitationId, kind: 'general'};
+  }
   if (oneOf(row.outcome, ['issued', 'exists'] as const) === 'exists') {
     return {outcome: 'exists', invitationId: text(row.invitation_id), kind: input.kind};
   }
@@ -878,9 +885,12 @@ export async function revokeInvitation(
     args = {p_actor: input.actor, p_code_hash: hashInvitationCode(input.code, key)};
   }
   const row = await callRow('revoke_invitation', args, options);
+  const outcome = oneOf(row.outcome, ['revoked', 'protected', 'already_revoked', 'redeemed', 'not_found'] as const);
+  const invitationId = text(row.invitation_id);
+  if (outcome === 'protected' && !invitationId) throw unexpected();
   return {
-    invitationId: text(row.invitation_id),
-    outcome: oneOf(row.outcome, ['revoked', 'already_revoked', 'redeemed', 'not_found'] as const),
+    invitationId,
+    outcome,
   };
 }
 

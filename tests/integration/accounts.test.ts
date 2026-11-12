@@ -782,15 +782,41 @@ describe('AC-2: codes are single-use, never expire, and only a successful genera
       expect(await invitationStatus(client, second)).toBeUndefined();
       expect(await invitationStatus(client, first)).toBe('unused');
 
-      const replaced = await svc.issue(second, 'general', null, 'seed:local:test', true);
-      expect(replaced).toMatchObject({outcome: 'issued'});
-      expect(replaced.replaced_invitation_id).toBe(issued.invitation_id);
-      expect(await invitationStatus(client, first)).toBe('revoked');
-      expect(await invitationStatus(client, second)).toBe('unused');
-      expect(withoutCommand(await svc.register((await addUser(client)).id, first))).toEqual(generic);
+      const beforeProtected = await count(client, 'select count(*) as n from identity.audit_events');
+      const beforeProtectedId = (await client.query('select coalesce(max(id), 0) as id from identity.audit_events')).rows[0].id;
+      const protectedIssues = await Promise.all([
+        svc.issue(second, 'general', null, 'seed:local:test', true),
+        svc.issue(codeHash(), 'general', null, 'seed:local:test', true),
+      ]);
+      for (const receipt of protectedIssues) expect(receipt).toMatchObject({outcome: 'protected', invitation_id: issued.invitation_id, replaced_invitation_id: null});
+      const protectedRevokes = await Promise.all([
+        svc.revoke({id: issued.invitation_id}),
+        svc.revoke({id: issued.invitation_id}),
+        svc.revoke({hash: first}),
+      ]);
+      expect(protectedRevokes).toEqual(Array.from({length: 3}, () => ({invitation_id: issued.invitation_id, outcome: 'protected'})));
+      expect(await invitationStatus(client, first)).toBe('unused');
+      expect(await invitationStatus(client, second)).toBeUndefined();
+      expect(await count(client, 'select count(*) as n from identity.audit_events')).toBe(beforeProtected + 5);
+      const protectedEvents = (await client.query(`select actor, action, target from identity.audit_events where id > $1 order by id`, [beforeProtectedId])).rows;
+      expect(protectedEvents).toEqual([
+        {actor: 'seed:local:test', action: 'invitation.issue_protected', target: `invitation:${issued.invitation_id}`},
+        {actor: 'seed:local:test', action: 'invitation.issue_protected', target: `invitation:${issued.invitation_id}`},
+        {actor: 'seed:local:test', action: 'invitation.revoke_protected', target: `invitation:${issued.invitation_id}`},
+        {actor: 'seed:local:test', action: 'invitation.revoke_protected', target: `invitation:${issued.invitation_id}`},
+        {actor: 'seed:local:test', action: 'invitation.revoke_protected', target: `invitation:${issued.invitation_id}`},
+      ]);
+      expect(JSON.stringify(protectedEvents)).not.toMatch(new RegExp(`${first}|${second}`));
 
-      expect(await svc.revoke({id: replaced.invitation_id})).toEqual({invitation_id: replaced.invitation_id, outcome: 'revoked'});
-      expect(await svc.revoke({id: replaced.invitation_id})).toEqual({invitation_id: replaced.invitation_id, outcome: 'already_revoked'});
+      const redeemed = await addUser(client);
+      expect((await svc.register(redeemed.id, first)).outcome).toBe('registered');
+      expect(await invitationStatus(client, first)).toBe('redeemed');
+      const next = await svc.issue(second, 'general', null, 'seed:local:test', true);
+      expect(next).toMatchObject({outcome: 'issued', replaced_invitation_id: null});
+      expect(await invitationStatus(client, second)).toBe('unused');
+      const nextUser = await addUser(client);
+      expect((await svc.register(nextUser.id, second)).outcome).toBe('registered');
+      expect(await svc.revoke({id: next.invitation_id})).toEqual({invitation_id: next.invitation_id, outcome: 'redeemed'});
       expect(await svc.revoke({id: randomUUID()})).toMatchObject({outcome: 'not_found'});
       expect(await svc.revoke({hash: codeHash()})).toMatchObject({outcome: 'not_found'});
       const bad = await attempt(client, 'service_role', 'select * from api.revoke_invitation($1, $2, $3)', ['seed', null, null]);

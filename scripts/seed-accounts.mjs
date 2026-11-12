@@ -182,9 +182,12 @@ try {
     if (issued.outcome === 'exists') {
       fail(
         values.general
-          ? 'A current general code already exists, so nothing was issued. Add --replace to revoke it and issue a new one, or run `list` to see it.'
+          ? 'A current general code already exists. It must be redeemed before another can be issued; run `list` to see it.'
           : 'That code already exists, so nothing was issued. Run the command again.',
       );
+    }
+    if (issued.outcome === 'protected') {
+      fail(`The current general code ${issued.invitationId} is still unused. It must be redeemed before another can be issued.`);
     }
     console.log(`${issued.kind === 'general' ? 'General' : `Named (${values.name})`} invitation code. It is shown once and cannot be recovered; only its hash is stored:\n`);
     console.log(`  ${issued.code}\n`);
@@ -205,9 +208,10 @@ try {
       already_revoked: 'Already revoked.',
       redeemed: 'Not revoked: this code was already redeemed.',
       not_found: 'No such invitation.',
+      protected: `Not revoked: current general invitation ${receipt.invitationId} must be redeemed first.`,
     };
     console.log(messages[receipt.outcome]);
-    if (receipt.outcome === 'redeemed' || receipt.outcome === 'not_found') process.exitCode = 1;
+    if (receipt.outcome === 'protected' || receipt.outcome === 'redeemed' || receipt.outcome === 'not_found') process.exitCode = 1;
   }
 } catch (error) {
   if (error instanceof AccountsConfigError || error instanceof AccountsUnavailableError || error instanceof TypeError) {

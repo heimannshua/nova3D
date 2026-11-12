@@ -350,6 +350,14 @@ describe('mintGeneralInvitation', () => {
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
 
+  it('returns the protected current general ID with no code and refreshes the page', async () => {
+    mocks.issueInvitation.mockResolvedValue({outcome: 'protected', invitationId: OTHER_INVITATION, kind: 'general'});
+    const state = await mintGeneralInvitation(idle, form({replace: 'true'}));
+    expect(state).toEqual({outcome: 'protected', protectedInvitationId: OTHER_INVITATION});
+    expect(JSON.stringify(state)).not.toContain(CODE);
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  });
+
   it('says whether the change may have been made when the database does not answer', async () => {
     mocks.issueInvitation.mockRejectedValue(new AccountsUnavailableError('The accounts database did not answer.', {retryable: true}));
     expect(await mintGeneralInvitation(idle, form({replace: 'true'}))).toEqual({outcome: 'unavailable', unknown: true});
@@ -390,6 +398,12 @@ describe('revokeInvitationCode', () => {
   it.each(['revoked', 'already_revoked', 'redeemed', 'not_found'] as const)('passes the %s outcome through, and refreshes the page', async (outcome) => {
     mocks.revokeInvitation.mockResolvedValue({invitationId: INVITATION, outcome});
     expect(await revokeInvitationCode(idle, form({invitationId: INVITATION}))).toEqual({outcome});
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes a protected receipt and its invitation ID through, and refreshes the page', async () => {
+    mocks.revokeInvitation.mockResolvedValue({invitationId: OTHER_INVITATION, outcome: 'protected'});
+    expect(await revokeInvitationCode(idle, form({invitationId: INVITATION}))).toEqual({outcome: 'protected', protectedInvitationId: OTHER_INVITATION});
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
 

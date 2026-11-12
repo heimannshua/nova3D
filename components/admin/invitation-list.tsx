@@ -78,7 +78,7 @@ function InvitationItem({invitation, onMessage, onDone}: {invitation: Invitation
           <dd>{created ? <LtrToken><time dateTime={isoOf(invitation.createdAt)}>{created}</time></LtrToken> : '-'}</dd>
         </div>
       </dl>
-      {invitation.state === 'unused' ? <RevokeControl invitation={invitation} name={name} onMessage={onMessage} onDone={onDone}/> : null}
+      {invitation.state === 'unused' && invitation.kind === 'named' ? <RevokeControl invitation={invitation} name={name} onMessage={onMessage} onDone={onDone}/> : null}
     </li>
   );
 }
@@ -98,7 +98,7 @@ function RevokeControl({invitation, name, onMessage, onDone}: {invitation: Invit
   const {state, formAction, pending, onSubmit} = useInvitationAction(revokeInvitationCode, (next) => {
     // These four answers all refresh the list, and the row (and so this button, and anything it said) may be gone
     // from it: a revoked code, a code already revoked or already used, or one that no longer exists.
-    if (next.outcome === 'revoked' || next.outcome === 'already_revoked' || next.outcome === 'redeemed' || next.outcome === 'not_found') {
+    if (next.outcome === 'revoked' || next.outcome === 'protected' || next.outcome === 'already_revoked' || next.outcome === 'redeemed' || next.outcome === 'not_found') {
       const key: MessageKey = invitationMessageKeys[next.outcome];
       const text = t(key, {name});
       onMessage({tone: next.outcome === 'revoked' ? 'success' : next.outcome === 'not_found' ? 'warning' : 'info', text});

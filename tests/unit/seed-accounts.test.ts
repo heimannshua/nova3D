@@ -188,6 +188,7 @@ describe('revoke and unauthorize', () => {
   it.each([
     ['revoked', 0, 'Revoked.'],
     ['already_revoked', 0, 'Already revoked.'],
+    ['protected', 1, 'must be redeemed first'],
     ['redeemed', 1, 'already redeemed'],
     ['not_found', 1, 'No such invitation.'],
   ])('exits %s with %i', async (outcome, code, message) => {
@@ -269,7 +270,7 @@ describe('issue', () => {
     expect(JSON.stringify(rpcs)).not.toContain(code!);
   });
 
-  it('issues the general code, refuses a second without --replace, and replaces it on request (independent of any database)', async () => {
+  it('issues a general code, refuses a second, and never replaces the current one (independent of any database)', async () => {
     issue();
     const first = await run(['issue', '--general', '--confirm', 'staging']);
     expect(first.code, first.stderr).toBe(0);
@@ -279,14 +280,16 @@ describe('issue', () => {
     answer = () => ({body: {outcome: 'exists', invitation_id: ID, kind: 'general', replaced_invitation_id: null}});
     const clash = await run(['issue', '--general', '--confirm', 'staging']);
     expect(clash.code).toBe(1);
-    expect(clash.stderr).toContain('--replace');
+    expect(clash.stderr).toContain('must be redeemed');
     expect(clash.stdout).toBe('');
 
-    issue('5b0c9f0e-1111-4222-8333-444455556666');
+    answer = () => ({body: {outcome: 'protected', invitation_id: '5b0c9f0e-1111-4222-8333-444455556666', kind: 'general', replaced_invitation_id: null}});
     const replaced = await run(['issue', '--general', '--replace', '--confirm', 'staging']);
-    expect(replaced.code, replaced.stderr).toBe(0);
+    expect(replaced.code).toBe(1);
     expect(rpcs.at(-1)!.body).toMatchObject({p_kind: 'general', p_replace: true});
-    expect(replaced.stdout).toContain('Revoked the previous general code: 5b0c9f0e-1111-4222-8333-444455556666');
+    expect(replaced.stderr).toContain('must be redeemed');
+    expect(replaced.stderr).toContain('5b0c9f0e-1111-4222-8333-444455556666');
+    expect(replaced.stdout).toBe('');
   });
 
   it('says the outcome is unknown, and to list and revoke by ID, when the call fails after it may have been applied', async () => {

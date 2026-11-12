@@ -120,7 +120,8 @@ export async function mintGeneralInvitation(_previous: InvitationActionState, fo
     }
     // Either way the list the page shows may be out of date now.
     refresh();
-    if (issued.outcome !== 'issued') return {outcome: 'exists'};
+    if (issued.outcome === 'protected') return {outcome: 'protected', protectedInvitationId: issued.invitationId};
+    if (issued.outcome === 'exists') return {outcome: 'exists'};
     return {outcome: 'issued', invitationId: issued.invitationId, kind: 'general', label: null, code: issued.code, replacedInvitationId: issued.replacedInvitationId};
   });
 }
@@ -137,6 +138,8 @@ export async function revokeInvitationCode(_previous: InvitationActionState, for
       return failed(error);
     }
     refresh();
-    return {outcome: receipt.outcome};
+    return receipt.outcome === 'protected'
+      ? {outcome: 'protected', protectedInvitationId: receipt.invitationId!}
+      : {outcome: receipt.outcome};
   });
 }

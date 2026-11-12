@@ -173,6 +173,33 @@ describe('validation: a real Account, and a refusal of the kind it can make', ()
 
 // ---------------------------------------------------------------------------------------------------
 describe('what is recorded: the actor, the action and the invitation, and when', () => {
+  it('records every protected replace and revoke attempt separately, against the protected invitation only', async () => {
+    await inTx(async (client) => {
+      const actor = 'seed:local:test';
+      const hash = codeHash();
+      const issued = await client.query(`select * from api.issue_invitation($1, 'general', null, $2, false)`, [hash, actor]);
+      const id = issued.rows[0].invitation_id as string;
+      const before = await count(client, `select count(*) as n from identity.audit_events`);
+      const beforeId = (await client.query(`select coalesce(max(id), 0) as id from identity.audit_events`)).rows[0].id;
+      for (const _ of [1, 2]) await client.query(`select * from api.issue_invitation($1, 'general', null, $2, true)`, [codeHash(), actor]);
+      for (const _ of [1, 2]) await client.query(`select * from api.revoke_invitation($1, $2, null)`, [actor, id]);
+      expect(await count(client, `select count(*) as n from identity.audit_events`)).toBe(before + 4);
+      const events = (await client.query(
+        `select actor, action, target, occurred_at from identity.audit_events where id > $1 order by id`,
+        [beforeId],
+      )).rows;
+      expect(events.map(({actor: eventActor, action, target}) => [eventActor, action, target])).toEqual([
+        [actor, 'invitation.issue_protected', `invitation:${id}`],
+        [actor, 'invitation.issue_protected', `invitation:${id}`],
+        [actor, 'invitation.revoke_protected', `invitation:${id}`],
+        [actor, 'invitation.revoke_protected', `invitation:${id}`],
+      ]);
+      expect(events.every((event) => event.occurred_at instanceof Date)).toBe(true);
+      expect(await count(client, `select count(*) as n from identity.invitations where id = $1 and status = 'unused'`, [id])).toBe(1);
+      expect(JSON.stringify(events)).not.toContain(hash);
+    });
+  });
+
   it('records an Administrator\'s refused issue with the actor and no target', async () => {
     await inTx(async (client) => {
       const admin = await account(client, 'administrator');

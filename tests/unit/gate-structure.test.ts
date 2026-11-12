@@ -655,6 +655,14 @@ describe('the invitation page (Story 1.11) changes a code in one place, behind t
     }
   });
 
+  it('keeps the unused current general code protected in the page controls', () => {
+    const panel = withoutComments(read('components/admin/general-code-panel.tsx'));
+    const list = withoutComments(read('components/admin/invitation-list.tsx'));
+    expect(panel).not.toMatch(/ConfirmDialog|name="replace"|general\.replace/);
+    expect(panel).toMatch(/waiting === true \? null/);
+    expect(list).toMatch(/invitation\.state === 'unused' && invitation\.kind === 'named'/);
+  });
+
   it('puts the code in client memory only: no component of the page writes it to storage, a cookie, the address or the router', () => {
     for (const file of sources.filter((candidate) => candidate.startsWith('components/admin/'))) {
       expect(withoutComments(read(file)), file).not.toMatch(/localStorage|sessionStorage|indexedDB|document\.cookie|history\.|router\.(?:push|replace)|useRouter|searchParams|location\./);

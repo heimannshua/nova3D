@@ -497,6 +497,13 @@ describe('the other calls', () => {
     expect(result).not.toHaveProperty('code');
   });
 
+  it('return a protected current general ID without returning the unissued code', async () => {
+    const {fetch} = endpoint(() => ({body: {outcome: 'protected', invitation_id: 'i9', kind: 'general', replaced_invitation_id: null}}));
+    const result = await issueInvitation({kind: 'general', actor: 'seed:local:josh', replace: true}, {env: environment(), fetch});
+    expect(result).toEqual({outcome: 'protected', invitationId: 'i9', kind: 'general'});
+    expect(result).not.toHaveProperty('code');
+  });
+
   it('revoke by invitation ID or by the code, hashing the code', async () => {
     const env = environment();
     const {calls, fetch} = endpoint(() => ({body: {invitation_id: 'i1', outcome: 'revoked'}}));
@@ -507,6 +514,11 @@ describe('the other calls', () => {
     await revokeInvitation({actor: 'seed:local:josh', code}, {env, fetch});
     expect(calls[1].body).toEqual({p_actor: 'seed:local:josh', p_code_hash: hashInvitationCode(code, hashKey(env, 'INVITATION_HASH_KEY'))});
     expect(JSON.stringify(calls[1].body)).not.toContain(code);
+  });
+
+  it('return the protected invitation ID from a protected revoke', async () => {
+    const {fetch} = endpoint(() => ({body: {invitation_id: 'i9', outcome: 'protected'}}));
+    expect(await revokeInvitation({actor: 'seed:local:josh', invitationId: COMMAND}, {env: environment(), fetch})).toEqual({invitationId: 'i9', outcome: 'protected'});
   });
 
   it('say not_found for something that cannot be a code, without calling the database', async () => {
