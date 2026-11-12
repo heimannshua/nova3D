@@ -89,98 +89,156 @@ export function hasCompletePngEnd(bytes: Buffer): boolean {
   return false;
 }
 
-type WebpChunk = {type: string; data: Buffer};
-type WebpImageDimensions = {width: number; height: number};
+const WEBP_MAX_CHUNKS = 10_000;
+const WEBP_MAX_FRAMES = 4_096;
+const RIFF = 0x46464952;
+const WEBP = 0x50424557;
+const VP8X = 0x58385056;
+const VP8 = 0x20385056;
+const VP8L = 0x4c385056;
+const ALPH = 0x48504c41;
+const ANIM = 0x4d494e41;
+const ANMF = 0x464d4e41;
+const ICCP = 0x50434349;
+const EXIF = 0x46495845;
+const XMP = 0x20504d58;
 
-function webpChunksWithin(bytes: Buffer, start: number, end: number): WebpChunk[] | null {
-  const chunks: WebpChunk[] = [];
-  let offset = start;
-  while (offset < end) {
-    if (end - offset < 8) return null;
-    const type = bytes.toString('latin1', offset, offset + 4);
-    const length = bytes.readUInt32LE(offset + 4);
-    const paddedLength = length + (length & 1);
-    if (paddedLength > end - offset - 8) return null;
-    chunks.push({type, data: bytes.subarray(offset + 8, offset + 8 + length)});
-    offset += 8 + paddedLength;
+export type WebpStructureCheck = {valid: boolean; chunksVisited: number; framesVisited: number};
+
+function webpImageMatches(bytes: Buffer, type: number, start: number, length: number, expectedWidth: number | null, expectedHeight: number | null): boolean {
+  let width: number;
+  let height: number;
+  if (type === VP8) {
+    if (length < 10 || (bytes[start] & 1) !== 0 || bytes[start + 3] !== 0x9d || bytes[start + 4] !== 0x01 || bytes[start + 5] !== 0x2a) return false;
+    width = bytes.readUInt16LE(start + 6) & 0x3fff;
+    height = bytes.readUInt16LE(start + 8) & 0x3fff;
+  } else if (type === VP8L) {
+    if (length < 5 || bytes[start] !== 0x2f) return false;
+    const bits = bytes.readUInt32LE(start + 1);
+    if ((bits >>> 29) !== 0) return false;
+    width = (bits & 0x3fff) + 1;
+    height = ((bits >>> 14) & 0x3fff) + 1;
+  } else {
+    return false;
   }
-  return offset === end ? chunks : null;
+  return width > 0 && height > 0 && (expectedWidth === null || width === expectedWidth) && (expectedHeight === null || height === expectedHeight);
 }
 
-function webpImageDimensions(type: string, data: Buffer): WebpImageDimensions | null {
-  if (type === 'VP8 ') {
-    if (data.length < 10 || (data[0] & 1) !== 0 || !data.subarray(3, 6).equals(Buffer.from([0x9d, 0x01, 0x2a]))) return null;
-    const width = data.readUInt16LE(6) & 0x3fff;
-    const height = data.readUInt16LE(8) & 0x3fff;
-    return width > 0 && height > 0 ? {width, height} : null;
-  }
-  if (type === 'VP8L') {
-    if (data.length < 5 || data[0] !== 0x2f) return null;
-    const bits = data.readUInt32LE(1);
-    if ((bits >>> 29) !== 0) return null;
-    return {width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1};
-  }
-  return null;
-}
-
-/** Checks the RIFF/chunk and still/animated image framing in the original WebP bytes. */
-export function hasValidWebpStructure(input: Uint8Array): boolean {
+/** Bounded O(1) parser diagnostics for unit tests; runtime upload responses expose only the boolean validation result. */
+export function inspectWebpStructure(input: Uint8Array): WebpStructureCheck {
+  let chunksVisited = 0;
+  let framesVisited = 0;
+  const result = (valid: boolean): WebpStructureCheck => ({valid, chunksVisited, framesVisited});
   const bytes = Buffer.from(input.buffer, input.byteOffset, input.byteLength);
-  if (bytes.length < 12 || bytes.toString('latin1', 0, 4) !== 'RIFF' || bytes.toString('latin1', 8, 12) !== 'WEBP') return false;
+  if (bytes.length < 12 || bytes.readUInt32LE(0) !== RIFF || bytes.readUInt32LE(8) !== WEBP) return result(false);
 
   const riffSize = bytes.readUInt32LE(4);
-  if (riffSize < 4 || riffSize > bytes.length - 8) return false;
+  if (riffSize < 4 || riffSize > bytes.length - 8) return result(false);
   const riffEnd = 8 + riffSize;
-  const chunks = webpChunksWithin(bytes, 12, riffEnd);
-  if (!chunks) return false;
+  let cursor = 12;
+  let hasVp8x = false;
+  let flags = 0;
+  let canvasWidth = 0;
+  let canvasHeight = 0;
+  let sawExtended = false;
+  let animationChunks = 0;
+  let imageChunks = 0;
+  let imageType = 0;
+  let imageWidth = 0;
+  let imageHeight = 0;
+  let alphaChunks = 0;
 
-  const extended = chunks.filter((chunk) => chunk.type === 'VP8X');
-  if (extended.length > 1 || (extended.length === 1 && (chunks[0] !== extended[0] || extended[0].data.length !== 10))) return false;
-  const canvas = extended[0]?.data;
-  const flags = canvas?.[0] ?? 0;
-  if ((flags & 0xc1) !== 0 || (canvas && (canvas[1] !== 0 || canvas[2] !== 0 || canvas[3] !== 0))) return false;
-  const canvasWidth = canvas ? canvas.readUIntLE(4, 3) + 1 : null;
-  const canvasHeight = canvas ? canvas.readUIntLE(7, 3) + 1 : null;
+  while (cursor < riffEnd) {
+    if (chunksVisited >= WEBP_MAX_CHUNKS || riffEnd - cursor < 8) return result(false);
+    const type = bytes.readUInt32LE(cursor);
+    const length = bytes.readUInt32LE(cursor + 4);
+    const dataStart = cursor + 8;
+    const padLength = length & 1;
+    if (length > riffEnd - dataStart - padLength) return result(false);
+    const dataEnd = dataStart + length;
+    const chunkEnd = dataEnd + padLength;
+    if (padLength !== 0 && bytes[dataEnd] !== 0x00) return result(false);
+    chunksVisited += 1;
 
-  const animationChunks = chunks.filter((chunk) => chunk.type === 'ANIM');
-  const frames = chunks.filter((chunk) => chunk.type === 'ANMF');
-  const imageChunks = chunks.filter((chunk) => chunk.type === 'VP8 ' || chunk.type === 'VP8L');
-  const alphaChunks = chunks.filter((chunk) => chunk.type === 'ALPH');
-  const animated = (flags & 0x02) !== 0;
+    if (type === VP8X) {
+      if (hasVp8x || chunksVisited !== 1 || length !== 10) return result(false);
+      hasVp8x = true;
+      flags = bytes[dataStart];
+      if ((flags & 0xc1) !== 0 || bytes[dataStart + 1] !== 0 || bytes[dataStart + 2] !== 0 || bytes[dataStart + 3] !== 0) return result(false);
+      canvasWidth = bytes.readUIntLE(dataStart + 4, 3) + 1;
+      canvasHeight = bytes.readUIntLE(dataStart + 7, 3) + 1;
+    } else if (type === ICCP || type === ALPH || type === EXIF || type === XMP || type === ANIM || type === ANMF) {
+      sawExtended = true;
+      if (type === ANIM) {
+        animationChunks += 1;
+        if (animationChunks !== 1 || length !== 6) return result(false);
+      } else if (type === ANMF) {
+        if (!hasVp8x || (flags & 0x02) === 0 || animationChunks !== 1 || imageChunks !== 0 || alphaChunks !== 0) return result(false);
+        if (framesVisited >= WEBP_MAX_FRAMES || length < 16 || (bytes[dataStart + 15] & 0xfc) !== 0) return result(false);
+        framesVisited += 1;
+        const frameX = bytes.readUIntLE(dataStart, 3) * 2;
+        const frameY = bytes.readUIntLE(dataStart + 3, 3) * 2;
+        const frameWidth = bytes.readUIntLE(dataStart + 6, 3) + 1;
+        const frameHeight = bytes.readUIntLE(dataStart + 9, 3) + 1;
+        if (frameX + frameWidth > canvasWidth || frameY + frameHeight > canvasHeight) return result(false);
 
-  if (extended.length === 0 && chunks.some((chunk) => ['ICCP', 'ALPH', 'EXIF', 'XMP ', 'ANIM', 'ANMF'].includes(chunk.type))) return false;
-
-  if (animated) {
-    if (animationChunks.length !== 1 || animationChunks[0].data.length !== 6 || imageChunks.length !== 0 || alphaChunks.length !== 0 || frames.length === 0) return false;
-    const animationIndex = chunks.indexOf(animationChunks[0]);
-    if (chunks.filter((chunk) => chunk.type === 'VP8X').length !== 1) return false;
-    for (const frame of frames) {
-      if (chunks.indexOf(frame) < animationIndex || frame.data.length < 16 || (frame.data[15] & 0xfc) !== 0) return false;
-      const x = frame.data.readUIntLE(0, 3) * 2;
-      const y = frame.data.readUIntLE(3, 3) * 2;
-      const width = frame.data.readUIntLE(6, 3) + 1;
-      const height = frame.data.readUIntLE(9, 3) + 1;
-      if (x + width > canvasWidth! || y + height > canvasHeight!) return false;
-
-      const nested = webpChunksWithin(frame.data, 16, frame.data.length);
-      if (!nested) return false;
-      const nestedImages = nested.filter((chunk) => chunk.type === 'VP8 ' || chunk.type === 'VP8L');
-      const nestedAlpha = nested.filter((chunk) => chunk.type === 'ALPH');
-      if (nestedImages.length !== 1 || nestedAlpha.length > 1) return false;
-      if (nestedAlpha.length === 1 && (nestedImages[0].type !== 'VP8 ' || nested.indexOf(nestedAlpha[0]) > nested.indexOf(nestedImages[0]))) return false;
-      const dimensions = webpImageDimensions(nestedImages[0].type, nestedImages[0].data);
-      if (!dimensions || dimensions.width !== width || dimensions.height !== height) return false;
-      if (nested.some((chunk) => chunk.type !== 'ALPH' && chunk.type !== 'VP8 ' && chunk.type !== 'VP8L')) return false;
+        let nestedCursor = dataStart + 16;
+        let nestedImageCount = 0;
+        let nestedImageType = 0;
+        let nestedAlphaCount = 0;
+        while (nestedCursor < dataEnd) {
+          if (chunksVisited >= WEBP_MAX_CHUNKS || dataEnd - nestedCursor < 8) return result(false);
+          const nestedType = bytes.readUInt32LE(nestedCursor);
+          const nestedLength = bytes.readUInt32LE(nestedCursor + 4);
+          const nestedStart = nestedCursor + 8;
+          const nestedPadLength = nestedLength & 1;
+          if (nestedLength > dataEnd - nestedStart - nestedPadLength) return result(false);
+          const nestedDataEnd = nestedStart + nestedLength;
+          const nestedEnd = nestedDataEnd + nestedPadLength;
+          if (nestedPadLength !== 0 && bytes[nestedDataEnd] !== 0x00) return result(false);
+          chunksVisited += 1;
+          if (nestedType === ALPH) {
+            nestedAlphaCount += 1;
+            if (nestedAlphaCount !== 1 || nestedImageCount !== 0) return result(false);
+          } else if (nestedType === VP8 || nestedType === VP8L) {
+            nestedImageCount += 1;
+            if (nestedImageCount !== 1 || !webpImageMatches(bytes, nestedType, nestedStart, nestedLength, frameWidth, frameHeight)) return result(false);
+            nestedImageType = nestedType;
+          } else {
+            return result(false);
+          }
+          nestedCursor = nestedEnd;
+        }
+        if (nestedCursor !== dataEnd || nestedImageCount !== 1 || (nestedAlphaCount !== 0 && nestedImageType !== VP8)) return result(false);
+      } else if (type === ALPH) {
+        alphaChunks += 1;
+        if (alphaChunks !== 1 || imageChunks !== 0) return result(false);
+      }
+    } else if (type === VP8 || type === VP8L) {
+      imageChunks += 1;
+      if (imageChunks !== 1 || !webpImageMatches(bytes, type, dataStart, length, null, null)) return result(false);
+      imageType = type;
+      if (type === VP8) {
+        imageWidth = bytes.readUInt16LE(dataStart + 6) & 0x3fff;
+        imageHeight = bytes.readUInt16LE(dataStart + 8) & 0x3fff;
+      } else {
+        const bits = bytes.readUInt32LE(dataStart + 1);
+        imageWidth = (bits & 0x3fff) + 1;
+        imageHeight = ((bits >>> 14) & 0x3fff) + 1;
+      }
     }
-    return true;
+    cursor = chunkEnd;
   }
 
-  if (animationChunks.length !== 0 || frames.length !== 0 || imageChunks.length !== 1 || alphaChunks.length > 1) return false;
-  const image = imageChunks[0];
-  if (alphaChunks.length === 1 && (image.type !== 'VP8 ' || chunks.indexOf(alphaChunks[0]) > chunks.indexOf(image))) return false;
-  const dimensions = webpImageDimensions(image.type, image.data);
-  if (!dimensions) return false;
-  return canvasWidth === null || (canvasWidth === dimensions.width && canvasHeight === dimensions.height);
+  if (cursor !== riffEnd || (!hasVp8x && sawExtended)) return result(false);
+  if ((flags & 0x02) !== 0) return result(animationChunks === 1 && framesVisited > 0 && imageChunks === 0 && alphaChunks === 0);
+  if (animationChunks !== 0 || framesVisited !== 0 || imageChunks !== 1 || alphaChunks > 1 || (alphaChunks !== 0 && imageType !== VP8)) return result(false);
+  return result(!hasVp8x || (canvasWidth === imageWidth && canvasHeight === imageHeight));
+}
+
+/** Checks WebP structure using a bounded scalar-cursor walk over the original bytes. */
+export function hasValidWebpStructure(input: Uint8Array): boolean {
+  return inspectWebpStructure(input).valid;
 }
 
 /** Fully decodes a declared picture without retaining decoded output; ordinary files remain opaque bytes. */

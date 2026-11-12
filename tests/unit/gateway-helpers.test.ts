@@ -3,7 +3,7 @@ import {describe, expect, it, vi} from 'vitest';
 import {readConfig, type Env} from '../../workers/files/src/config';
 import type {Query, Row} from '../../workers/files/src/database';
 import {createResolvers, retainedResolver, stagingResolver, type Resolver} from '../../workers/files/src/resolvers';
-import {blocks, handleHashOf, hasCompletePngEnd, hasValidWebpStructure, leadingBytesMatch, newHandle, parseRange, validPicture} from '../../workers/files/src/transfer';
+import {blocks, handleHashOf, hasCompletePngEnd, hasValidWebpStructure, inspectWebpStructure, leadingBytesMatch, newHandle, parseRange, validPicture} from '../../workers/files/src/transfer';
 import {testKeys} from '../support/service-keys';
 import {baselineJpeg, pngWithMetadata, riffWebp, simpleWebp, vp8Image, vp8lImage, webpChunk, webpWithMetadata} from '../support/metadata-pictures';
 
@@ -115,6 +115,80 @@ describe('image validation', () => {
     expect(hasValidWebpStructure(simpleWebp('lossless'))).toBe(true);
     expect(hasValidWebpStructure(simpleWebp('lossy'))).toBe(true);
     expect(hasValidWebpStructure(animated)).toBe(true);
+  });
+
+  it.each([
+    ['an interior top-level chunk', (() => {
+      const bytes = riffWebp(webpChunk('JUNK', Buffer.from([1])), webpChunk('VP8L', vp8lImage));
+      bytes[21] = 0x7f;
+      return bytes;
+    })()],
+    ['a final top-level chunk', (() => {
+      const bytes = riffWebp(webpChunk('VP8L', vp8lImage), webpChunk('JUNK', Buffer.from([1])));
+      bytes[bytes.length - 1] = 0x7f;
+      return bytes;
+    })()],
+    ['a nested ANMF chunk', (() => {
+      const canvas = Buffer.alloc(10);
+      canvas[0] = 0x02;
+      const bytes = riffWebp(webpChunk('VP8X', canvas), webpChunk('ANIM', Buffer.alloc(6)), webpChunk('ANMF', Buffer.concat([Buffer.alloc(16), webpChunk('ALPH', Buffer.from([1])), webpChunk('VP8 ', vp8Image)])));
+      const nestedAlphaPad = 12 + 18 + 14 + 8 + 16 + 8 + 1;
+      bytes[nestedAlphaPad] = 0x7f;
+      return bytes;
+    })()],
+  ])('rejects a nonzero pad byte on %s', (_name, bytes) => {
+    expect(hasValidWebpStructure(bytes)).toBe(false);
+  });
+
+  it('accepts exactly 10,000 top-level chunks', () => {
+    const imageChunk = simpleWebp().subarray(12);
+    const bytes = Buffer.alloc(12 + imageChunk.length + 9_999 * 8);
+    bytes.write('RIFF', 0, 'latin1');
+    bytes.write('WEBP', 8, 'latin1');
+    imageChunk.copy(bytes, 12);
+    let cursor = 12 + imageChunk.length;
+    while (cursor < bytes.length) {
+      bytes.write('JUNK', cursor, 'latin1');
+      bytes.writeUInt32LE(0, cursor + 4);
+      cursor += 8;
+    }
+    bytes.writeUInt32LE(bytes.length - 8, 4);
+    expect(inspectWebpStructure(bytes)).toEqual({valid: true, chunksVisited: 10_000, framesVisited: 0});
+  });
+
+  it('allows 4,096 ANMF frames and rejects frame 4,097', () => {
+    const animated = (frameCount: number) => {
+      const canvas = Buffer.alloc(10);
+      canvas[0] = 0x02;
+      const chunks: Buffer[] = [webpChunk('VP8X', canvas), webpChunk('ANIM', Buffer.alloc(6))];
+      const frame = webpChunk('ANMF', Buffer.concat([Buffer.alloc(16), webpChunk('VP8L', vp8lImage)]));
+      for (let index = 0; index < frameCount; index += 1) chunks.push(frame);
+      return riffWebp(...chunks);
+    };
+    expect(inspectWebpStructure(animated(4_096))).toEqual({valid: true, chunksVisited: 8_194, framesVisited: 4_096});
+    expect(inspectWebpStructure(animated(4_097))).toEqual({valid: false, chunksVisited: 8_195, framesVisited: 4_096});
+  });
+
+  it('rejects a dense 12 MiB WebP at 10,000 chunks within the secondary time bound', () => {
+    const bytes = Buffer.alloc(12 * 1024 * 1024);
+    bytes.write('RIFF', 0, 'latin1');
+    bytes.write('WEBP', 8, 'latin1');
+    const imageChunk = simpleWebp().subarray(12);
+    imageChunk.copy(bytes, 12);
+    let cursor = 12 + imageChunk.length;
+    webpChunk('JUNK', Buffer.alloc(6)).copy(bytes, cursor);
+    cursor += 14;
+    while (cursor < bytes.length) {
+      bytes.write('JUNK', cursor, 'latin1');
+      bytes.writeUInt32LE(0, cursor + 4);
+      cursor += 8;
+    }
+    bytes.writeUInt32LE(bytes.length - 8, 4);
+    const started = performance.now();
+    const checked = inspectWebpStructure(bytes);
+    const elapsed = performance.now() - started;
+    expect(checked).toEqual({valid: false, chunksVisited: 10_000, framesVisited: 0});
+    expect(elapsed).toBeLessThan(250);
   });
 
   it.each([

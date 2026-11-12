@@ -12,7 +12,7 @@ import {PartialDeleteError} from '../../workers/files/src/storage';
 import {createGatewayServer} from '../../workers/files/src/server';
 import {createFixtureResolver, fixtureKind} from '../support/fixture-resolver';
 import {DatabaseUnavailable, fakeClock, fakeDatabase, fakeStorage, jpegBytes, MiB, pngBytes as signaturePngBytes, retainedQuotaBytes, sha256, type FakeMember} from '../support/gateway-fakes';
-import {baselineJpeg, contains, gpsJpeg, gpsJpegOrientation, gpsMarker, jpegNames, markersIn, pngWithMetadata, webpWithMetadata} from '../support/metadata-pictures';
+import {baselineJpeg, contains, gpsJpeg, gpsJpegOrientation, gpsMarker, jpegNames, markersIn, pngWithMetadata, simpleWebp, webpWithMetadata} from '../support/metadata-pictures';
 import {testKeyPair, testSigner, type TestKeySetOptions} from '../support/service-keys';
 
 // Story 1.12: the file gateway's HTTP server (workers/files/src/server.ts), over real HTTP on a loopback port, with in-memory stand-ins for its
@@ -919,6 +919,21 @@ describe('an upload that fails leaves no object and releases its lease', () => {
     ['a PNG missing its IEND chunk', 'image/png', () => pngWithMetadata({trailer: false}).subarray(0, -12), 'invalid_upload', 0],
     ['a PNG with a truncated IEND chunk', 'image/png', () => pngWithMetadata({trailer: false}).subarray(0, -1), 'invalid_upload', 0],
     ['a truncated WebP with its matching signature', 'image/webp', () => webpWithMetadata({trailer: false}).subarray(0, -8), 'invalid_upload', 0],
+    ['a WebP with more than 10,000 chunks', 'image/webp', () => {
+      const imageChunk = simpleWebp().subarray(12);
+      const bytes = Buffer.alloc(12 + imageChunk.length + 10_000 * 8);
+      bytes.write('RIFF', 0, 'latin1');
+      bytes.write('WEBP', 8, 'latin1');
+      imageChunk.copy(bytes, 12);
+      let cursor = 12 + imageChunk.length;
+      while (cursor < bytes.length) {
+        bytes.write('JUNK', cursor, 'latin1');
+        bytes.writeUInt32LE(0, cursor + 4);
+        cursor += 8;
+      }
+      bytes.writeUInt32LE(bytes.length - 8, 4);
+      return bytes;
+    }, 'invalid_upload', 0],
     ['a WebP that is RIFF and no WEBP', 'image/webp', () => Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(8), randomBytes(100)]), 'content_mismatch', 1],
     ['a PNG that is shorter than its signature', 'image/png', () => Buffer.from([0x89, 0x50, 0x4e, 0x47]), 'content_mismatch', 1],
     ['a PNG that is not one', 'image/png', () => randomBytes(5000).fill(0x41, 0, 8), 'content_mismatch', 1],
