@@ -1,6 +1,8 @@
-// Pure helpers of a transfer: cutting a stream into chunks of at most the chunk size, reading a Range header, checking what a picture's first
-// bytes say it is, and reading a transfer handle. No I/O, no clock, no logging.
+// Helpers of a transfer: cutting a stream into chunks of at most the chunk size, reading a Range header, validating picture bytes, and reading a transfer handle.
 import {createHash} from 'node:crypto';
+import sharp from 'sharp';
+
+const pngIendChunk = Buffer.from([0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
 
 /**
  * Cuts a stream into pieces of exactly `size` bytes (the last one shorter), whatever size the pieces it arrives in are. This is what makes "a
@@ -68,6 +70,35 @@ export function leadingBytesMatch(contentType: string, head: Uint8Array): boolea
       return startsWith(head, [0x52, 0x49, 0x46, 0x46]) && startsWith(head, [0x57, 0x45, 0x42, 0x50], 8);
     default:
       return true;
+  }
+}
+
+/** Whether a PNG ends with a complete, terminal IEND chunk. libvips can decode all pixels from a PNG that has lost this footer. */
+export function hasCompletePngEnd(bytes: Buffer): boolean {
+  let offset = 8;
+  while (offset <= bytes.length - 12) {
+    const length = bytes.readUInt32BE(offset);
+    if (length > bytes.length - offset - 12) return false;
+    const end = offset + 12 + length;
+    const type = bytes.toString('ascii', offset + 4, offset + 8);
+    if (type === 'IEND') {
+      return length === 0 && end === bytes.length && bytes.subarray(offset).equals(pngIendChunk);
+    }
+    offset = end;
+  }
+  return false;
+}
+
+/** Fully decodes a declared picture without retaining decoded output; ordinary files remain opaque bytes. */
+export async function validPicture(contentType: string, bytes: Buffer): Promise<boolean> {
+  if (contentType === 'application/octet-stream') return true;
+  if (contentType === 'image/png' && !hasCompletePngEnd(bytes)) return false;
+  if (contentType !== 'image/jpeg' && contentType !== 'image/png' && contentType !== 'image/webp') return false;
+  try {
+    await sharp(bytes, {animated: true, failOn: 'warning', limitInputPixels: 100_000_000}).stats();
+    return true;
+  } catch {
+    return false;
   }
 }
 

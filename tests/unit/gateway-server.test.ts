@@ -2,6 +2,7 @@ import {createPrivateKey, randomBytes, randomUUID, sign} from 'node:crypto';
 import http, {type IncomingHttpHeaders} from 'node:http';
 import type {AddressInfo} from 'node:net';
 import net from 'node:net';
+import {crc32} from 'node:zlib';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {canonicalize} from '../../lib/canonical-json';
 import {newJti, signCommand, signTicket, tokenLabel, type CommandClaims, type Signer, type TicketClaims} from '../../lib/service-signing';
@@ -10,7 +11,7 @@ import {readOrientation, stripPictureMetadata} from '../../workers/files/src/str
 import {PartialDeleteError} from '../../workers/files/src/storage';
 import {createGatewayServer} from '../../workers/files/src/server';
 import {createFixtureResolver, fixtureKind} from '../support/fixture-resolver';
-import {DatabaseUnavailable, fakeClock, fakeDatabase, fakeStorage, jpegBytes, MiB, pngBytes, retainedQuotaBytes, sha256, webpBytes, type FakeMember} from '../support/gateway-fakes';
+import {DatabaseUnavailable, fakeClock, fakeDatabase, fakeStorage, jpegBytes, MiB, pngBytes as signaturePngBytes, retainedQuotaBytes, sha256, type FakeMember} from '../support/gateway-fakes';
 import {baselineJpeg, contains, gpsJpeg, gpsJpegOrientation, gpsMarker, jpegNames, markersIn, pngWithMetadata, webpWithMetadata} from '../support/metadata-pictures';
 import {testKeyPair, testSigner, type TestKeySetOptions} from '../support/service-keys';
 
@@ -40,6 +41,21 @@ type Init = {
 };
 
 const agent = new http.Agent({keepAlive: false});
+
+function pngBytes(length: number): Buffer {
+  const image = pngWithMetadata({appearance: false, exif: false, icc: false, physical: false, text: false, trailer: false});
+  const paddingLength = length - image.length;
+  if (paddingLength === 0) return image;
+  if (paddingLength < 20) return signaturePngBytes(length);
+  const type = Buffer.from('raNd');
+  const data = randomBytes(paddingLength - 12);
+  const chunkLength = Buffer.alloc(4);
+  chunkLength.writeUInt32BE(data.length);
+  const checksum = Buffer.alloc(4);
+  checksum.writeUInt32BE(crc32(Buffer.concat([type, data])));
+  const chunk = Buffer.concat([chunkLength, type, data, checksum]);
+  return Buffer.concat([image.subarray(0, -12), chunk, image.subarray(-12)]);
+}
 
 function options(base: string, path: string, init: Init) {
   const url = new URL(path, base);
@@ -746,13 +762,13 @@ describe('an upload', () => {
   });
 
   it.each([
-    ['a JPEG', 'image/jpeg', jpegBytes],
-    ['a WebP', 'image/webp', webpBytes],
-    ['a PNG', 'image/png', pngBytes],
-  ])('stores %s as a picture, by its leading bytes', async (_name, contentType, make) => {
+    ['a JPEG', 'image/jpeg', () => baselineJpeg()],
+    ['a WebP', 'image/webp', () => webpWithMetadata({trailer: false})],
+    ['a PNG', 'image/png', () => pngWithMetadata({trailer: false})],
+  ])('stores a fully decoded %s picture', async (_name, contentType, make) => {
     const member = world.member();
     const id = randomUUID();
-    const bytes = make(5000);
+    const bytes = make();
     const reply = await world.upload(member, id, bytes, {ct: contentType});
     expect(reply.status).toBe(201);
     expect(world.storage.objects.get(`staging/${member.accountId}/${id}`)!.contentType).toBe(contentType);
@@ -892,23 +908,30 @@ describe('an upload that fails leaves no object and releases its lease', () => {
   };
 
   it.each([
-    ['a JPEG that is a PNG', 'image/jpeg', () => pngBytes(4000)],
-    ['a PNG that is a JPEG', 'image/png', () => jpegBytes(4000)],
-    ['a WebP that is a PNG', 'image/webp', () => pngBytes(4000)],
-    ['a WebP that is RIFF and no WEBP', 'image/webp', () => Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(8), randomBytes(100)])],
-    ['a PNG that is shorter than its signature', 'image/png', () => Buffer.from([0x89, 0x50, 0x4e, 0x47])],
-    ['a PNG that is not one', 'image/png', () => randomBytes(5000).fill(0x41, 0, 8)],
-  ])('refuses %s: 400 content_mismatch, the partial object deleted, the lease released, and nothing attached', async (_name, ct, make) => {
+    ['a JPEG that is a PNG', 'image/jpeg', () => pngBytes(4000), 1],
+    ['a PNG that is a JPEG', 'image/png', () => jpegBytes(4000), 1],
+    ['a WebP that is a PNG', 'image/webp', () => pngBytes(4000), 1],
+    ['a signature-only JPEG', 'image/jpeg', () => Buffer.from([0xff, 0xd8, 0xff]), 0],
+    ['a truncated JPEG with its matching signature', 'image/jpeg', () => baselineJpeg().subarray(0, -8), 0],
+    ['a corrupt PNG with its matching signature', 'image/png', () => { const bytes = pngWithMetadata({appearance: false, exif: false, icc: false, physical: false, text: false, trailer: false}); bytes[bytes.length - 20] ^= 0xff; return bytes; }, 0],
+    ['a PNG missing its IEND chunk', 'image/png', () => pngWithMetadata({trailer: false}).subarray(0, -12), 0],
+    ['a PNG with a truncated IEND chunk', 'image/png', () => pngWithMetadata({trailer: false}).subarray(0, -1), 0],
+    ['a truncated WebP with its matching signature', 'image/webp', () => webpWithMetadata({trailer: false}).subarray(0, -8), 0],
+    ['a WebP that is RIFF and no WEBP', 'image/webp', () => Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(8), randomBytes(100)]), 1],
+    ['a PNG that is shorter than its signature', 'image/png', () => Buffer.from([0x89, 0x50, 0x4e, 0x47]), 1],
+    ['a PNG that is not one', 'image/png', () => randomBytes(5000).fill(0x41, 0, 8), 1],
+  ])('refuses %s: 400 content_mismatch, the object deleted, the lease released, and nothing attached', async (_name, ct, make, abortedPuts) => {
     const member = world.member();
     const id = randomUUID();
     const bytes = make();
     const reply = await world.upload(member, id, bytes, {ct});
     expect([reply.status, reply.json()]).toEqual([400, {error: 'content_mismatch'}]);
     expect(world.storage.keys()).toEqual([]);
-    expect(world.storage.abortedPuts).toBe(1);
+    expect(world.storage.abortedPuts).toBe(abortedPuts);
     expect(world.storage.calls).toContain(`delete:staging/${member.accountId}/${id}`);
     expect(world.db.leases.get(id)!.state).toBe('released');
     expect(world.db.manifests.size).toBe(0);
+    expect(world.db.count('complete')).toBe(0);
   });
 
   it('refuses a large body at its first chunk and reads no more of it than a little: the sender reads the answer or finds the connection cut', async () => {

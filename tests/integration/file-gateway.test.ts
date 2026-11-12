@@ -1,6 +1,7 @@
 import {ListObjectsV2Command, S3Client} from '@aws-sdk/client-s3';
 import {spawn, type ChildProcess} from 'node:child_process';
 import {createHash, randomBytes, randomUUID, sign} from 'node:crypto';
+import {crc32} from 'node:zlib';
 import http from 'node:http';
 import {createServer as createNetServer} from 'node:net';
 import {resolve} from 'node:path';
@@ -16,11 +17,26 @@ import {createPostgresDatabase, type GatewayDatabase} from '../../workers/files/
 import {start, StartupError} from '../../workers/files/src/main';
 import {bucketName, MissingObject} from '../../workers/files/src/storage';
 import {createHarness} from '../support/accounts-db';
-import {appOrigin, createMember, epochOf, MiB, jpegBytes, pngBytes, roleUrl, sha256, startGateway, uploadClaims, uploadHeaders, webpBytes, type Gateway, type GatewayOptions, type Member, type TicketInput} from '../support/gateway-world';
+import {appOrigin, createMember, epochOf, MiB, jpegBytes, pngBytes as signaturePngBytes, roleUrl, sha256, startGateway, uploadClaims, uploadHeaders, type Gateway, type GatewayOptions, type Member, type TicketInput} from '../support/gateway-world';
 import {readOrientation, stripPictureMetadata} from '../../workers/files/src/strip';
 import {testKeyPair, testSigner} from '../support/service-keys';
-import {gpsJpeg, gpsJpegOrientation, gpsMarker, jpegNames, markersIn, pngWithMetadata, webpWithMetadata} from '../support/metadata-pictures';
+import {baselineJpeg, gpsJpeg, gpsJpegOrientation, gpsMarker, jpegNames, markersIn, pngWithMetadata, webpWithMetadata} from '../support/metadata-pictures';
 import {localStack, s3Of, stackEnvironment} from '../support/stack';
+
+function pngBytes(length: number): Buffer {
+  const image = pngWithMetadata({appearance: false, exif: false, icc: false, physical: false, text: false, trailer: false});
+  const paddingLength = length - image.length;
+  if (paddingLength === 0) return image;
+  if (paddingLength < 20) return signaturePngBytes(length);
+  const type = Buffer.from('raNd');
+  const data = randomBytes(paddingLength - 12);
+  const chunkLength = Buffer.alloc(4);
+  chunkLength.writeUInt32BE(data.length);
+  const checksum = Buffer.alloc(4);
+  checksum.writeUInt32BE(crc32(Buffer.concat([type, data])));
+  const chunk = Buffer.concat([chunkLength, type, data, checksum]);
+  return Buffer.concat([image.subarray(0, -12), chunk, image.subarray(-12)]);
+}
 
 // Story 1.12: the file gateway, end to end. The gateway runs IN-PROCESS on a loopback port (workers/files/src/main.ts `start`) against the REAL local
 // database as its OWN role (nova3d_gateway: the privileges of 20261015120000_file_gateway.sql and nothing else) and the REAL local Storage (the private
@@ -431,10 +447,10 @@ describe('uploads: what is accepted, byte for byte', () => {
     expect(stored!.length).toBe(bytes.length);
   });
 
-  it('takes a JPEG and a WebP, each by what its first bytes say it is', async () => {
+  it('takes fully decodable JPEG and WebP images', async () => {
     const who = await member();
-    const jpeg = jpegBytes(3 * MiB + 17);
-    const webp = webpBytes(2 * MiB + 5);
+    const jpeg = baselineJpeg();
+    const webp = webpWithMetadata({trailer: false});
     const one = await uploaded(who, jpeg, {ct: 'image/jpeg'});
     const two = await uploaded(who, webp, {ct: 'image/webp'});
     expect(sha256((await objectOf(staging(who.accountId, one.id)))!)).toBe(sha256(jpeg));
@@ -506,6 +522,12 @@ describe('uploads: what is refused, and what it leaves behind', () => {
       ['image/png', randomBytes(1000)],
       ['image/jpeg', pngBytes(5000)],
       ['image/webp', jpegBytes(5000)],
+      ['image/jpeg', baselineJpeg().subarray(0, -8)],
+      ['image/png', (() => { const bytes = pngWithMetadata({appearance: false, exif: false, icc: false, physical: false, text: false, trailer: false}); bytes[bytes.length - 20] ^= 0xff; return bytes; })()],
+      ['image/jpeg', Buffer.from([0xff, 0xd8, 0xff])],
+      ['image/png', pngWithMetadata({trailer: false}).subarray(0, -12)],
+      ['image/png', pngWithMetadata({trailer: false}).subarray(0, -1)],
+      ['image/webp', webpWithMetadata({trailer: false}).subarray(0, -8)],
       ['image/png', Buffer.concat([pngBytes(8).subarray(0, 7), Buffer.from([0x00]), randomBytes(500)])],
     ] as [string, Buffer][]) {
       const result = await upload(who, bytes, {ct});
@@ -839,7 +861,7 @@ describe('a ticket that is not good, and only then is it refused: one body, noth
       const response = await fetch(`${gateway.url}/v1/uploads/${tid}`, {
         method: 'PUT',
         headers: {...uploadHeaders(token, bytes), authorization: `${scheme} ${token}`},
-        body: bytes,
+        body: Uint8Array.from(bytes),
       });
       const text = await response.text();
       expect(response.status, label).toBe(401);

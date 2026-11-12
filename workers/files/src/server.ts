@@ -38,7 +38,7 @@ import type {AttachmentReceipt, GatewayDatabase, Lease} from './database.ts';
 import {createResolvers, type Direction, type ResolvedTarget, type Resolvers} from './resolvers.ts';
 import {MissingObject, type GatewayStorage, type StoredBody} from './storage.ts';
 import {StripError, stripPictureMetadata} from './strip.ts';
-import {blocks, handleHashOf, leadingBytesMatch, newHandle, parseRange} from './transfer.ts';
+import {blocks, handleHashOf, leadingBytesMatch, newHandle, parseRange, validPicture} from './transfer.ts';
 
 export type GatewayDeps = {
   /** The environment's INSTANCE_ID: the `env` every token must carry. */
@@ -314,6 +314,8 @@ export function createGatewayServer(deps: GatewayDeps): Server {
 
     const key = `staging/${claims.acct}/${id}`;
     const hasher = createHash('sha256');
+    const validatesImage = claims.ct !== 'application/octet-stream';
+    const imageChunks: Buffer[] = [];
     let received = 0;
     let index = 0;
     const stopped: {by: Halt | null} = {by: null};
@@ -334,6 +336,7 @@ export function createGatewayServer(deps: GatewayDeps): Server {
         received += block.length;
         if (received > claims.len) throw halt('too_long');
         hasher.update(block);
+        if (validatesImage) imageChunks.push(block);
         if (!(await database.progress(id, claims.acct, received, afterNow(transferLimits.leaseSeconds)))) throw halt('ended');
         index += 1;
         yield block;
@@ -344,6 +347,7 @@ export function createGatewayServer(deps: GatewayDeps): Server {
 
     try {
       await storage.put(key, chunks(), {contentType: claims.ct});
+      if (validatesImage && !(await validPicture(claims.ct, Buffer.concat(imageChunks, received)))) throw halt('content');
       if (!(await database.complete(id, claims.acct, received, afterNow(transferLimits.leaseSeconds)))) {
         // The lease ended while the last bytes were landing (it was released, or its key revoked): the object is not kept.
         throw halt('ended');

@@ -3,11 +3,12 @@ import {describe, expect, it, vi} from 'vitest';
 import {readConfig, type Env} from '../../workers/files/src/config';
 import type {Query, Row} from '../../workers/files/src/database';
 import {createResolvers, retainedResolver, stagingResolver, type Resolver} from '../../workers/files/src/resolvers';
-import {blocks, handleHashOf, leadingBytesMatch, newHandle, parseRange} from '../../workers/files/src/transfer';
+import {blocks, handleHashOf, hasCompletePngEnd, leadingBytesMatch, newHandle, parseRange, validPicture} from '../../workers/files/src/transfer';
 import {testKeys} from '../support/service-keys';
+import {baselineJpeg, pngWithMetadata, webpWithMetadata} from '../support/metadata-pictures';
 
-// The pure parts of the file gateway (Story 1.12, workers/files/src): how a stream is cut into chunks of at most 1 MiB, how a Range header is read,
-// what a picture's first bytes must be, how a handle in a URL becomes the hash the database holds, the resolver registry and its one resolver, and
+// The helper parts of the file gateway (Story 1.12, workers/files/src): how a stream is cut into chunks of at most 1 MiB, how a Range header is read,
+// how picture bytes are validated, how a handle in a URL becomes the hash the database holds, the resolver registry and its one resolver, and
 // the configuration the gateway refuses to start without. No database, no Storage, no network: the server over all of them is
 // tests/unit/gateway-server.test.ts and the real thing is tests/integration/file-gateway.test.ts.
 
@@ -74,6 +75,28 @@ describe('blocks: a chunk is at most the chunk size, however the pieces arrive',
       break;
     }
     expect(pulled).toBe(1);
+  });
+});
+
+describe('image validation', () => {
+  it.each([
+    ['image/jpeg', baselineJpeg()],
+    ['image/png', pngWithMetadata({trailer: false})],
+    ['image/webp', webpWithMetadata({trailer: false})],
+  ])('accepts a fully decodable %s', async (contentType, bytes) => {
+    expect(await validPicture(contentType, bytes)).toBe(true);
+  });
+
+  it('accepts opaque files and rejects signatures, corrupt data and a missing PNG end marker', async () => {
+    const png = pngWithMetadata({appearance: false, exif: false, icc: false, physical: false, text: false, trailer: false});
+    const brokenPng = Buffer.from(png);
+    brokenPng[brokenPng.length - 20] ^= 0xff;
+    expect(hasCompletePngEnd(png)).toBe(true);
+    expect(hasCompletePngEnd(png.subarray(0, -12))).toBe(false);
+    expect(await validPicture('application/octet-stream', Buffer.from([0xff, 0xd8, 0xff]))).toBe(true);
+    expect(await validPicture('image/jpeg', Buffer.from([0xff, 0xd8, 0xff]))).toBe(false);
+    expect(await validPicture('image/png', png.subarray(0, -12))).toBe(false);
+    expect(await validPicture('image/png', brokenPng)).toBe(false);
   });
 });
 
