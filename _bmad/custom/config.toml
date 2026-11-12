@@ -9,7 +9,7 @@
 [houston.doc]
 space = "LT"
 docmost_manual_root_slug = "r8uqwZg4uO"
-wiki_first_enforcement = "block"
+wiki_first_enforcement = "off"
 
 [modules.doc]
 docmost_space = "LT"
