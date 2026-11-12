@@ -764,7 +764,7 @@ describe('an upload', () => {
   it.each([
     ['a JPEG', 'image/jpeg', () => baselineJpeg()],
     ['a GPS-bearing JPEG', 'image/jpeg', () => gpsJpeg()],
-    ['a metadata-bearing WebP', 'image/webp', () => webpWithMetadata()],
+    ['a metadata-bearing WebP with a post-RIFF trailer', 'image/webp', () => webpWithMetadata({trailer: true})],
     ['a metadata-bearing PNG', 'image/png', () => pngWithMetadata()],
   ])('stores a fully decoded %s picture without changing its bytes', async (_name, contentType, make) => {
     const member = world.member();

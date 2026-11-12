@@ -3,9 +3,9 @@ import {describe, expect, it, vi} from 'vitest';
 import {readConfig, type Env} from '../../workers/files/src/config';
 import type {Query, Row} from '../../workers/files/src/database';
 import {createResolvers, retainedResolver, stagingResolver, type Resolver} from '../../workers/files/src/resolvers';
-import {blocks, handleHashOf, hasCompletePngEnd, leadingBytesMatch, newHandle, parseRange, validPicture} from '../../workers/files/src/transfer';
+import {blocks, handleHashOf, hasCompletePngEnd, hasValidWebpStructure, leadingBytesMatch, newHandle, parseRange, validPicture} from '../../workers/files/src/transfer';
 import {testKeys} from '../support/service-keys';
-import {baselineJpeg, pngWithMetadata, webpWithMetadata} from '../support/metadata-pictures';
+import {baselineJpeg, pngWithMetadata, riffWebp, simpleWebp, vp8Image, vp8lImage, webpChunk, webpWithMetadata} from '../support/metadata-pictures';
 
 // The helper parts of the file gateway (Story 1.12, workers/files/src): how a stream is cut into chunks of at most 1 MiB, how a Range header is read,
 // how picture bytes are validated, how a handle in a URL becomes the hash the database holds, the resolver registry and its one resolver, and
@@ -100,7 +100,61 @@ describe('image validation', () => {
     expect(await validPicture('image/png', png.subarray(0, -12))).toBe(false);
     expect(await validPicture('image/png', brokenPng)).toBe(false);
     expect(await validPicture('image/jpeg', baselineJpeg().subarray(0, -8))).toBe(false);
-    expect(await validPicture('image/webp', webpWithMetadata().subarray(0, -8))).toBe(false);
+    expect(await validPicture('image/webp', webpWithMetadata({trailer: false}).subarray(0, -8))).toBe(false);
+  });
+
+  it('accepts valid simple lossless, lossy and animated WebP structures', () => {
+    const animatedCanvas = Buffer.alloc(10);
+    animatedCanvas[0] = 0x02;
+    const frameHeader = Buffer.alloc(16);
+    const animated = riffWebp(
+      webpChunk('VP8X', animatedCanvas),
+      webpChunk('ANIM', Buffer.alloc(6)),
+      webpChunk('ANMF', Buffer.concat([frameHeader, webpChunk('VP8L', vp8lImage)])),
+    );
+    expect(hasValidWebpStructure(simpleWebp('lossless'))).toBe(true);
+    expect(hasValidWebpStructure(simpleWebp('lossy'))).toBe(true);
+    expect(hasValidWebpStructure(animated)).toBe(true);
+  });
+
+  it.each([
+    ['header only', riffWebp()],
+    ['truncated VP8L payload', riffWebp(webpChunk('VP8L', vp8lImage).subarray(0, -3))],
+    ['truncated VP8 payload', riffWebp(webpChunk('VP8 ', vp8Image).subarray(0, -3))],
+    ['truncated ANMF nested image payload', (() => {
+      const canvas = Buffer.alloc(10);
+      canvas[0] = 0x02;
+      const nested = webpChunk('VP8L', vp8lImage);
+      nested.writeUInt32LE(nested.readUInt32LE(4) + 4, 4);
+      return riffWebp(webpChunk('VP8X', canvas), webpChunk('ANIM', Buffer.alloc(6)), webpChunk('ANMF', Buffer.concat([Buffer.alloc(16), nested])));
+    })()],
+    ['missing final image chunk with original RIFF size retained', simpleWebp().subarray(0, -8)],
+    ['incomplete chunk header', riffWebp(Buffer.concat([Buffer.from('JUNK'), Buffer.alloc(2)]))],
+    ['incomplete chunk data', (() => {
+      const chunk = Buffer.alloc(11);
+      chunk.write('VP8L', 0, 'latin1');
+      chunk.writeUInt32LE(8, 4);
+      return riffWebp(chunk);
+    })()],
+    ['missing odd-size padding byte', (() => {
+      const complete = riffWebp(webpChunk('JUNK', Buffer.from([1])), webpChunk('VP8L', vp8lImage));
+      const truncated = complete.subarray(0, -1);
+      truncated.writeUInt32LE(truncated.length - 8, 4);
+      return truncated;
+    })()],
+    ['RIFF size below the WEBP minimum', (() => { const bytes = simpleWebp(); bytes.writeUInt32LE(3, 4); return bytes; })()],
+    ['RIFF size beyond the available input', (() => { const bytes = simpleWebp(); bytes.writeUInt32LE(bytes.length - 7, 4); return bytes; })()],
+    ['no image payload', riffWebp(webpChunk('JUNK', Buffer.from([1, 2, 3, 4])))],
+  ])('rejects structurally incomplete WebP: %s', (_name, bytes) => {
+    expect(hasValidWebpStructure(bytes)).toBe(false);
+  });
+
+  it('accepts metadata chunks and a post-RIFF trailer without changing the original upload bytes', async () => {
+    const bytes = webpWithMetadata({trailer: true});
+    const original = Buffer.from(bytes);
+    expect(hasValidWebpStructure(bytes)).toBe(true);
+    expect(await validPicture('image/webp', bytes)).toBe(true);
+    expect(bytes).toEqual(original);
   });
 });
 
