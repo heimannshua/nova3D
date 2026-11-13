@@ -1822,11 +1822,14 @@ describe('The file gateway (Story 1.12): no file through a Vercel function, one 
     expect(main).toMatch(/signHeartbeat\(config\.signer, config\.instanceId,/);
   });
 
-  it('holds the gateway to node:http, its own modules, pg, the S3 client and the two shared files; reads the environment in main.ts alone; logs an error\'s name and nothing else', () => {
+  it('holds the gateway to node:http, its own modules, pg, the S3 client and the two shared files; allows Sharp only in the transfer importer; reads the environment in main.ts alone; logs an error\'s name and nothing else', () => {
     const allowed = /^(?:node:[a-z/]+|pg|@aws-sdk\/(?:client-s3|lib-storage)|\.\/[a-z]+\.ts|\.\.\/\.\.\/\.\.\/lib\/(?:service-signing|canonical-json)\.ts)$/;
+    const isAllowedImport = (file: string, specifier: string) => allowed.test(specifier) || (file === 'workers/files/src/transfer.ts' && specifier === 'sharp');
+    expect(isAllowedImport('workers/files/src/transfer.ts', 'sharp')).toBe(true);
+    expect(isAllowedImport('workers/files/src/another.ts', 'sharp')).toBe(false);
     for (const file of gateway) {
       const code = withoutComments(read(file));
-      for (const match of code.matchAll(/^(?:import|export)\s[^;]*?from '([^']+)';/gm)) expect(match[1], `${file}: ${match[0].slice(0, 80)}`).toMatch(allowed);
+      for (const match of code.matchAll(/^(?:import|export)\s[^;]*?from '([^']+)';/gm)) expect(isAllowedImport(file, match[1]), `${file}: ${match[0].slice(0, 80)}`).toBe(true);
       expect(code, file).not.toMatch(/\brequire\(|\benum\s+\w+\s*\{|constructor\s*\([^)]*\b(?:private|public|readonly)\s/);
       expect(code, file).not.toMatch(/set-cookie|\bcookie\b|access-control-allow-credentials|access-control-allow-origin['"]?\s*[:,]\s*['"]\*|getSignedUrl|presign/i);
       // (server.ts holds the default logger's one console.error, checked below.)
