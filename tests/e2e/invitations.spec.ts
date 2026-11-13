@@ -14,8 +14,8 @@ import {accountsWorld, type AccountsWorld} from '../support/forged-session';
 // `desktop` and `phone`.
 //
 // There is ONE general code in the whole database, and the desktop and phone projects run the same flows at the same
-// time, so each test that touches it holds a database lock for its whole length (world.takeGeneralCode) and leaves no
-// general code waiting. Named codes are told apart by a name no other test uses.
+// time, so each test that touches it holds a database lock for its whole length (world.takeGeneralCode), tracks any
+// test-owned plaintext, and redeems a code it leaves waiting during cleanup. Named codes are told apart by a name no other test uses.
 
 let world: AccountsWorld;
 test.beforeAll(async () => {
@@ -501,12 +501,13 @@ test.describe('the general code', () => {
     await mintButton(page).click();
     const reveal = reveals(page).first();
     await expect(reveal).toBeVisible(crossing);
-    await expect(reveal.getByRole('heading', {name: t('en', 'invitations.reveal.general')})).toBeVisible();
-    await expect(reveal).not.toContainText(t('en', 'invitations.reveal.rotated'));
     const code = await shownCode(reveal);
-    expect(looksLikeInvitationCode(code)).toBe(true);
     const waiting = await world.unusedGeneralId();
     expect(waiting).toBeDefined();
+    world.trackGeneralCode(waiting!, code);
+    await expect(reveal.getByRole('heading', {name: t('en', 'invitations.reveal.general')})).toBeVisible();
+    await expect(reveal).not.toContainText(t('en', 'invitations.reveal.rotated'));
+    expect(looksLikeInvitationCode(code)).toBe(true);
     expect((await world.invitationRow(waiting!))!.code_hash).toBe(hashInvitationCode(code, key()));
     await expect(generalRows(page).filter({hasText: waiting!}).getByText(t('en', 'invitations.status.unused'), {exact: true})).toBeVisible();
     await expect(replaceButton(page)).toHaveCount(0);
@@ -521,6 +522,7 @@ test.describe('the general code', () => {
     await administrator(page, context, baseURL!, {marker: true});
     await expect(page.getByText(t('en', 'invitations.general.waiting'), {exact: true})).toBeVisible();
     await expect(generalRows(page).filter({hasText: current.invitationId}).getByText(t('en', 'invitations.status.unused'), {exact: true})).toBeVisible();
+    await expect(reveals(page)).toHaveCount(0);
     await expect(replaceButton(page)).toHaveCount(0);
     await expect(mintButton(page)).toHaveCount(0);
     expect(await world.unusedGeneralId()).toBe(current.invitationId);
@@ -536,14 +538,19 @@ test.describe('the general code', () => {
 
     await mintButton(page).click();
     await expect(reveals(page)).toHaveCount(1, crossing);
+    const code = await shownCode(reveals(page).first());
     const waiting = await world.unusedGeneralId();
+    expect(waiting).toBeDefined();
+    world.trackGeneralCode(waiting!, code);
 
     // The second window still believes none is waiting. It is told, and its page catches up; nothing was made.
     await mintButton(other).click();
     await expect(other.locator('.notice').filter({hasText: t('en', 'invitations.general.exists')})).toBeVisible(crossing);
     await expect(reveals(other)).toHaveCount(0);
-    await expect(replaceButton(other)).toBeVisible(crossing);
+    await expect(replaceButton(other)).toHaveCount(0);
+    await expect(mintButton(other)).toHaveCount(0);
     expect(await world.unusedGeneralId()).toBe(waiting);
+    expect(await world.invitationStatus(waiting!)).toBe('unused');
     expect(await world.auditEvents('invitation.issued', `invitation:${waiting}`)).toEqual([expect.objectContaining({actor: `user:${user.id}`})]);
   });
 });
@@ -772,6 +779,10 @@ test.describe('a second press while one is running sends nothing more', () => {
         release();
       }
       await expect(reveals(page)).toHaveCount(1, crossing);
+      const code = await shownCode(reveals(page).first());
+      const waiting = await world.unusedGeneralId();
+      expect(waiting).toBeDefined();
+      world.trackGeneralCode(waiting!, code);
       await page.waitForLoadState('networkidle');
       expect(posts).toHaveLength(1);
       expect((await world.invitationsIssuedBy(user)).map((row) => row.kind)).toEqual(['general']);

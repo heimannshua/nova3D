@@ -19,6 +19,7 @@ export function accountsWorld() {
   const env = serverEnv();
   const db = new Client({connectionString: stack.dbUrl});
   const committed: CommittedData = {users: [], emails: [], origins: [], hashes: [], invitationIds: []};
+  const generalCodes = new Map<string, string>();
   // Requests from a test browser carry no platform address header, so they all share this one origin.
   const sharedOrigin = hashClientAddress(null, hashKey(env, 'RATE_LIMIT_HASH_KEY'));
   committed.origins.push(sharedOrigin);
@@ -30,7 +31,13 @@ export function accountsWorld() {
   /** Removes everything this world created (the append-only audit events stay) and closes the connection. */
   async function close() {
     try {
-      await removeAccountData(db, committed);
+      await db.query(`select pg_advisory_lock(hashtextextended('nova3d-e2e:general-code', 0))`);
+      try {
+        await redeemWaitingGeneralCode();
+        await removeAccountData(db, committed);
+      } finally {
+        await db.query(`select pg_advisory_unlock(hashtextextended('nova3d-e2e:general-code', 0))`);
+      }
     } finally {
       await db.end();
     }
@@ -284,21 +291,47 @@ export function accountsWorld() {
     (await db.query('select id, kind, label, status from identity.invitations where issued_by = $1 order by created_at', [`user:${user.id}`])).rows as {id: string; kind: string; label: string | null; status: string}[];
   /** The general code that is waiting to be used, if there is one. There is at most one in the whole database. */
   const unusedGeneralId = async () => (await db.query(`select id from identity.invitations where kind = 'general' and status = 'unused'`)).rows[0]?.id as string | undefined;
+  /** Remembers a test-owned general code's one-time plaintext for safe redemption during cleanup. */
+  function trackGeneralCode(invitationId: string, code: string) {
+    if (!committed.invitationIds.includes(invitationId)) committed.invitationIds.push(invitationId);
+    generalCodes.set(invitationId, code);
+  }
+  /** Redeems the current code only when this world retained its plaintext; an unknown code is left untouched. */
+  async function redeemWaitingGeneralCode() {
+    const waiting = await unusedGeneralId();
+    if (!waiting) {
+      generalCodes.clear();
+      return;
+    }
+    const code = generalCodes.get(waiting);
+    if (!code) throw new Error(`Cannot safely clean up untracked current general invitation ${waiting}.`);
+    await activateWithCode(await signedInUser(), code);
+    if (await invitationStatus(waiting) !== 'redeemed') throw new Error(`The tracked general invitation ${waiting} was not redeemed during cleanup.`);
+    generalCodes.delete(waiting);
+    const nextWaiting = await unusedGeneralId();
+    if (nextWaiting) throw new Error(`A general invitation is still waiting after cleanup (${nextWaiting}).`);
+    generalCodes.clear();
+  }
   /**
-   * Holds the lock that every test touching THE general code takes, and gives back a database with no unused general
-   * code: there is one general code in the whole database, and the desktop and phone projects run the same flows at the
-   * same time. The lock is the connection's own (a session-level advisory lock), so a test that dies releases it.
+   * Holds the lock that every test touching THE general code takes, and redeems a tracked leftover before returning.
+   * The lock is the connection's own (a session-level advisory lock), so a test that dies releases it.
    */
   async function takeGeneralCode() {
     await db.query(`select pg_advisory_lock(hashtextextended('nova3d-e2e:general-code', 0))`);
-    const waiting = await unusedGeneralId();
-    if (waiting) await revokeInvitation({actor: 'seed:local:e2e', invitationId: waiting}, {env});
+    try {
+      await redeemWaitingGeneralCode();
+    } catch (error) {
+      await db.query(`select pg_advisory_unlock(hashtextextended('nova3d-e2e:general-code', 0))`);
+      throw error;
+    }
   }
-  /** Revokes the general code a test left waiting and lets the next test have the lock. */
+  /** Redeems the test-owned general code left waiting and lets the next test have the lock. */
   async function releaseGeneralCode() {
-    const waiting = await unusedGeneralId();
-    if (waiting) await revokeInvitation({actor: 'seed:local:e2e', invitationId: waiting}, {env});
-    await db.query(`select pg_advisory_unlock(hashtextextended('nova3d-e2e:general-code', 0))`);
+    try {
+      await redeemWaitingGeneralCode();
+    } finally {
+      await db.query(`select pg_advisory_unlock(hashtextextended('nova3d-e2e:general-code', 0))`);
+    }
   }
   /**
    * A lock that serializes the tests which load the invitation page through the SECOND server, the one with the fake
@@ -515,7 +548,7 @@ export function accountsWorld() {
   async function issueGeneralCode() {
     const issued = await issueInvitation({kind: 'general', actor: 'seed:local:e2e'}, {env});
     if (issued.outcome !== 'issued') throw new Error('The general code was not issued.');
-    committed.invitationIds.push(issued.invitationId);
+    trackGeneralCode(issued.invitationId, issued.code);
     return {code: issued.code, invitationId: issued.invitationId};
   }
   /** Gives the user an Account by redeeming the given code (the general one, say), as the registration screen does. */
@@ -540,7 +573,7 @@ export function accountsWorld() {
     resetLimiter, setStatus, accountOf, workspacesOf, commandsOf, invitationStatus, sessionExists,
     markersOf, noncesOf, startStepUpFrom, markerOutcome, ageNonces, adoptUser, authSessionsOf, hasGrantAtAll,
     preferencesOf, adoptPreferencesFor,
-    auditBy, makeAdministrator, forgeMarker, expireMarker, invitationRow, invitationByLabel, invitationsIssuedBy, unusedGeneralId, takeGeneralCode, releaseGeneralCode, holdFlakyInvitations, releaseFlakyInvitations, issueGeneralCode, activateWithCode,
+    auditBy, makeAdministrator, forgeMarker, expireMarker, invitationRow, invitationByLabel, invitationsIssuedBy, unusedGeneralId, takeGeneralCode, releaseGeneralCode, holdFlakyInvitations, releaseFlakyInvitations, issueGeneralCode, trackGeneralCode, activateWithCode,
     workspaceIdOf, liveSession, eraseAccount, holdFlakyAccounts, releaseFlakyAccounts,
     addProject, addFixtureProjects, projectOf, projectCount, renameReceipts, requestsOf, hideProject,
     recoveryTokens, clearRecoveryTokens, insertRecoveryToken, ageRecoveryTokens, markerSources, grantRows, auditFor, untargetedAudit, purgeUserByEmail,
