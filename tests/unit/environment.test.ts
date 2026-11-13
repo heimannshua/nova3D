@@ -61,6 +61,9 @@ describe('validateEnvironment', () => {
     const rowMismatch = await checkInstanceIdentity({...staging, NOVA3D_QUEUE_PREFIX: `nova3d:production:${INSTANCE}`}, answer(200, [{environment: 'staging', instance_id: INSTANCE}]));
     expect(rowMismatch.errors.join()).toContain('NOVA3D_QUEUE_PREFIX');
     expect(rowMismatch.errors.join()).not.toContain(INSTANCE);
+    const fetchedRowPrefixMismatch = compareIdentity({...staging, NOVA3D_QUEUE_PREFIX: `nova3d:production:${INSTANCE}`}, {environment: 'staging', instance_id: INSTANCE});
+    expect(fetchedRowPrefixMismatch.join()).toContain('NOVA3D_QUEUE_PREFIX');
+    expect(fetchedRowPrefixMismatch.join()).not.toContain(INSTANCE);
 
     const preview: Env = {...staging, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: undefined, NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined, SUPABASE_SERVICE_ROLE_KEY: undefined, ...noKeys, ...noMail};
     expect(validateEnvironment(preview)).toEqual([]);
