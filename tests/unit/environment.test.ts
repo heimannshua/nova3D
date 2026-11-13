@@ -53,7 +53,7 @@ describe('validateEnvironment', () => {
   it('requires a canonical queue prefix for the selected environment and instance', async () => {
     const expected = `nova3d:staging:${INSTANCE}`;
     expect(validateEnvironment({...staging, NOVA3D_QUEUE_PREFIX: expected})).toEqual([]);
-    for (const value of [undefined, `nova3d:staging:${INSTANCE.toUpperCase()}`, ` ${expected}`, `${expected} `]) {
+    for (const value of [undefined, `nova3d:staging:${INSTANCE.toUpperCase()}`, ` ${expected}`, `${expected} `, `nova3d:production:${INSTANCE}`, 'nova3d:staging:9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d']) {
       const errors = validateEnvironment({...staging, NOVA3D_QUEUE_PREFIX: value});
       expect(errors.join(), String(value)).toContain('NOVA3D_QUEUE_PREFIX');
       expect(errors.join(), String(value)).not.toContain(value ?? 'undefined');
@@ -103,14 +103,19 @@ describe('validateEnvironment', () => {
       NEXT_PUBLIC_APP_ENV: 'staging',
       ADMINISTRATOR_EMAIL: 'admin@example.com',
       INSTANCE_ID: INSTANCE,
+      NOVA3D_QUEUE_PREFIX: `nova3d:staging:${INSTANCE}`,
+      APP_ORIGIN: 'https://nova3d-staging.example.test',
       PAID_ADAPTERS_ENABLED: 'false',
       SYNTHETIC_DATA_ENABLED: 'true',
       VERCEL: '1',
       VERCEL_ENV: 'preview',
     };
 
-    it('accept a label-only environment', () => {
+    it('accepts a credential-free environment with the canonical staging tuple', () => {
       expect(validateEnvironment(preview)).toEqual([]);
+      expect(validateEnvironment({...preview, NOVA3D_QUEUE_PREFIX: undefined}).join()).toContain('NOVA3D_QUEUE_PREFIX');
+      expect(validateEnvironment({...preview, NOVA3D_QUEUE_PREFIX: `nova3d:staging:${'9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d'}`}).join()).toContain('preview NOVA3D_QUEUE_PREFIX');
+      expect(validateEnvironment({...preview, APP_ORIGIN: undefined}).join()).toContain('APP_ORIGIN');
     });
 
     it.each([
@@ -800,7 +805,7 @@ describe('service-signing names (Story 1.12)', () => {
 
   it('may be held by a staging or production deployment, which does not need them (the ticket route and the cleanup fail closed without)', () => {
     for (const name of signingKeys) expect(validateEnvironment({...staging, [name]: 'a-private-key-that-is-not-checked-here'}), name).toEqual([]);
-    expect(validateEnvironment({...staging, APP_ENV: 'production', NEXT_PUBLIC_APP_ENV: 'production', SYNTHETIC_DATA_ENABLED: 'false', SERVICE_SIGNING_KEY_APPLICATION: 'x'})).toEqual([]);
+    expect(validateEnvironment({...staging, APP_ENV: 'production', NEXT_PUBLIC_APP_ENV: 'production', NOVA3D_QUEUE_PREFIX: `nova3d:production:${INSTANCE}`, SYNTHETIC_DATA_ENABLED: 'false', SERVICE_SIGNING_KEY_APPLICATION: 'x'})).toEqual([]);
     // The control: the same environment with none of them is complete.
     expect(validateEnvironment(staging)).toEqual([]);
     expect(Object.keys(staging).filter((name) => /^SERVICE_|^FILE_GATEWAY_URL$/.test(name))).toEqual([]);

@@ -128,7 +128,7 @@ describe('identity matrix', () => {
 
   it('mixed identity: the row says staging but APP_ENV=production', async () => {
     rows = [{environment: 'staging', instance_id: INSTANCE}];
-    rejected(await run({...staging(), APP_ENV: 'production', NEXT_PUBLIC_APP_ENV: 'production', SYNTHETIC_DATA_ENABLED: 'false', PAID_ADAPTERS_ENABLED: 'true'}, '--live'), 'row says "staging" but APP_ENV is "production"');
+    rejected(await run({...staging(), APP_ENV: 'production', NEXT_PUBLIC_APP_ENV: 'production', NOVA3D_QUEUE_PREFIX: `nova3d:production:${INSTANCE}`, SYNTHETIC_DATA_ENABLED: 'false', PAID_ADAPTERS_ENABLED: 'true'}, '--live'), 'row says "staging" but APP_ENV is "production"');
   });
 
   it('mixed identity: the UUID differs, and the error says how to fix it without printing a UUID', async () => {
@@ -380,7 +380,7 @@ describe('static rules kept from the seed', () => {
 
   it('requires a canonical matching queue prefix and rejects bad values without printing them', async () => {
     passed(await run(staging()));
-    for (const value of [undefined, `nova3d:staging:${INSTANCE.toUpperCase()}`, ` nova3d:staging:${INSTANCE}`, `nova3d:production:${INSTANCE}`]) {
+    for (const value of [undefined, `nova3d:staging:${INSTANCE.toUpperCase()}`, ` nova3d:staging:${INSTANCE}`, `nova3d:production:${INSTANCE}`, `nova3d:staging:${OTHER_INSTANCE}`]) {
       const result = await run({...staging(), NOVA3D_QUEUE_PREFIX: value});
       rejected(result, 'NOVA3D_QUEUE_PREFIX');
       assert.ok(!result.stderr.includes(value ?? 'undefined'), 'the queue prefix was printed');

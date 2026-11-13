@@ -191,6 +191,17 @@ export function validateEnvironment(env: Env, options: CheckOptions = {}): strin
   if (env.NOVA3D_QUEUE_PREFIX && !isPlaceholder(env.NOVA3D_QUEUE_PREFIX) && !queuePrefixPattern.test(env.NOVA3D_QUEUE_PREFIX)) {
     errors.push('NOVA3D_QUEUE_PREFIX must be nova3d:<environment>:<lowercase-instance-uuid> with no whitespace');
   }
+  if (
+    !preview &&
+    appEnvironments.includes(environment as AppEnvironment) &&
+    env.INSTANCE_ID &&
+    uuidPattern.test(env.INSTANCE_ID.trim()) &&
+    env.NOVA3D_QUEUE_PREFIX &&
+    queuePrefixPattern.test(env.NOVA3D_QUEUE_PREFIX) &&
+    env.NOVA3D_QUEUE_PREFIX !== `nova3d:${environment}:${env.INSTANCE_ID.trim().toLowerCase()}`
+  ) {
+    errors.push('NOVA3D_QUEUE_PREFIX must match APP_ENV and INSTANCE_ID');
+  }
   for (const name of ['PAID_ADAPTERS_ENABLED', 'SYNTHETIC_DATA_ENABLED']) {
     if (env[name] && !['true', 'false'].includes(env[name]!)) errors.push(`${name} must be true or false`);
   }

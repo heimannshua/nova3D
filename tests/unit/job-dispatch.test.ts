@@ -38,6 +38,8 @@ const env = {
   NEXT_PUBLIC_APP_ENV: 'local',
   ADMINISTRATOR_EMAIL: 'admin@example.test',
   INSTANCE_ID: INSTANCE,
+  NOVA3D_QUEUE_PREFIX: `nova3d:local:${INSTANCE}`,
+  APP_ORIGIN: 'http://127.0.0.1:3000',
   PAID_ADAPTERS_ENABLED: 'false',
   SYNTHETIC_DATA_ENABLED: 'false',
   NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321',
@@ -144,6 +146,7 @@ describe('configuredPublishing', () => {
     QSTASH_TOKEN: 'qstash-token-for-tests-only-0123456789',
     QSTASH_URL: 'https://qstash-us-east-1.upstash.io',
     APP_ORIGIN: 'https://nova3d.example.test',
+    NOVA3D_QUEUE_PREFIX: `nova3d:staging:${INSTANCE}`,
     INSTANCE_ID: INSTANCE,
     APP_ENV: 'staging',
   };
